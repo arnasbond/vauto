@@ -167,6 +167,18 @@ vautoAgentRouter.post("/", async (req: AuthedRequest, res) => {
       return res.status(built.error.status).json(built.error.body);
     }
 
+    const pendingImages = Array.isArray(built.request.context?.pendingImageUrls)
+      ? built.request.context.pendingImageUrls.filter(Boolean)
+      : [];
+    // Guest search OK; Vision / photo listing pipeline still requires login (cost + abuse).
+    if (!req.authUserId && pendingImages.length > 0) {
+      return res.status(401).json({
+        ok: false,
+        code: "auth_required",
+        error: "Norėdami siųsti nuotraukas AI asistentui, prisijunkite.",
+      });
+    }
+
     const result = await runVautoAgent(built.request);
     res.json(result);
   } catch (e) {
@@ -236,8 +248,19 @@ vautoAgentRouter.post("/stream", async (req: AuthedRequest, res) => {
     const pendingVision = Array.isArray(
       built.request.context?.pendingImageUrls
     )
-      ? built.request.context.pendingImageUrls.length
+      ? built.request.context.pendingImageUrls.filter(Boolean).length
       : Number(built.request.context?.pendingImageCount ?? 0);
+
+    if (!req.authUserId && pendingVision > 0) {
+      writeEvent({
+        type: "error",
+        code: "auth_required",
+        message: "Norėdami siųsti nuotraukas AI asistentui, prisijunkite.",
+      });
+      res.end();
+      return;
+    }
+
     writeEvent({
       type: "status",
       message:

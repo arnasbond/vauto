@@ -130,10 +130,16 @@ export async function resolveAuthenticatedAgentContext(
     const name = clientFallback?.userName?.trim() || "Svečias";
     const firstName = name.split(/\s+/)[0] || name;
     const myListings = omitPrior ? [] : clientFallback?.myListings ?? [];
+    const rawCity = String(clientFallback?.userCity ?? "").trim();
+    // Never invent Lietuva/Vilnius for guests — empty city = nationwide / manual.
+    const userCity =
+      !rawCity || /^(lietuva|lithuania|lt|ltu|visa lietuva)$/i.test(rawCity)
+        ? ""
+        : rawCity;
     return {
       userName: name,
       accountType: clientFallback?.accountType ?? "Svečias",
-      userCity: clientFallback?.userCity ?? "Lietuva",
+      userCity,
       contact: clientFallback?.contact ?? "",
       userRole: clientFallback?.userRole ?? "buyer",
       isAuthenticated: Boolean(clientFallback?.isAuthenticated),
