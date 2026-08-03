@@ -52,6 +52,22 @@ jobs:
           esac
           export DATABASE_URL="$URL"
           export NODE_TLS_REJECT_UNAUTHORIZED="${NODE_TLS_REJECT_UNAUTHORIZED:-0}"
+
+          # Prefer plaintext from `vercel env pull` when GH secrets are empty.
+          if [ -z "${CLOUDINARY_API_KEY:-}" ] || [ -z "${CLOUDINARY_API_SECRET:-}" ] || [ -z "${CLOUDINARY_CLOUD_NAME:-}" ]; then
+            if [ -n "${VERCEL_TOKEN:-}" ] && [ -n "${VERCEL_ORG_ID:-}" ] && [ -n "${VERCEL_PROJECT_ID:-}" ]; then
+              echo "Pulling Cloudinary vars via vercel env pull…"
+              npx --yes vercel@39 env pull /tmp/vauto-cloudinary.env --yes --environment=production --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID" || true
+              if [ -f /tmp/vauto-cloudinary.env ]; then
+                set -a
+                # shellcheck disable=SC1091
+                . /tmp/vauto-cloudinary.env
+                set +a
+                rm -f /tmp/vauto-cloudinary.env
+              fi
+            fi
+          fi
+
           ARGS=""
           if [ "$DRY_RUN" = "true" ]; then
             ARGS="--dry-run"

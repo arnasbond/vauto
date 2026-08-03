@@ -106,7 +106,7 @@ async function listVercelEnvMap() {
   if (!token || !org || !project) return new Map();
 
   const listRes = await fetch(
-    `https://api.vercel.com/v9/projects/${project}/env?teamId=${encodeURIComponent(org)}`,
+    `https://api.vercel.com/v9/projects/${encodeURIComponent(project)}/env?teamId=${encodeURIComponent(org)}`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
   const listBody = await listRes.json();
@@ -118,26 +118,56 @@ async function listVercelEnvMap() {
   const envs = Array.isArray(listBody?.envs) ? listBody.envs : [];
   const map = new Map();
 
+  const looksEncrypted = (v) =>
+    !v ||
+    v.includes("••••") ||
+    v.startsWith("eyJ") ||
+    v.startsWith("@encrypted");
+
   for (const ev of envs) {
     const key = ev?.key;
-    if (!key) continue;
-    // Prefer Production target values.
+    if (!key || !/^CLOUDINARY_/i.test(key)) continue;
+
     const targets = Array.isArray(ev.target) ? ev.target : [];
-    if (targets.length && !targets.includes("production") && !targets.includes("preview")) {
+    // Prefer production; accept preview only if production missing later.
+    const isProd = !targets.length || targets.includes("production");
+    const isPreview = targets.includes("preview");
+    if (!isProd && !isPreview) continue;
+
+    let value = typeof ev.value === "string" ? ev.value : "";
+    if (looksEncrypted(value) && ev.id) {
+      const urls = [
+        `https://api.vercel.com/v9/projects/${encodeURIComponent(project)}/env/${ev.id}?teamId=${encodeURIComponent(org)}&decrypt=true`,
+        `https://api.vercel.com/v1/projects/${encodeURIComponent(project)}/env/${ev.id}?teamId=${encodeURIComponent(org)}&decrypt=true`,
+        `https://api.vercel.com/v8/projects/${encodeURIComponent(project)}/env/${ev.id}?decrypt=true&teamId=${encodeURIComponent(org)}`,
+      ];
+      for (const url of urls) {
+        const one = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const oneBody = await one.json().catch(() => ({}));
+        const candidate =
+          (typeof oneBody?.value === "string" && oneBody.value) ||
+          (typeof oneBody?.env?.value === "string" && oneBody.env.value) ||
+          (typeof oneBody?.decrypted === "string" && oneBody.decrypted) ||
+          "";
+        if (one.ok && candidate && !looksEncrypted(candidate)) {
+          value = candidate;
+          break;
+        }
+      }
+    }
+
+    if (!value || looksEncrypted(value)) {
+      console.warn(
+        `[cloudinary-restore] could not decrypt Vercel env ${key} (id=${ev.id})`
+      );
       continue;
     }
-    let value = typeof ev.value === "string" ? ev.value : "";
-    if ((!value || value.includes("••••") || ev.type === "encrypted") && ev.id) {
-      const one = await fetch(
-        `https://api.vercel.com/v1/env/${ev.id}?teamId=${encodeURIComponent(org)}&decrypt=true`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const oneBody = await one.json();
-      if (one.ok && typeof oneBody?.value === "string") value = oneBody.value;
-      else if (one.ok && typeof oneBody?.env?.value === "string")
-        value = oneBody.env.value;
-    }
-    if (value && !map.has(key)) map.set(key, value);
+
+    // Prefer production over preview when both exist.
+    if (map.has(key) && !isProd) continue;
+    map.set(key, value);
   }
   return map;
 }
@@ -424,7 +454,7 @@ async function main() {
   }
 
   console.log(
-    `[cloudinary-restore] cloud=${cloud} dryRun=${dryRun}`
+    `[cloudinary-restore] cloud=${cloud.slice(0, 24)}… dryRun=${dryRun}`
   );
 
   const folderAssets = await listFolderAssets(cloud, key, secret, "vauto/");
