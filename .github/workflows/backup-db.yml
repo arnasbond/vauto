@@ -35,7 +35,19 @@ jobs:
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_DB_NAME: vauto-db
-        run: node scripts/check-render-db-recovery.mjs
+        run: |
+          set +e
+          node scripts/check-render-db-recovery.mjs
+          CODE=$?
+          set -e
+          # 0 = paid + OK, 2 = free (fail hard), other = soft warn and continue dump
+          if [ "$CODE" = "2" ]; then
+            echo "Free Postgres cannot be backed up via PITR — aborting."
+            exit 2
+          fi
+          if [ "$CODE" != "0" ]; then
+            echo "Recovery-info check returned $CODE — continuing with logical pg_dump."
+          fi
 
       - name: Logical pg_dump backup
         env:
