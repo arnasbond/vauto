@@ -180,6 +180,16 @@ async function main() {
     process.env.SEARCH_RATE_LIMIT_PER_MIN?.trim() || "40"
   );
 
+  // Soft-launch: live BulkGate for real users; demo OTP only for QA phones.
+  await setEnvVar(
+    "SMS_MODE",
+    process.env.SMS_MODE?.trim() || "bulkgate"
+  );
+  await setEnvVar(
+    "VAUTO_ALLOW_DEMO_OTP",
+    process.env.VAUTO_ALLOW_DEMO_OTP?.trim() || "true"
+  );
+
   for (const key of [
     "STRIPE_SECRET_KEY",
     "STRIPE_WEBHOOK_SECRET",
