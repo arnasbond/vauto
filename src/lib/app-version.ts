@@ -6,6 +6,11 @@ export interface VersionConfig {
   latestVersion: string;
   versionCode: number;
   downloadUrl: string;
+  apkSizeBytes?: number;
+  releaseNotesLt?: string;
+  installHintLt?: string;
+  forceUpdate?: boolean;
+  minSupportedVersionCode?: number;
 }
 
 export interface NativeVersionInfo {
@@ -31,6 +36,16 @@ declare global {
 /** Major APK jump when remote versionCode exceeds local by more than one release. */
 export const NATIVE_APK_MAJOR_GAP = 1;
 
+export const DEFAULT_INSTALL_HINT_LT =
+  "Atsisiuntę atidarykite vauto.apk → leiskite diegti iš nežinomų šaltinių → Įdiegti.";
+
+export function formatApkSize(bytes?: number | null): string | null {
+  if (bytes == null || !Number.isFinite(bytes) || bytes <= 0) return null;
+  const mb = bytes / (1024 * 1024);
+  if (mb >= 10) return `${Math.round(mb)} MB`;
+  return `${mb.toFixed(1).replace(".", ",")} MB`;
+}
+
 export function versionCodeGap(
   localVersionCode: number,
   remoteVersionCode: number
@@ -40,8 +55,17 @@ export function versionCodeGap(
 
 export function isMajorApkUpdateRequired(
   localVersionCode: number,
-  remoteVersionCode: number
+  remoteVersionCode: number,
+  forceUpdate = false,
+  minSupportedVersionCode?: number
 ): boolean {
+  if (forceUpdate) return localVersionCode < remoteVersionCode;
+  if (
+    typeof minSupportedVersionCode === "number" &&
+    localVersionCode < minSupportedVersionCode
+  ) {
+    return true;
+  }
   return versionCodeGap(localVersionCode, remoteVersionCode) > NATIVE_APK_MAJOR_GAP;
 }
 
@@ -69,6 +93,26 @@ export interface AppVersionSnapshot {
   error?: string;
 }
 
+function normalizeVersionConfig(json: Partial<VersionConfig>): VersionConfig | null {
+  if (!json.latestVersion || typeof json.versionCode !== "number") return null;
+  return {
+    latestVersion: json.latestVersion,
+    versionCode: json.versionCode,
+    downloadUrl:
+      json.downloadUrl ||
+      "https://www.vauto.lt/download/vauto.apk",
+    apkSizeBytes:
+      typeof json.apkSizeBytes === "number" ? json.apkSizeBytes : undefined,
+    releaseNotesLt: json.releaseNotesLt,
+    installHintLt: json.installHintLt || DEFAULT_INSTALL_HINT_LT,
+    forceUpdate: Boolean(json.forceUpdate),
+    minSupportedVersionCode:
+      typeof json.minSupportedVersionCode === "number"
+        ? json.minSupportedVersionCode
+        : undefined,
+  };
+}
+
 export async function fetchVersionConfig(): Promise<VersionConfig> {
   const apiBase = getDataApiBaseUrl();
   if (apiBase) {
@@ -78,9 +122,8 @@ export async function fetchVersionConfig(): Promise<VersionConfig> {
       });
       if (res.ok) {
         const json = (await res.json()) as VersionConfig;
-        if (json.latestVersion && typeof json.versionCode === "number") {
-          return json;
-        }
+        const normalized = normalizeVersionConfig(json);
+        if (normalized) return normalized;
       }
     } catch {
       /* fallback to static manifest */
@@ -94,10 +137,11 @@ export async function fetchVersionConfig(): Promise<VersionConfig> {
     throw new Error(`version-config HTTP ${res.status}`);
   }
   const json = (await res.json()) as VersionConfig;
-  if (!json.latestVersion || typeof json.versionCode !== "number") {
+  const normalized = normalizeVersionConfig(json);
+  if (!normalized) {
     throw new Error("version-config invalid schema");
   }
-  return json;
+  return normalized;
 }
 
 function readInjectedNativeVersion(): NativeVersionInfo | null {
@@ -163,7 +207,14 @@ export function evaluateAppVersion(
     };
   }
   if (local.versionCode < remote.versionCode) {
-    if (isMajorApkUpdateRequired(local.versionCode, remote.versionCode)) {
+    if (
+      isMajorApkUpdateRequired(
+        local.versionCode,
+        remote.versionCode,
+        remote.forceUpdate,
+        remote.minSupportedVersionCode
+      )
+    ) {
       return { status: "outdated_major", isNativeShell, remote, local };
     }
     return { status: "outdated_minor", isNativeShell, remote, local };

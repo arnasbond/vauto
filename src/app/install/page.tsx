@@ -31,6 +31,7 @@ export default function InstallPage() {
           </h1>
           <p className="mt-2 text-sm text-[var(--vauto-text-muted)]">
             Android — APK failas. iPhone — pridėkite į pradžios ekraną per Safari.
+            Visoje Lietuvoje, be apribojimų.
           </p>
         </div>
 
@@ -117,7 +118,8 @@ export default function InstallPage() {
                   Jūsų Android — atsisiųskite APK
                 </h2>
                 <p className="mt-2 text-sm text-[var(--vauto-text-muted)]">
-                  Paspauskite mygtuką žemiau ir įdiekite kaip įprastą programėlę.
+                  Žemiau matysite versiją, failo dydį ir 4 diegimo žingsnius.
+                  Paspauskite mygtuką ir įdiekite kaip įprastą programėlę.
                 </p>
               </div>
             )}

@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Capacitor } from "@capacitor/core";
 import { isNativeApp } from "@/lib/mobile-install";
 import { initDataApiConfig } from "@/lib/api/config";
 import {
@@ -23,6 +24,9 @@ interface AppVersionContextValue extends AppVersionSnapshot {
 }
 
 const AppVersionContext = createContext<AppVersionContextValue | null>(null);
+
+/** Re-check while native shell is open so users see new APK releases. */
+const NATIVE_POLL_MS = 30 * 60 * 1000;
 
 export function AppVersionProvider({ children }: { children: ReactNode }) {
   const [snapshot, setSnapshot] = useState<AppVersionSnapshot>({
@@ -44,17 +48,42 @@ export function AppVersionProvider({ children }: { children: ReactNode }) {
     } catch (e) {
       const message = e instanceof Error ? e.message : "version check failed";
       console.error("[VAUTO version]", message);
-      setSnapshot(
-        evaluateAppVersion(null, null, isNativeShell, message)
-      );
+      setSnapshot(evaluateAppVersion(null, null, isNativeShell, message));
     }
   }, []);
 
   useEffect(() => {
     void refresh();
     if (!isNativeApp()) return;
+
     const retry = window.setTimeout(() => void refresh(), 1200);
-    return () => window.clearTimeout(retry);
+    const poll = window.setInterval(() => void refresh(), NATIVE_POLL_MS);
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+
+    let removeAppListener: (() => void) | undefined;
+    if (Capacitor.isNativePlatform()) {
+      void import("@capacitor/app").then(({ App }) => {
+        const handle = App.addListener("appStateChange", ({ isActive }) => {
+          if (isActive) void refresh();
+        });
+        void handle.then((l) => {
+          removeAppListener = () => {
+            void l.remove();
+          };
+        });
+      });
+    }
+
+    return () => {
+      window.clearTimeout(retry);
+      window.clearInterval(poll);
+      document.removeEventListener("visibilitychange", onVisible);
+      removeAppListener?.();
+    };
   }, [refresh]);
 
   const value = useMemo(

@@ -13,7 +13,12 @@ import {
   shareIosPwa,
   startApkDownload,
 } from "@/lib/mobile-install";
-import { fetchVersionConfig } from "@/lib/app-version";
+import {
+  DEFAULT_INSTALL_HINT_LT,
+  fetchVersionConfig,
+  formatApkSize,
+  type VersionConfig,
+} from "@/lib/app-version";
 import { cn } from "@/lib/cn";
 
 type InstallDownloadButtonsProps = {
@@ -33,12 +38,13 @@ export function InstallDownloadButtons({
   const androidDevice = isAndroid();
   const iosDevice = isIOS();
   const nativeApp = isNativeApp();
-  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+  const [cfg, setCfg] = useState<VersionConfig | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     void fetchVersionConfig()
-      .then((cfg) => setLatestVersion(cfg.latestVersion))
-      .catch(() => setLatestVersion(null));
+      .then(setCfg)
+      .catch(() => setCfg(null));
   }, []);
 
   const primaryPlatform = useMemo<"android" | "ios">(() => {
@@ -50,9 +56,23 @@ export function InstallDownloadButtons({
     return null;
   }
 
+  const sizeLabel = formatApkSize(cfg?.apkSizeBytes);
+  const versionLabel = cfg?.latestVersion;
+  const hint = cfg?.installHintLt || DEFAULT_INSTALL_HINT_LT;
+
   const handleShare = async (platform: "android" | "ios") => {
     await (platform === "ios" ? shareIosPwa() : shareAndroidApk());
     onShare?.(platform);
+  };
+
+  const handleDownload = async () => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      await startApkDownload();
+    } finally {
+      window.setTimeout(() => setDownloading(false), 2500);
+    }
   };
 
   const androidBlock = (
@@ -60,34 +80,48 @@ export function InstallDownloadButtons({
       className={cn(
         "rounded-2xl border p-4",
         primaryPlatform === "android"
-          ? "border-[var(--vauto-blue)]/40 bg-[var(--vauto-blue)]/5"
+          ? "border-[var(--vauto-primary)]/40 bg-[color-mix(in_srgb,var(--vauto-primary)_6%,transparent)]"
           : "border-[var(--vauto-border)] bg-[var(--vauto-surface)]"
       )}
     >
-      <p className="mb-3 flex items-center gap-2 text-sm font-bold text-[var(--vauto-text)]">
-        <Smartphone className="h-4 w-4 text-[var(--vauto-blue)]" />
+      <p className="mb-1 flex items-center gap-2 text-sm font-bold text-[var(--vauto-text)]">
+        <Smartphone className="h-4 w-4 text-[var(--vauto-primary)]" />
         Android
+      </p>
+      <p className="mb-3 text-xs text-[var(--vauto-text-muted)]">
+        {versionLabel ? `Versija v${versionLabel}` : "Naujausia APK"}
+        {sizeLabel ? ` · ${sizeLabel}` : ""}
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <button
           type="button"
-          onClick={() => void startApkDownload()}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--vauto-blue)] py-3 text-sm font-bold text-white shadow-md transition active:scale-[0.98]"
+          onClick={() => void handleDownload()}
+          disabled={downloading}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] py-3 text-sm font-bold text-white shadow-md transition active:scale-[0.98] disabled:opacity-70"
         >
           <Download className="h-4 w-4" />
-          Atsisiųsti APK{latestVersion ? ` v${latestVersion}` : ""}
+          {downloading
+            ? "Pradedamas atsisiuntimas…"
+            : `Atsisiųsti APK${versionLabel ? ` v${versionLabel}` : ""}`}
         </button>
         {showShare && (
           <button
             type="button"
             onClick={() => void handleShare("android")}
-            className="flex items-center justify-center gap-2 rounded-xl border border-[var(--vauto-blue)]/30 px-4 py-3 text-sm font-semibold text-[var(--vauto-blue)]"
+            className="flex items-center justify-center gap-2 rounded-xl border border-[var(--vauto-primary)]/30 px-4 py-3 text-sm font-semibold text-[var(--vauto-primary)]"
           >
             <Share2 className="h-4 w-4" />
-            Dalintis APK
+            Dalintis
           </button>
         )}
       </div>
+      <ol className="mt-3 space-y-1.5 text-[11px] leading-relaxed text-[var(--vauto-text-muted)]">
+        <li>1. Atsisiųskite failą {sizeLabel ? `(~${sizeLabel})` : ""}</li>
+        <li>2. Atidarykite <strong>vauto.apk</strong></li>
+        <li>3. Leiskite diegti iš nežinomų šaltinių, jei prašo</li>
+        <li>4. Paspauskite <strong>Įdiegti</strong></li>
+      </ol>
+      <p className="mt-2 text-[10px] text-[var(--vauto-text-muted)]">{hint}</p>
     </div>
   );
 
@@ -96,12 +130,12 @@ export function InstallDownloadButtons({
       className={cn(
         "rounded-2xl border p-4",
         primaryPlatform === "ios"
-          ? "border-[var(--vauto-blue)]/40 bg-[var(--vauto-blue)]/5"
+          ? "border-[var(--vauto-primary)]/40 bg-[color-mix(in_srgb,var(--vauto-primary)_6%,transparent)]"
           : "border-[var(--vauto-border)] bg-[var(--vauto-surface)]"
       )}
     >
       <p className="mb-2 flex items-center gap-2 text-sm font-bold text-[var(--vauto-text)]">
-        <Apple className="h-4 w-4 text-[var(--vauto-blue)]" />
+        <Apple className="h-4 w-4 text-[var(--vauto-primary)]" />
         iPhone (Safari)
       </p>
       <p className="mb-3 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
@@ -111,7 +145,7 @@ export function InstallDownloadButtons({
       <div className="flex flex-col gap-2 sm:flex-row">
         <Link
           href="/install/"
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--vauto-blue)] py-3 text-sm font-bold text-white shadow-md transition active:scale-[0.98]"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] py-3 text-sm font-bold text-white shadow-md transition active:scale-[0.98]"
         >
           Instrukcija
         </Link>
@@ -119,7 +153,7 @@ export function InstallDownloadButtons({
           <button
             type="button"
             onClick={() => void handleShare("ios")}
-            className="flex items-center justify-center gap-2 rounded-xl border border-[var(--vauto-blue)]/30 px-4 py-3 text-sm font-semibold text-[var(--vauto-blue)]"
+            className="flex items-center justify-center gap-2 rounded-xl border border-[var(--vauto-primary)]/30 px-4 py-3 text-sm font-semibold text-[var(--vauto-primary)]"
           >
             <Share2 className="h-4 w-4" />
             Dalintis nuorodą
@@ -152,7 +186,7 @@ export function InstallDownloadButtons({
     >
       {(iosDevice || androidDevice) && (
         <p className="flex items-center gap-2 text-xs text-[var(--vauto-text-muted)]">
-          <Download className="h-3.5 w-3.5 text-[var(--vauto-blue)]" />
+          <Download className="h-3.5 w-3.5 text-[var(--vauto-primary)]" />
           {iosDevice
             ? "Jūsų iPhone — naudokite Safari ir pridėkite į pradžios ekraną."
             : "Jūsų Android — atsisiųskite APK vienu paspaudimu."}

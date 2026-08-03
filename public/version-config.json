@@ -1,5 +1,10 @@
 {
   "latestVersion": "1.6.62",
   "versionCode": 85,
-  "downloadUrl": "https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk"
+  "downloadUrl": "https://www.vauto.lt/download/vauto.apk",
+  "apkSizeBytes": 37309985,
+  "releaseNotesLt": "Stabilumo ir saugumo atnaujinimai, greitesnė paieška, patobulintas skelbimų katalogas.",
+  "installHintLt": "Atsisiuntę atidarykite vauto.apk → leiskite diegti iš nežinomų šaltinių → Įdiegti.",
+  "forceUpdate": false,
+  "minSupportedVersionCode": 50
 }

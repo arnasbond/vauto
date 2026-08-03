@@ -1,8 +1,14 @@
 "use client";
 
 import { AppVersionUpdateModal } from "@/components/version/AppVersionUpdateModal";
+import { AppVersionSoftBanner } from "@/components/version/AppVersionSoftBanner";
 
-/** Mounts blocking update modal when native APK is behind version-config.json. */
+/** Native shell: blocking major modal + soft minor banner. */
 export function AppVersionGuard() {
-  return <AppVersionUpdateModal />;
+  return (
+    <>
+      <AppVersionUpdateModal />
+      <AppVersionSoftBanner />
+    </>
+  );
 }
