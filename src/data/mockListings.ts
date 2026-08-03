@@ -230,7 +230,7 @@ export function formatPrice(price: number, label?: string): string {
   return (
     new Intl.NumberFormat("lt-LT", {
       maximumFractionDigits: 0,
-    }).format(price) + "€"
+    }).format(price) + " €"
   );
 }
 

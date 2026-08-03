@@ -79,12 +79,15 @@ export function HomeAiHero({
 
         {!chatActive && (
           <>
-            <h1 className="vauto-layout-heading font-[family-name:var(--font-outfit)] text-[1.85rem] font-extrabold leading-[1.15] tracking-tight text-[var(--vauto-ink)] sm:text-4xl md:text-[2.75rem] md:leading-tight">
-              Parduok ar rask viską — su Vision AI ir pokalbiu
+            <h1 className="vauto-layout-heading font-[family-name:var(--font-outfit)] text-[2rem] font-extrabold leading-[1.1] tracking-tight text-[var(--vauto-ink)] sm:text-4xl md:text-[2.85rem] md:leading-tight">
+              <span className="block text-[var(--vauto-primary)]">VAUTO</span>
+              <span className="mt-1 block text-[1.35rem] font-bold sm:text-2xl md:text-[1.85rem]">
+                Parduok ir rask greičiau Lietuvoje
+              </span>
             </h1>
             <p className="mt-3 max-w-xl text-base leading-relaxed text-[var(--vauto-muted)] sm:text-lg">
-              AI asistentas paruošia skelbimą iš nuotraukos, kainos vertintojas parenka
-              rinkos kainą, o Omniva paštomatai — siuntimą vienu paspaudimu.
+              Nuotrauka, kaina ir Omniva — viename pokalbyje. Be triukšmo, be
+              bereikalingų žingsnių.
             </p>
 
             <div className="mt-6 w-full md:max-w-none">

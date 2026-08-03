@@ -35,8 +35,13 @@ export function usesDemoOtp(): boolean {
   if (process.env.NODE_ENV !== "production") {
     return true;
   }
+  // Production: never fall back to demo OTP just because SMS_MODE=log —
+  // require explicit soft-launch / staging flag.
+  if (process.env.VAUTO_ALLOW_DEMO_OTP !== "true") {
+    return false;
+  }
   const mode = process.env.SMS_MODE?.trim().toLowerCase();
-  // Explicit live carriers in production — real random OTP only.
+  // Explicit live carriers — real random OTP for normal phones.
   if (mode === "live" || mode === "twilio" || mode === "bulkgate") {
     return false;
   }

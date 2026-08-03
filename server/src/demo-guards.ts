@@ -1,10 +1,9 @@
-import { getStripe } from "./billing/stripe-client.js";
-
-/** Free wallet credits — only when Stripe billing is off or explicitly allowed. */
+/** Free wallet credits — only when explicitly allowed (never silent in production). */
 export function demoWalletTopUpAllowed(): boolean {
   if (process.env.VAUTO_ALLOW_DEMO_WALLET === "true") return true;
   if (process.env.NODE_ENV !== "production") return true;
-  return !getStripe();
+  // Production: no free credits just because Stripe is missing.
+  return false;
 }
 
 /** Never leak OTP codes in production API responses. */

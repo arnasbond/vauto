@@ -84,9 +84,36 @@ export function filterSessionListingImages(
   );
 }
 
-type ListingImageFields = Pick<Listing, "title" | "category" | "description" | "images">;
+type ListingImageFields = Pick<Listing, "title" | "category" | "description" | "images"> & {
+  image?: string;
+};
 
-/** Stable key so identical data:/http variants do not multiply thumbnails. */
+/** Prefer http(s) covers; treat empty / stripped data: blobs as missing. */
+function usableCoverUrl(url: unknown): string | null {
+  if (typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("data:")) return null;
+  if (!isValidListingImageUrl(trimmed)) return null;
+  return trimmed;
+}
+
+export function resolveListingImage(listing: ListingImageFields): string {
+  const fromImages = (listing.images ?? [])
+    .map(usableCoverUrl)
+    .filter((u): u is string => Boolean(u));
+  if (fromImages.length) return fromImages[0]!;
+
+  const fromCover = usableCoverUrl(listing.image);
+  if (fromCover) return fromCover;
+
+  const haystack = `${listing.title} ${listing.description ?? ""}`;
+  for (const [pattern, url] of CONTENT_IMAGES) {
+    if (pattern.test(haystack)) return url;
+  }
+
+  return CATEGORY_FALLBACK[listing.category] ?? CATEGORY_FALLBACK.other;
+}
 function imageDedupeKey(url: string): string {
   const u = url.trim();
   if (u.startsWith("data:")) {
@@ -123,18 +150,6 @@ export function dedupeListingImageUrls(
   max = 6
 ): string[] {
   return uniqueUrls([...(urls ?? [])]).slice(0, max);
-}
-
-export function resolveListingImage(listing: ListingImageFields): string {
-  const valid = listing.images?.filter(isValidListingImageUrl);
-  if (valid?.length) return valid[0]!.trim();
-
-  const haystack = `${listing.title} ${listing.description ?? ""}`;
-  for (const [pattern, url] of CONTENT_IMAGES) {
-    if (pattern.test(haystack)) return url;
-  }
-
-  return CATEGORY_FALLBACK[listing.category] ?? CATEGORY_FALLBACK.other;
 }
 
 /**

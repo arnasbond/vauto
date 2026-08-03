@@ -185,7 +185,7 @@ export function formatPriceForConfirm(
   priceLabel?: string
 ): string {
   if (priceLabel?.trim()) return priceLabel.trim();
-  return `${price}€`;
+  return `${price} €`;
 }
 
 export function getProcessingMilestones(mode: SellerInputMode | null) {

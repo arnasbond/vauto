@@ -268,7 +268,7 @@
 }
 
 body {
-  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: var(--font-geist-sans), var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
   color: var(--foreground);
   background: var(--background);

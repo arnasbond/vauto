@@ -9,7 +9,7 @@ export const PROD_API = (
   "https://vauto-api.onrender.com"
 ).replace(/\/$/, "");
 
-/** Demo bypass phones accepted by live Render OTP (not mocked responses). */
+/** Demo bypass phones accepted by live Render OTP when VAUTO_ALLOW_DEMO_OTP=true. */
 export const BUYER_PHONE = process.env.VAUTO_SMOKE_PHONE ?? "+37060000001";
 export const SELLER_PHONE = process.env.VAUTO_PRO_PHONE ?? "+37060000002";
 export const DEMO_OTP = process.env.VAUTO_DEMO_OTP ?? "123456";
