@@ -140,15 +140,24 @@ async function main() {
           `[fix-cover] ${row.id}: no real http uploads — ${badCover ? "clearing bad cover" : "keep"}`
         );
         if (!dryRun && badCover) {
+          const nextAttrs = {
+            ...(attrs && typeof attrs === "object" ? attrs : {}),
+            galleryUrls: [],
+          };
           if (hasImagesCol) {
             await client.query(
-              `UPDATE listings SET image = '', images = '[]'::jsonb WHERE id = $1`,
-              [row.id]
+              `UPDATE listings
+               SET image = '',
+                   images = '[]'::jsonb,
+                   attributes = $2::jsonb
+               WHERE id = $1`,
+              [row.id, JSON.stringify(nextAttrs)]
             );
           } else {
-            await client.query(`UPDATE listings SET image = '' WHERE id = $1`, [
-              row.id,
-            ]);
+            await client.query(
+              `UPDATE listings SET image = '', attributes = $2::jsonb WHERE id = $1`,
+              [row.id, JSON.stringify(nextAttrs)]
+            );
           }
         }
         continue;
