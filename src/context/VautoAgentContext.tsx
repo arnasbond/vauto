@@ -3375,6 +3375,54 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setStreamThinkingLabelNow("");
   }, [setStreamThinkingLabelNow]);
 
+  /**
+   * Fresh home entry (no URL search params): wipe chat + search artifacts left
+   * from SPA navigation. Hard refresh already starts empty; this covers soft
+   * returns to / from listing/profile/chats without requiring a manual reload.
+   */
+  const homeEntryPathRef = useRef<string | null>(null);
+  useEffect(() => {
+    const isHome = pathname === "/" || pathname === "" || pathname === "/index";
+    const prev = homeEntryPathRef.current;
+    homeEntryPathRef.current = pathname ?? null;
+    if (!isHome) return;
+
+    const params =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : null;
+    const hasSearchParams = Boolean(
+      params?.get("q")?.trim() ||
+        params?.get("query")?.trim() ||
+        params?.get("search")?.trim()
+    );
+    if (hasSearchParams) return;
+
+    const arrivedFromElsewhere =
+      prev !== null && prev !== "/" && prev !== "" && prev !== "/index";
+    const coldDocumentMount = prev === null;
+
+    if (!arrivedFromElsewhere && !coldDocumentMount) return;
+
+    // Avoid wiping an in-flight sell session started via Place Ad.
+    if (freshListingSessionRef.current) return;
+
+    clearAgentChatSession();
+    setSearchQuery("");
+    setAgentPinnedListings(null);
+    setSearchLoading(false);
+    setSearchInputMode(null);
+    setSearchVoiceMode(false);
+  }, [
+    pathname,
+    clearAgentChatSession,
+    setSearchQuery,
+    setAgentPinnedListings,
+    setSearchLoading,
+    setSearchInputMode,
+    setSearchVoiceMode,
+  ]);
+
   const beginFreshListingChatSession = useCallback(() => {
     // Atomic wipe FIRST — abort SSE so stale draft_update / plane icon cannot flash.
     agentStreamAbortRef.current?.abort();

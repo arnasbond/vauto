@@ -32,7 +32,11 @@ export function inferUniversalListingCategory(query: string): ListingCategory | 
   const q = query.toLowerCase();
   if (isJobSearchQuery(query)) return "jobs";
   if (/\b(but|nam|nuom|sklyp|kamb|nt\b|nekilnoj|aruod)\b/i.test(q)) return "real_estate";
-  if (/\b(bat|batai|keden|aulis|drabu|striuk|suknel|palt|dydis|zara|nike|vinted|aprang)\b/i.test(q)) {
+  if (
+    /\b(bat|batai|keden|aulis|drabu|striuk|suknel|palt|dydis|zara|nike|vinted|aprang|r[uū]b|mar[sš]kin|kelnes|kelni|d[zž]ins|švark|svark)\b/i.test(
+      q
+    )
+  ) {
     return "clothing";
   }
   // Physical goods before services — avoid auto-detailing bleed on product nouns.
@@ -45,15 +49,21 @@ export function inferUniversalListingCategory(query: string): ListingCategory | 
     return "home";
   }
   if (
-    /\b(meistr|paslaug|elektrik|santechn|valym|remont|kirp|valytoj|detali[nz]|plovim|vaškav)\b/i.test(
+    /\b(meistr|paslaug|elektrik|santechn|valym|remont|kirp|valytoj|detali[nz]|plovim|vaškav|servis)\b/i.test(
       q
     ) &&
-    !/\b(gitar|telefon|iphone|automobil|bmw|volvo)\b/i.test(q)
+    !/\b(gitar|telefon|iphone|automobil|bmw|volvo|r[uū]b)\b/i.test(q)
   ) {
     return "services";
   }
-  if (/\b(telefon|iphone|samsung|laptop|kompiuter|planšet)\b/i.test(q)) return "electronics";
-  if (/\b(volvo|bmw|audi|v70|v60|auto|masin|automob|transport|ratlank|padang)\b/i.test(q)) {
+  if (/\b(telefon|iphone|samsung|laptop|kompiuter|planšet|elektronik)\b/i.test(q)) {
+    return "electronics";
+  }
+  if (
+    /\b(volvo|bmw|audi|v70|v60|auto|masin|mašin|automob|transport|ratlank|padang|cars?|vehicles?)\b/i.test(
+      q
+    )
+  ) {
     return "vehicles";
   }
   if (/\b(bald|sofa|komod|virtuv|kėd|ked)\b/i.test(q) && !isJobSearchQuery(query)) return "home";

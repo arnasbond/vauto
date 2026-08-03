@@ -16,20 +16,25 @@ const BROWSE_SCOPE_RE =
   /\b(visus?|viska|viskas|all|everything|catalog|katalog|skelbimus?|prekes?|turgu|marketplace)\b/i;
 
 const SEARCH_VERB_RE =
-  /\b(ieškau|ieskau|rask|surask|parodyk|rodyk|noriu|reikia|find|search|show|atidaryk)\b/i;
+  /\b(ieškau|ieskau|ieškojau|ieskojau|rask|surask|parodyk|rodyk|noriu|reikia|domina|find|search|show|atidaryk|looking\s+for)\b/i;
 
 const STOP_TOKENS = new Set([
   "ieskau",
   "ieškau",
+  "ieskojau",
+  "ieškojau",
   "rask",
   "surask",
   "parodyk",
   "rodyk",
   "noriu",
   "reikia",
+  "domina",
   "find",
   "search",
   "show",
+  "looking",
+  "for",
   "man",
   "prašau",
   "prasau",
@@ -48,7 +53,33 @@ const STOP_TOKENS = new Set([
   "lt",
   "lietuvoje",
   "mieste",
+  // Conversational glue — never AND-match as product tokens
+  "kokius",
+  "kokias",
+  "kokie",
+  "kokia",
+  "koki",
+  "kokį",
+  "nors",
+  "betkokius",
+  "betkokias",
+  "betkokie",
+  "tokius",
+  "tokias",
+  "tokie",
+  "tokia",
+  "gal",
+  "cia",
+  "čia",
+  "noreciau",
+  "norėčiau",
+  "galetum",
+  "galėtum",
 ]);
+
+/** Broad category asks — do not exclusive-filter to literal title substring hits. */
+const BROAD_CATEGORY_QUERY_RE =
+  /\b(r[uū]b\w*|drabu[zž]\w*|aprang\w*|paslaug\w*|servis\w*|automobil\w*|ma[sš]in\w*|auto\b|cars?|vehicles?|elektronik\w*|bald\w*|clothing|clothes|services?)\b/i;
 
 const LT_CITIES: Array<[RegExp, string]> = [
   [/vilniuje|\bvilnius\b/i, "Vilnius"],
@@ -213,6 +244,10 @@ export function extractSearchNlFilters(text: string): SearchNlFilters {
   working = working
     .replace(SEARCH_VERB_RE, " ")
     .replace(/\b(skelbimus?|skelbimą|skelbima)\b/gi, " ")
+    .replace(
+      /\b(kokius|kokias|kokie|kokia|kok[iį]|nors|bet\s*kok\w*|tokius|tokias|tokie|tokia|domina|nor[eė][cč]iau|gal[eė]tum(?:[eė]te)?)\b/gi,
+      " "
+    )
     .replace(/\s+/g, " ")
     .trim();
 
@@ -223,7 +258,8 @@ export function extractSearchNlFilters(text: string): SearchNlFilters {
     .trim();
 
   return {
-    keyword: keyword || raw,
+    // Prefer cleaned keyword; fall back to raw only when nothing left AND not filler-only.
+    keyword: keyword || (STOP_TOKENS.has(raw.toLowerCase()) ? "" : raw),
     ...(minPrice != null ? { minPrice } : {}),
     ...(maxPrice != null ? { maxPrice } : {}),
     ...(city ? { city } : {}),
@@ -305,23 +341,43 @@ export function applyStrictSearchBoundaries<
     );
   }
 
+  // Broad category asks („rūbai“, „automobilis“, „paslaugos“) — keep full SQL set.
+  if (BROAD_CATEGORY_QUERY_RE.test(q) && significantTokens(q).length <= 2) {
+    return next;
+  }
+
   const tokens = significantTokens(q);
   if (!tokens.length) return next;
 
+  const stem = (t: string) =>
+    t
+      .toLowerCase()
+      .normalize("NFC")
+      .replace(/(omis|uose|yse|ams|ais|ių|ų|us|as|ės|ei|ę|ą|į|io|is|ė)$/u, "");
+
   const scored = next.map((r) => {
-    const title = r.title.toLowerCase();
-    const desc = (r.description ?? "").toLowerCase();
+    const title = r.title.toLowerCase().normalize("NFC");
+    const desc = (r.description ?? "").toLowerCase().normalize("NFC");
     let score = 0;
     for (const tok of tokens) {
-      if (title.includes(tok)) score += 10;
-      else if (desc.includes(tok)) score += 2;
+      const variants = [tok, stem(tok)].filter((v) => v.length >= 2);
+      if (variants.some((v) => title.includes(v))) score += 10;
+      else if (variants.some((v) => desc.includes(v))) score += 2;
     }
     return { r, score };
   });
 
   scored.sort((a, b) => b.score - a.score);
   const withHits = scored.filter((s) => s.score >= 10).map((s) => s.r);
-  // If we have title hits, prefer them exclusively (blocks weak service bleed).
-  if (withHits.length) return withHits;
+  // Exclusive title filter only when it still covers a meaningful share of hits;
+  // otherwise keep the full ranked set (avoids returning 1 of 3 cars).
+  if (withHits.length && withHits.length >= Math.min(2, next.length)) {
+    return withHits;
+  }
+  if (withHits.length && withHits.length === next.length) return withHits;
+  // Sparse title hits on a larger SQL set → keep all (category / soft match).
+  if (withHits.length && withHits.length < next.length && next.length >= 2) {
+    return next;
+  }
   return scored.map((s) => s.r);
 }

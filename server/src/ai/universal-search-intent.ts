@@ -29,7 +29,13 @@ export function extractSearchRadiusKm(query: string): number | null {
 export function inferUniversalListingCategory(query: string): string | undefined {
   if (isJobSearchQuery(query)) return "jobs";
   if (/\b(but|nam|nuom|sklyp|kamb|nt\b|nekilnoj|aruod)\b/i.test(query)) return "real_estate";
-  if (/\b(bat|ked|aulis|drabu|striuk|sukn)\b/i.test(query)) return "clothing";
+  if (
+    /\b(bat|ked|aulis|drabu|striuk|sukn|r[uū]b|aprang|mar[sš]kin|kelnes|kelni|d[zž]ins|švark|svark)\b/i.test(
+      query
+    )
+  ) {
+    return "clothing";
+  }
   // Physical goods before services — “gitara” must not become detailing/services.
   if (
     /\b(gitar|pianin|smuik|būgn|paveiksl|dvirat|sof[aą]|bald|komod|virtuv|televiz|konsol)\b/i.test(
@@ -40,15 +46,23 @@ export function inferUniversalListingCategory(query: string): string | undefined
     return "home";
   }
   if (
-    /\b(meistr|paslaug|elektrik|santechn|valym|remont|detali[nz]|plovim|vaškav)\b/i.test(
+    /\b(meistr|paslaug|elektrik|santechn|valym|remont|detali[nz]|plovim|vaškav|servis)\b/i.test(
       query
     ) &&
-    !/\b(gitar|telefon|iphone|automobil|bmw|volvo)\b/i.test(query)
+    !/\b(gitar|telefon|iphone|automobil|bmw|volvo|r[uū]b)\b/i.test(query)
   ) {
     return "services";
   }
-  if (/\b(telefon|iphone|samsung|laptop|kompiuter)\b/i.test(query)) return "electronics";
-  if (/\b(volvo|bmw|audi|v70|v60|auto|masin|automob|transport)\b/i.test(query)) return "vehicles";
+  if (/\b(telefon|iphone|samsung|laptop|kompiuter|elektronik)\b/i.test(query)) {
+    return "electronics";
+  }
+  if (
+    /\b(volvo|bmw|audi|v70|v60|auto|masin|mašin|automob|transport|cars?|vehicles?)\b/i.test(
+      query
+    )
+  ) {
+    return "vehicles";
+  }
   if (/\b(bald|sofa|komod|virtuv)\b/i.test(query) && !isJobSearchQuery(query)) return "home";
   return undefined;
 }

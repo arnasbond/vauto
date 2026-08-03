@@ -1,6 +1,6 @@
 import { adminPatchListing, getListings, searchListingsFiltered, updateListing } from "../repository.js";
 import { buildBrowseAllReply, isBrowseAllIntent, resolveBrowseAllIntent } from "../lib/browse-all-intent.js";
-import { normalizeProductSearchQuery, inferSearchCategory } from "./product-search-query.js";
+import { normalizeProductSearchQuery, inferSearchCategory, extractProductSearchIntent } from "./product-search-query.js";
 import {
   buildJobSearchConversationalReply,
   isJobSearchQuery,
@@ -1236,13 +1236,20 @@ export async function executeAgentTool(
       const rawForIntent = (rawQuery || fallbackQuery).trim();
       // Strict NLP from latest utterance — never merge historical topics here.
       const nl = extractSearchNlFilters(rawForIntent);
+      const intent = extractProductSearchIntent(rawForIntent);
       const jobIntent = isJobSearchQuery(rawForIntent);
+      // Prefer creative intent extraction; NL keyword is a secondary clean-up.
       const query = normalizeProductSearchQuery(
-        nl.keyword || rawQuery || fallbackQuery
+        intent.keyword || nl.keyword || rawQuery || fallbackQuery
       );
-      const category = args.category
-        ? String(args.category)
-        : inferSearchCategory(rawForIntent);
+      const category =
+        (args.category ? String(args.category) : undefined) ||
+        intent.category ||
+        inferSearchCategory(rawForIntent);
+
+      // Category browse („rūbai“, „automobilis“, „paslaugos“) — no literal keyword gate.
+      const categoryBrowse = intent.categoryBrowse && Boolean(category);
+      const searchKeyword = categoryBrowse ? "" : query;
 
       if (resolveBrowseAllIntent(rawQuery, fallbackQuery, query)) {
         const limitRaw = Number(args.limit);
@@ -1282,7 +1289,7 @@ export async function executeAgentTool(
         };
       }
 
-      if (!query && !category) {
+      if (!searchKeyword && !category) {
         const searchQuery = query || "paieška";
         return {
           result: {
@@ -1309,42 +1316,41 @@ export async function executeAgentTool(
       const city = cityNominative ? normCityForFilter(cityNominative) : "";
 
       const limitRaw = Number(args.limit);
+      // Default high enough for full category browse (cars/clothes/services).
       const limit =
         Number.isFinite(limitRaw) && limitRaw > 0
-          ? Math.min(limitRaw, 80)
-          : 80;
+          ? Math.min(limitRaw, 500)
+          : 500;
+
+      const filterArgs = {
+        query: searchKeyword || undefined,
+        category,
+        city: city || undefined,
+        minPrice,
+        maxPrice,
+        limit,
+      };
 
       let filteredRows: Awaited<ReturnType<typeof searchListingsFiltered>> = [];
       try {
         filteredRows = await withSearchSqlTimeout(
-          searchListingsFiltered({
-            query: query || undefined,
-            category,
-            city: city || undefined,
-            minPrice,
-            maxPrice,
-            limit,
-          }),
+          searchListingsFiltered(filterArgs),
           SEARCH_SQL_TIMEOUT_MS
         );
       } catch (err) {
         console.warn("[searchListings] filtered SQL failed:", err);
         try {
-          filteredRows = await searchListingsFiltered({
-            query: query || undefined,
-            category,
-            city: city || undefined,
-            minPrice,
-            maxPrice,
-            limit,
-          });
+          filteredRows = await searchListingsFiltered(filterArgs);
         } catch (retryErr) {
           console.warn("[searchListings] filtered SQL retry failed:", retryErr);
           filteredRows = [];
         }
       }
 
-      const bounded = applyStrictSearchBoundaries(filteredRows, query || rawForIntent);
+      const boundaryQuery = categoryBrowse
+        ? category || rawForIntent
+        : searchKeyword || query || rawForIntent;
+      const bounded = applyStrictSearchBoundaries(filteredRows, boundaryQuery);
       const results = bounded.map((l) => toAgentListingSummary(l));
 
       if (
@@ -1376,15 +1382,20 @@ export async function executeAgentTool(
       }
 
       /** UI search bar — raw user/Gemini query only; category lives in filters, never appended. */
-      const searchQuery = query.trim();
+      const searchQuery = (searchKeyword || query || category || "").trim();
 
-      // Soft category: server ranks by category but does not hard-filter. Sending
-      // category to the marketplace UI would wipe cross-category title matches.
-      const softCategoryForUi = Boolean(query && category);
+      // Soft category for keyword searches; hard category for pure category browse.
+      const softCategoryForUi = Boolean(searchKeyword && category && !categoryBrowse);
 
       const searchFilters: AgentSearchFilters = {
-        query: query || undefined,
-        category: softCategoryForUi ? undefined : category,
+        query: searchKeyword || undefined,
+        category: softCategoryForUi
+          ? undefined
+          : categoryBrowse
+            ? category
+            : searchKeyword
+              ? undefined
+              : category,
         city: cityNominative || undefined,
         maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
         minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
