@@ -8,9 +8,13 @@
  */
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const require = createRequire(import.meta.url);
-const { Client } = require("./server/node_modules/pg");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(__dirname, "..");
+const require = createRequire(path.join(root, "server", "package.json"));
+const { Client } = require("pg");
 
 const dryRun = process.argv.includes("--dry-run");
 
@@ -38,8 +42,8 @@ function resolveDatabaseUrl() {
   }
   const r = spawnSync(
     process.execPath,
-    ["scripts/resolve-render-database-url.mjs", "--print"],
-    { encoding: "utf8", env: process.env }
+    [path.join(root, "scripts", "resolve-render-database-url.mjs"), "--print"],
+    { encoding: "utf8", env: process.env, cwd: root }
   );
   if (r.status !== 0) {
     throw new Error(r.stderr || r.stdout || "Failed to resolve DATABASE_URL");
