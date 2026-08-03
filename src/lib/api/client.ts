@@ -465,6 +465,18 @@ export async function apiDeleteListing(
   return dataFetch<null>(`/api/listings/${id}`, { method: "DELETE", userId });
 }
 
+export async function apiRestoreListing(
+  id: string,
+  userId: string
+): Promise<ApiResult<Listing>> {
+  const res = await dataFetch<LegacyListingInput>(`/api/listings/${id}/restore`, {
+    method: "POST",
+    userId,
+  });
+  if (!res.ok) return res;
+  return { ok: true, data: normalizeListing(res.data) };
+}
+
 export async function apiRenewListing(
   id: string,
   userId: string

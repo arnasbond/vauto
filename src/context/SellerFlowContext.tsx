@@ -1999,7 +1999,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           showToast("Facebook dalijimasis inicijuotas.", "info");
         }
         if (result.anonser === "queued") {
-          showToast("Anonser.lt sinchronizacija suplanuota.", "info");
+          showToast("Partnerių srautų sinchronizacija suplanuota.", "info");
         }
       });
       if (!opts?.skipSuccessNotify) {
@@ -2046,7 +2046,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         showToast("Facebook dalijimasis inicijuotas.", "info");
       }
       if (result.anonser === "queued") {
-        showToast("Anonser.lt sinchronizacija suplanuota.", "info");
+        showToast("Partnerių srautų sinchronizacija suplanuota.", "info");
       }
     });
     if (!opts?.skipSuccessNotify) {

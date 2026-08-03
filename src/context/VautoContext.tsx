@@ -76,6 +76,7 @@ import { withSellerDisplayNameAttribute } from "@/lib/seller-display";
 import { generateListingSlug, listingPath } from "@/lib/seo";
 import {
   apiDeleteListing,
+  apiRestoreListing,
   apiCreateServiceLead,
   apiFetchListings,
   apiFetchAdminReviewQueue,
@@ -257,6 +258,7 @@ interface VautoContextValue {
   dynamicFilters: ReturnType<typeof generateDynamicFilters>;
   toggleSave: (id: string) => void;
   deleteListing: (id: string) => void;
+  restoreListing: (id: string) => Promise<void>;
   renewListing: (id: string) => Promise<void>;
   /** Reload listings feed from API after portal sync / import */
   refreshListingsCatalog: () => Promise<void>;
@@ -1571,7 +1573,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const deleteListing = useCallback(
     (id: string) => {
       setListings((prev) =>
-        prev.filter((l) => !(l.id === id && l.sellerId === user.id))
+        prev.map((l) =>
+          l.id === id && l.sellerId === user.id
+            ? { ...l, status: "deleted" as const }
+            : l
+        )
       );
       setSavedIds((prev) => {
         const next = new Set(prev);
@@ -1585,9 +1591,33 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       });
       if (isDataApiEnabled()) {
         void apiDeleteListing(id, user.id).then((r) => {
-          if (!r.ok) setSyncError(`Nepavyko ištrinti: ${r.error}`);
+          if (!r.ok) setSyncError(`Nepavyko paslėpti: ${r.error}`);
         });
       }
+    },
+    [user.id]
+  );
+
+  const restoreListing = useCallback(
+    async (id: string) => {
+      if (isDataApiEnabled()) {
+        const r = await apiRestoreListing(id, user.id);
+        if (!r.ok) {
+          setSyncError(`Nepavyko atkurti: ${r.error}`);
+          return;
+        }
+        setListings((prev) =>
+          prev.map((l) => (l.id === id ? withDefaultExpiry(r.data) : l))
+        );
+        return;
+      }
+      setListings((prev) =>
+        prev.map((l) =>
+          l.id === id && l.sellerId === user.id
+            ? { ...l, status: "active" as const }
+            : l
+        )
+      );
     },
     [user.id]
   );
@@ -2202,6 +2232,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       toggleFilter,
       toggleSave,
       deleteListing,
+      restoreListing,
       renewListing,
       refreshListingsCatalog,
       syncError,
@@ -2279,6 +2310,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       toggleFilter,
       toggleSave,
       deleteListing,
+      restoreListing,
       renewListing,
       refreshListingsCatalog,
       syncError,

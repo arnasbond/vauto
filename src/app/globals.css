@@ -96,12 +96,9 @@
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
-   Desktop (web) portal is ALWAYS the light Anonser B2B palette.
-   The mobile dynamic theme (data-app-theme=dark/light) lives on <html>, so its
-   --vauto-* tokens would otherwise bleed into the desktop content and clash
-   with the light chrome. Re-declaring the token set on this wrapper pins the
-   whole desktop subtree to light — WITHOUT touching the mobile experience
-   (mobile never renders .vauto-desktop-portal).
+   Desktop (web) portal uses the VAUTO light B2B palette (legacy --anonser-*
+   token aliases map to the same brand blue). Mobile theme tokens live on
+   <html>; this wrapper pins desktop chrome to light without touching mobile.
    ─────────────────────────────────────────────────────────────────────────── */
 .vauto-desktop-portal {
   color-scheme: light;
@@ -1025,15 +1022,15 @@ body.chameleon-autoplius {
 
 body.chameleon-wardrobe,
 .chameleon-wardrobe {
-  --chameleon-accent: #09b1a8;
-  --portal-accent: #09b1a8;
-  --portal-cta: #09b1a8;
-  --portal-wizard-bg: #faf8f5;
-  --portal-wizard-surface: #fffdf9;
-  --portal-progress: #09b1a8;
-  --portal-bg: #faf8f5;
-  --portal-text: #374151;
-  font-weight: 300;
+  --chameleon-accent: var(--vauto-primary, #1b4dff);
+  --portal-accent: var(--vauto-primary, #1b4dff);
+  --portal-cta: var(--vauto-accent, #ff7a1a);
+  --portal-wizard-bg: var(--vauto-bg, #eef1f6);
+  --portal-wizard-surface: var(--vauto-surface, #ffffff);
+  --portal-progress: var(--vauto-primary, #1b4dff);
+  --portal-bg: var(--vauto-bg, #eef1f6);
+  --portal-text: var(--vauto-text, #0b1220);
+  font-weight: 400;
   color: var(--portal-text);
   background: var(--portal-bg);
 }

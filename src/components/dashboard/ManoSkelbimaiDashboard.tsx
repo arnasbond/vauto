@@ -37,6 +37,7 @@ function ManoSkelbimaiCard({
   listing,
   onPause,
   onDelete,
+  onRestore,
   onStats,
   onEdit,
   onActivateAiTwin,
@@ -45,6 +46,7 @@ function ManoSkelbimaiCard({
   listing: Listing;
   onPause: () => void;
   onDelete: () => void;
+  onRestore: () => void;
   onStats: () => void;
   onEdit: () => void;
   onActivateAiTwin: () => void;
@@ -52,13 +54,19 @@ function ManoSkelbimaiCard({
 }) {
   const state = dashboardListingState(listing);
   const isPaused = listing.status === "paused";
+  const isDeleted = listing.status === "deleted";
   // Always use query `id` — static export has no /listing/[slug] HTML for new posts.
   const publicHref = listing.id?.trim()
     ? `/listing/?id=${encodeURIComponent(listing.id.trim())}`
     : listingPath(listing);
 
   return (
-    <article className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+    <article
+      className={cn(
+        "group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md",
+        isDeleted && "opacity-80"
+      )}
+    >
       <Link
         href={publicHref}
         className="relative block aspect-[4/3] overflow-hidden bg-slate-100"
@@ -89,6 +97,16 @@ function ManoSkelbimaiCard({
         </p>
 
         <div className="listing-card-actions mt-3">
+          {isDeleted ? (
+            <button
+              type="button"
+              onClick={onRestore}
+              className="listing-card-btn listing-card-btn--primary listing-card-btn--span2"
+            >
+              Atkurti skelbimą
+            </button>
+          ) : (
+            <>
           <Link
             href={publicHref}
             className="listing-card-btn listing-card-btn--secondary listing-card-btn--span2"
@@ -154,8 +172,10 @@ function ManoSkelbimaiCard({
             className="listing-card-btn listing-card-btn--danger listing-card-btn--span2"
           >
             <Trash2 className="h-3.5 w-3.5" aria-hidden />
-            Ištrinti
+            Paslėpti
           </button>
+            </>
+          )}
         </div>
       </div>
     </article>
@@ -167,6 +187,7 @@ export function ManoSkelbimaiDashboard({
 }: ManoSkelbimaiDashboardProps) {
   const {
     deleteListing,
+    restoreListing,
     updateListing,
     startEditListingFlow,
     showToast,
@@ -180,7 +201,14 @@ export function ManoSkelbimaiDashboard({
   const sorted = useMemo(
     () =>
       [...listings].sort((a, b) => {
-        const order = { active: 0, pending: 1, paused: 2, expired: 3, sold: 4 };
+        const order = {
+          active: 0,
+          pending: 1,
+          paused: 2,
+          expired: 3,
+          sold: 4,
+          deleted: 5,
+        };
         const sa = order[dashboardListingState(a)];
         const sb = order[dashboardListingState(b)];
         if (sa !== sb) return sa - sb;
@@ -192,18 +220,25 @@ export function ManoSkelbimaiDashboard({
     [listings]
   );
 
-  const activeCount = sorted.filter((l) => l.status !== "sold").length;
+  const activeCount = sorted.filter(
+    (l) => l.status !== "sold" && l.status !== "deleted"
+  ).length;
 
   const handleDelete = async (listing: Listing) => {
     const ok = await showConfirm({
-      title: "Ištrinti skelbimą?",
-      message: `„${listing.title}" bus pašalintas negrįžtamai.`,
-      confirmLabel: "Ištrinti",
+      title: "Paslėpti skelbimą?",
+      message: `„${listing.title}" bus paslėptas iš viešo katalogo. Galėsite jį atkurti vėliau.`,
+      confirmLabel: "Paslėpti",
       cancelLabel: "Atšaukti",
     });
     if (!ok) return;
     deleteListing(listing.id);
-    showToast("Skelbimas ištrintas", "success");
+    showToast("Skelbimas paslėptas — galite atkurti iš šio sąrašo", "success");
+  };
+
+  const handleRestore = async (listing: Listing) => {
+    await restoreListing(listing.id);
+    showToast("Skelbimas atkurtas ir vėl matomas kataloge", "success");
   };
 
   const handlePause = (listing: Listing) => {
@@ -291,6 +326,7 @@ export function ManoSkelbimaiDashboard({
               listing={listing}
               onPause={() => handlePause(listing)}
               onDelete={() => void handleDelete(listing)}
+              onRestore={() => void handleRestore(listing)}
               onStats={() => handleStats(listing)}
               onEdit={() => startEditListingFlow(listing, { stayOnPage: true })}
               onActivateAiTwin={() => void handleActivateAiTwin(listing)}

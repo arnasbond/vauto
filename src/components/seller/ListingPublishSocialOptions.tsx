@@ -32,7 +32,7 @@ export function ListingPublishSocialOptions({ className }: { className?: string 
           }
         />
         <SocialCheckbox
-          label="Sinchronizuoti su Anonser.lt skelbimų srautu"
+          label="Sinchronizuoti su partnerių skelbimų srautais"
           checked={listingSocialPublish.anonserLt}
           onChange={(anonserLt) => updateListingSocialPublish({ anonserLt })}
         />

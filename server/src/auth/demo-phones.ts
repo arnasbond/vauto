@@ -2,7 +2,8 @@ import { isE2eTestPhone, verifyE2eTestOtp } from "./e2e-mock-auth.js";
 
 /**
  * Demo / QA phone numbers — fixed OTP only when demo OTP is explicitly allowed.
- * Production: requires VAUTO_ALLOW_DEMO_OTP=true (staging / invite soft-launch).
+ * Open LT production: VAUTO_ALLOW_DEMO_OTP must be false (env-check FATAL if true).
+ * Local / non-prod: allowed for Playwright + ops scripts.
  * Never accept 123456 for arbitrary phones.
  */
 

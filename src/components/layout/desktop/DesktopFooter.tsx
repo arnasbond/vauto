@@ -1,9 +1,8 @@
 "use client";
 
-import { getAnonserNavLinks, getAnonserPortalUrl } from "@/lib/anonser-links";
+import { getAnonserNavLinks } from "@/lib/anonser-links";
 
 export function DesktopFooter() {
-  const anonserUrl = getAnonserPortalUrl();
   const links = getAnonserNavLinks();
 
   return (
@@ -11,17 +10,15 @@ export function DesktopFooter() {
       <div className="mx-auto flex max-w-[var(--anonser-desktop-max)] flex-col gap-4 px-6 py-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="font-display text-sm font-bold text-[var(--anonser-text)]">
-            VAUTO × anonser.lt
+            VAUTO
           </p>
           <p className="mt-1 text-xs text-[var(--anonser-text-muted)]">
-            AI skelbimų ir paslaugų platforma — integruota į{" "}
+            AI skelbimų ir paslaugų platforma visoje Lietuvoje —{" "}
             <a
-              href={anonserUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+              href="https://www.vauto.lt"
               className="font-medium text-[var(--anonser-primary)] hover:underline"
             >
-              anonser.lt
+              www.vauto.lt
             </a>
           </p>
         </div>

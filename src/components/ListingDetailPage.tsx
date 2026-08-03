@@ -284,7 +284,11 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   };
 
   const handleDelete = () => {
-    if (confirm("Ištrinti šį skelbimą?")) {
+    if (
+      confirm(
+        "Paslėpti šį skelbimą? Jis dings iš katalogo, bet galėsite jį atkurti skiltyje „Mano skelbimai“."
+      )
+    ) {
       deleteListing(listing.id);
       router.push("/mano-skelbimai/");
     }

@@ -6,17 +6,25 @@ export type DashboardListingState =
   | "pending"
   | "paused"
   | "sold"
-  | "expired";
+  | "expired"
+  | "deleted";
 
 export function isListingPublicInFeed(listing: Listing): boolean {
   if (listing.banned) return false;
-  if (listing.status === "sold" || listing.status === "paused" || listing.status === "pending") {
+  if (
+    listing.status === "sold" ||
+    listing.status === "paused" ||
+    listing.status === "pending" ||
+    listing.status === "deleted" ||
+    listing.status === "archived"
+  ) {
     return false;
   }
   return isListingActive(listing);
 }
 
 export function dashboardListingState(listing: Listing): DashboardListingState {
+  if (listing.status === "deleted") return "deleted";
   if (listing.status === "sold") return "sold";
   if (listing.status === "pending") return "pending";
   if (listing.status === "paused") return "paused";
@@ -36,6 +44,8 @@ export function dashboardStateLabel(state: DashboardListingState): string {
       return "Parduota";
     case "expired":
       return "Pasibaigęs";
+    case "deleted":
+      return "Paslėptas";
   }
 }
 
@@ -51,6 +61,8 @@ export function dashboardStateClass(state: DashboardListingState): string {
       return "bg-slate-500/20 text-slate-600 dark:text-slate-400";
     case "expired":
       return "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200";
+    case "deleted":
+      return "bg-orange-100 text-orange-900 dark:bg-orange-900/40 dark:text-orange-200";
   }
 }
 

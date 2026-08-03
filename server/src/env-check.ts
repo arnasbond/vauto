@@ -52,8 +52,8 @@ export function validateProductionEnv(): EnvCheckResult {
     }
 
     if (process.env.VAUTO_ALLOW_DEMO_OTP === "true") {
-      warnings.push(
-        "VAUTO_ALLOW_DEMO_OTP=true — demo phones accept fixed OTP (soft-launch QA only; remove for open public launch)"
+      errors.push(
+        "VAUTO_ALLOW_DEMO_OTP=true is forbidden in open LT production — use live BulkGate/Twilio SMS only"
       );
     }
 

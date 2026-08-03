@@ -50,6 +50,7 @@ import {
   openServiceLeadWallet,
   promoteListingWallet,
   renewListing,
+  restoreListing,
   setAdminAgentContext,
   setBannedUserIds,
   setSavedIds,
@@ -426,6 +427,81 @@ apiRouter.post("/ops/purge-ai-test-listings", requireOpsSecret, async (req, res)
   }
 });
 
+/**
+ * Backfill empty / data: listing covers with category http(s) Unsplash URLs.
+ * Open LT ops — no demo OTP required. Body: { dryRun?: boolean, limit?: number }
+ */
+apiRouter.post("/ops/backfill-listing-covers", requireOpsSecret, async (req, res) => {
+  try {
+    const dryRun = req.body?.dryRun === true;
+    const limit = Math.min(
+      500,
+      Math.max(1, Number(req.body?.limit) || 200)
+    );
+    const FALLBACK: Record<string, string> = {
+      vehicles:
+        "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format&q=80",
+      transport:
+        "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&auto=format&q=80",
+      electronics:
+        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=600&fit=crop&auto=format&q=80",
+      services:
+        "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format&q=80",
+      jobs:
+        "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop&auto=format&q=80",
+      home:
+        "https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800&h=600&fit=crop&auto=format&q=80",
+      clothing:
+        "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=600&fit=crop&auto=format&q=80",
+      real_estate:
+        "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=600&fit=crop&auto=format&q=80",
+      tools:
+        "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=800&h=600&fit=crop&auto=format&q=80",
+      rental:
+        "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format&q=80",
+      other:
+        "https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=800&h=600&fit=crop&auto=format&q=80",
+    };
+    const rows = await pool.query<{
+      id: string;
+      title: string;
+      category: string | null;
+      image: string | null;
+    }>(
+      `SELECT id, title, category, image
+       FROM listings
+       WHERE COALESCE(status, 'active') NOT IN ('deleted', 'archived')
+         AND (
+           image IS NULL
+           OR TRIM(image) = ''
+           OR image LIKE 'data:%'
+         )
+       ORDER BY created_at DESC
+       LIMIT $1`,
+      [limit]
+    );
+    let fixed = 0;
+    const samples: Array<{ id: string; title: string; cover: string }> = [];
+    for (const row of rows.rows) {
+      const cover = FALLBACK[row.category || ""] || FALLBACK.other;
+      samples.push({ id: row.id, title: row.title, cover });
+      if (!dryRun) {
+        await adminPatchListing(row.id, { image: cover });
+      }
+      fixed += 1;
+    }
+    res.json({
+      ok: true,
+      dryRun,
+      needCover: rows.rows.length,
+      fixed,
+      samples: samples.slice(0, 20),
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
 /** Self-test Google, Apple (mock), and SMS OTP flows — requires VAUTO_E2E_AUTH=1. */
 apiRouter.post("/test/auth-flow", requireOpsSecret, async (_req, res) => {
   try {
@@ -698,6 +774,17 @@ apiRouter.delete("/listings/:id", requireAuth, async (req: AuthedRequest, res) =
   }
 });
 
+apiRouter.post("/listings/:id/restore", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const sellerId = routeActorId(req);
+    const listing = await restoreListing(req.params.id, sellerId);
+    if (!listing) return res.status(404).json({ error: "Not found" });
+    res.json(listing);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 apiRouter.post("/listings/:id/renew", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const sellerId = routeActorId(req);
@@ -920,14 +1007,22 @@ apiRouter.patch("/admin/listings/:id", requireAdmin, async (req, res) => {
   try {
     const parsed = validateListingPatch(req.body);
     if (badRequest(res, parsed)) return;
-    const patch: Partial<{ banned: boolean; status: string; requiresReview: boolean }> = {};
+    const patch: Partial<{
+      banned: boolean;
+      status: string;
+      requiresReview: boolean;
+      image: string;
+    }> = {};
     if (parsed.value.banned !== undefined) patch.banned = parsed.value.banned;
     if (parsed.value.status !== undefined) patch.status = parsed.value.status;
     if (parsed.value.requiresReview !== undefined) {
       patch.requiresReview = parsed.value.requiresReview;
     }
+    if (parsed.value.image !== undefined) patch.image = parsed.value.image;
     if (Object.keys(patch).length === 0) {
-      res.status(400).json({ error: "Provide banned, status, and/or requiresReview" });
+      res.status(400).json({
+        error: "Provide banned, status, requiresReview, and/or image",
+      });
       return;
     }
     const existing = await getListingForEmbedding(req.params.id);

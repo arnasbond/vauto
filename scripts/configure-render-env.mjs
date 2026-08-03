@@ -180,15 +180,19 @@ async function main() {
     process.env.SEARCH_RATE_LIMIT_PER_MIN?.trim() || "40"
   );
 
-  // Soft-launch: live BulkGate for real users; demo OTP only for QA phones.
+  // Open LT: live BulkGate for all real users. Demo OTP must stay OFF in prod.
   await setEnvVar(
     "SMS_MODE",
     process.env.SMS_MODE?.trim() || "bulkgate"
   );
-  await setEnvVar(
-    "VAUTO_ALLOW_DEMO_OTP",
-    process.env.VAUTO_ALLOW_DEMO_OTP?.trim() || "true"
-  );
+  const demoOtp =
+    process.env.VAUTO_ALLOW_DEMO_OTP?.trim().toLowerCase() || "false";
+  if (demoOtp === "true" || demoOtp === "1") {
+    console.warn(
+      "⚠ Refusing VAUTO_ALLOW_DEMO_OTP=true for open LT — forcing false"
+    );
+  }
+  await setEnvVar("VAUTO_ALLOW_DEMO_OTP", "false");
 
   for (const key of [
     "STRIPE_SECRET_KEY",

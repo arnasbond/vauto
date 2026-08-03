@@ -23,11 +23,12 @@ export interface AnonserNavLink {
   external?: boolean;
 }
 
-/** Primary links back to the WordPress portal and B2B sections. */
+/** Primary links — VAUTO first; optional partner portal when configured. */
 export function getAnonserNavLinks(): AnonserNavLink[] {
   const base = getAnonserPortalUrl();
+  const vauto = getVautoPortalUrl();
   return [
-    { label: "anonser.lt", href: base, external: true },
+    { label: "VAUTO", href: vauto, external: false },
     { label: "Naujienos", href: `${base}/naujienos`, external: true },
     { label: "Verslui", href: `${base}/verslui`, external: true },
     { label: "Kontaktai", href: `${base}/kontaktai`, external: true },

@@ -357,9 +357,13 @@ function ChatThreadContent({
           <MagicMirrorChatBanner fit={magicMirror} />
         ) : null}
 
-        {chat.escrowOffered && (
+        {chat.escrowOffered ||
+        Boolean(listing?.allowPastomatas) ||
+        Boolean(
+          (chat as { escrow?: unknown }).escrow
+        ) ? (
           <EscrowActionBlock chat={chat} amount={listing?.price ?? 150} />
-        )}
+        ) : null}
         <div ref={messagesEndRef} />
       </div>
 

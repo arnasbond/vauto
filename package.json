@@ -65,6 +65,7 @@
     "audit:full": "npm run test:chaotic-inputs && npm run audit:full-hardening && npm run test:e2e:prod-real",
     "seed:soft-launch": "node scripts/seed-soft-launch-catalog.mjs",
     "backfill:covers": "node scripts/backfill-listing-covers.mjs",
+    "backfill:covers:db": "node scripts/backfill-listing-covers-db.mjs",
     "test:server-smoke": "npm run server:build && node scripts/validation-smoke.mjs && node scripts/critical-smoke.mjs",
     "test:auth-e2e": "npm run server:build && node scripts/test-auth-e2e.mjs",
     "test:auth-e2e:live": "npm run server:build && node scripts/test-auth-e2e.mjs --live",

@@ -34,7 +34,13 @@ function coerceCategoryString(
   );
 }
 
-const LISTING_STATUSES = new Set(["active", "sold"]);
+const LISTING_STATUSES = new Set([
+  "active",
+  "sold",
+  "deleted",
+  "paused",
+  "archived",
+]);
 const REPORT_CATEGORIES = new Set([
   "fraud",
   "bad_info",

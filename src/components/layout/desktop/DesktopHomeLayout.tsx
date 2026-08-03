@@ -6,7 +6,6 @@ import { Building2, Sparkles, Tag } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { MarketplaceFilterBar } from "@/components/marketplace/MarketplaceFilterBar";
-import { getAnonserPortalUrl } from "@/lib/anonser-links";
 import { cn } from "@/lib/cn";
 
 interface DesktopHomeLayoutProps {
@@ -38,7 +37,6 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
     viewMode,
     setViewMode,
   } = useVautoSearch();
-  const anonserUrl = getAnonserPortalUrl();
 
   return (
     <div className="flex gap-8">
@@ -92,8 +90,8 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
               Verslui
             </h2>
             <p className="mb-3 text-xs leading-relaxed text-[var(--anonser-text-muted)]">
-              B2B skelbimai, lead&apos;ai ir verslo įžvalgos — anonser.lt verslo
-              portale.
+              B2B skelbimai, lead&apos;ai ir verslo įžvalgos — VAUTO verslo
+              kabinete.
             </p>
             <Link
               href="/verslui/"
@@ -101,14 +99,12 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
             >
               Atidaryti VAUTO verslo kabinetą →
             </Link>
-            <a
-              href={`${anonserUrl}/verslui`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/verslui/"
               className="text-xs text-[var(--anonser-text-muted)] hover:text-[var(--anonser-primary)]"
             >
-              anonser.lt / verslui →
-            </a>
+              Verslui →
+            </Link>
           </section>
 
           <section className="flex items-start gap-2 rounded-lg bg-[var(--anonser-surface-muted)] p-3 text-xs text-[var(--anonser-text-muted)]">

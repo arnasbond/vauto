@@ -597,17 +597,22 @@ export async function getListingsPendingReview(limit = 100): Promise<ApiListing[
 
 export async function getSellerListings(sellerId: string): Promise<ApiListing[]> {
   try {
+    // Include soft-deleted so seller can restore; public feed still hides them.
     const rows = await query<ListingRow>(
       `${LISTING_SELECT}
        WHERE seller_id = $1
-         AND COALESCE(status, 'active') NOT IN ('deleted', 'sold', 'archived')
-       ORDER BY created_at DESC`,
+         AND COALESCE(status, 'active') NOT IN ('archived')
+       ORDER BY
+         CASE WHEN COALESCE(status, 'active') = 'deleted' THEN 1 ELSE 0 END,
+         created_at DESC`,
       [sellerId]
     );
     return rows.map(mapListingRow);
   } catch {
     const all = await getListingsLegacyFull();
-    return all.filter((l) => l.sellerId === sellerId && l.status !== "sold");
+    return all.filter(
+      (l) => l.sellerId === sellerId && l.status !== "archived"
+    );
   }
 }
 
@@ -1113,7 +1118,9 @@ export async function updateListing(
 /** Admin-only patch — does not require seller_id match. */
 export async function adminPatchListing(
   id: string,
-  patch: Partial<Pick<ApiListing, "banned" | "status" | "requiresReview">>
+  patch: Partial<
+    Pick<ApiListing, "banned" | "status" | "requiresReview" | "image">
+  >
 ): Promise<ApiListing | null> {
   const rows = await query<{ id: string }>(
     "SELECT id FROM listings WHERE id = $1",
@@ -1133,17 +1140,16 @@ export async function adminPatchListing(
   if (patch.banned !== undefined) set("banned", patch.banned);
   if (patch.status !== undefined) set("status", patch.status);
   if (patch.requiresReview !== undefined) set("requires_review", patch.requiresReview);
+  if (patch.image !== undefined) set("image", patch.image);
 
   if (fields.length === 0) {
-    const all = await getListings();
-    return all.find((l) => l.id === id) ?? null;
+    return getListingForEmbedding(id);
   }
 
   values.push(id);
   await query(`UPDATE listings SET ${fields.join(", ")} WHERE id = $${i}`, values);
 
-  const all = await getListings();
-  return all.find((l) => l.id === id) ?? null;
+  return getListingForEmbedding(id);
 }
 
 export async function renewListing(
@@ -1168,12 +1174,33 @@ export async function renewListing(
   return all.find((l) => l.id === id) ?? null;
 }
 
+/** Soft-delete — hides from public catalog; seller can restore via status=active. */
 export async function deleteListing(id: string, sellerId: string): Promise<boolean> {
   const res = await pool.query(
-    "DELETE FROM listings WHERE id = $1 AND seller_id = $2",
+    `UPDATE listings
+     SET status = 'deleted'
+     WHERE id = $1
+       AND seller_id = $2
+       AND COALESCE(status, 'active') <> 'deleted'`,
     [id, sellerId]
   );
   return (res.rowCount ?? 0) > 0;
+}
+
+export async function restoreListing(
+  id: string,
+  sellerId: string
+): Promise<ApiListing | null> {
+  const res = await pool.query(
+    `UPDATE listings
+     SET status = 'active'
+     WHERE id = $1
+       AND seller_id = $2
+       AND COALESCE(status, 'active') = 'deleted'`,
+    [id, sellerId]
+  );
+  if ((res.rowCount ?? 0) === 0) return null;
+  return getListingForEmbedding(id);
 }
 
 export async function getSavedIds(userId: string): Promise<string[]> {
