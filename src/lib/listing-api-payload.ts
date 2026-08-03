@@ -48,8 +48,8 @@ export function listingToApiPayload(
     attributes,
     location: resolveListingCity(listing.location),
     image: cover,
-    // Server sanitizer maps images[] → cover + attributes.galleryUrls (http only).
-    ...(httpGallery.length > 1 ? { images: httpGallery } : {}),
+    // Always persist full HTTP gallery so multi-photo listings keep every upload.
+    ...(httpGallery.length ? { images: httpGallery } : {}),
     allowPastomatas: listing.allowPastomatas ?? true,
   };
 }
@@ -60,7 +60,19 @@ export function listingPatchToApiPayload(
   const { images, ...rest } = patch;
   const out: Record<string, unknown> = { ...rest };
   if (images !== undefined) {
-    out.image = images[0]?.trim() ?? "";
+    const gallery = images
+      .map((u) => String(u ?? "").trim())
+      .filter((u) => /^https?:\/\//i.test(u) && !/unsplash\.com|picsum\.photos/i.test(u));
+    out.image = gallery[0] ?? images[0]?.trim() ?? "";
+    out.images = gallery;
+    const attrs =
+      out.attributes && typeof out.attributes === "object"
+        ? (out.attributes as Record<string, unknown>)
+        : {};
+    out.attributes = {
+      ...attrs,
+      ...(gallery.length ? { galleryUrls: gallery } : {}),
+    };
   }
   if (typeof (patch as Listing).isAiTwinActive === "boolean") {
     const attrs =

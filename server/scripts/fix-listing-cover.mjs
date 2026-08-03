@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Dump + fix one listing cover from any nested http(s) URLs in attributes/image.
- * Prefer Cloudinary / non-stock; never invent Unsplash.
+ * Dump + fix one listing cover from real image HTTP URLs only.
+ * Prefer Cloudinary / image extensions; never invent Unsplash; never use /listing/ HTML pages.
  *
  *   DATABASE_URL=... node server/scripts/fix-listing-cover.mjs --title "HOHNER"
  *   DATABASE_URL=... node server/scripts/fix-listing-cover.mjs --id l-...
@@ -31,22 +31,25 @@ if (!isLocal && !/[?&]sslmode=/i.test(connectionString)) {
 }
 
 const STOCK_RE =
-  /(?:images\.)?unsplash\.com|picsum\.photos|loremflickr|placehold\.co|via\.placeholder|listing-placeholder/i;
+  /(?:images\.)?unsplash\.com|picsum\.photos|loremflickr|placehold\.co|via\.placeholder/i;
 
-function isRealHttp(url) {
+function isRealImageUrl(url) {
   if (typeof url !== "string") return false;
   const t = url.trim();
   if (!/^https?:\/\//i.test(t)) return false;
   if (STOCK_RE.test(t)) return false;
-  if (t.startsWith("data:")) return false;
-  return true;
+  if (/listing-placeholder/i.test(t)) return false;
+  // HTML listing pages are not media
+  if (/\/listing\//i.test(t) && !/\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(t)) {
+    return false;
+  }
+  if (/res\.cloudinary\.com|\/image\/upload\//i.test(t)) return true;
+  if (/\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(t)) return true;
+  return false;
 }
 
 function walkUrls(value, out = []) {
   if (typeof value === "string") {
-    const t = value.trim();
-    if (/^https?:\/\//i.test(t)) out.push(t);
-    // Also extract URLs embedded in longer strings / JSON text
     const re = /https?:\/\/[^\s"'\\<>]+/gi;
     let m;
     while ((m = re.exec(value))) out.push(m[0].replace(/[,.);]+$/, ""));
@@ -67,14 +70,26 @@ const pool = new pg.Pool({
   ssl: isLocal ? undefined : { rejectUnauthorized: false },
 });
 
+async function columnExists(client, table, column) {
+  const { rows } = await client.query(
+    `SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`,
+    [table, column]
+  );
+  return rows.length > 0;
+}
+
 async function main() {
   const client = await pool.connect();
   try {
+    const hasImagesCol = await columnExists(client, "listings", "images");
     const { rows } = await client.query(
       idArg
         ? `SELECT id, title, category, image, attributes, status, seller_id, created_at
+             ${hasImagesCol ? ", images" : ""}
            FROM listings WHERE id = $1`
         : `SELECT id, title, category, image, attributes, status, seller_id, created_at
+             ${hasImagesCol ? ", images" : ""}
            FROM listings
            WHERE title ILIKE $1 OR title ILIKE $2
            ORDER BY created_at DESC NULLS LAST
@@ -94,9 +109,10 @@ async function main() {
           : row.attributes || {};
       const found = [
         ...walkUrls(attrs),
+        ...walkUrls(row.images),
         ...walkUrls(row.image),
       ];
-      const real = [...new Set(found.filter(isRealHttp))];
+      const real = [...new Set(found.filter(isRealImageUrl))];
       console.log(
         JSON.stringify(
           {
@@ -106,7 +122,7 @@ async function main() {
             imageHead: String(row.image || "").slice(0, 140),
             attrKeys: Object.keys(attrs || {}),
             galleryUrls: attrs?.galleryUrls ?? null,
-            orderedImageUrls: attrs?.orderedImageUrls ?? null,
+            imagesCol: row.images ?? null,
             realCandidates: real.slice(0, 8),
           },
           null,
@@ -115,11 +131,25 @@ async function main() {
       );
 
       if (!real.length) {
-        console.log(`[fix-cover] ${row.id}: no real http upload in attributes — clearing stock cover`);
-        if (!dryRun && /unsplash|picsum/i.test(String(row.image || ""))) {
-          await client.query(`UPDATE listings SET image = '' WHERE id = $1`, [
-            row.id,
-          ]);
+        const badCover =
+          !row.image ||
+          STOCK_RE.test(String(row.image)) ||
+          (/\/listing\//i.test(String(row.image)) &&
+            !/\.(jpe?g|png|webp)/i.test(String(row.image)));
+        console.log(
+          `[fix-cover] ${row.id}: no real http uploads — ${badCover ? "clearing bad cover" : "keep"}`
+        );
+        if (!dryRun && badCover) {
+          if (hasImagesCol) {
+            await client.query(
+              `UPDATE listings SET image = '', images = '[]'::jsonb WHERE id = $1`,
+              [row.id]
+            );
+          } else {
+            await client.query(`UPDATE listings SET image = '' WHERE id = $1`, [
+              row.id,
+            ]);
+          }
         }
         continue;
       }
@@ -130,15 +160,25 @@ async function main() {
         ...(attrs && typeof attrs === "object" ? attrs : {}),
         galleryUrls: gallery,
       };
-      console.log(`[fix-cover] ${row.id}: SET image → ${cover.slice(0, 100)}`);
+      console.log(
+        `[fix-cover] ${row.id}: SET image → ${cover.slice(0, 100)} (gallery=${gallery.length})`
+      );
       if (!dryRun) {
-        await client.query(
-          `UPDATE listings
-           SET image = $1,
-               attributes = $2::jsonb
-           WHERE id = $3`,
-          [cover, JSON.stringify(nextAttrs), row.id]
-        );
+        if (hasImagesCol) {
+          await client.query(
+            `UPDATE listings
+             SET image = $1,
+                 images = $2::jsonb,
+                 attributes = $3::jsonb
+             WHERE id = $4`,
+            [cover, JSON.stringify(gallery), JSON.stringify(nextAttrs), row.id]
+          );
+        } else {
+          await client.query(
+            `UPDATE listings SET image = $1, attributes = $2::jsonb WHERE id = $3`,
+            [cover, JSON.stringify(nextAttrs), row.id]
+          );
+        }
       }
     }
     console.log("[fix-cover] done");

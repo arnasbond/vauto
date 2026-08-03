@@ -390,6 +390,7 @@ export function validateListingPatch(body: unknown): ValidationResult<Partial<Ap
     "tags",
     "attributes",
     "image",
+    "images",
     "status",
     "banned",
     "minNegotiationPrice",
@@ -454,6 +455,21 @@ export function validateListingPatch(body: unknown): ValidationResult<Partial<Ap
     const image = requiredString(body, "image", 15_000_000);
     if (!image.ok) return image;
     patch.image = image.value;
+  }
+  if (body.images !== undefined) {
+    const images = stringArray(body, "images", 20, 400);
+    if (!images.ok) return images;
+    const httpOnly = images.value.filter(
+      (u) =>
+        /^https?:\/\//i.test(u) &&
+        !/unsplash\.com|picsum\.photos/i.test(u)
+    );
+    patch.images = httpOnly;
+    if (httpOnly[0] && patch.image === undefined) patch.image = httpOnly[0];
+    patch.attributes = {
+      ...(patch.attributes ?? {}),
+      galleryUrls: httpOnly,
+    };
   }
   if (body.status !== undefined) {
     const status = enumString(body, "status", LISTING_STATUSES);

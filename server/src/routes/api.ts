@@ -232,14 +232,16 @@ function sanitizeListingCreateBody(raw: unknown): Record<string, unknown> {
     }
   }
 
-  if (httpGallery.length > 1) {
+  if (httpGallery.length >= 1) {
     attrs.galleryUrls = httpGallery;
-  } else if (httpGallery.length === 1) {
-    // Keep single cover discoverable for restore scripts / clients.
-    attrs.galleryUrls = httpGallery;
+    body.image = httpGallery[0]!;
+    // Keep images[] through validation → repository insert (cover = images[0]).
+    body.images = httpGallery;
+  } else {
+    delete attrs.galleryUrls;
+    body.images = [];
   }
   body.attributes = attrs;
-  delete body.images;
   return body;
 }
 
@@ -700,6 +702,26 @@ apiRouter.post(
     if (badRequest(res, parsed)) return;
     const authUserId = req.authUserId!;
     let listing = { ...parsed.value, sellerId: authUserId };
+    const galleryFromBody = Array.isArray(body.images)
+      ? (body.images as unknown[])
+          .map((u) => String(u ?? "").trim())
+          .filter(
+            (u) =>
+              /^https?:\/\//i.test(u) &&
+              !/unsplash\.com|picsum\.photos/i.test(u)
+          )
+      : [];
+    if (galleryFromBody.length) {
+      listing = {
+        ...listing,
+        images: galleryFromBody,
+        image: galleryFromBody[0]!,
+        attributes: {
+          ...(listing.attributes ?? {}),
+          galleryUrls: galleryFromBody,
+        },
+      };
+    }
     if (!canActForUser(req, listing.sellerId)) {
       res.status(403).json({ error: AUTH_SESSION_EXPIRED_MESSAGE });
       return;

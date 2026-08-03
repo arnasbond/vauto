@@ -1,0 +1,87 @@
+name: Sync listing images gallery
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run only"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install server deps
+        working-directory: server
+        run: npm ci
+      - name: Apply images column + fix HOHNER gallery
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_DB_NAME: vauto-db
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          URL=$(node scripts/resolve-render-database-url.mjs --print)
+          case "$URL" in
+            *sslmode=*) ;;
+            *\?*) URL="${URL}&sslmode=require" ;;
+            *) URL="${URL}?sslmode=require" ;;
+          esac
+          export DATABASE_URL="$URL"
+          export NODE_TLS_REJECT_UNAUTHORIZED=0
+          ARGS=""
+          if [ "$DRY_RUN" = "true" ]; then ARGS="--dry-run"; fi
+
+          echo "::group::apply migration 035"
+          node --input-type=module -e "
+            import fs from 'node:fs';
+            import pg from './server/node_modules/pg/lib/index.js';
+            const sql = fs.readFileSync('server/migrations/035_listing_images_jsonb.sql','utf8');
+            const c = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+            await c.connect();
+            await c.query(sql);
+            await c.query(\`INSERT INTO schema_migrations (filename) VALUES ('035_listing_images_jsonb.sql') ON CONFLICT DO NOTHING\`);
+            console.log('migration 035 applied');
+            await c.end();
+          "
+          echo "::endgroup::"
+
+          echo "::group::fix-listing-cover"
+          node server/scripts/fix-listing-cover.mjs --title HOHNER $ARGS
+          echo "::endgroup::"
+
+          echo "::group::cloudinary restore (best effort)"
+          node server/scripts/restore-covers-from-cloudinary.mjs $ARGS || true
+          echo "::endgroup::"
+
+          echo "::group::verify HOHNER"
+          node --input-type=module -e "
+            import pg from './server/node_modules/pg/lib/index.js';
+            const c = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+            await c.connect();
+            const { rows } = await c.query(\`
+              SELECT id, title, left(image,120) AS image,
+                     images,
+                     attributes->'galleryUrls' AS gallery
+              FROM listings
+              WHERE title ILIKE '%HOHNER%' OR title ILIKE '%gitar%'
+              ORDER BY created_at DESC LIMIT 5\`);
+            console.log(JSON.stringify(rows, null, 2));
+            const stock = await c.query(\`SELECT COUNT(*)::int AS c FROM listings
+              WHERE image ILIKE '%unsplash.com%' OR image ILIKE '%picsum.photos%' OR image ILIKE '%/listing/l-%'\`);
+            console.log('bad_covers_remaining', stock.rows[0].c);
+            await c.end();
+          "
+          echo "::endgroup::"

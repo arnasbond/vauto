@@ -34,6 +34,7 @@ type ListingRow = {
   longitude: number | null;
   slug: string | null;
   image: string;
+  images?: unknown;
   category: string;
   tags: string[];
   contact: string | null;
@@ -56,11 +57,50 @@ type ListingRow = {
   allow_pastomatas: boolean | null;
 };
 
+function parseListingImagesColumn(
+  raw: unknown,
+  attrs: Record<string, unknown> | null | undefined,
+  cover: string
+): string[] {
+  const out: string[] = [];
+  const push = (u: unknown) => {
+    if (typeof u !== "string") return;
+    const t = u.trim();
+    if (!/^https?:\/\//i.test(t)) return;
+    if (/unsplash\.com|picsum\.photos/i.test(t)) return;
+    // Reject HTML listing pages mistaken for media.
+    if (/\/listing\//i.test(t) && !/\.(jpe?g|png|webp|gif|avif)(\?|$)/i.test(t)) {
+      return;
+    }
+    out.push(t);
+  };
+  if (Array.isArray(raw)) {
+    for (const u of raw) push(u);
+  } else if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) for (const u of parsed) push(u);
+    } catch {
+      /* ignore */
+    }
+  }
+  const gallery = attrs?.galleryUrls;
+  if (Array.isArray(gallery)) for (const u of gallery) push(u);
+  push(cover);
+  return [...new Set(out)];
+}
+
 function mapListingRow(r: ListingRow): ApiListing {
   const stripped = stripExpiredVisibilityAttributes(
     (r.attributes as Record<string, unknown> | null) ?? undefined,
     Boolean(r.promoted)
   );
+  const attrs =
+    (stripped.attributes as Record<string, unknown> | undefined) ?? undefined;
+  const images = parseListingImagesColumn(r.images, attrs, r.image);
+  const cover = images[0] ?? r.image ?? "";
+  const nextAttrs: Record<string, unknown> = { ...(attrs ?? {}) };
+  if (images.length) nextAttrs.galleryUrls = images;
   return {
     id: r.id,
     sellerId: r.seller_id,
@@ -72,7 +112,8 @@ function mapListingRow(r: ListingRow): ApiListing {
     latitude: r.latitude ?? undefined,
     longitude: r.longitude ?? undefined,
     slug: r.slug ?? undefined,
-    image: r.image,
+    image: cover,
+    images,
     category: r.category,
     tags: r.tags ?? [],
     contact: r.contact ?? undefined,
@@ -80,7 +121,7 @@ function mapListingRow(r: ListingRow): ApiListing {
     createdAt: r.created_at.toISOString(),
     expiresAt: r.expires_at?.toISOString(),
     description: r.description ?? undefined,
-    attributes: (stripped.attributes as ApiListing["attributes"]) ?? undefined,
+    attributes: nextAttrs as ApiListing["attributes"],
     status: r.status ?? undefined,
     banned: r.banned,
     vinVerified: r.vin_verified,
@@ -99,7 +140,9 @@ function mapListingRow(r: ListingRow): ApiListing {
 }
 
 const LISTING_SELECT = `SELECT id, seller_id, title, price, price_label, location, distance_km,
-  latitude, longitude, slug, image, category, tags, contact, has_video, created_at, expires_at,
+  latitude, longitude, slug, image,
+  COALESCE(images, '[]'::jsonb) AS images,
+  category, tags, contact, has_video, created_at, expires_at,
   description, attributes, status, banned, vin_verified, provider_verified, promoted,
   min_negotiation_price, appraisal_score,
   is_verified, requires_review, image_alt, image_title,
@@ -115,6 +158,7 @@ const LISTING_SELECT = `SELECT id, seller_id, title, price, price_label, locatio
 const LISTING_SEARCH_SELECT = `SELECT id, seller_id, title, price, price_label, location, distance_km,
   latitude, longitude, slug,
   CASE WHEN image LIKE 'data:%' THEN '' ELSE COALESCE(image, '') END AS image,
+  COALESCE(images, '[]'::jsonb) AS images,
   category, tags, contact, has_video, created_at, expires_at,
   description, attributes, status, banned, vin_verified, provider_verified, promoted,
   min_negotiation_price, appraisal_score,
@@ -927,16 +971,23 @@ export async function insertListing(listing: ApiListing): Promise<void> {
   const stampedAttributes = stampListingB2bAttributes(
     listing.attributes as Record<string, unknown> | undefined,
     seller
+  ) as Record<string, unknown>;
+  const gallery = parseListingImagesColumn(
+    listing.images,
+    stampedAttributes,
+    listing.image
   );
+  const cover = gallery[0] ?? listing.image ?? "";
+  if (gallery.length) stampedAttributes.galleryUrls = gallery;
   await query(
     `INSERT INTO listings (
       id, seller_id, title, price, price_label, location, distance_km,
-      latitude, longitude, slug, image, category, tags, contact, has_video,
+      latitude, longitude, slug, image, images, category, tags, contact, has_video,
       created_at, expires_at, description, attributes, status, banned,
       vin_verified, provider_verified, promoted, min_negotiation_price, appraisal_score,
       is_verified, requires_review, image_alt, image_title,
       allow_pastomatas
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19::jsonb,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14::jsonb,$15,$16,$17,$18,$19,$20::jsonb,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32)
     ON CONFLICT (id) DO UPDATE SET
       title = EXCLUDED.title,
       price = EXCLUDED.price,
@@ -946,6 +997,7 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       longitude = EXCLUDED.longitude,
       slug = EXCLUDED.slug,
       image = EXCLUDED.image,
+      images = EXCLUDED.images,
       expires_at = EXCLUDED.expires_at,
       description = EXCLUDED.description,
       attributes = EXCLUDED.attributes,
@@ -972,7 +1024,8 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       listing.latitude ?? null,
       listing.longitude ?? null,
       listing.slug ?? null,
-      listing.image,
+      cover,
+      JSON.stringify(gallery),
       listing.category,
       JSON.stringify(listing.tags),
       listing.contact ?? null,
@@ -1068,6 +1121,25 @@ export async function updateListing(
   if (patch.attributes !== undefined)
     set("attributes", JSON.stringify(patch.attributes));
   if (patch.image !== undefined) set("image", patch.image);
+  if (patch.images !== undefined) {
+    const gallery = parseListingImagesColumn(
+      patch.images,
+      patch.attributes as Record<string, unknown> | undefined,
+      patch.image ?? ""
+    );
+    set("images", JSON.stringify(gallery));
+    if (gallery[0] && patch.image === undefined) set("image", gallery[0]);
+  } else if (patch.attributes !== undefined) {
+    const gallery = parseListingImagesColumn(
+      undefined,
+      patch.attributes as Record<string, unknown> | undefined,
+      patch.image ?? ""
+    );
+    if (gallery.length) {
+      set("images", JSON.stringify(gallery));
+      if (gallery[0] && patch.image === undefined) set("image", gallery[0]);
+    }
+  }
   if (patch.status !== undefined) set("status", patch.status);
   if (patch.banned !== undefined) set("banned", patch.banned);
   if (patch.minNegotiationPrice !== undefined)

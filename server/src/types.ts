@@ -69,6 +69,8 @@ export interface ApiListing {
   longitude?: number;
   slug?: string;
   image: string;
+  /** Public gallery HTTP URLs — images[0] is the cover (same as `image`). */
+  images?: string[];
   category: string;
   tags: string[];
   sellerId: string;
