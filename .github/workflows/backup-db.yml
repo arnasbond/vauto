@@ -1,0 +1,71 @@
+name: Database backup
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (meta only, no pg_dump)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+  schedule:
+    # Weekly Sunday 03:15 UTC — logical dump artifact + recovery-info check
+    - cron: "15 3 * * 0"
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install server deps + PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          npm ci --prefix server
+
+      - name: Check Render PITR / recovery-info
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_DB_NAME: vauto-db
+        run: node scripts/check-render-db-recovery.mjs
+
+      - name: Logical pg_dump backup
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_DB_NAME: vauto-db
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          NODE_TLS_REJECT_UNAUTHORIZED: "0"
+          PGSSLMODE: require
+        run: |
+          set -euo pipefail
+          URL=$(node scripts/resolve-render-database-url.mjs --print)
+          case "$URL" in
+            *sslmode=*) ;;
+            *\?*) URL="${URL}&sslmode=require" ;;
+            *) URL="${URL}?sslmode=require" ;;
+          esac
+          export DATABASE_URL="$URL"
+          ARGS=""
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS="--dry-run"
+          fi
+          node scripts/backup-db.mjs $ARGS
+          node scripts/verify-media-urls.mjs || true
+          ls -lah backups || true
+
+      - name: Upload backup artifacts
+        if: ${{ (github.event.inputs.dry_run || 'false') != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: vauto-db-backup-${{ github.run_id }}
+          path: backups/*
+          retention-days: 30
+          if-no-files-found: error

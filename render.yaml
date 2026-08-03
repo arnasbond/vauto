@@ -117,10 +117,21 @@ services:
         sync: false
       - key: VAUTO_OPS_SECRET
         sync: false
+      # Durable listing media (CDN). Keep on Render so publishes store absolute
+      # res.cloudinary.com URLs in Postgres — code deploys never delete Cloudinary objects.
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_UPLOAD_PRESET
+        sync: false
 
 databases:
-  # Free Postgres expires after 30 days and suspends the whole API (502).
-  # Keep a paid plan so production AI/search stays online.
+  # Paid plan required: free Postgres expires/suspends and has NO PITR backups.
+  # Paid instances get continuous point-in-time recovery (Hobby workspace ~3d,
+  # Pro+ ~7d). Weekly logical dumps: GitHub Action "Database backup".
   - name: vauto-db
     plan: basic_256mb
     region: frankfurt

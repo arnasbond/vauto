@@ -39,6 +39,12 @@ yarn-error.log*
 !.env.example
 !server/.env.example
 
+# DB dumps / disaster-recovery artifacts (never commit)
+/backups/
+*.sql.gz
+*.dump
+*.dump.gz
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
