@@ -7,6 +7,8 @@ import { getSmsProvider, isSmsLive } from "../services/sms.js";
 import { hasAiKey } from "../ai/llm-provider.js";
 import { analyzeVisualSearchIntent } from "../ai/search-intent.js";
 import { normalizeImageDataUrl } from "../ai/image-input.js";
+import { isCloudinaryConfigured, uploadImageToCloudinary } from "../ai/cloudinary.js";
+import { optimizeListingImage } from "../ai/image-processor.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import { demoWalletTopUpAllowed } from "../demo-guards.js";
 import { requireOpsSecret } from "../middleware/ops-secret.js";
@@ -205,8 +207,8 @@ function sanitizeListingCreateBody(raw: unknown): Record<string, unknown> {
   );
 
   // Cover must be first real upload — never leave a stock URL in image.
-  // Keep data:image covers when Cloudinary is unavailable so validateListing
-  // does not fail with "image is required" after wiping the only photo.
+  // Data: covers are only a temporary client transport; POST /listings materializes
+  // them to Cloudinary HTTPS before insert (feed blanks data: → empty cards).
   if (httpGallery.length) {
     body.image = httpGallery[0]!;
   } else if (image.startsWith("data:image")) {
@@ -257,6 +259,68 @@ function sanitizeListingCreateBody(raw: unknown): Record<string, unknown> {
   }
   body.attributes = sanitizedAttrs;
   return body;
+}
+
+/**
+ * Persist data: covers to Cloudinary before DB insert.
+ * Feed SELECT blanks `data:` images — never store them as the public cover.
+ */
+async function materializeListingCoverToHttps(
+  body: Record<string, unknown>,
+  listingIdHint: string
+): Promise<{ ok: true } | { ok: false; status: number; error: string; code: string }> {
+  const image = typeof body.image === "string" ? body.image.trim() : "";
+  if (!image.startsWith("data:image")) return { ok: true };
+
+  if (!isCloudinaryConfigured()) {
+    return {
+      ok: false,
+      status: 503,
+      code: "cloudinary_not_configured",
+      error:
+        "Nuotraukų saugykla nepasiekiama. Bandykite vėliau arba patikrinkite ryšį.",
+    };
+  }
+
+  try {
+    let processed = image;
+    try {
+      processed = await optimizeListingImage(image);
+    } catch {
+      processed = image;
+    }
+    const uploaded = await uploadImageToCloudinary(processed, "vauto", {
+      listingId: listingIdHint,
+    });
+    const httpsUrl = uploaded.url;
+    const existing = Array.isArray(body.images)
+      ? body.images
+          .map((u) => String(u ?? "").trim())
+          .filter((u) => /^https?:\/\//i.test(u))
+      : [];
+    const gallery = [httpsUrl, ...existing].filter(
+      (u, i, arr) => arr.indexOf(u) === i
+    );
+    body.image = httpsUrl;
+    body.images = gallery;
+    const attrs =
+      body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes)
+        ? ({ ...(body.attributes as Record<string, unknown>) } as Record<string, unknown>)
+        : {};
+    attrs.galleryUrls = gallery;
+    body.attributes = attrs;
+    return { ok: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[listings] materialize data cover failed:", msg.slice(0, 400));
+    return {
+      ok: false,
+      status: 502,
+      code: "image_upload_failed",
+      error:
+        "Nepavyko įkelti nuotraukos į saugyklą. Bandykite publikuoti dar kartą.",
+    };
+  }
 }
 
 /** Soft-normalize PATCH bodies so long Vision dumps never 400 the edit save. */
@@ -718,16 +782,28 @@ apiRouter.post(
         typeof body?.image === "string" && body.image.startsWith("data:")
       }`
     );
+    const listingIdHint =
+      typeof body?.id === "string" && body.id.trim()
+        ? body.id.trim()
+        : `l-${Date.now()}`;
+    const materialized = await materializeListingCoverToHttps(body, listingIdHint);
+    if (!materialized.ok) {
+      res.status(materialized.status).json({
+        ok: false,
+        code: materialized.code,
+        error: materialized.error,
+      });
+      return;
+    }
     if (typeof body?.image === "string" && body.image.startsWith("data:image")) {
-      if (body.image.length > 4_000_000) {
-        res.status(413).json({
-          ok: false,
-          code: "image_too_large",
-          error:
-            "Nuotrauka per didelė saugojimui. Palaukite debesies įkėlimo arba sumažinkite failą.",
-        });
-        return;
-      }
+      // Safety net — should never reach here after materialize.
+      res.status(422).json({
+        ok: false,
+        code: "image_requires_https",
+        error:
+          "Nuotrauka turi būti įkelta į saugyklą prieš publikavimą. Bandykite dar kartą.",
+      });
+      return;
     }
     const parsed = validateListing(body);
     if (badRequest(res, parsed)) return;

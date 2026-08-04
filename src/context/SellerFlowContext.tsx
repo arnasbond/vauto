@@ -62,9 +62,9 @@ import {
 import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-form-validation";
 import {
   listingCategoryAllowsPhotoless,
-  PHOTOLESS_LISTING_COVER_DATA_URL,
   capListingGalleryUrls,
 } from "@vauto/shared/listing-photo-policy";
+import { LISTING_PLACEHOLDER_IMAGE } from "@/lib/listing-image";
 import { sanitizeListingAttributesForPersistence } from "@vauto/shared/listing-attributes-sanitize";
 import { registerPushNotifications } from "@/lib/push-registration";
 import {
@@ -222,8 +222,6 @@ function hasExplicitServiceKeywords(text: string): boolean {
   );
 }
 
-const API_MAX_IMAGE_LENGTH = 15_000_000;
-
 function formatPublishSaveError(raw: string): string {
   return `Nepavyko išsaugoti skelbimo: ${parseApiErrorMessage(raw)}`;
 }
@@ -256,6 +254,7 @@ function resolvePublishApiFailure(
 /**
  * DEFERRED permanent storage — called only from publishListing (Publikuoti / Patvirtinti).
  * Pre-flight chat Vision never enters here; it keeps high-res data URLs in session memory.
+ * Returns HTTPS Cloudinary URL only — never a data: URL (feed strips those → blank cards).
  */
 async function prepareListingImageForApi(
   src: string | null | undefined,
@@ -263,20 +262,25 @@ async function prepareListingImageForApi(
 ): Promise<string | null> {
   if (!src?.trim()) return null;
   let image = (await resolveImageForUpload(src)) ?? src.trim();
-  if (image.startsWith("data:image")) {
-    // Publish-size compress — lossy store budget (not Vision OCR quality).
-    image = await compressDataUrl(image, {
-      maxDim: 1024,
-      quality: 0.72,
-      maxChars: 180_000,
-      force: true,
-    });
+  if (/^https?:\/\//i.test(image)) return image;
+  if (!image.startsWith("data:image")) return null;
+
+  // Publish-size compress — lossy store budget (not Vision OCR quality).
+  image = await compressDataUrl(image, {
+    maxDim: 1024,
+    quality: 0.72,
+    maxChars: 180_000,
+    force: true,
+  });
+
+  // Retry Cloudinary — transient Render/OOM failures are common on first attempt.
+  for (let attempt = 0; attempt < 3; attempt++) {
     const cloudUrl = await apiUploadMedia(image, listingId);
     if (cloudUrl) return cloudUrl;
-    if (image.length > API_MAX_IMAGE_LENGTH) return null;
-    return image;
+    if (attempt < 2) {
+      await new Promise((r) => setTimeout(r, 450 * (attempt + 1)));
+    }
   }
-  if (/^https?:\/\//i.test(image)) return image;
   return null;
 }
 
@@ -1816,36 +1820,27 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     // Sequential uploads — parallel 6× sharp/Cloudinary on Render often 503/OOM.
     const coords = await coordsPromise;
     const preparedGallery: string[] = [];
+    let uploadFailures = 0;
     for (const src of syncedGallery) {
       const prepared = await prepareListingImageForApi(src, listingId);
-      if (prepared) preparedGallery.push(prepared);
+      if (prepared && /^https?:\/\//i.test(prepared)) {
+        preparedGallery.push(prepared);
+      } else if (src?.trim()) {
+        uploadFailures += 1;
+      }
     }
     const httpImages = preparedGallery.filter((u) => /^https?:\/\//i.test(u));
-    const dataImages = preparedGallery.filter((u) => u.startsWith("data:image"));
-    // If cloud upload worked, keep all http URLs. Otherwise send only the cover data URL
-    // so /api/listings stays under the body limit (extras stay local until cloud is ready).
-    let galleryImages = capListingGalleryUrls(
-      (
-        httpImages.length
-          ? [...httpImages, ...dataImages]
-          : dataImages.slice(0, 1)
-      ).filter(Boolean),
-      profileDraft.category
-    );
+    // Public catalog only accepts HTTPS. Data URLs publish "successfully" then vanish
+    // from feed SELECT (CASE WHEN image LIKE 'data:%' THEN '') → blank cards.
+    let galleryImages = capListingGalleryUrls(httpImages, profileDraft.category);
     if (!galleryImages.length && photosOptional) {
-      galleryImages = [PHOTOLESS_LISTING_COVER_DATA_URL];
+      galleryImages = [LISTING_PLACEHOLDER_IMAGE];
     }
     if (!galleryImages.length) {
-      const msg = LISTING_PHOTO_REQUIRED_MESSAGE;
-      showToast(msg, "error");
-      return { ok: false, error: msg };
-    }
-    if (
-      galleryImages.some(
-        (img) => img.startsWith("data:image") && img.length > API_MAX_IMAGE_LENGTH
-      )
-    ) {
-      const msg = "Nuotrauka per didelė serveriui — bandykite mažesnę arba kitą formatą.";
+      const msg =
+        uploadFailures > 0 || syncedGallery.length > 0
+          ? "Nepavyko įkelti nuotraukų į saugyklą. Patikrinkite ryšį ir bandykite publikuoti dar kartą."
+          : LISTING_PHOTO_REQUIRED_MESSAGE;
       showToast(msg, "error");
       return { ok: false, error: msg };
     }

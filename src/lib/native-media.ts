@@ -34,11 +34,12 @@ export async function compressDataUrl(
   if (typeof document === "undefined" || !dataUrl.startsWith("data:image")) {
     return dataUrl;
   }
+  const friendly = await ensureWebFriendlyImageDataUrl(dataUrl);
   const maxDim = opts?.maxDim ?? 1280;
   const minDim = Math.max(140, opts?.minDim ?? 140);
   const maxChars = opts?.maxChars ?? 400_000;
   const force = opts?.force ?? false;
-  if (!force && dataUrl.length <= maxChars) return dataUrl;
+  if (!force && friendly.length <= maxChars) return friendly;
 
   return new Promise((resolve) => {
     const img = new Image();
@@ -51,7 +52,7 @@ export async function compressDataUrl(
       canvas.height = h;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
-        resolve(dataUrl);
+        resolve(friendly);
         return;
       }
       // Prefer crisp text for OCR — avoid aggressive canvas smoothing.
@@ -85,8 +86,8 @@ export async function compressDataUrl(
       }
       resolve(out);
     };
-    img.onerror = () => resolve(dataUrl);
-    img.src = dataUrl;
+    img.onerror = () => resolve(friendly);
+    img.src = friendly;
   });
 }
 
@@ -218,11 +219,70 @@ function ensureDataUrlPrefix(dataUrl: string, format = "jpeg"): string {
   return trimmed;
 }
 
+function isHeicLikeSource(src: string, mimeHint?: string): boolean {
+  const mime = (mimeHint ?? "").toLowerCase();
+  if (mime.includes("heic") || mime.includes("heif")) return true;
+  const head = src.slice(0, 64).toLowerCase();
+  return (
+    head.startsWith("data:image/heic") ||
+    head.startsWith("data:image/heif") ||
+    /\.heic($|\?)/i.test(src) ||
+    /\.heif($|\?)/i.test(src)
+  );
+}
+
+/** Convert HEIC/HEIF (iPhone) into JPEG data URL for web preview + Cloudinary. */
+export async function ensureWebFriendlyImageDataUrl(
+  dataUrl: string,
+  mimeHint?: string
+): Promise<string> {
+  const trimmed = ensureDataUrlPrefix(dataUrl);
+  if (!trimmed.startsWith("data:image")) return trimmed;
+  if (!isHeicLikeSource(trimmed, mimeHint)) return trimmed;
+
+  try {
+    const res = await fetch(trimmed);
+    const blob = await res.blob();
+    if (typeof createImageBitmap === "function") {
+      try {
+        const bitmap = await createImageBitmap(blob);
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(bitmap, 0, 0);
+          bitmap.close?.();
+          return canvas.toDataURL("image/jpeg", 0.9);
+        }
+      } catch {
+        /* try heic2any below */
+      }
+    }
+    try {
+      const heic2any = (await import("heic2any")).default;
+      const converted = await heic2any({
+        blob,
+        toType: "image/jpeg",
+        quality: 0.9,
+      });
+      const outBlob = Array.isArray(converted) ? converted[0]! : converted;
+      return (await blobToDataUrl(outBlob)) ?? trimmed;
+    } catch {
+      return trimmed;
+    }
+  } catch {
+    return trimmed;
+  }
+}
+
 /** Convert Capacitor/local URIs into uploadable data URLs. */
 export async function resolveImageForUpload(src: string): Promise<string | null> {
   const trimmed = src.trim();
   if (!trimmed) return null;
-  if (trimmed.startsWith("data:image")) return trimmed;
+  if (trimmed.startsWith("data:image")) {
+    return ensureWebFriendlyImageDataUrl(trimmed);
+  }
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
 
   if (Capacitor.isNativePlatform()) {
@@ -234,7 +294,9 @@ export async function resolveImageForUpload(src: string): Promise<string | null>
       const res = await fetch(fetchUri);
       if (res.ok) {
         const blob = await res.blob();
-        return blobToDataUrl(blob);
+        const dataUrl = await blobToDataUrl(blob);
+        if (!dataUrl) return null;
+        return ensureWebFriendlyImageDataUrl(dataUrl, blob.type);
       }
     } catch {
       /* fall through */
@@ -245,7 +307,9 @@ export async function resolveImageForUpload(src: string): Promise<string | null>
     const res = await fetch(trimmed);
     if (!res.ok) return null;
     const blob = await res.blob();
-    return blobToDataUrl(blob);
+    const dataUrl = await blobToDataUrl(blob);
+    if (!dataUrl) return null;
+    return ensureWebFriendlyImageDataUrl(dataUrl, blob.type);
   } catch {
     return null;
   }

@@ -1,13 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { isNativeApp } from "@/lib/mobile-install";
 import { resolveListingImage, LISTING_PLACEHOLDER_IMAGE } from "@/lib/listing-image";
 import type { Listing } from "@/lib/types";
 
 type ListingImageProps = {
-  listing: Pick<Listing, "id" | "title" | "category" | "images" | "description">;
+  listing: Pick<Listing, "id" | "title" | "category" | "images" | "description"> & {
+    image?: string;
+  };
   alt: string;
   fill?: boolean;
   sizes?: string;
@@ -28,7 +30,17 @@ export function ListingImage({
   const primary = resolveListingImage(listing);
   const [src, setSrc] = useState(primary);
 
+  useEffect(() => {
+    setSrc(resolveListingImage(listing));
+  }, [listing.id, listing.images, listing.image, listing.title, listing.category]);
+
   const handleError = () => {
+    if (typeof console !== "undefined") {
+      console.warn("[ListingImage] broken cover, using placeholder", {
+        listingId: listing.id,
+        src,
+      });
+    }
     if (src !== LISTING_PLACEHOLDER_IMAGE) setSrc(LISTING_PLACEHOLDER_IMAGE);
   };
 
@@ -51,7 +63,7 @@ export function ListingImage({
 
   return (
     <Image
-      src={src}
+      src={src || LISTING_PLACEHOLDER_IMAGE}
       alt={alt}
       fill={fill}
       sizes={sizes}

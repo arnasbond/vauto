@@ -28,8 +28,9 @@ export async function readGalleryFilesAsDataUrls(
   files: File[],
   maxFiles = 8
 ): Promise<string[]> {
+  const { ensureWebFriendlyImageDataUrl } = await import("@/lib/native-media");
   const picked = files.slice(0, maxFiles);
-  return Promise.all(
+  const urls = await Promise.all(
     picked.map(
       (file) =>
         new Promise<string>((resolve, reject) => {
@@ -43,6 +44,9 @@ export async function readGalleryFilesAsDataUrls(
           reader.readAsDataURL(file);
         })
     )
+  );
+  return Promise.all(
+    urls.map((url, i) => ensureWebFriendlyImageDataUrl(url, picked[i]?.type))
   );
 }
 

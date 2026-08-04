@@ -50,7 +50,7 @@ export function listingToApiPayload(
     location: resolveListingCity(listing.location),
     image: cover,
     // Always persist full HTTP gallery so multi-photo listings keep every upload.
-    // When only data: covers exist, still omit images[] (server keeps image data URL).
+    // Data-only covers are rejected at publish — feed blanks data: URLs.
     ...(httpGallery.length ? { images: httpGallery } : {}),
     allowPastomatas: listing.allowPastomatas ?? true,
   };
