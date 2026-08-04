@@ -148,7 +148,7 @@ export function normalizeVisualFeatureBullets(input: {
   if (/ratlank|alloy|lieti\s+ratai|lengvojo\s+lydinio/i.test(corpus)) {
     exteriorBits.push("Originalūs lengvojo lydinio ratlankiai");
   }
-  if (/rilin|stogo\s+bėgel|roof\s*rail|reling/i.test(corpus)) {
+  if (/rilin|stogo\s+bėgel|roof\s*rail|reling|stogo\s+laikikl/i.test(corpus)) {
     exteriorBits.push("Stogo bagažinės bėgeliai (rilingai)");
   }
   if (/deflektor/i.test(corpus)) {
@@ -156,6 +156,28 @@ export function normalizeVisualFeatureBullets(input: {
   }
   if (/kabl|tow|vilkim/i.test(corpus)) {
     exteriorBits.push("Vilkimo kablys");
+  }
+  // Soft body / lighting cues — only when the corpus itself mentions them.
+  if (
+    /\b(šonini\w*\s+lang|treči\w*\s+eil|trečia\s+eil|side\s+window|d[-\s]?pillar|d\s+stulpel)/i.test(
+      corpus
+    )
+  ) {
+    exteriorBits.push("Išskirtinė šoninių langų / kėbulo linija");
+  }
+  if (
+    /\b(žibint|led\s+žibint|adaptive\s+light|priekiniai\s+žibintai|galiniai\s+žibintai|headlamp|taillight)/i.test(
+      corpus
+    )
+  ) {
+    exteriorBits.push("Charakteringi žibintai");
+  }
+  if (
+    /\b(kėbulo\s+linij|siluet|universal\w*|het[cč]bek|hatchback|avant|touring|kombi)\b/i.test(
+      corpus
+    )
+  ) {
+    exteriorBits.push("Aiškiai skaitomas kėbulo tipas / siluetas");
   }
   // Body-style only when the corpus itself names an MPV / vienatūris — no Picasso few-shot.
   if (/\b(vienatūr|mpv|minivan|šeimos\s+automobil)\b/i.test(corpus)) {

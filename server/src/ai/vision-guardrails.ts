@@ -47,6 +47,7 @@ CATEGORY-MATCHING COPY (PRIVALOMA):
 - description PRIVALO atitikti category ir vizualų objektą (gitara → instrumentas; paveikslas → menas).
 - DRAUDŽIAMA non-auto listing'uose: „Automobilis paruoštas apžiūrai“, „servisą, dokumentus“, „rida“, „kėbulas“, „variklis“, TA.
 - Auto šablonai / rida / kW / variklis leidžiami TIK kai category=AUTOMOBILIAI.
+- Auto prozoje: natūralūs linksniai („su dyzeliniu varikliu“, „stovi Kaišiadoryse“) — ne žalias „variklis: dyzelinas“ sakinyje.
 - VISIEMS non-auto: laikyk copy turtingą ir kūrybingą — filtruoji TIK auto raktinius žodžius, ne trumpini visą tekstą.
 
 ATTRIBUTES (CATEGORY-STRICT — PRIVALOMA):
@@ -132,6 +133,19 @@ fitsOmnivaLocker = false / estimatedSize OVERSIZED:
 Jei abejoji — OVERSIZED + fitsOmnivaLocker false (saugiau nei klaidingas locker).`;
 
 /** Pass-1 extraction only — facts/OCR/category, no creative sales copy. */
+export const VISION_VEHICLE_MODEL_CUE_HINT = `
+AUTOMOBILIŲ MODELIO ORIENTYRAI (REKOMENDACIJA — lankstumas, ne suvaržymas):
+Kai atpažįsti visą automobilį (AUTOMOBILIAI), naudok vizualius ORIENTYRUS tik kaip pagalbą tiksliau atskirti artimus modelius / kėbulo variantus
+(pvz. C4 Picasso vs Grand C4 Picasso, universalas vs hetčbekas, Avant vs limuzinas):
+- Kėbulo linijos ir siluetas (ilgis, galinė dalis, D-stulpelis / „C“ linija)
+- Stogo laikikliai / rilingai (jei matomi)
+- Šoninių langų skaičius / forma / trečioji eilė
+- Priekiniai / galiniai žibintai ir jų forma
+Rašyk pastebėjimus į factNotes / exteriorFeatures TIK jei AIŠKIAI matai.
+OCR D.3 (modelis VERBATIM) ir S.1 (vietos) turi PRIORITETĄ prieš vizualius spėjimus —
+orientyrai PAPILDO, bet NIEKADA nepriverčia modelio, jei neaišku. Palik null, jei abejoji.
+Tai rekomendacinės gairės: išlaikyk bendrą gebėjimą atpažinti bet kurią transporto priemonę.`;
+
 export const VISION_EXTRACTION_ANTI_HALLUCINATION_RULE = `
 VIZUALUS SUPRATIMAS — PASS 1 EXTRACTION (kreipiantis, ne blokas):
 - Ištrauk MAKSIMALIAI daug STRUKTŪRUOTŲ FAKTŲ, kuriuos MATAI su dideliu patikimumu:
@@ -143,6 +157,7 @@ VIZUALUS SUPRATIMAS — PASS 1 EXTRACTION (kreipiantis, ne blokas):
 - NIEKADA neatmesk vartotojo nuotraukų kaip „stock“ / „neadekvatu“ — tai ne tavo sprendimas.
 - NIEKADA nesiūlyk ankstesnių skelbimų pavadinimų ar katalogo prekių jei jų NĖRA nuotraukoje.
 - Šiame žingsnyje NErašyk turtingo sales description — tik šalti faktai + category + imageRoles.
+${VISION_VEHICLE_MODEL_CUE_HINT}
 ${VISION_ANTI_STALE_TITLE_RULE}
 ${VISION_REGITRA_TECH_PASSPORT_OCR_RULE}
 ${VISION_DEEP_OCR_EXTRACTION_RULE}

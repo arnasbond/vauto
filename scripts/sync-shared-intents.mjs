@@ -37,7 +37,10 @@ for (const name of [
   "authenticity-text.ts",
   "vehicle-vision-enrich.ts",
   "vehicle-spec-catalog.ts",
+  "vehicle-sales-copy.ts",
+  "ensure-rich-sales-copy.ts",
   "omniva-locker-eligibility.ts",
+  "listing-attributes-sanitize.ts",
 ]) {
   const raw = readFileSync(join(root, "shared", name), "utf8");
   writeFileSync(join(root, "server", "src", "shared", name), withJsExt(raw), "utf8");

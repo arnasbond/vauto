@@ -19,6 +19,106 @@ function attr(
   return "";
 }
 
+/** Spec-list fuel label (nominative noun) — kept for **Variklis:** rows. */
+export function formatFuelLabelNominative(fuel: string): string {
+  const t = fuel.trim().toLowerCase();
+  if (!t) return "";
+  if (/elekt/.test(t)) return "elektra";
+  if (/hibrid/.test(t)) return "hibridas";
+  if (/dyzel|diesel/.test(t)) return "dyzelinas";
+  if (/benzin|petrol|gasoline/.test(t)) return "benzinas";
+  if (/duj|lpg|cng/.test(t)) return "dujos";
+  return fuel.trim().toLowerCase();
+}
+
+/** Prose adjective agreement: „dyzelinis variklis“, „benzininis variklis“. */
+export function formatFuelAdjective(fuel: string): string {
+  const t = fuel.trim().toLowerCase();
+  if (!t) return "";
+  if (/elekt/.test(t)) return "elektrinis";
+  if (/hibrid/.test(t)) return "hibridinis";
+  if (/dyzel|diesel/.test(t)) return "dyzelinis";
+  if (/benzin|petrol|gasoline/.test(t)) return "benzininis";
+  if (/duj|lpg|cng/.test(t)) return "dujinis";
+  return "";
+}
+
+/**
+ * Soft locative for common LT cities in sales prose („Kaišiadoryse“, „Vilniuje“).
+ * Falls back to a light heuristic if unknown — never invents a wrong case blindly.
+ */
+export function cityInLocative(city: string): string {
+  const raw = city.trim();
+  if (!raw) return "";
+  const key = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ė/g, "e")
+    .replace(/š/g, "s")
+    .replace(/ų|ū/g, "u")
+    .replace(/ž/g, "z")
+    .replace(/ą/g, "a")
+    .replace(/č/g, "c")
+    .replace(/į/g, "i");
+  const table: Record<string, string> = {
+    vilnius: "Vilniuje",
+    kaunas: "Kaune",
+    klaipeda: "Klaipėdoje",
+    siauliai: "Šiauliuose",
+    panevezys: "Panevėžyje",
+    alytus: "Alytuje",
+    marijampole: "Marijampolėje",
+    utena: "Utenoje",
+    kaisiadorys: "Kaišiadoryse",
+    jonava: "Jonavoje",
+    kedainiai: "Kėdainiuose",
+    telsiai: "Telšiuose",
+    taurage: "Tauragėje",
+    ukmerge: "Ukmergėje",
+    palanga: "Palangoje",
+    druskininkai: "Druskininkuose",
+    mazeikiai: "Mažeikiuose",
+    plunge: "Plungėje",
+  };
+  if (table[key]) return table[key]!;
+  if (/ys$/i.test(raw)) return raw.replace(/ys$/i, "yse");
+  if (/iai$/i.test(raw)) return raw.replace(/iai$/i, "iuose");
+  if (/a$/i.test(raw)) return `${raw.slice(0, -1)}oje`;
+  if (/ė$/i.test(raw)) return `${raw.slice(0, -1)}ėje`;
+  if (/us$/i.test(raw)) return `${raw.slice(0, -2)}uje`;
+  return raw;
+}
+
+/** Build a natural LT engine phrase for prose (not the spec-list row). */
+export function formatEngineProsePhrase(parts: {
+  engine?: string;
+  fuel?: string;
+  powerKw?: string;
+}): string {
+  const eng = (parts.engine ?? "").trim();
+  const fuelAdj = formatFuelAdjective(parts.fuel ?? "");
+  const fuelNom = formatFuelLabelNominative(parts.fuel ?? "");
+  const kw = (parts.powerKw ?? "").replace(/\s*kW$/i, "").trim();
+  const engNorm =
+    eng && /\d/.test(eng) && !/l/i.test(eng) ? `${eng} l` : eng;
+
+  const chunks: string[] = [];
+  if (fuelAdj && engNorm) {
+    chunks.push(`${fuelAdj} ${engNorm} variklis`);
+  } else if (fuelAdj) {
+    chunks.push(`${fuelAdj} variklis`);
+  } else if (engNorm && fuelNom) {
+    chunks.push(`${engNorm} variklis (${fuelNom})`);
+  } else if (engNorm) {
+    chunks.push(`${engNorm} variklis`);
+  } else if (fuelNom) {
+    chunks.push(fuelNom);
+  }
+  if (kw) chunks.push(`${kw} kW`);
+  return chunks.join(", ");
+}
+
 /** User confirmed Step-2 vision summary → generate sales ad (Paruošti skelbimą). */
 export function isVehicleSalesCopyConfirmIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
@@ -83,7 +183,10 @@ export function buildVehicleBenchmarkSalesCopy(draft: SalesCopyDraft): string {
       : 0;
   const ta = attr(attrs, "techInspection", "ta", "inspectionValidUntil", "taValidUntil");
 
-  const makeModel = [make, model].filter(Boolean).join(" ") || enriched.title?.trim() || "automobilis";
+  const makeModel =
+    [make, model].filter(Boolean).join(" ") ||
+    enriched.title?.trim() ||
+    "automobilis";
   const yearBit = year ? ` (${year} m.)` : "";
 
   const interiorLines = splitFeatureLines(
@@ -93,18 +196,29 @@ export function buildVehicleBenchmarkSalesCopy(draft: SalesCopyDraft): string {
     attr(attrs, "exteriorFeatures", "exterior", "features", "equipment")
   );
 
-  const engineLine = [
+  const fuelNom = formatFuelLabelNominative(fuel);
+  const engineSpecLine = [
     engine
       ? /\d/.test(engine) && !/l/i.test(engine)
         ? `${engine} l`
         : engine
       : "",
-    fuel,
+    fuelNom,
     powerKw ? `${powerKw} kW` : "",
-    euro ? euro.toUpperCase().startsWith("EURO") ? euro : `Euro ${euro}` : "",
+    euro
+      ? euro.toUpperCase().startsWith("EURO")
+        ? euro
+        : `Euro ${euro}`
+      : "",
   ]
     .filter(Boolean)
     .join(", ");
+
+  const engineProse = formatEngineProsePhrase({
+    engine,
+    fuel,
+    powerKw,
+  });
 
   const headline = `🚗 Parduodamas ${makeModel}${yearBit}`.replace(/\s+/g, " ").trim();
 
@@ -112,8 +226,12 @@ export function buildVehicleBenchmarkSalesCopy(draft: SalesCopyDraft): string {
     headline,
     "",
     make || model ? `**Markė / Modelis:** ${makeModel}` : "",
-    regDate ? `**Pirmosios registracijos data:** ${regDate}` : year ? `**Metai:** ${year}` : "",
-    engineLine ? `**Variklis:** ${engineLine}` : "",
+    regDate
+      ? `**Pirmosios registracijos data:** ${regDate}`
+      : year
+        ? `**Metai:** ${year}`
+        : "",
+    engineSpecLine ? `**Variklis:** ${engineSpecLine}` : "",
     color ? `**Spalva:** ${color}` : "",
     body || seats
       ? `**Kėbulo tipas:** ${[body, seats ? `${seats} vietų` : ""].filter(Boolean).join(" · ")}`
@@ -153,10 +271,14 @@ export function buildVehicleBenchmarkSalesCopy(draft: SalesCopyDraft): string {
 
   lines.push("", "**Aprašymas:**");
   const descParts: string[] = [];
-  descParts.push(
-    `Parduodamas erdvus ir praktiškas ${makeModel}${yearBit}`.replace(/\s+/g, " ").trim() +
-      (engineLine ? ` su ${engineLine.toLowerCase()}.` : ".")
-  );
+  const open = `Parduodamas erdvus ir praktiškas ${makeModel}${yearBit}`
+    .replace(/\s+/g, " ")
+    .trim();
+  if (engineProse) {
+    descParts.push(`${open} su ${engineProse}.`);
+  } else {
+    descParts.push(`${open}.`);
+  }
   if (interiorLines.length) {
     descParts.push(`Salonas: ${interiorLines.join(", ").toLowerCase()}.`);
   }
@@ -164,13 +286,10 @@ export function buildVehicleBenchmarkSalesCopy(draft: SalesCopyDraft): string {
     descParts.push(`Komplektacija: ${exteriorLines.join(", ").toLowerCase()}.`);
   }
   if (city) {
-    descParts.push(`Automobilis ${city}.`);
+    descParts.push(`Automobilis stovi ${cityInLocative(city)}.`);
   }
   descParts.push("Dėl apžiūros kreipkitės nurodytu telefonu.");
   lines.push(descParts.join(" "));
-
-  // Never append seller-coaching / prompt tips into public description.
-  // Missing-field nudges belong in chat (listVehicleSalesCopyGaps), not listing body.
 
   return lines.filter((l, i, arr) => !(l === "" && arr[i - 1] === "")).join("\n");
 }

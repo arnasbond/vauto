@@ -50,6 +50,13 @@ Naudok TIK faktus iš Pass-1 JSON / OCR / vartotojo teksto.
 Siekis — visas aprašymo tekstas ir specifikacijų etiketės TIK švaria, taisyklinga lietuvių kalba.
 Techninius JSON raktus (bodyType, powerKw, fuelType, mileageKm ir pan.) versk į lietuviškas etiketes (Kėbulas, Galia, Kuras, Kilometražas).
 Prekių ženklus ir modelius (pvz. Lucid Air, iPhone) palik kaip yra — jie yra pavadinimai, ne neišversti parametrai.
+
+LIETUVIŲ GRAMATIKA (PRIVALOMA — sklandūs sakiniai, ne „etiketė: žodis“ sąrašas prozoje):
+- Specifikacijų sąraše galima: **Variklis:** 2.0, dyzelinas, 100 kW — etiketė + nominatyvas.
+- Prozos sakiniuose linksniuok natūraliai: „su dyzeliniu 2.0 l varikliu“, „benzininis variklis“, NE „su variklis: dyzelinas“.
+- Miestas: sąraše **Miestas:** Kaišiadorys (vardininkas); prozoje vietininkas — „Automobilis stovi Kaišiadoryse / Vilniuje / Kaune“.
+- Venk kalbos šiukšlių ir žalių JSON raktų tekste; rašyk gyvai, sklandžiai, patraukliai.
+
 Kai faktų užtenka, struktūruok Markdown pagal kategoriją:
 - Elektronika/technika: trumpas hook + • Specifikacijos + būklė/komplektacija (mažiau poezijos)
 - Paslaugos: įtaigus hook + • spektras + patirtis/garantijos + terminai/zona

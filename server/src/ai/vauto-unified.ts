@@ -19,6 +19,7 @@ import {
   VISION_EXTRACTION_ANTI_HALLUCINATION_RULE,
   VISION_OMNIVA_GABARIT_RULE,
   VISION_REGITRA_TECH_PASSPORT_OCR_RULE,
+  VISION_VEHICLE_MODEL_CUE_HINT,
 } from "./vision-guardrails.js";
 import { applyOmnivaEligibilityToDraft } from "../shared/omniva-locker-eligibility.js";
 import { normalizeImageInputList } from "./image-input.js";
@@ -124,6 +125,8 @@ ${VISION_REGITRA_TECH_PASSPORT_OCR_RULE}
 ${VISION_DEEP_OCR_EXTRACTION_RULE}
 
 ${VISION_OMNIVA_GABARIT_RULE}
+
+${VISION_VEHICLE_MODEL_CUE_HINT}
 
 OCR → technicalFields (auto-fill PrePublish):
 - Dokumentai / pakuotės tekstas: imageRoles=document; documentImageIndexes = primary OCR.

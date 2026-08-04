@@ -45,6 +45,38 @@ test.describe("Enterprise — validacijos saugikliai", () => {
     expect(JSON.stringify(out)).not.toMatch(/too long/i);
   });
 
+  test("LT sales prose: dyzelinis variklis + miestas vietininku", async () => {
+    const {
+      cityInLocative,
+      formatEngineProsePhrase,
+      formatFuelAdjective,
+      buildVehicleBenchmarkSalesCopy,
+    } = await import("../../shared/vehicle-sales-copy");
+    expect(formatFuelAdjective("Dyzelinas")).toBe("dyzelinis");
+    expect(cityInLocative("Kaišiadorys")).toBe("Kaišiadoryse");
+    expect(formatEngineProsePhrase({ engine: "2.0", fuel: "Dyzelinas", powerKw: "100" })).toMatch(
+      /dyzelinis 2\.0 l variklis/
+    );
+    const copy = buildVehicleBenchmarkSalesCopy({
+      title: "Citroën C4 Picasso",
+      location: "Kaišiadorys",
+      category: "vehicles",
+      attributes: {
+        make: "Citroën",
+        model: "Grand C4 Picasso",
+        year: "2015",
+        engine: "2.0",
+        fuelType: "Dyzelinas",
+        powerKw: "110",
+        seats: "7",
+      },
+    });
+    expect(copy).toMatch(/\*\*Miestas:\*\* Kaišiadorys/);
+    expect(copy).toMatch(/Kaišiadoryse/);
+    expect(copy).toMatch(/dyzelinis/i);
+    expect(copy).not.toMatch(/su 2\.0, dyzelinas/i);
+  });
+
   test("resolveListingApiCover: data:image lieka kai nėra HTTPS", () => {
     const dataA =
       "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAn/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAAGcP//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAQUCf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQMBAT8Bf//EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQIBAT8Bf//Z";
