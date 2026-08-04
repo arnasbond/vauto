@@ -156,7 +156,9 @@ async function aiFetchOnce<T>(
           ? "payload_too_large"
           : res.status === 429
             ? "ai_rate_limit_exceeded"
-            : errBody?.code;
+            : res.status === 401 || res.status === 403
+              ? "session_expired"
+              : errBody?.code;
       const error =
         res.status === 413
           ? "Užklausa per didelė. Sutrumpinkite žinutę arba pokalbio istoriją."
@@ -417,6 +419,9 @@ export async function apiUploadMediaResult(
   );
 
   if (!data) {
+    const sessionExpired =
+      code === "session_expired" ||
+      /nebegalioja|prisijung/i.test(error || "");
     console.error("[apiUploadMedia] upload request failed:", {
       error,
       code,
@@ -426,7 +431,7 @@ export async function apiUploadMediaResult(
     return {
       url: null,
       error: error || "Nuotraukų įkėlimas nepavyko",
-      code: code || "network_error",
+      code: sessionExpired ? "session_expired" : code || "network_error",
     };
   }
 

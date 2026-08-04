@@ -261,11 +261,19 @@ function resolvePublishApiFailure(
  * Pre-flight chat Vision never enters here; it keeps high-res data URLs in session memory.
  * Returns HTTPS Cloudinary URL only — never a data: URL (feed strips those → blank cards).
  */
-async function prepareListingImageForApi(
+type PrepareListingImageResult = {
+  url: string | null;
+  error?: string;
+  code?: string;
+};
+
+async function prepareListingImageForApiResult(
   src: string | null | undefined,
   listingId?: string
-): Promise<string | null> {
-  if (!src?.trim()) return null;
+): Promise<PrepareListingImageResult> {
+  if (!src?.trim()) {
+    return { url: null, error: "image src is empty", code: "empty_image" };
+  }
   let image = (await resolveImageForUpload(src)) ?? "";
   if (!image) {
     const trimmed = src.trim();
@@ -281,22 +289,31 @@ async function prepareListingImageForApi(
       image = trimmed;
     }
   }
-  if (/^https?:\/\//i.test(image)) return image;
+  if (/^https?:\/\//i.test(image)) return { url: image };
   if (!image.startsWith("data:image")) {
-    console.error("[prepareListingImageForApi] unsupported image kind:", image.slice(0, 48));
-    return null;
+    const error = `unsupported image kind: ${image.slice(0, 48)}`;
+    console.error("[prepareListingImageForApi]", error);
+    return { url: null, error, code: "invalid_image" };
   }
 
   // Publish-size compress — force JPEG canvas output for Cloudinary compatibility.
-  image = await compressDataUrl(image, {
-    maxDim: 1024,
-    quality: 0.72,
-    maxChars: 180_000,
-    force: true,
-  });
+  try {
+    image = await compressDataUrl(image, {
+      maxDim: 1024,
+      quality: 0.72,
+      maxChars: 180_000,
+      force: true,
+    });
+  } catch (compressErr) {
+    const error =
+      compressErr instanceof Error ? compressErr.message : String(compressErr);
+    console.error("[prepareListingImageForApi] compress threw:", error);
+    return { url: null, error: `compress failed: ${error}`, code: "compress_failed" };
+  }
   if (!image.startsWith("data:image")) {
-    console.error("[prepareListingImageForApi] compress produced non-data URL");
-    return null;
+    const error = "compress produced non-data URL";
+    console.error("[prepareListingImageForApi]", error);
+    return { url: null, error, code: "compress_failed" };
   }
 
   // Retry Cloudinary — transient Render/OOM failures are common on first attempt.
@@ -304,7 +321,9 @@ async function prepareListingImageForApi(
   let lastCode = "";
   for (let attempt = 0; attempt < 3; attempt++) {
     const result = await apiUploadMediaResult(image, listingId);
-    if (result.url && /^https?:\/\//i.test(result.url)) return result.url;
+    if (result.url && /^https?:\/\//i.test(result.url)) {
+      return { url: result.url, code: result.code };
+    }
     lastError = result.error || lastError;
     lastCode = result.code || lastCode;
     console.error("[prepareListingImageForApi] upload attempt failed:", {
@@ -323,7 +342,51 @@ async function prepareListingImageForApi(
     code: lastCode,
     error: lastError,
   });
-  return null;
+  return {
+    url: null,
+    error: lastError || "Nuotraukų įkėlimas nepavyko",
+    code: lastCode || "upload_failed",
+  };
+}
+
+async function prepareListingImageForApi(
+  src: string | null | undefined,
+  listingId?: string
+): Promise<string | null> {
+  const result = await prepareListingImageForApiResult(src, listingId);
+  return result.url;
+}
+
+function formatPhotoUploadFailureToast(detail: {
+  error?: string;
+  code?: string;
+  uploadFailures?: number;
+  syncedCount?: number;
+}): string {
+  const raw = String(detail.error ?? "").trim();
+  const code = String(detail.code ?? "").trim();
+  if (
+    code === "session_expired" ||
+    /nebegalioja|prisijung/i.test(raw) ||
+    /unauthorized|401/i.test(raw)
+  ) {
+    return SESSION_EXPIRED_MESSAGE;
+  }
+  if (code === "cloudinary_not_configured" || /cloudinary nesukonfig/i.test(raw)) {
+    return raw || "Nuotraukų saugykla nepasiekiama (Cloudinary nesukonfigūruota).";
+  }
+  if (code === "payload_too_large" || /too large|413/i.test(raw)) {
+    return "Nuotrauka per didelė. Sumažinkite failą ir bandykite dar kartą.";
+  }
+  if (code === "invalid_image" || code === "compress_failed") {
+    return `Nepavyko paruošti nuotraukos: ${raw || code}`;
+  }
+  const suffix = raw
+    ? raw.length > 180
+      ? `${raw.slice(0, 177)}…`
+      : raw
+    : code || "nežinoma klaida";
+  return `Nepavyko įkelti nuotraukų į saugyklą: ${suffix}`;
 }
 
 import type { PrePublishVisibilityId } from "@/lib/listing-publish-visibility";
@@ -1782,6 +1845,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       // Sequential uploads — same path as create / edit modal (avoid Render OOM).
       const preparedEditImages: string[] = [];
       let uploadFailures = 0;
+      let lastUploadError = "";
+      let lastUploadCode = "";
       for (const src of editGallery) {
         const trimmed = src.trim();
         if (!trimmed) continue;
@@ -1789,11 +1854,23 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           preparedEditImages.push(trimmed);
           continue;
         }
-        const prepared = await prepareListingImageForApi(trimmed, editingListingId);
-        if (prepared && /^https?:\/\//i.test(prepared)) {
-          preparedEditImages.push(prepared);
+        const prepared = await prepareListingImageForApiResult(
+          trimmed,
+          editingListingId
+        );
+        if (prepared.url && /^https?:\/\//i.test(prepared.url)) {
+          preparedEditImages.push(prepared.url);
         } else {
           uploadFailures += 1;
+          lastUploadError = prepared.error || lastUploadError;
+          lastUploadCode = prepared.code || lastUploadCode;
+          console.error("[PUBLISH_FAIL_TRACE]", {
+            stage: "editingListingId_prepare",
+            editingListingId,
+            error: prepared.error,
+            code: prepared.code,
+            preview: trimmed.slice(0, 64),
+          });
         }
       }
       if (!preparedEditImages.length && !editGallery.length) {
@@ -1804,7 +1881,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (!preparedEditImages.length && !photosOptional) {
         const msg =
           uploadFailures > 0 || editGallery.length > 0
-            ? LISTING_PHOTO_UPLOAD_FAILED_MESSAGE
+            ? formatPhotoUploadFailureToast({
+                error: lastUploadError,
+                code: lastUploadCode,
+                uploadFailures,
+                syncedCount: editGallery.length,
+              })
             : LISTING_PHOTO_REQUIRED_MESSAGE;
         showToast(msg, "error");
         return { ok: false, error: msg };
@@ -1925,10 +2007,27 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     }
 
     // Sequential uploads — parallel 6× sharp/Cloudinary on Render often 503/OOM.
+    // Auth is required for /api/vauto-server upload_media — check before burning retries.
+    if (isDataApiEnabled() && syncedGallery.some((u) => !/^https?:\/\//i.test(u.trim()))) {
+      if (!loadAccessToken()) {
+        const msg = SESSION_EXPIRED_MESSAGE;
+        console.error("[PUBLISH_FAIL_TRACE]", {
+          stage: "upload_auth_precheck",
+          listingId,
+          error: msg,
+          code: "session_expired",
+        });
+        showToast(msg, "error");
+        logout();
+        openAuthModal("/");
+        return { ok: false, error: msg, sessionExpired: true };
+      }
+    }
     const coords = await coordsPromise;
     const preparedGallery: string[] = [];
     let uploadFailures = 0;
     let lastUploadError = "";
+    let lastUploadCode = "";
     for (const src of syncedGallery) {
       const trimmed = src.trim();
       if (!trimmed) continue;
@@ -1937,17 +2036,25 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         preparedGallery.push(trimmed);
         continue;
       }
-      const prepared = await prepareListingImageForApi(trimmed, listingId);
-      if (prepared && /^https?:\/\//i.test(prepared)) {
-        preparedGallery.push(prepared);
+      const prepared = await prepareListingImageForApiResult(trimmed, listingId);
+      if (prepared.url && /^https?:\/\//i.test(prepared.url)) {
+        preparedGallery.push(prepared.url);
       } else if (trimmed) {
         uploadFailures += 1;
-        lastUploadError = `prepare failed for ${trimmed.slice(0, 48)}…`;
-        console.error("[publishListing] image prepare failed", {
+        lastUploadError = prepared.error || lastUploadError || `prepare failed for ${trimmed.slice(0, 48)}…`;
+        lastUploadCode = prepared.code || lastUploadCode;
+        console.error("[PUBLISH_FAIL_TRACE]", {
+          stage: "prepareListingImageForApi",
           listingId,
-          kind: trimmed.startsWith("data:") ? "data" : "other",
+          kind: trimmed.startsWith("data:")
+            ? "data"
+            : trimmed.startsWith("blob:")
+              ? "blob"
+              : "other",
           bytes: trimmed.length,
           preview: trimmed.slice(0, 64),
+          error: prepared.error,
+          code: prepared.code,
         });
       }
     }
@@ -1959,25 +2066,52 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       galleryImages = [LISTING_PLACEHOLDER_IMAGE];
     }
     if (!galleryImages.length) {
-      console.error("[publishListing] gallery empty after upload", {
+      const failPayload = {
+        stage: "gallery_empty_after_upload",
         listingId,
         syncedCount: syncedGallery.length,
         uploadFailures,
         lastUploadError,
+        lastUploadCode,
         syncedKinds: syncedGallery.map((u) =>
-          /^https?:\/\//i.test(u) ? "https" : u.startsWith("data:") ? "data" : "other"
+          /^https?:\/\//i.test(u)
+            ? "https"
+            : u.startsWith("data:")
+              ? "data"
+              : u.startsWith("blob:")
+                ? "blob"
+                : "other"
         ),
-      });
+      };
+      console.error("[PUBLISH_FAIL_TRACE]", failPayload);
+      console.error("[publishListing] gallery empty after upload", failPayload);
+      if (
+        lastUploadCode === "session_expired" ||
+        /nebegalioja|unauthorized|401/i.test(lastUploadError)
+      ) {
+        const msg = SESSION_EXPIRED_MESSAGE;
+        showToast(msg, "error");
+        logout();
+        openAuthModal("/");
+        return { ok: false, error: msg, sessionExpired: true };
+      }
       const msg =
         uploadFailures > 0 || syncedGallery.length > 0
-          ? "Nepavyko įkelti nuotraukų į saugyklą. Patikrinkite ryšį ir bandykite publikuoti dar kartą."
+          ? formatPhotoUploadFailureToast({
+              error: lastUploadError,
+              code: lastUploadCode,
+              uploadFailures,
+              syncedCount: syncedGallery.length,
+            })
           : LISTING_PHOTO_REQUIRED_MESSAGE;
       showToast(msg, "error");
       return { ok: false, error: msg };
     }
     if (uploadFailures > 0) {
       showToast(
-        `Dalis nuotraukų neįkelta (${uploadFailures}). Publikuojama su likusiomis.`,
+        `Dalis nuotraukų neįkelta (${uploadFailures}). Publikuojama su likusiomis. ${
+          lastUploadError ? `(${lastUploadError.slice(0, 80)})` : ""
+        }`.trim(),
         "info"
       );
     }
@@ -2276,10 +2410,19 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     return { ok: true, listing: newListing, visibilityCheckout };
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
+      const errObj =
+        e instanceof Error
+          ? { name: e.name, message: e.message, stack: e.stack }
+          : { raw: detail };
+      console.error("[PUBLISH_FAIL_TRACE]", {
+        stage: "publishListing_catch",
+        err: errObj,
+        detail,
+      });
       const msg = formatPublishSaveError(detail);
       setSellerStep("idle");
       setSyncError(msg);
-      showToast(msg, "error");
+      showToast(`Nepavyko publikuoti: ${detail.slice(0, 220)}`, "error");
       pushAgentGreeting(msg, { openSheet: true });
       return { ok: false, error: detail };
     } finally {
@@ -2520,6 +2663,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         // must not be mislabeled as "Prašome įkelti bent vieną nuotrauką".
         const preparedImages: string[] = [];
         let uploadFailures = 0;
+        let lastUploadError = "";
+        let lastUploadCode = "";
         for (const src of cappedGallery) {
           const trimmed = src.trim();
           if (!trimmed) continue;
@@ -2527,17 +2672,31 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             preparedImages.push(trimmed);
             continue;
           }
-          const prepared = await prepareListingImageForApi(trimmed, id);
-          if (prepared && /^https?:\/\//i.test(prepared)) {
-            preparedImages.push(prepared);
+          const prepared = await prepareListingImageForApiResult(trimmed, id);
+          if (prepared.url && /^https?:\/\//i.test(prepared.url)) {
+            preparedImages.push(prepared.url);
           } else {
             uploadFailures += 1;
+            lastUploadError = prepared.error || lastUploadError;
+            lastUploadCode = prepared.code || lastUploadCode;
+            console.error("[PUBLISH_FAIL_TRACE]", {
+              stage: "saveEditListingFromModal_prepare",
+              listingId: id,
+              error: prepared.error,
+              code: prepared.code,
+              preview: trimmed.slice(0, 64),
+            });
           }
         }
         if (!preparedImages.length && !photosOptional) {
           const msg =
             uploadFailures > 0 || cappedGallery.length > 0
-              ? LISTING_PHOTO_UPLOAD_FAILED_MESSAGE
+              ? formatPhotoUploadFailureToast({
+                  error: lastUploadError,
+                  code: lastUploadCode,
+                  uploadFailures,
+                  syncedCount: cappedGallery.length,
+                })
               : LISTING_PHOTO_REQUIRED_MESSAGE;
           showToast(msg, "error");
           throw new Error(msg);

@@ -1,6 +1,7 @@
 /** Cloudinary upload — unsigned preset OR signed api_key + signature. */
 
 import { createHash } from "node:crypto";
+import { File as NodeFile } from "node:buffer";
 
 export function isCloudinaryConfigured(): boolean {
   const cloud = Boolean(process.env.CLOUDINARY_CLOUD_NAME?.trim());
@@ -35,7 +36,8 @@ function parseDataUrlFile(imageDataUrl: string): {
   filename: string;
 } {
   const trimmed = imageDataUrl.trim();
-  const match = /^data:([^;]+);base64,(.+)$/is.exec(trimmed);
+  // Allow optional params (charset=…) between mime and ;base64,
+  const match = /^data:([^;,]+)(?:;[^,]*)*;base64,(.+)$/is.exec(trimmed);
   if (match) {
     const contentType = (match[1] || "image/jpeg").trim().toLowerCase();
     const bytes = Buffer.from(match[2]!, "base64");
@@ -59,6 +61,8 @@ function parseDataUrlFile(imageDataUrl: string): {
   throw new Error("Cloudinary file must be a data:image URL or https URL");
 }
 
+type FileAppendMode = "multipart" | "data_uri";
+
 export async function uploadImageToCloudinary(
   imageDataUrl: string,
   folder = "vauto",
@@ -74,17 +78,28 @@ export async function uploadImageToCloudinary(
 
   const trimmed = imageDataUrl.trim();
 
-  const appendFile = (form: FormData) => {
+  const appendFile = (form: FormData, mode: FileAppendMode) => {
     if (/^https?:\/\//i.test(trimmed)) {
       form.append("file", trimmed);
       return;
     }
+    // Data-URI string is the proven Node/Render fallback when multipart File
+    // parts are dropped or mis-typed by undici FormData.
+    if (mode === "data_uri") {
+      form.append("file", trimmed);
+      return;
+    }
     const parsed = parseDataUrlFile(trimmed);
-    // Blob/File multipart is more reliable than a multi-MB data-URI text field.
-    const blob = new Blob([new Uint8Array(parsed.bytes)], {
-      type: parsed.contentType,
-    });
-    form.append("file", blob, parsed.filename);
+    const bytes = new Uint8Array(parsed.bytes);
+    try {
+      const file = new NodeFile([bytes], parsed.filename, {
+        type: parsed.contentType,
+      });
+      form.append("file", file);
+    } catch {
+      const blob = new Blob([bytes], { type: parsed.contentType });
+      form.append("file", blob, parsed.filename);
+    }
   };
 
   const postUpload = async (form: FormData, mode: string) => {
@@ -112,50 +127,80 @@ export async function uploadImageToCloudinary(
     };
   };
 
+  const tryUpload = async (
+    mode: string,
+    fileMode: FileAppendMode,
+    build: (form: FormData) => void
+  ) => {
+    const form = new FormData();
+    appendFile(form, fileMode);
+    build(form);
+    return postUpload(form, `${mode}:${fileMode}`);
+  };
+
   /**
    * Prefer unsigned preset when configured.
    * Unsigned presets REJECT unknown overwrite params (folder/tags/context/public_id)
    * unless explicitly allowed in the preset — that was breaking all listing uploads.
+   * Try multipart File first, then data-URI string (legacy Node-safe path).
    */
   if (uploadPreset) {
-    try {
-      const form = new FormData();
-      appendFile(form);
-      form.append("upload_preset", uploadPreset);
-      return await postUpload(form, "unsigned_preset");
-    } catch (presetErr) {
-      if (!(apiKey && apiSecret)) throw presetErr;
-      console.warn(
-        "[cloudinary] unsigned preset failed — retrying signed upload:",
-        presetErr instanceof Error ? presetErr.message.slice(0, 200) : presetErr
-      );
+    let presetErr: unknown;
+    for (const fileMode of ["multipart", "data_uri"] as FileAppendMode[]) {
+      try {
+        return await tryUpload("unsigned_preset", fileMode, (form) => {
+          form.append("upload_preset", uploadPreset);
+        });
+      } catch (err) {
+        presetErr = err;
+        console.warn(
+          "[cloudinary] unsigned preset failed:",
+          fileMode,
+          err instanceof Error ? err.message.slice(0, 200) : err
+        );
+      }
     }
+    if (!(apiKey && apiSecret)) throw presetErr;
   }
 
   if (apiKey && apiSecret) {
-    const timestamp = Math.round(Date.now() / 1000);
-    const params: Record<string, string | number> = {
-      timestamp,
-      folder,
-    };
-    if (options?.publicId) params.public_id = options.publicId;
-    if (options?.listingId) {
-      params.context = `listingId=${options.listingId}`;
-      params.tags = options.listingId;
+    let signedErr: unknown;
+    for (const fileMode of ["multipart", "data_uri"] as FileAppendMode[]) {
+      try {
+        const timestamp = Math.round(Date.now() / 1000);
+        const params: Record<string, string | number> = {
+          timestamp,
+          folder,
+        };
+        if (options?.publicId) params.public_id = options.publicId;
+        if (options?.listingId) {
+          params.context = `listingId=${options.listingId}`;
+          params.tags = options.listingId;
+        }
+        const signature = signCloudinaryParams(params, apiSecret);
+        return await tryUpload("signed", fileMode, (form) => {
+          form.append("api_key", apiKey);
+          form.append("timestamp", String(timestamp));
+          form.append("signature", signature);
+          form.append("folder", folder);
+          if (options?.publicId) form.append("public_id", options.publicId);
+          if (options?.listingId) {
+            form.append("context", `listingId=${options.listingId}`);
+            form.append("tags", options.listingId);
+          }
+        });
+      } catch (err) {
+        signedErr = err;
+        console.warn(
+          "[cloudinary] signed upload failed:",
+          fileMode,
+          err instanceof Error ? err.message.slice(0, 200) : err
+        );
+      }
     }
-    const signature = signCloudinaryParams(params, apiSecret);
-    const form = new FormData();
-    appendFile(form);
-    form.append("api_key", apiKey);
-    form.append("timestamp", String(timestamp));
-    form.append("signature", signature);
-    form.append("folder", folder);
-    if (options?.publicId) form.append("public_id", options.publicId);
-    if (options?.listingId) {
-      form.append("context", `listingId=${options.listingId}`);
-      form.append("tags", options.listingId);
-    }
-    return await postUpload(form, "signed");
+    throw signedErr instanceof Error
+      ? signedErr
+      : new Error(String(signedErr ?? "Cloudinary signed upload failed"));
   }
 
   throw Object.assign(new Error("Cloudinary not configured"), { status: 503 });
