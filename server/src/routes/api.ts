@@ -7,7 +7,7 @@ import { getSmsProvider, isSmsLive } from "../services/sms.js";
 import { hasAiKey } from "../ai/llm-provider.js";
 import { analyzeVisualSearchIntent } from "../ai/search-intent.js";
 import { normalizeImageDataUrl } from "../ai/image-input.js";
-import { isCloudinaryConfigured, uploadImageToCloudinary } from "../ai/cloudinary.js";
+import { isCloudinaryConfigured, uploadImageToCloudinary, cloudinaryNotConfiguredError, getCloudinaryConfigStatus } from "../ai/cloudinary.js";
 import { optimizeListingImage } from "../ai/image-processor.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import { demoWalletTopUpAllowed } from "../demo-guards.js";
@@ -273,12 +273,12 @@ async function materializeListingCoverToHttps(
   if (!image.startsWith("data:image")) return { ok: true };
 
   if (!isCloudinaryConfigured()) {
+    const detail = cloudinaryNotConfiguredError();
     return {
       ok: false,
       status: 503,
-      code: "cloudinary_not_configured",
-      error:
-        "Nuotraukų saugykla nepasiekiama. Bandykite vėliau arba patikrinkite ryšį.",
+      code: detail.code,
+      error: detail.message,
     };
   }
 
@@ -437,6 +437,8 @@ apiRouter.get("/health", async (_req, res) => {
     reportEmail: Boolean(process.env.RESEND_API_KEY?.trim()),
     stripe: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
     stripeWebhook: Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim()),
+    /** Listing photo CDN — must be true on Render for publish uploads. */
+    cloudinary: getCloudinaryConfigStatus().configured,
     regitraPlateApi: vehicle.regitraPlateApi,
     ltOpenData: vehicle.ltOpenData,
     euVinOpenData: vehicle.euVinOpenData,

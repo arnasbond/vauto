@@ -1,4 +1,4 @@
-import { uploadImageToCloudinary, isCloudinaryConfigured } from "./cloudinary.js";
+import { uploadImageToCloudinary, isCloudinaryConfigured, cloudinaryNotConfiguredError } from "./cloudinary.js";
 import { resolveListingCity, sanitizeListingCity } from "../lib/city-resolve.js";
 import {
   isAutoPartsOrWheelsContext,
@@ -761,15 +761,17 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       );
     }
     if (!isCloudinaryConfigured()) {
+      const detail = cloudinaryNotConfiguredError();
       console.error(
-        `${LAZY_UPLOAD_LOG_TAG} Cloudinary not configured — refusing publish upload`
+        `${LAZY_UPLOAD_LOG_TAG} Cloudinary not configured — refusing publish upload`,
+        { missing: detail.missing }
       );
-      throw Object.assign(
-        new Error(
-          "Nuotraukų saugykla nepasiekiama (Cloudinary nesukonfigūruota). Patikrinkite CLOUDINARY_* kintamuosius."
-        ),
-        { status: 503, code: "cloudinary_not_configured" }
-      );
+      throw Object.assign(new Error(detail.message), {
+        status: 503,
+        code: detail.code,
+        missing: detail.missing,
+        hint: detail.hint,
+      });
     }
     const listingId = body.listingId?.trim() || `tmp-${Date.now()}`;
     let processed = image;

@@ -127,6 +127,9 @@ services:
         sync: false
       - key: CLOUDINARY_UPLOAD_PRESET
         sync: false
+      # Optional single-string form; server hydrates into CLOUDINARY_CLOUD_NAME + API_KEY + API_SECRET.
+      - key: CLOUDINARY_URL
+        sync: false
 
 databases:
   # Paid plan required: free Postgres expires/suspends and has NO PITR backups.

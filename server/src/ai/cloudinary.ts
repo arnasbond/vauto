@@ -1,16 +1,124 @@
-/** Cloudinary upload — unsigned preset OR signed api_key + signature. */
+/**
+ * Cloudinary upload — unsigned preset OR signed api_key + signature.
+ *
+ * Accepts discrete CLOUDINARY_* vars on the **Render API** service, or a single
+ * CLOUDINARY_URL (`cloudinary://API_KEY:API_SECRET@CLOUD_NAME`).
+ * Uploads are server-side — NEXT_PUBLIC_CLOUDINARY_* is not required for publish.
+ */
 
 import { createHash } from "node:crypto";
 import { File as NodeFile } from "node:buffer";
 
+let hydratedFromUrl = false;
+
+/** Parse CLOUDINARY_URL into discrete env vars when those are unset. */
+export function hydrateCloudinaryEnvFromUrl(): void {
+  if (hydratedFromUrl) return;
+  hydratedFromUrl = true;
+  const raw = process.env.CLOUDINARY_URL?.trim();
+  if (!raw) return;
+  try {
+    const match = /^cloudinary:\/\/([^:]+):([^@]+)@([^/?#]+)/i.exec(raw);
+    if (!match) {
+      console.warn("[cloudinary] CLOUDINARY_URL present but could not be parsed");
+      return;
+    }
+    const [, key, secret, cloud] = match;
+    if (!process.env.CLOUDINARY_CLOUD_NAME?.trim() && cloud) {
+      process.env.CLOUDINARY_CLOUD_NAME = decodeURIComponent(cloud);
+    }
+    if (!process.env.CLOUDINARY_API_KEY?.trim() && key) {
+      process.env.CLOUDINARY_API_KEY = decodeURIComponent(key);
+    }
+    if (!process.env.CLOUDINARY_API_SECRET?.trim() && secret) {
+      process.env.CLOUDINARY_API_SECRET = decodeURIComponent(secret);
+    }
+  } catch (err) {
+    console.warn(
+      "[cloudinary] CLOUDINARY_URL hydrate failed:",
+      err instanceof Error ? err.message : err
+    );
+  }
+}
+
+export type CloudinaryConfigStatus = {
+  configured: boolean;
+  cloudName: boolean;
+  uploadPreset: boolean;
+  apiKey: boolean;
+  apiSecret: boolean;
+  cloudinaryUrl: boolean;
+  authMode: "unsigned" | "signed" | "none";
+  /** Env var names still missing for a working upload config (no secret values). */
+  missing: string[];
+  /** Operator-facing hint for Render Dashboard (Lithuanian). */
+  hint: string;
+};
+
+export function getCloudinaryConfigStatus(): CloudinaryConfigStatus {
+  hydrateCloudinaryEnvFromUrl();
+  const cloudName = Boolean(process.env.CLOUDINARY_CLOUD_NAME?.trim());
+  const uploadPreset = Boolean(process.env.CLOUDINARY_UPLOAD_PRESET?.trim());
+  const apiKey = Boolean(process.env.CLOUDINARY_API_KEY?.trim());
+  const apiSecret = Boolean(process.env.CLOUDINARY_API_SECRET?.trim());
+  const cloudinaryUrl = Boolean(process.env.CLOUDINARY_URL?.trim());
+  const signed = apiKey && apiSecret;
+  const configured = cloudName && (uploadPreset || signed);
+  const authMode: CloudinaryConfigStatus["authMode"] = uploadPreset
+    ? "unsigned"
+    : signed
+      ? "signed"
+      : "none";
+
+  const missing: string[] = [];
+  if (!cloudName) missing.push("CLOUDINARY_CLOUD_NAME");
+  if (!uploadPreset && !signed) {
+    if (!apiKey) missing.push("CLOUDINARY_API_KEY");
+    if (!apiSecret) missing.push("CLOUDINARY_API_SECRET");
+    // Unsigned preset is an alternative to signed keys — surface when neither works.
+    if (!apiKey && !apiSecret) missing.push("CLOUDINARY_UPLOAD_PRESET");
+  }
+
+  const hint = configured
+    ? `Cloudinary OK (${authMode}).`
+    : `Render API (vauto-api) → Environment: nustatykite CLOUDINARY_CLOUD_NAME + (CLOUDINARY_UPLOAD_PRESET ARBA CLOUDINARY_API_KEY+CLOUDINARY_API_SECRET), arba CLOUDINARY_URL=cloudinary://key:secret@cloud_name. Trūksta: ${
+        missing.join(", ") || "nežinoma"
+      }. Po pakeitimo — Manual Deploy / Restart.`;
+
+  return {
+    configured,
+    cloudName,
+    uploadPreset,
+    apiKey,
+    apiSecret,
+    cloudinaryUrl,
+    authMode,
+    missing,
+    hint,
+  };
+}
+
 export function isCloudinaryConfigured(): boolean {
-  const cloud = Boolean(process.env.CLOUDINARY_CLOUD_NAME?.trim());
-  const unsigned = Boolean(process.env.CLOUDINARY_UPLOAD_PRESET?.trim());
-  const signed = Boolean(
-    process.env.CLOUDINARY_API_KEY?.trim() &&
-      process.env.CLOUDINARY_API_SECRET?.trim()
-  );
-  return cloud && (unsigned || signed);
+  return getCloudinaryConfigStatus().configured;
+}
+
+/** Lithuanian 503 body when Cloudinary env is incomplete on the API host. */
+export function cloudinaryNotConfiguredError(): {
+  message: string;
+  code: "cloudinary_not_configured";
+  missing: string[];
+  hint: string;
+} {
+  const status = getCloudinaryConfigStatus();
+  const missingSuffix = status.missing.length
+    ? ` Trūksta: ${status.missing.join(", ")}.`
+    : "";
+  return {
+    message: `Nuotraukų saugykla nepasiekiama (Cloudinary nesukonfigūruota).${missingSuffix} Patikrinkite CLOUDINARY_* kintamuosius Render API aplinkoje.`,
+    code: "cloudinary_not_configured",
+    missing: status.missing,
+    hint: status.hint,
+  };
 }
 
 function basicAuth(key: string, secret: string): string {
@@ -68,12 +176,18 @@ export async function uploadImageToCloudinary(
   folder = "vauto",
   options?: { listingId?: string; publicId?: string }
 ): Promise<{ url: string; publicId: string }> {
+  hydrateCloudinaryEnvFromUrl();
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
   const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET?.trim();
   const apiKey = process.env.CLOUDINARY_API_KEY?.trim();
   const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim();
   if (!cloudName || (!uploadPreset && !(apiKey && apiSecret))) {
-    throw Object.assign(new Error("Cloudinary not configured"), { status: 503 });
+    const detail = cloudinaryNotConfiguredError();
+    throw Object.assign(new Error(detail.message), {
+      status: 503,
+      code: detail.code,
+      missing: detail.missing,
+    });
   }
 
   const trimmed = imageDataUrl.trim();
@@ -203,7 +317,10 @@ export async function uploadImageToCloudinary(
       : new Error(String(signedErr ?? "Cloudinary signed upload failed"));
   }
 
-  throw Object.assign(new Error("Cloudinary not configured"), { status: 503 });
+  throw Object.assign(new Error(cloudinaryNotConfiguredError().message), {
+    status: 503,
+    code: "cloudinary_not_configured",
+  });
 }
 
 /** Extract Cloudinary public_id from a delivery URL (ignores non-Cloudinary URLs). */
@@ -251,6 +368,7 @@ function isProtectedPublicId(publicId: string): boolean {
 export async function destroyCloudinaryByUrls(
   urls: string[]
 ): Promise<{ attempted: number; destroyed: number; skipped: number }> {
+  hydrateCloudinaryEnvFromUrl();
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME?.trim();
   const apiKey = process.env.CLOUDINARY_API_KEY?.trim();
   const apiSecret = process.env.CLOUDINARY_API_SECRET?.trim();

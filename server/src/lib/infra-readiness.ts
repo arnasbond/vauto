@@ -8,6 +8,7 @@ import {
 } from "../shipping/carrier-readiness.js";
 import { isSmsLive } from "../services/sms.js";
 import { isLaunchPromoActive } from "../shared/launch-promo.js";
+import { getCloudinaryConfigStatus } from "../ai/cloudinary.js";
 
 export interface InfraReadiness {
   ocrConfigured: boolean;
@@ -23,12 +24,25 @@ export interface InfraReadiness {
   emailConfigured: boolean;
   smsLive: boolean;
   launchPromo: boolean;
+  /** Listing photo CDN (Render CLOUDINARY_*). */
+  cloudinaryConfigured: boolean;
+  /** Which CLOUDINARY_* keys are present (booleans only — never secrets). */
+  cloudinary: {
+    cloudName: boolean;
+    uploadPreset: boolean;
+    apiKey: boolean;
+    apiSecret: boolean;
+    cloudinaryUrl: boolean;
+    authMode: "unsigned" | "signed" | "none";
+    missing: string[];
+  };
   warnings: string[];
 }
 
 export function getInfraReadiness(): InfraReadiness {
   const visual = visualPipelineFeatures();
   const warnings: string[] = [];
+  const cloudinaryStatus = getCloudinaryConfigStatus();
 
   const ocrConfigured = visual.ocr !== "none";
   const studioBgConfigured = visual.backgroundRemoval !== "none";
@@ -80,6 +94,13 @@ export function getInfraReadiness(): InfraReadiness {
   if (!smsLive) {
     warnings.push("SMS_MODE is not live — set SMS_MODE=live + Twilio/BulkGate");
   }
+  if (!cloudinaryStatus.configured) {
+    warnings.push(
+      `Cloudinary not configured on API host — publish photo uploads will fail. Missing: ${
+        cloudinaryStatus.missing.join(", ") || "unknown"
+      }. Set on Render (not Vercel).`
+    );
+  }
 
   return {
     ocrConfigured,
@@ -94,6 +115,16 @@ export function getInfraReadiness(): InfraReadiness {
     emailConfigured,
     smsLive,
     launchPromo,
+    cloudinaryConfigured: cloudinaryStatus.configured,
+    cloudinary: {
+      cloudName: cloudinaryStatus.cloudName,
+      uploadPreset: cloudinaryStatus.uploadPreset,
+      apiKey: cloudinaryStatus.apiKey,
+      apiSecret: cloudinaryStatus.apiSecret,
+      cloudinaryUrl: cloudinaryStatus.cloudinaryUrl,
+      authMode: cloudinaryStatus.authMode,
+      missing: cloudinaryStatus.missing,
+    },
     warnings,
   };
 }

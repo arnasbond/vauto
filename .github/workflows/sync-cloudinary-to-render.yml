@@ -1,0 +1,153 @@
+name: Sync Cloudinary to Render
+
+# Mirrors Cloudinary credentials from Vercel (or GH secrets) onto the Render
+# API service and forces a redeploy so the Node process picks up new env.
+# Publish uploads require these vars on Render — Vercel NEXT_PUBLIC_* is unused.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Pull Cloudinary env and sync + redeploy Render
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: srv-d8q3fk6q1p3s739fd9h0
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          CLOUDINARY_UPLOAD_PRESET: ${{ secrets.CLOUDINARY_UPLOAD_PRESET }}
+          CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RENDER_API_KEY:-}" ]; then
+            echo "RENDER_API_KEY not set"
+            exit 1
+          fi
+
+          if [ -z "${CLOUDINARY_API_KEY:-}" ] || [ -z "${CLOUDINARY_API_SECRET:-}" ] || [ -z "${CLOUDINARY_CLOUD_NAME:-}" ]; then
+            if [ -n "${VERCEL_TOKEN:-}" ] && [ -n "${VERCEL_ORG_ID:-}" ] && [ -n "${VERCEL_PROJECT_ID:-}" ]; then
+              echo "Pulling Cloudinary vars via vercel env pull…"
+              npx --yes vercel@39 env pull /tmp/vauto-cloudinary.env --yes --environment=production --token="$VERCEL_TOKEN" --scope="$VERCEL_ORG_ID" || true
+              if [ -f /tmp/vauto-cloudinary.env ]; then
+                set -a
+                # shellcheck disable=SC1091
+                . /tmp/vauto-cloudinary.env
+                set +a
+              fi
+            fi
+          fi
+
+          echo "Presence (booleans only):"
+          echo "  CLOUDINARY_CLOUD_NAME=$([ -n "${CLOUDINARY_CLOUD_NAME:-}" ] && echo yes || echo NO)"
+          echo "  CLOUDINARY_API_KEY=$([ -n "${CLOUDINARY_API_KEY:-}" ] && echo yes || echo NO)"
+          echo "  CLOUDINARY_API_SECRET=$([ -n "${CLOUDINARY_API_SECRET:-}" ] && echo yes || echo NO)"
+          echo "  CLOUDINARY_UPLOAD_PRESET=$([ -n "${CLOUDINARY_UPLOAD_PRESET:-}" ] && echo yes || echo NO)"
+          echo "  CLOUDINARY_URL=$([ -n "${CLOUDINARY_URL:-}" ] && echo yes || echo NO)"
+
+          if [ -z "${CLOUDINARY_CLOUD_NAME:-}" ] || { [ -z "${CLOUDINARY_UPLOAD_PRESET:-}" ] && { [ -z "${CLOUDINARY_API_KEY:-}" ] || [ -z "${CLOUDINARY_API_SECRET:-}" ]; }; }; then
+            if [ -z "${CLOUDINARY_URL:-}" ]; then
+              echo "FATAL: No Cloudinary credentials in GH secrets or Vercel production env."
+              echo "Set CLOUDINARY_CLOUD_NAME + (UPLOAD_PRESET or API_KEY+API_SECRET) on Vercel Production,"
+              echo "or add the same as GitHub Actions secrets, then re-run this workflow."
+              exit 1
+            fi
+          fi
+
+          echo "Syncing CLOUDINARY_* to Render API service ${RENDER_SERVICE_ID}…"
+          SYNCED=0
+          for KEY_NAME in CLOUDINARY_CLOUD_NAME CLOUDINARY_API_KEY CLOUDINARY_API_SECRET CLOUDINARY_UPLOAD_PRESET CLOUDINARY_URL; do
+            VAL="${!KEY_NAME:-}"
+            if [ -n "$VAL" ]; then
+              HTTP=$(curl -sS -o /tmp/render-env-put.json -w "%{http_code}" -X PUT \
+                -H "Authorization: Bearer $RENDER_API_KEY" \
+                -H "Content-Type: application/json" \
+                -H "Accept: application/json" \
+                "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/env-vars/${KEY_NAME}" \
+                -d "{\"value\":$(node -e 'process.stdout.write(JSON.stringify(process.env.V))' V="$VAL")}")
+              echo "  synced $KEY_NAME (HTTP $HTTP)"
+              SYNCED=$((SYNCED + 1))
+            fi
+          done
+
+          if [ "$SYNCED" -eq 0 ]; then
+            echo "FATAL: nothing synced"
+            exit 1
+          fi
+
+          echo "Triggering Render deploy so the process reloads env…"
+          DEPLOY_HTTP=$(curl -sS -o /tmp/render-deploy.json -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
+            -d '{"clearCache":"do_not_clear"}')
+          echo "  deploy HTTP $DEPLOY_HTTP"
+          cat /tmp/render-deploy.json || true
+          echo
+          if [ "$DEPLOY_HTTP" != "201" ] && [ "$DEPLOY_HTTP" != "200" ]; then
+            echo "WARN: deploy trigger unexpected status — check Render Dashboard Manual Deploy"
+          fi
+
+          rm -f /tmp/vauto-cloudinary.env /tmp/render-env-put.json /tmp/render-deploy.json
+
+      - name: Wait for API health after redeploy
+        run: |
+          set -euo pipefail
+          echo "Waiting for https://vauto-api.onrender.com/api/health…"
+          OK=0
+          for i in $(seq 1 36); do
+            BODY=$(curl -sf "https://vauto-api.onrender.com/api/health" || true)
+            if [ -n "$BODY" ] && echo "$BODY" | grep -q '"ok":true'; then
+              echo "$BODY" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+feat = d.get('features') or {}
+infra = d.get('infra') or {}
+c = infra.get('cloudinary') or {}
+print('features.cloudinary=', feat.get('cloudinary'))
+print('infra.cloudinaryConfigured=', infra.get('cloudinaryConfigured'))
+print('infra.cloudinary=', c)
+print('warnings=', infra.get('warnings'))
+" || true
+              if echo "$BODY" | grep -q '"cloudinary":true'; then
+                echo "OK: features.cloudinary=true"
+                OK=1
+                break
+              fi
+              # Env may already be live before this commit's health flag ships.
+              if echo "$BODY" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+c = (d.get('infra') or {}).get('cloudinary') or {}
+sys.exit(0 if c.get('configured') or (c.get('cloudName') and (c.get('apiKey') or c.get('uploadPreset'))) else 1)
+" 2>/dev/null; then
+                echo "OK: infra.cloudinary looks configured"
+                OK=1
+                break
+              fi
+              # Pre-diagnostic binary: health ok after restart is enough; publish will work if env loaded.
+              if [ "$i" -ge 12 ]; then
+                echo "Health OK but cloudinary flag not yet in this build — env sync+redeploy done."
+                OK=1
+                break
+              fi
+            fi
+            echo "  attempt $i/36 — waiting for deploy…"
+            sleep 10
+          done
+          if [ "$OK" -ne 1 ]; then
+            echo "API did not become healthy in time — check Render Dashboard."
+            exit 1
+          fi

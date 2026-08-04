@@ -1,3 +1,5 @@
+import { getCloudinaryConfigStatus } from "./ai/cloudinary.js";
+
 const DEV_JWT_SECRET = "vauto-dev-secret-change-in-production";
 
 export interface EnvCheckResult {
@@ -69,6 +71,15 @@ export function validateProductionEnv(): EnvCheckResult {
       process.env.VAUTO_ALLOW_DEMO_OTP !== "true"
     ) {
       warnings.push("SMS OTP carrier credentials missing (BulkGate / Twilio)");
+    }
+
+    const cloudinary = getCloudinaryConfigStatus();
+    if (!cloudinary.configured) {
+      warnings.push(
+        `Cloudinary unset on API host — listing photo publish will 503. Missing: ${
+          cloudinary.missing.join(", ") || "unknown"
+        }. Set on Render Environment (CLOUDINARY_CLOUD_NAME + UPLOAD_PRESET or API_KEY+API_SECRET, or CLOUDINARY_URL), then restart.`
+      );
     }
   } else if (!process.env.TWILIO_ACCOUNT_SID && !process.env.BULKGATE_APPLICATION_ID) {
     warnings.push("SMS OTP disabled (Twilio/BulkGate not configured) — using demo OTP in non-prod");
