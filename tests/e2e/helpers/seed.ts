@@ -131,6 +131,51 @@ export function installListingPatchCapture(page: Page) {
   return patches;
 }
 
+/** Capture POST /api/listings create bodies (publish). */
+export function installListingCreateCapture(page: Page) {
+  const creates: { url: string; body: Record<string, unknown>; status: number }[] = [];
+  void page.route("**/api/listings", async (route) => {
+    const req = route.request();
+    if (req.method() !== "POST") {
+      await route.continue();
+      return;
+    }
+    let body: Record<string, unknown> = {};
+    try {
+      body = req.postDataJSON() as Record<string, unknown>;
+    } catch {
+      body = {};
+    }
+    const image = typeof body.image === "string" ? body.image : "";
+    const images = Array.isArray(body.images) ? body.images : [];
+    const hasImage =
+      (image && image.trim().length > 0) ||
+      images.some((u) => String(u ?? "").trim().length > 0);
+    if (!hasImage) {
+      creates.push({ url: req.url(), body, status: 400 });
+      await route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "image is required" }),
+      });
+      return;
+    }
+    creates.push({ url: req.url(), body, status: 200 });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        id: String(body.id ?? `e2e-created-${creates.length}`),
+        ...body,
+        status: "active",
+        sellerId: E2E_SELLER_ID,
+        createdAt: new Date().toISOString(),
+      }),
+    });
+  });
+  return creates;
+}
+
 export async function installShippingLockerMocks(page: Page) {
   await page.route("**/api/shipping/lockers**", async (route) => {
     await route.fulfill({

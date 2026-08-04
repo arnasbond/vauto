@@ -12,6 +12,10 @@ import {
   LISTING_CATEGORY_IDS,
   coerceListingCategoryForDb,
 } from "./shared/category-registry.js";
+import {
+  ATTR_ARRAY_ITEM_MAX,
+  sanitizeListingAttributesForPersistence,
+} from "./shared/listing-attributes-sanitize.js";
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
@@ -212,30 +216,9 @@ function isoDateString(
 function validateAttributes(value: unknown): ValidationResult<Record<string, string | string[] | undefined>> {
   if (value === undefined || value === null) return ok({});
   if (!isRecord(value)) return fail("attributes must be an object");
-  const result: Record<string, string | string[] | undefined> = {};
-  for (const [key, attr] of Object.entries(value)) {
-    if (!key || key.length > 80) return fail("attribute key is invalid");
-    if (attr === undefined || attr === null || attr === "") {
-      result[key] = undefined;
-    } else if (typeof attr === "string") {
-      if (attr.length > 500) return fail("attribute value is too long");
-      result[key] = attr.trim();
-    } else if (Array.isArray(attr)) {
-      const values: string[] = [];
-      for (const item of attr) {
-        if (typeof item !== "string") return fail("attribute arrays must contain strings");
-        // Cloudinary / CDN gallery URLs are often 120–300 chars.
-        if (item.length > 400) return fail("attribute array value is too long");
-        const trimmed = item.trim();
-        if (trimmed) values.push(trimmed);
-      }
-      if (values.length > 50) return fail("attribute array has too many values");
-      result[key] = values;
-    } else {
-      return fail("attribute value is invalid");
-    }
-  }
-  return ok(result);
+  // Soft-sanitize: drop Vision/social dumps + clamp lengths — never 400
+  // "attribute array value is too long" on legitimate CDN URLs / JSON blobs.
+  return ok(sanitizeListingAttributesForPersistence(value));
 }
 
 const CHAT_MESSAGE_SOURCES = new Set(["twin", "faq", "human"]);
@@ -457,7 +440,7 @@ export function validateListingPatch(body: unknown): ValidationResult<Partial<Ap
     patch.image = image.value;
   }
   if (body.images !== undefined) {
-    const images = stringArray(body, "images", 20, 400);
+    const images = stringArray(body, "images", 20, ATTR_ARRAY_ITEM_MAX);
     if (!images.ok) return images;
     const httpOnly = images.value.filter(
       (u) =>

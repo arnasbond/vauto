@@ -110,6 +110,7 @@ import { moderateListingInput } from "../lib/listing-moderation.js";
 import { scheduleListingAiModeration } from "../lib/listing-ai-moderation.js";
 import { listingPublishRateLimiter } from "../middleware/rate-limit.js";
 import { capListingGalleryUrls } from "../shared/listing-photo-policy.js";
+import { sanitizeListingAttributesForPersistence } from "../shared/listing-attributes-sanitize.js";
 import {
   logConductorPublishLineage,
   resolveConductorRequiresReviewForListing,
@@ -204,11 +205,18 @@ function sanitizeListingCreateBody(raw: unknown): Record<string, unknown> {
   );
 
   // Cover must be first real upload — never leave a stock URL in image.
+  // Keep data:image covers when Cloudinary is unavailable so validateListing
+  // does not fail with "image is required" after wiping the only photo.
   if (httpGallery.length) {
     body.image = httpGallery[0]!;
-  } else if (!image || isStockUrl(image) || image.startsWith("data:")) {
-    // Empty cover is OK — UI uses neutral placeholder; never invent Unsplash.
-    body.image = /^https?:\/\//i.test(image) && !isStockUrl(image) ? image : "";
+  } else if (image.startsWith("data:image")) {
+    body.image = image;
+  } else if (!image || isStockUrl(image)) {
+    body.image = "";
+  } else if (/^https?:\/\//i.test(image)) {
+    body.image = image;
+  } else {
+    body.image = "";
   }
 
   const attrs =
@@ -225,23 +233,46 @@ function sanitizeListingCreateBody(raw: unknown): Record<string, unknown> {
     if (Array.isArray(val)) {
       attrs[key] = val
         .filter((item) => typeof item === "string" && !item.startsWith("data:image"))
-        .map((item) => String(item).slice(0, 400))
+        .map((item) => String(item).slice(0, 2_048))
         .filter((item) => !isStockUrl(item));
     } else if (typeof val === "string" && val.length > 500) {
       attrs[key] = val.slice(0, 500);
     }
   }
 
+  const sanitizedAttrs = sanitizeListingAttributesForPersistence(attrs);
+
   if (httpGallery.length >= 1) {
-    attrs.galleryUrls = httpGallery;
+    sanitizedAttrs.galleryUrls = httpGallery;
     body.image = httpGallery[0]!;
     // Keep images[] through validation → repository insert (cover = images[0]).
     body.images = httpGallery;
+  } else if (typeof body.image === "string" && body.image.startsWith("data:image")) {
+    // Data-only publish: keep cover, empty HTTP gallery (client retries cloud later).
+    delete sanitizedAttrs.galleryUrls;
+    body.images = [];
   } else {
-    delete attrs.galleryUrls;
+    delete sanitizedAttrs.galleryUrls;
     body.images = [];
   }
-  body.attributes = attrs;
+  body.attributes = sanitizedAttrs;
+  return body;
+}
+
+/** Soft-normalize PATCH bodies so long Vision dumps never 400 the edit save. */
+function sanitizeListingPatchBody(raw: unknown): Record<string, unknown> {
+  const body =
+    raw && typeof raw === "object"
+      ? ({ ...(raw as Record<string, unknown>) } as Record<string, unknown>)
+      : {};
+  if (body.attributes !== undefined) {
+    body.attributes = sanitizeListingAttributesForPersistence(body.attributes);
+  }
+  if (Array.isArray(body.images)) {
+    body.images = body.images
+      .map((u) => String(u ?? "").trim())
+      .filter((u) => /^https?:\/\//i.test(u) && u.length <= 2_048);
+  }
   return body;
 }
 
@@ -843,7 +874,7 @@ apiRouter.post("/listings/:id/renew", requireAuth, async (req: AuthedRequest, re
 
 apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const parsed = validateListingPatch(req.body);
+    const parsed = validateListingPatch(sanitizeListingPatchBody(req.body));
     if (badRequest(res, parsed)) return;
     const sellerId = routeActorId(req);
 
@@ -877,10 +908,10 @@ apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) =>
     if (patchValue.attributes !== undefined) {
       existingForReview = await getListingForEmbedding(req.params.id);
       if (existingForReview && existingForReview.sellerId === sellerId) {
-        const mergedAttributes = {
+        const mergedAttributes = sanitizeListingAttributesForPersistence({
           ...existingForReview.attributes,
           ...patchValue.attributes,
-        };
+        });
         patchValue = { ...patchValue, attributes: mergedAttributes };
         if (resolveConductorRequiresReviewForListing({
           requiresReview: existingForReview.requiresReview,
@@ -888,6 +919,11 @@ apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) =>
         }) && !existingForReview.requiresReview) {
           patchValue = { ...patchValue, requiresReview: true };
         }
+      } else {
+        patchValue = {
+          ...patchValue,
+          attributes: sanitizeListingAttributesForPersistence(patchValue.attributes),
+        };
       }
     }
 

@@ -65,6 +65,7 @@ import {
   PHOTOLESS_LISTING_COVER_DATA_URL,
   capListingGalleryUrls,
 } from "@vauto/shared/listing-photo-policy";
+import { sanitizeListingAttributesForPersistence } from "@vauto/shared/listing-attributes-sanitize";
 import { registerPushNotifications } from "@/lib/push-registration";
 import {
   completeHeroListingFlow,
@@ -1768,27 +1769,33 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     // Public gallery only — tech passport / registration evidence never becomes a
     // standalone cover or a second Mano skelbimai card image set.
     const documentEvidence = parseDocumentUrlsFromAttributes(profileDraft.attributes);
-    const syncedGallery = capListingGalleryUrls(
-      filterSessionListingImages(
-        resolveSellerGalleryImages(
-          {
-            orderedImageUrls: [
-              ...(profileDraft.orderedImageUrls ?? []),
-              ...pendingImageUrls,
-            ].filter((url, i, arr) => arr.indexOf(url) === i),
-          },
-          [
-            ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-            ...sellerPreviewImages.filter(Boolean),
-          ].filter((url, i, arr) => arr.indexOf(url) === i)
-        ),
-        {
-          documentUrls: documentEvidence,
-          attributes: profileDraft.attributes,
-        }
-      ),
+    const sessionCandidates = resolveSellerGalleryImages(
+      {
+        orderedImageUrls: [
+          ...(profileDraft.orderedImageUrls ?? []),
+          ...pendingImageUrls,
+        ].filter((url, i, arr) => arr.indexOf(url) === i),
+      },
+      [
+        ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+        ...sellerPreviewImages.filter(Boolean),
+      ].filter((url, i, arr) => arr.indexOf(url) === i)
+    );
+    let syncedGallery = capListingGalleryUrls(
+      filterSessionListingImages(sessionCandidates, {
+        documentUrls: documentEvidence,
+        attributes: profileDraft.attributes,
+      }),
       profileDraft.category
     );
+    // If document-role ban wiped every thumb the user can still see, fall back to
+    // session candidates (still no stock URLs) so publish does not hit "image is required".
+    if (!syncedGallery.length && sessionCandidates.length) {
+      syncedGallery = capListingGalleryUrls(
+        filterSessionListingImages(sessionCandidates, { documentUrls: [] }),
+        profileDraft.category
+      );
+    }
 
     // Sequential uploads — parallel 6× sharp/Cloudinary on Render often 503/OOM.
     const coords = await coordsPromise;
@@ -2365,11 +2372,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
           throw new Error(LISTING_PHOTO_REQUIRED_MESSAGE);
         }
-        const nextAttributes = {
+        const nextAttributes = sanitizeListingAttributesForPersistence({
           ...(existing.attributes ?? {}),
           ...(patch.attributes ?? {}),
           ...(preparedImages.length ? { galleryUrls: preparedImages } : {}),
-        };
+        });
         const updated: Listing = enrichListingCoords({
           ...existing,
           ...patch,

@@ -2,6 +2,7 @@ import { resolveListingCity } from "@/lib/city-resolve";
 import type { ListingEditPatch } from "@/lib/listing-edit";
 import type { LegacyListingInput, Listing } from "@/lib/types";
 import { hardFilterPublicGalleryUrls } from "@/lib/listing-gallery-roles";
+import { sanitizeListingAttributesForPersistence, resolveListingApiCover } from "@vauto/shared/listing-attributes-sanitize";
 import { capListingGalleryUrls } from "@vauto/shared/listing-photo-policy";
 
 /** Server API expects singular `image`; client models use `images[]`. */
@@ -9,10 +10,11 @@ export function listingToApiPayload(
   listing: Listing
 ): Omit<Listing, "images"> & { image: string; images?: string[] } {
   const { images, ...rest } = listing;
-  const attributes =
+  const attributes = sanitizeListingAttributesForPersistence(
     typeof rest.attributes === "object" && rest.attributes
       ? { ...rest.attributes }
-      : {};
+      : {}
+  );
   // Persist AI twin activation inside attributes (DB stores attributes as jsonb).
   if (listing.isAiTwinActive === true) {
     attributes.isAiTwinActive = "true";
@@ -24,8 +26,7 @@ export function listingToApiPayload(
     hardFilterPublicGalleryUrls(images, undefined, attributes),
     listing.category
   ).filter((u) => !/unsplash\.com|picsum\.photos/i.test(u));
-  const cover = gallery[0] ?? "";
-  const httpGallery = gallery.filter((u) => /^https?:\/\//i.test(u));
+  const { cover, httpGallery } = resolveListingApiCover(gallery);
   if (httpGallery.length >= 1) {
     attributes.galleryUrls = httpGallery;
   }
@@ -49,6 +50,7 @@ export function listingToApiPayload(
     location: resolveListingCity(listing.location),
     image: cover,
     // Always persist full HTTP gallery so multi-photo listings keep every upload.
+    // When only data: covers exist, still omit images[] (server keeps image data URL).
     ...(httpGallery.length ? { images: httpGallery } : {}),
     allowPastomatas: listing.allowPastomatas ?? true,
   };
@@ -59,26 +61,31 @@ export function listingPatchToApiPayload(
 ): Record<string, unknown> {
   const { images, ...rest } = patch;
   const out: Record<string, unknown> = { ...rest };
+  if (out.attributes !== undefined) {
+    out.attributes = sanitizeListingAttributesForPersistence(out.attributes);
+  }
   if (images !== undefined) {
     const gallery = images
       .map((u) => String(u ?? "").trim())
       .filter((u) => /^https?:\/\//i.test(u) && !/unsplash\.com|picsum\.photos/i.test(u));
     out.image = gallery[0] ?? images[0]?.trim() ?? "";
     out.images = gallery;
-    const attrs =
+    const attrs = sanitizeListingAttributesForPersistence(
       out.attributes && typeof out.attributes === "object"
         ? (out.attributes as Record<string, unknown>)
-        : {};
+        : {}
+    );
     out.attributes = {
       ...attrs,
       ...(gallery.length ? { galleryUrls: gallery } : {}),
     };
   }
   if (typeof (patch as Listing).isAiTwinActive === "boolean") {
-    const attrs =
+    const attrs = sanitizeListingAttributesForPersistence(
       out.attributes && typeof out.attributes === "object"
         ? (out.attributes as Record<string, unknown>)
-        : {};
+        : {}
+    );
     out.attributes = {
       ...attrs,
       isAiTwinActive: (patch as Listing).isAiTwinActive ? "true" : "false",
