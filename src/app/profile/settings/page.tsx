@@ -1,8 +1,9 @@
 "use client";
 
 import { Suspense, useEffect, type ReactNode } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Activity, BarChart3, CreditCard } from "lucide-react";
+import { Activity, BarChart3, Bell, CreditCard, Heart } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { PaymentHistorySection } from "@/components/billing/PaymentHistorySection";
 import { PaymentMethodsCard } from "@/components/billing/PaymentMethodsCard";
@@ -10,7 +11,6 @@ import { SavedListingsSection } from "@/components/dashboard/SavedListingsSectio
 import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { UserSupportInbox } from "@/components/support/UserSupportInbox";
 import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
-import { ProfileBusinessPanel } from "@/components/profile/ProfileBusinessPanel";
 import {
   PrivacySettingsCard,
   PushAlertsSettingsCard,
@@ -26,6 +26,7 @@ import { Disclosure, PageHeader, Panel } from "@/components/ui/surface";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
+import { BUSINESS_PORTAL_PATH } from "@/lib/business-portal-access";
 import { useVauto } from "@/context/VautoContext";
 
 function SettingsSection({
@@ -97,13 +98,11 @@ export default function ProfileSettingsPage() {
   const {
     user,
     listings,
-    renewListing,
     paymentHistoryVersion,
     openBillingPortal,
     apiActive,
   } = useVauto();
 
-  const myListings = listings.filter((l) => l.sellerId === user.id);
   const showBusinessBlock = user.role === "pro" || isSuperAdminUser(user);
 
   if (!authHydrated) {
@@ -179,6 +178,32 @@ export default function ProfileSettingsPage() {
             <PaymentHistorySection user={user} refreshKey={paymentHistoryVersion} />
           </SettingsSection>
 
+          <SettingsSection label="Paieška ir išsaugoti">
+            <Disclosure
+              title="Asmeniniai alertai"
+              subtitle="Išsaugoti skelbimai ir paieškos raktiniai žodžiai"
+              icon={<Heart className="h-4 w-4 text-[var(--vauto-primary)]" />}
+            >
+              <SavedListingsSection />
+              <WishlistSection />
+            </Disclosure>
+            <Disclosure
+              title="Pagalba"
+              subtitle="Jūsų pranešimai palaikymo komandai"
+              icon={<Bell className="h-4 w-4 text-[var(--vauto-primary)]" />}
+            >
+              <Suspense
+                fallback={
+                  <p className="vauto-panel vauto-panel--nested p-4 text-xs text-[var(--vauto-text-muted)]">
+                    Kraunami pranešimai…
+                  </p>
+                }
+              >
+                <UserSupportInbox />
+              </Suspense>
+            </Disclosure>
+          </SettingsSection>
+
           <SettingsSection label="Sistema">
             <Disclosure
               title="Ryšys ir versija"
@@ -193,30 +218,19 @@ export default function ProfileSettingsPage() {
 
           {showBusinessBlock && (
             <SettingsSection label="Verslas">
-              <Disclosure
-                title="Verslo kabinetas"
-                subtitle="Analitika, pasitikėjimas, išsaugoti skelbimai, pranešimai"
+              <Panel
                 icon={<BarChart3 className="h-4 w-4 text-[var(--vauto-primary)]" />}
+                title="Verslo portalas"
+                description="Analitika, masinis CSV/XML įkėlimas, skelbimų valdymas ir atsiskaitymai — atskirame verslo kabinete."
               >
-                <SellerTrustCard user={user} listings={listings} />
-                <ProfileBusinessPanel
-                  user={user}
-                  listings={myListings}
-                  allListings={listings}
-                  onRenew={(id) => void renewListing(id)}
-                />
-                <SavedListingsSection />
-                <WishlistSection />
-                <Suspense
-                  fallback={
-                    <p className="vauto-panel vauto-panel--nested p-4 text-xs text-[var(--vauto-text-muted)]">
-                      Kraunami pranešimai…
-                    </p>
-                  }
+                <Link
+                  href={BUSINESS_PORTAL_PATH}
+                  className="inline-flex rounded-xl bg-[var(--vauto-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] transition hover:brightness-110"
                 >
-                  <UserSupportInbox />
-                </Suspense>
-              </Disclosure>
+                  Atidaryti verslo portalą
+                </Link>
+              </Panel>
+              <SellerTrustCard user={user} listings={listings} />
             </SettingsSection>
           )}
         </div>

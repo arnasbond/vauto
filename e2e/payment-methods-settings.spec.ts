@@ -44,9 +44,31 @@ test.describe("Payment methods + cabinet surfaces", () => {
 
   test("business /verslui landing is public and clean", async ({ page }) => {
     await page.goto("/verslui/");
-    await expect(page.locator("body")).toContainText(/Versl|B2B|Pardav/i, {
+    await expect(page.locator("body")).toContainText(/Versl|B2B|Pardav|portal/i, {
       timeout: 15_000,
     });
+  });
+
+  test("private user sees business access gate on /verslui", async ({ page }) => {
+    await seedDemoUser(page);
+    await page.goto("/verslui/");
+    await expect(
+      page.getByRole("dialog", { name: /Verslo portalas verslo paskyroms/i })
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.getByRole("link", { name: /Registruoti verslo paskyrą|Pasirinkti verslo planą/i })
+    ).toBeVisible();
+  });
+
+  test("pro user opens business portal dashboard on /verslui", async ({ page }) => {
+    await seedProUser(page);
+    await page.goto("/verslui/");
+    await expect(page.getByText(/Verslo portalas/i).first()).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(
+      page.getByRole("dialog", { name: /Verslo portalas verslo paskyroms/i })
+    ).toHaveCount(0);
   });
 
   test("pro user opens profile cabinet without guest gate", async ({ page }) => {

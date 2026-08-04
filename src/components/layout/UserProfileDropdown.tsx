@@ -241,7 +241,7 @@ export function UserProfileDropdown({ variant = "desktop" }: UserProfileDropdown
             href="/verslui/"
             icon={<BarChart3 className="h-4 w-4" />}
             label="Mano verslas / Analitika"
-            hint="Verslo kabinetas ir statistika"
+            hint="Verslo portalas, bulk įkėlimas ir analitika"
             onNavigate={close}
           />
         </div>
