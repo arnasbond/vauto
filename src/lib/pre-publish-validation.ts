@@ -52,24 +52,19 @@ export function buildPrePublishCardPayload(
   if (!readiness.ok || !readiness.syncedDraft) return null;
   const draft = readiness.syncedDraft;
   const documentUrls = parseDocumentUrlsFromAttributes(draft.attributes);
-  // Public gallery only — never re-merge raw pending uploads (docs leak before OCR attrs land).
-  const gallerySource =
-    (draft.orderedImageUrls?.length ?? 0) > 0
-      ? [...(draft.orderedImageUrls ?? [])]
-      : [
-          ...(opts?.pendingImageUrls ?? []),
-          ...(previewImage ? [previewImage] : []),
-        ];
-  if ((draft.orderedImageUrls?.length ?? 0) > 0 && previewImage) {
-    // Cover hint only if already in public gallery set after filter.
-    gallerySource.push(previewImage);
-  }
+  // Always union draft gallery + pending chat uploads so multi-photo sessions
+  // are not collapsed when orderedImageUrls already has a thin Vision cover.
+  const gallerySource = [
+    ...(draft.orderedImageUrls ?? []),
+    ...(opts?.pendingImageUrls ?? []),
+    ...(previewImage ? [previewImage] : []),
+  ];
   const imageUrls = dedupeListingImageUrls(
     filterSessionListingImages(gallerySource, {
       documentUrls,
       attributes: draft.attributes,
     }),
-    6
+    8
   );
   const vatCode =
     opts?.vatCode ??
@@ -235,21 +230,17 @@ export function evaluatePrePublishReadiness(
   // Docs stay filtered out; user trims public photos via PrePublish thumbnail „x“.
   if (syncedDraft) {
     const documentUrls = parseDocumentUrlsFromAttributes(syncedDraft.attributes);
+    // Always union ordered + pending session photos (multi-upload chat).
     const gallerySource: string[] = [
       ...(syncedDraft.orderedImageUrls ?? []),
       ...(input.orderedImageUrls ?? []),
+      ...(input.pendingImageUrls ?? []),
+      ...(input.previewImage ? [input.previewImage] : []),
     ];
-    // Only fall back to pending when there is no public gallery yet.
-    if (!gallerySource.length) {
-      gallerySource.push(
-        ...(input.pendingImageUrls ?? []),
-        ...(input.previewImage ? [input.previewImage] : [])
-      );
-    }
     const mergedPhotos = filterSessionListingImages(gallerySource, {
       documentUrls,
       attributes: syncedDraft.attributes,
-    }).slice(0, 6);
+    }).slice(0, 8);
     if (mergedPhotos.length) {
       syncedDraft = { ...syncedDraft, orderedImageUrls: mergedPhotos };
     } else if ((syncedDraft.orderedImageUrls?.length ?? 0) > 0) {

@@ -112,7 +112,6 @@ export function splitGalleryAndDocumentUrls(
     (opts?.knownDocumentUrls ?? []).map((u) => u.trim()).filter(Boolean)
   );
   const docIdx = new Set(parseImageIndexList(opts?.documentImageIndexes, urls.length));
-  const galIdx = new Set(parseImageIndexList(opts?.galleryImageIndexes, urls.length));
   const roles = parseImageRoles(opts?.imageRoles, urls.length);
 
   const documentUrls: string[] = [];
@@ -125,11 +124,9 @@ export function splitGalleryAndDocumentUrls(
       documentUrls.push(url);
       return;
     }
-    if (galIdx.size > 0 && !galIdx.has(i)) {
-      // Explicit gallery list present and this index was omitted → treat as document.
-      documentUrls.push(url);
-      return;
-    }
+    // Omitted gallery indexes are still product photos unless explicitly marked
+    // document (role / documentImageIndexes / known docs). Vision often returns
+    // only the cover in galleryImageIndexes — never ban the rest as documents.
     galleryUrls.push(url);
   });
 

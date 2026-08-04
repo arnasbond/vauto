@@ -731,7 +731,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         ]
           .map((u) => String(u ?? "").trim())
           .filter(Boolean);
-        const priorPhotos = (aiDraft?.orderedImageUrls ?? [])
+        const priorPhotos = [
+          ...(aiDraft?.orderedImageUrls ?? []),
+          ...sessionPendingImageUrls,
+          ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+        ]
           .map((u) => String(u ?? "").trim())
           .filter(Boolean);
         const photoUrls = capListingGalleryUrls(

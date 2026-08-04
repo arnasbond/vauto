@@ -278,7 +278,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     // Modal gallery is canonical — sync pending/preview so removes stick at publish.
     updateAiDraft({ orderedImageUrls: next });
     notifyAgentPendingImages(next);
-    updateSellerMedia({ imageDataUrl: next[0] ?? null });
+    updateSellerMedia({ imageDataUrls: next, imageDataUrl: next[0] ?? null });
   };
 
   const handleFieldsChange = (patch: PrePublishFieldPatch) => {

@@ -338,6 +338,7 @@ export interface SellerFlowContextValue {
   sellerVideoUrl: string;
   updateSellerMedia: (patch: {
     imageDataUrl?: string | null;
+    imageDataUrls?: string[];
     videoUrl?: string;
   }) => void;
   startUploadFlow: () => Promise<void>;
@@ -1175,41 +1176,48 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       photoReplaceSnapshotRef.current = null;
       setAiManualFallback(false);
       const previousDraft = aiDraftRef.current;
-      // Prefer incoming draft gallery; only fall back to previous when Vision sent none.
-      // Never triple-concat (draft + imageUrl + previous) — that doubles thumbnails.
+      // Always union prior + incoming galleries so multi-photo chat uploads are not
+      // collapsed to a single Vision cover. Dedupe via filterSessionListingImages.
       const incomingGallery = (draft.orderedImageUrls ?? [])
         .map((u) => String(u ?? "").trim())
         .filter(Boolean);
-      const gallerySource =
-        incomingGallery.length > 0
-          ? [
-              ...incomingGallery,
-              ...(imageUrl &&
-              !incomingGallery.includes(String(imageUrl).trim())
-                ? [String(imageUrl).trim()]
-                : []),
-            ]
-          : [
-              ...(imageUrl ? [String(imageUrl).trim()] : []),
-              ...(previousDraft?.orderedImageUrls ?? []),
-            ];
+      const priorGallery = (previousDraft?.orderedImageUrls ?? [])
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean);
+      const coverHint = imageUrl ? String(imageUrl).trim() : "";
+      const gallerySource = [
+        ...incomingGallery,
+        ...(coverHint ? [coverHint] : []),
+        ...priorGallery,
+      ];
+      const mergedAttrs = {
+        ...(previousDraft?.attributes ?? {}),
+        ...(draft.attributes ?? {}),
+      };
+      // Product angles wrongly tagged as documents (Vision cover-only indexes) must
+      // stay in the public gallery — only keep docs that are NOT in the product set.
+      const productSet = new Set(gallerySource);
+      const rawDocs = parseDocumentUrlsFromAttributes(mergedAttrs);
+      const explicitDocs = rawDocs.filter((u) => !productSet.has(u));
+      const nextAttrs = { ...mergedAttrs };
+      if (explicitDocs.length) {
+        nextAttrs.documentImageUrls = explicitDocs.join("|");
+        nextAttrs.documentImageCount = String(explicitDocs.length);
+      } else {
+        delete nextAttrs.documentImageUrls;
+        delete nextAttrs.documentImageCount;
+      }
       const galleryPhotos = capListingGalleryUrls(
         filterSessionListingImages(gallerySource, {
-          attributes: {
-            ...(previousDraft?.attributes ?? {}),
-            ...(draft.attributes ?? {}),
-          },
-          documentUrls: parseDocumentUrlsFromAttributes({
-            ...(previousDraft?.attributes ?? {}),
-            ...(draft.attributes ?? {}),
-          }),
+          attributes: nextAttrs,
+          documentUrls: explicitDocs,
         }),
         draft.category ?? previousDraft?.category
       );
       const draftWithPhotos =
         galleryPhotos.length > 0
-          ? { ...draft, orderedImageUrls: galleryPhotos }
-          : draft;
+          ? { ...draft, orderedImageUrls: galleryPhotos, attributes: nextAttrs }
+          : { ...draft, attributes: nextAttrs };
       const { draft: merged } = commitConductorDraft(
         draftWithPhotos,
         draftSource,
@@ -2463,13 +2471,33 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   );
 
   const updateSellerMedia = useCallback(
-    (patch: { imageDataUrl?: string | null; videoUrl?: string }) => {
-      if (patch.imageDataUrl !== undefined) setSellerPreviewImage(patch.imageDataUrl);
+    (patch: {
+      imageDataUrl?: string | null;
+      imageDataUrls?: string[];
+      videoUrl?: string;
+    }) => {
+      if (patch.imageDataUrls !== undefined) {
+        const gallery = patch.imageDataUrls
+          .map((u) => String(u ?? "").trim())
+          .filter(Boolean);
+        setSellerPreviewImages(gallery);
+        setSellerPreviewImage(gallery[0] ?? null);
+      } else if (patch.imageDataUrl !== undefined) {
+        setSellerPreviewImage(patch.imageDataUrl);
+        if (patch.imageDataUrl) {
+          setSellerPreviewImages((prev) => {
+            const next = [patch.imageDataUrl!, ...prev.filter((u) => u !== patch.imageDataUrl)];
+            return next.slice(0, 8);
+          });
+        } else {
+          setSellerPreviewImages([]);
+        }
+      }
       if (patch.videoUrl !== undefined) {
         setSellerVideoUrl(patch.videoUrl);
         const vid = parseVideoUrl(patch.videoUrl);
         setSellerHasVideo(vid.hasVideo);
-        if (patch.imageDataUrl === undefined) {
+        if (patch.imageDataUrl === undefined && patch.imageDataUrls === undefined) {
           setSellerPreviewImage((prev) => {
             if (prev?.startsWith("data:")) return prev;
             return vid.thumbnail ?? null;
