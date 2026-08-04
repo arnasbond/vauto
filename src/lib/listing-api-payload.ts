@@ -68,7 +68,8 @@ export function listingPatchToApiPayload(
     const gallery = images
       .map((u) => String(u ?? "").trim())
       .filter((u) => /^https?:\/\//i.test(u) && !/unsplash\.com|picsum\.photos/i.test(u));
-    out.image = gallery[0] ?? images[0]?.trim() ?? "";
+    // PATCH cover must be HTTPS only — never fall back to data:/blob (no server materialize).
+    out.image = gallery[0] ?? "";
     out.images = gallery;
     const attrs = sanitizeListingAttributesForPersistence(
       out.attributes && typeof out.attributes === "object"

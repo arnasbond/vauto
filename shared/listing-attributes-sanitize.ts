@@ -38,7 +38,8 @@ function isHttpUrl(value: string): boolean {
 function shouldDropKey(key: string): boolean {
   if (!key || key.length > ATTR_KEY_MAX) return true;
   if (EPHEMERAL_LISTING_ATTR_KEYS.has(key)) return true;
-  if (key.startsWith("_")) return true;
+  // Persist seller metadata (_b2bBusiness, _geoLat, _geoLng, …). Ephemeral
+  // underscore keys such as _socialShare stay blocked via EPHEMERAL set above.
   return false;
 }
 

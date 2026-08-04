@@ -2,7 +2,7 @@ import {
   mockExtractFromImage,
   mockExtractFromText,
 } from "@/lib/ai-mocks";
-import { apiVautoServer } from "@/lib/api/client";
+import { apiVautoServerResult } from "@/lib/api/client";
 import { isAiProxyAvailable, isDataApiEnabled } from "@/lib/api/config";
 import { shouldUseOfflineAiMocks } from "@/lib/ai-pipeline";
 import { compressForAiVision } from "@/lib/native-media";
@@ -54,21 +54,23 @@ async function tryUnifiedExtract(
   const city = ctx.userCity ?? "Lietuva";
   const images = await prepareImagesForAi(resolveImages(ctx));
   const text = mergeTranscript(ctx) ?? ctx.transcript?.trim();
+  let lastError = "";
 
   if (mode === "text" && text) {
-    const res = await apiVautoServer({
+    const res = await apiVautoServerResult({
       action: "parse_text",
       text,
       extraContext: ctx.extraContext,
       userCity: city,
       contact,
     });
-    if (res && "listing" in res)
-      return mapVautoServerListing(res.listing, city, res.visualPipeline);
+    if (res.ok && "listing" in res.data)
+      return mapVautoServerListing(res.data.listing, city, res.data.visualPipeline);
+    if (!res.ok) lastError = res.error;
   }
 
   if (mode === "image" && images[0]) {
-    const res = await apiVautoServer({
+    const res = await apiVautoServerResult({
       action: "analyze_image",
       imageDataUrl: images[0],
       imageDataUrls: images.length > 1 ? images : undefined,
@@ -76,12 +78,13 @@ async function tryUnifiedExtract(
       userCity: city,
       contact,
     });
-    if (res && "listing" in res)
-      return mapVautoServerListing(res.listing, city, res.visualPipeline);
+    if (res.ok && "listing" in res.data)
+      return mapVautoServerListing(res.data.listing, city, res.data.visualPipeline);
+    if (!res.ok) lastError = res.error;
   }
 
   if (mode === "combined" && images[0] && text) {
-    const res = await apiVautoServer({
+    const res = await apiVautoServerResult({
       action: "parse_combined",
       text,
       imageDataUrl: images[0],
@@ -90,10 +93,17 @@ async function tryUnifiedExtract(
       userCity: city,
       contact,
     });
-    if (res && "listing" in res)
-      return mapVautoServerListing(res.listing, city, res.visualPipeline);
+    if (res.ok && "listing" in res.data)
+      return mapVautoServerListing(res.data.listing, city, res.data.visualPipeline);
+    if (!res.ok) lastError = res.error;
   }
 
+  if (lastError) {
+    console.error("[tryUnifiedExtract]", mode, lastError);
+    if (isDataApiEnabled() && !shouldUseOfflineAiMocks()) {
+      throw new Error(lastError);
+    }
+  }
   return null;
 }
 

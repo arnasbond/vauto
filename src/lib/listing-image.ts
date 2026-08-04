@@ -191,15 +191,15 @@ export function mergeSellerGallerySources(
       (u.startsWith("data:image") || u.startsWith("blob:")) &&
       !isListingPlaceholderUrl(u)
   );
-  // Durable covers win — pending data URLs of the same shots caused Nuotraukos (4).
-  if (https.length > 0 && https.length >= ephemeral.length) {
+  if (https.length === 0) return ephemeral;
+  if (ephemeral.length === 0) return https;
+  // Rematerialization: pending data twins of already-uploaded https (2→4 bug).
+  // Exact-string Set cannot equate data↔https, so equal/fewer pending → https only.
+  if (ephemeral.length <= https.length) {
     return https;
   }
-  if (https.length > 0) {
-    // Keep extra pending angles Vision omitted from orderedImageUrls.
-    return uniqueUrls([...https, ...ephemeral]);
-  }
-  return ephemeral;
+  // Extra chat angles beyond the durable set — keep https cover order, then extras.
+  return uniqueUrls([...https, ...ephemeral]);
 }
 
 /**

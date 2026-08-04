@@ -1713,19 +1713,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         description: editDescription,
         title: sanitizeListingTitle(profileDraft.title),
       });
+      const photosOptional = listingCategoryAllowsPhotoless(profileDraft.category);
       const editGallery = capListingGalleryUrls(
         filterSessionListingImages(
-          resolveSellerGalleryImages(
-            {
-              orderedImageUrls: [
-                ...(profileDraft.orderedImageUrls ?? []),
-                ...pendingImageUrls,
-              ].filter((url, i, arr) => arr.indexOf(url) === i),
-            },
-            [
-              ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-              ...sellerPreviewImages.filter(Boolean),
-            ].filter((url, i, arr) => arr.indexOf(url) === i)
+          mergeSellerGallerySources(
+            profileDraft.orderedImageUrls,
+            pendingImageUrls,
+            sellerPreviewImage,
+            sellerPreviewImages
           ),
           {
             attributes: profileDraft.attributes,
@@ -1734,29 +1729,55 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         ),
         profileDraft.category
       );
-      const preparedEditImages = editGallery.length
-        ? (
-            await Promise.all(
-              editGallery.map((src) => prepareListingImageForApi(src, editingListingId))
-            )
-          ).filter((img): img is string => Boolean(img))
-        : filterSessionListingImages(existing.images);
-      if (!preparedEditImages.length) {
-        showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
-        return { ok: false, error: LISTING_PHOTO_REQUIRED_MESSAGE };
+      // Sequential uploads — same path as create / edit modal (avoid Render OOM).
+      const preparedEditImages: string[] = [];
+      let uploadFailures = 0;
+      for (const src of editGallery) {
+        const trimmed = src.trim();
+        if (!trimmed) continue;
+        if (/^https?:\/\//i.test(trimmed)) {
+          preparedEditImages.push(trimmed);
+          continue;
+        }
+        const prepared = await prepareListingImageForApi(trimmed, editingListingId);
+        if (prepared && /^https?:\/\//i.test(prepared)) {
+          preparedEditImages.push(prepared);
+        } else {
+          uploadFailures += 1;
+        }
       }
+      if (!preparedEditImages.length && !editGallery.length) {
+        for (const src of filterSessionListingImages(existing.images)) {
+          if (/^https?:\/\//i.test(src)) preparedEditImages.push(src);
+        }
+      }
+      if (!preparedEditImages.length && !photosOptional) {
+        const msg =
+          uploadFailures > 0 || editGallery.length > 0
+            ? LISTING_PHOTO_UPLOAD_FAILED_MESSAGE
+            : LISTING_PHOTO_REQUIRED_MESSAGE;
+        showToast(msg, "error");
+        return { ok: false, error: msg };
+      }
+      if (uploadFailures > 0 && preparedEditImages.length > 0) {
+        showToast(
+          `Dalis nuotraukų neįkelta (${uploadFailures}). Išsaugotos likusios.`,
+          "info"
+        );
+      }
+      const nextAttributes = withSellerDisplayNameAttribute(
+        mergeSocialPublishAttributes(
+          { ...(existing.attributes ?? {}), ...(patch.attributes ?? profileDraft.attributes) },
+          listingSocialPublish
+        ),
+        user
+      );
       const updated: Listing = enrichListingCoords({
         ...existing,
         ...patch,
         description: editDescription,
         contact: publishContact,
-        attributes: withSellerDisplayNameAttribute(
-          mergeSocialPublishAttributes(
-            { ...(existing.attributes ?? {}), ...(patch.attributes ?? profileDraft.attributes) },
-            listingSocialPublish
-          ),
-          user
-        ),
+        attributes: nextAttributes,
         images: preparedEditImages,
         slug: generateListingSlug(patch.title ?? existing.title, patch.location ?? existing.location),
         hasVideo: sellerHasVideo,
@@ -1773,6 +1794,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           attributes: updated.attributes,
         });
         if (!res.ok) {
+          setListings((prev) =>
+            prev.map((l) => (l.id === editingListingId ? existing : l))
+          );
           const msg = formatPublishSaveError(res.error);
           setSyncError(msg);
           showToast(msg, "error");
@@ -1898,6 +1922,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           : LISTING_PHOTO_REQUIRED_MESSAGE;
       showToast(msg, "error");
       return { ok: false, error: msg };
+    }
+    if (uploadFailures > 0) {
+      showToast(
+        `Dalis nuotraukų neįkelta (${uploadFailures}). Publikuojama su likusiomis.`,
+        "info"
+      );
     }
 
     const listingCityRaw = resolvePublishListingCity(
@@ -2460,14 +2490,19 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           showToast(msg, "error");
           throw new Error(msg);
         }
+        if (uploadFailures > 0 && preparedImages.length > 0) {
+          showToast(
+            `Dalis nuotraukų neįkelta (${uploadFailures}). Išsaugotos likusios.`,
+            "info"
+          );
+        }
         const sanitizedAttributes = sanitizeListingAttributesForPersistence({
           ...(existing.attributes ?? {}),
           ...(patch.attributes ?? {}),
           ...(preparedImages.length ? { galleryUrls: preparedImages } : {}),
         });
-        // Sanitize drops `_…` keys (and ephemeral Vision dumps). Re-attach
-        // existing underscore metadata so edit save does not wipe DB fields
-        // the modal intentionally hides from the UI.
+        // Sanitize keeps `_…` seller metadata; re-attach is defense in depth if
+        // the modal patch omitted keys that still exist on the listing.
         const nextAttributes: Record<string, string | string[] | undefined> = {
           ...sanitizedAttributes,
         };
@@ -2495,6 +2530,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             attributes: nextAttributes,
           });
           if (!res.ok) {
+            setListings((prev) => prev.map((l) => (l.id === id ? existing : l)));
             const msg = formatPublishSaveError(res.error);
             setSyncError(msg);
             showToast(msg, "error");

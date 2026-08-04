@@ -253,11 +253,8 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         beginFreshListingChatSession,
         openCheckout,
       });
-    } else if (result.sessionExpired) {
-      showToast(result.error ?? "Sesija nebegalioja.", "error");
-    } else if (!result.prePublishBlocked) {
-      showToast(result.error ?? "Nepavyko publikuoti.", "error");
     }
+    // Errors: publishListing already owns toasts (skipSuccessNotify only skips success).
   };
 
   const handleCardEdit = () => {

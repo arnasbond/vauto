@@ -183,6 +183,16 @@ async function aiFetch<T>(
   opts?: RequestInit,
   timeoutMs = AI_FETCH_TIMEOUT_MS
 ): Promise<T | null> {
+  const result = await aiFetchResult<T>(path, opts, timeoutMs);
+  return result.data;
+}
+
+/** Like aiFetch, but surfaces the last provider/network error instead of silent null. */
+export async function aiFetchResult<T>(
+  path: string,
+  opts?: RequestInit,
+  timeoutMs = AI_FETCH_TIMEOUT_MS
+): Promise<{ data: T | null; error?: string; code?: string }> {
   const mergedOpts: RequestInit = {
     ...opts,
     headers: {
@@ -190,11 +200,23 @@ async function aiFetch<T>(
       ...(opts?.headers as Record<string, string> | undefined),
     },
   };
+  let lastError: string | undefined;
+  let lastCode: string | undefined;
   for (const base of getAiBaseUrls()) {
-    const { data } = await aiFetchOnce<T>(base, path, mergedOpts, timeoutMs);
-    if (data !== null) return data;
+    const { data, error, code } = await aiFetchOnce<T>(
+      base,
+      path,
+      mergedOpts,
+      timeoutMs
+    );
+    if (data !== null) return { data };
+    lastError = error ?? lastError;
+    lastCode = code ?? lastCode;
   }
-  return null;
+  if (lastError) {
+    console.error("[aiFetch]", path, { error: lastError, code: lastCode });
+  }
+  return { data: null, error: lastError, code: lastCode };
 }
 
 export interface ApiHealthDetails {
@@ -294,6 +316,23 @@ export async function apiVautoServer(
   | import("@/lib/vauto-unified-client").VautoServerUploadResponse
   | null
 > {
+  const result = await apiVautoServerResult(body);
+  return result.ok ? result.data : null;
+}
+
+export type ApiVautoServerResult =
+  | {
+      ok: true;
+      data:
+        | import("@/lib/vauto-unified-client").VautoServerParseResponse
+        | import("@/lib/vauto-unified-client").VautoServerUploadResponse;
+    }
+  | { ok: false; error: string; code?: string };
+
+/** Same as apiVautoServer but preserves the provider/network error for callers. */
+export async function apiVautoServerResult(
+  body: import("@/lib/vauto-unified-client").VautoServerRequest
+): Promise<ApiVautoServerResult> {
   const timeoutMs =
     body.action === "upload_media"
       ? AI_VISION_FETCH_TIMEOUT_MS
@@ -301,10 +340,23 @@ export async function apiVautoServer(
         ? AI_FETCH_TIMEOUT_MS
         : AI_VISION_FETCH_TIMEOUT_MS;
 
-  return aiFetch("/api/vauto-server", {
-    method: "POST",
-    body: JSON.stringify(body),
-  }, timeoutMs);
+  const { data, error, code } = await aiFetchResult<
+    | import("@/lib/vauto-unified-client").VautoServerParseResponse
+    | import("@/lib/vauto-unified-client").VautoServerUploadResponse
+  >(
+    "/api/vauto-server",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+    timeoutMs
+  );
+  if (data) return { ok: true, data };
+  return {
+    ok: false,
+    error: error || "AI serveris nepasiekiamas",
+    code: code || "ai_unavailable",
+  };
 }
 
 /**

@@ -29,6 +29,9 @@ test.describe("Enterprise — validacijos saugikliai", () => {
         { label: "case", score: 0.8 },
       ]),
       _socialShare: longJson,
+      _b2bBusiness: "true",
+      _geoLat: "54.6872",
+      _geoLng: "25.2797",
       choiceChips: ["Gitara", "Dėklas", "x".repeat(600)],
       galleryUrls: [longArrayItem, E2E_COVER],
       brand: "HOHNER",
@@ -37,6 +40,9 @@ test.describe("Enterprise — validacijos saugikliai", () => {
     expect(out.detectedObjects).toBeUndefined();
     expect(out._socialShare).toBeUndefined();
     expect(out.choiceChips).toBeUndefined();
+    expect(out._b2bBusiness).toBe("true");
+    expect(out._geoLat).toBe("54.6872");
+    expect(out._geoLng).toBe("25.2797");
     expect(out.condition).toBe("Naudotas");
     expect(out.brand).toBe("HOHNER");
     expect(Array.isArray(out.galleryUrls)).toBeTruthy();
