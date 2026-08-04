@@ -7,10 +7,10 @@ import {
   readGalleryFilesAsDataUrls,
 } from "@/components/listing/ListingGalleryFileInput";
 import {
-  getAdaptiveConfig,
-  listingToAdaptiveKey,
-  type CategoryFieldDef,
-} from "@/lib/adaptive-categories";
+  PrePublishShippingOptions,
+  resolvePrePublishShippingEligibility,
+  type PrePublishShippingMode,
+} from "@/components/home/PrePublishShippingOptions";
 import { cn } from "@/lib/cn";
 import {
   collectListingGalleryCandidates,
@@ -39,23 +39,6 @@ const CATEGORY_OPTIONS: { value: ListingCategory; label: string }[] = [
   { value: "other", label: "Kita" },
 ];
 
-/** Internal / gallery keys — never show as editable attribute rows. */
-const HIDDEN_ATTR_KEYS = new Set([
-  "galleryUrls",
-  "orderedImageUrls",
-  "imageUrls",
-  "photoUrls",
-  "documentImageUrls",
-  "documentUrls",
-  "sellIntentActive",
-  "salesCopyGenerated",
-  "clientDraftId",
-  "isAiTwinActive",
-  "visibilityTier",
-  "fitsOmnivaLocker",
-  "estimatedParcelSize",
-]);
-
 const inputClass =
   "mt-1 w-full rounded-xl border border-[var(--vauto-border-input,#cbd5e1)] bg-[var(--vauto-surface-page,#fff)] px-3 py-2.5 text-sm text-[var(--vauto-ink,#0f172a)] outline-none focus:border-[var(--vauto-teal,#14b8a6)]";
 const labelClass = "mb-1 block text-xs font-medium text-[var(--vauto-text-muted,#64748b)]";
@@ -68,45 +51,36 @@ interface EditListingModalProps {
 }
 
 function initialGalleryFromListing(listing: Listing): string[] {
-  return filterSessionListingImages(
-    collectListingGalleryCandidates(listing),
-    { attributes: listing.attributes }
-  ).filter((url) => !isListingPlaceholderUrl(url));
-}
-
-function attrDisplayValue(
-  value: string | string[] | undefined
-): string {
-  if (Array.isArray(value)) return value.join(", ");
-  return typeof value === "string" ? value : "";
-}
-
-/**
- * Edit form shows only attributes that already have values on the listing,
- * matched to the category schema when possible — never dumps empty phone
- * placeholders onto a guitar / “Kita” listing.
- */
-function resolveEditableAttributeFields(
-  category: ListingCategory,
-  attributes: Record<string, string | string[] | undefined>
-): CategoryFieldDef[] {
-  const config = getAdaptiveConfig(listingToAdaptiveKey(category));
-  const byKey = new Map(config.fields.map((f) => [f.key, f]));
-  const keys = Object.keys(attributes).filter((key) => {
-    if (HIDDEN_ATTR_KEYS.has(key)) return false;
-    const raw = attributes[key];
-    if (raw == null) return false;
-    if (Array.isArray(raw)) return raw.length > 0;
-    return String(raw).trim().length > 0;
-  });
-  return keys.map(
-    (key) =>
-      byKey.get(key) ?? {
-        key,
-        label: key,
-        inputType: "text" as const,
-      }
+  const candidates = collectListingGalleryCandidates(listing);
+  const filtered = filterSessionListingImages(candidates, {
+    attributes: listing.attributes,
+  }).filter((url) => !isListingPlaceholderUrl(url));
+  if (filtered.length) return filtered;
+  // Fallback when Vision mis-tagged product covers as documents — edit modal
+  // must still show the seller's stored gallery.
+  return filterSessionListingImages(candidates, { documentUrls: [] }).filter(
+    (url) => !isListingPlaceholderUrl(url)
   );
+}
+
+function shippingModeFromAttributes(
+  attributes: Record<string, string | string[] | undefined> | undefined,
+  category: ListingCategory,
+  title: string,
+  description: string
+): PrePublishShippingMode {
+  const eligibility = resolvePrePublishShippingEligibility({
+    title,
+    description,
+    category,
+    attributes,
+    allowPastomatas: true,
+  });
+  if (!eligibility.eligible || !eligibility.fitsOmnivaLocker) {
+    return "pickup_or_courier";
+  }
+  const flag = String(attributes?.fitsOmnivaLocker ?? "").toLowerCase();
+  return flag === "true" || flag === "1" ? "omniva_locker" : "pickup_or_courier";
 }
 
 export function EditListingModal({
@@ -121,17 +95,29 @@ export function EditListingModal({
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [shippingMode, setShippingMode] =
+    useState<PrePublishShippingMode>("pickup_or_courier");
 
   useEffect(() => {
     if (!listing) {
       setDraft(null);
       setGallery([]);
       setSubmitError(null);
+      setShippingMode("pickup_or_courier");
       return;
     }
     // Always hydrate from the live listing snapshot (initial values).
-    setDraft(listingToDraft(listing));
+    const nextDraft = listingToDraft(listing);
+    setDraft(nextDraft);
     setGallery(initialGalleryFromListing(listing));
+    setShippingMode(
+      shippingModeFromAttributes(
+        nextDraft.attributes,
+        nextDraft.category,
+        nextDraft.title ?? "",
+        nextDraft.description ?? ""
+      )
+    );
     setSubmitError(null);
   }, [listing]);
 
@@ -141,14 +127,6 @@ export function EditListingModal({
   );
   const photosOptional = listingCategoryAllowsPhotoless(
     draft?.category ?? listing?.category
-  );
-
-  const attributeFields = useMemo(
-    () =>
-      draft
-        ? resolveEditableAttributeFields(draft.category, draft.attributes ?? {})
-        : [],
-    [draft]
   );
 
   const reorder = useCallback((from: number, to: number) => {
@@ -226,6 +204,8 @@ export function EditListingModal({
     if (!canSave) return;
     setSubmitError(null);
     try {
+      // Keep all existing attributes (incl. _*, conductor*, estimatedSize, …)
+      // in background — only merge user-actionable shipping flags.
       await onSave(listing.id, {
         ...draftToListingPatch({
           ...draft,
@@ -449,38 +429,35 @@ export function EditListingModal({
           />
         </label>
 
-        {attributeFields.length > 0 ? (
-          <div className="mb-3 space-y-3 rounded-xl border border-[var(--vauto-border,#e2e8f0)] bg-[var(--vauto-surface-muted,#f8fafc)] p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vauto-text-muted,#64748b)]">
-              Papildomi laukai
-            </p>
-            {attributeFields.map((field) => (
-              <label key={field.key} className="block">
-                <span className={labelClass}>{field.label}</span>
-                <input
-                  name={`attr_${field.key}`}
-                  type="text"
-                  value={attrDisplayValue(draft.attributes?.[field.key])}
-                  disabled={saving}
-                  onChange={(e) =>
-                    setDraft((d) =>
-                      d
-                        ? {
-                            ...d,
-                            attributes: {
-                              ...(d.attributes ?? {}),
-                              [field.key]: e.target.value,
-                            },
-                          }
-                        : d
-                    )
-                  }
-                  className={inputClass}
-                />
-              </label>
-            ))}
-          </div>
-        ) : null}
+        <div className="mb-3">
+          <PrePublishShippingOptions
+            title={draft.title}
+            description={draft.description}
+            category={draft.category}
+            attributes={draft.attributes}
+            allowPastomatas
+            value={shippingMode}
+            disabled={saving}
+            onChange={(mode, eligibility) => {
+              setShippingMode(mode);
+              setDraft((d) => {
+                if (!d) return d;
+                const allow = mode === "omniva_locker" && eligibility.eligible;
+                return {
+                  ...d,
+                  attributes: {
+                    ...(d.attributes ?? {}),
+                    fitsOmnivaLocker: allow ? "true" : "false",
+                    estimatedSize: String(eligibility.estimatedSize),
+                    ...(eligibility.reason
+                      ? { omnivaLockerBlockReason: eligibility.reason }
+                      : {}),
+                  },
+                };
+              });
+            }}
+          />
+        </div>
 
         {submitError ? (
           <p className="mt-4 text-sm text-rose-500" role="alert">

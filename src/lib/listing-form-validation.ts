@@ -21,6 +21,10 @@ export function hasListingPhoto(previewImage: string | null | undefined): boolea
 
 export const LISTING_PHOTO_REQUIRED_MESSAGE = "Prašome įkelti bent vieną nuotrauką";
 
+/** Cloudinary / media upload failed while the form already had gallery thumbs. */
+export const LISTING_PHOTO_UPLOAD_FAILED_MESSAGE =
+  "Nepavyko įkelti nuotraukų į saugyklą. Patikrinkite ryšį ir bandykite dar kartą.";
+
 const KNOWN_CITY_OPTION = "Kita";
 
 export function resolveCitySelectValue(

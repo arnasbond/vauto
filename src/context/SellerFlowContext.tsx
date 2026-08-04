@@ -59,7 +59,11 @@ import {
   UNKNOWN_LISTING_LOCATION_LABEL,
   verifiedProfileCity,
 } from "@/lib/listing-location-context";
-import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-form-validation";
+import {
+  hasListingPhoto,
+  LISTING_PHOTO_REQUIRED_MESSAGE,
+  LISTING_PHOTO_UPLOAD_FAILED_MESSAGE,
+} from "@/lib/listing-form-validation";
 import {
   listingCategoryAllowsPhotoless,
   capListingGalleryUrls,
@@ -2359,18 +2363,25 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         const photosOptional = listingCategoryAllowsPhotoless(
           patch.category ?? existing.category
         );
-        const rawGallery = filterSessionListingImages(
-          patch.images ??
-            collectListingGalleryCandidates({
-              ...existing,
-              ...patch,
-            }),
-          {
-            attributes: {
-              ...(existing.attributes ?? {}),
-              ...(patch.attributes ?? {}),
-            },
-          }
+        // Edit modal gallery is source of truth (string[] thumbs). Do not re-ban
+        // seller-kept URLs via documentImageUrls — that emptied preparedImages while
+        // the UI still showed "Nuotraukos (N)" and threw PHOTO_REQUIRED.
+        const explicitGallery = Array.isArray(patch.images) ? patch.images : null;
+        const rawGallery = (
+          explicitGallery
+            ? filterSessionListingImages(explicitGallery, { documentUrls: [] })
+            : filterSessionListingImages(
+                collectListingGalleryCandidates({
+                  ...existing,
+                  ...patch,
+                }),
+                {
+                  attributes: {
+                    ...(existing.attributes ?? {}),
+                    ...(patch.attributes ?? {}),
+                  },
+                }
+              )
         ).filter((url) => !isListingPlaceholderUrl(url));
         const cappedGallery = capListingGalleryUrls(
           rawGallery,
@@ -2380,22 +2391,49 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
           throw new Error(LISTING_PHOTO_REQUIRED_MESSAGE);
         }
-        const preparedImages = cappedGallery.length
-          ? (
-              await Promise.all(
-                cappedGallery.map((src) => prepareListingImageForApi(src, id))
-              )
-            ).filter((img): img is string => Boolean(img))
-          : [];
-        if (!preparedImages.length && !photosOptional) {
-          showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
-          throw new Error(LISTING_PHOTO_REQUIRED_MESSAGE);
+        // Keep existing HTTPS covers as-is; upload only data:/blob. Failed uploads
+        // must not be mislabeled as "Prašome įkelti bent vieną nuotrauką".
+        const preparedImages: string[] = [];
+        let uploadFailures = 0;
+        for (const src of cappedGallery) {
+          const trimmed = src.trim();
+          if (!trimmed) continue;
+          if (/^https?:\/\//i.test(trimmed)) {
+            preparedImages.push(trimmed);
+            continue;
+          }
+          const prepared = await prepareListingImageForApi(trimmed, id);
+          if (prepared && /^https?:\/\//i.test(prepared)) {
+            preparedImages.push(prepared);
+          } else {
+            uploadFailures += 1;
+          }
         }
-        const nextAttributes = sanitizeListingAttributesForPersistence({
+        if (!preparedImages.length && !photosOptional) {
+          const msg =
+            uploadFailures > 0 || cappedGallery.length > 0
+              ? LISTING_PHOTO_UPLOAD_FAILED_MESSAGE
+              : LISTING_PHOTO_REQUIRED_MESSAGE;
+          showToast(msg, "error");
+          throw new Error(msg);
+        }
+        const sanitizedAttributes = sanitizeListingAttributesForPersistence({
           ...(existing.attributes ?? {}),
           ...(patch.attributes ?? {}),
           ...(preparedImages.length ? { galleryUrls: preparedImages } : {}),
         });
+        // Sanitize drops `_…` keys (and ephemeral Vision dumps). Re-attach
+        // existing underscore metadata so edit save does not wipe DB fields
+        // the modal intentionally hides from the UI.
+        const nextAttributes: Record<string, string | string[] | undefined> = {
+          ...sanitizedAttributes,
+        };
+        for (const [key, value] of Object.entries(existing.attributes ?? {})) {
+          if (!key.startsWith("_")) continue;
+          if (key in nextAttributes) continue;
+          if (value == null) continue;
+          nextAttributes[key] = value;
+        }
         const updated: Listing = enrichListingCoords({
           ...existing,
           ...patch,
