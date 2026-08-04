@@ -205,6 +205,11 @@ async function main() {
     "APPLE_CLIENT_SECRET",
     "REGITRA_PLATE_API_USERNAME",
     "REGITRA_PLATE_API_PASSWORD",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET",
+    "CLOUDINARY_UPLOAD_PRESET",
+    "CLOUDINARY_URL",
   ]) {
     const val = process.env[key]?.trim();
     if (val) await setEnvVar(key, val);

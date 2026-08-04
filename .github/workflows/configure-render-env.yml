@@ -22,6 +22,11 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           REGITRA_PLATE_API_USERNAME: ${{ secrets.REGITRA_PLATE_API_USERNAME }}
           REGITRA_PLATE_API_PASSWORD: ${{ secrets.REGITRA_PLATE_API_PASSWORD }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          CLOUDINARY_UPLOAD_PRESET: ${{ secrets.CLOUDINARY_UPLOAD_PRESET }}
+          CLOUDINARY_URL: ${{ secrets.CLOUDINARY_URL }}
         run: |
           if [ -z "$RENDER_API_KEY" ]; then
             echo "RENDER_API_KEY not set"
