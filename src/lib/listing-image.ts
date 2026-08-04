@@ -129,12 +129,18 @@ function imageDedupeKey(url: string): string {
   const u = url.trim();
   if (u.startsWith("data:")) {
     const comma = u.indexOf(",");
-    const meta = comma >= 0 ? u.slice(0, comma) : "data";
+    const meta = comma >= 0 ? u.slice(0, comma).toLowerCase() : "data";
     const payload = comma >= 0 ? u.slice(comma + 1) : u;
     const len = payload.length;
-    const sample =
-      payload.slice(0, 48) + payload.slice(Math.max(0, len - 48));
-    return `data:${meta.length}:${len}:${sample}`;
+    // Wider fingerprint — catches recompressed near-duplicates of the same shot.
+    const head = payload.slice(0, 96);
+    const mid =
+      len > 192 ? payload.slice(Math.floor(len / 2) - 48, Math.floor(len / 2) + 48) : "";
+    const tail = payload.slice(Math.max(0, len - 96));
+    return `data:${meta}:${len}:${head}:${mid}:${tail}`;
+  }
+  if (u.startsWith("blob:")) {
+    return `blob:${u}`;
   }
   try {
     const parsed = new URL(u);
@@ -193,13 +199,16 @@ export function mergeSellerGallerySources(
   );
   if (https.length === 0) return ephemeral;
   if (ephemeral.length === 0) return https;
-  // Rematerialization: pending data twins of already-uploaded https (2→4 bug).
+  // Rematerialization: pending data twins of already-uploaded https (2→4 / 1→3 bug).
   // Exact-string Set cannot equate data↔https, so equal/fewer pending → https only.
   if (ephemeral.length <= https.length) {
     return https;
   }
-  // Extra chat angles beyond the durable set — keep https cover order, then extras.
-  return uniqueUrls([...https, ...ephemeral]);
+  // Extra chat angles beyond the durable set. Take only the surplus tail so the
+  // first N ephemeral slots (usually data twins of the N https covers) are dropped
+  // instead of reappearing as slot 3 duplicates of shot 1.
+  const extraCount = ephemeral.length - https.length;
+  return uniqueUrls([...https, ...ephemeral.slice(-extraCount)]);
 }
 
 /**

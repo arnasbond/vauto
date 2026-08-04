@@ -232,9 +232,25 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         price: readiness.syncedDraft.price > 0 ? readiness.syncedDraft.price : formPrice,
       });
     }
+    const cardGallery = (livePrePublishCard?.imageUrls ?? [])
+      .map((u) => String(u ?? "").trim())
+      .filter(Boolean);
+    // Flush visible PrePublish gallery into the draft so publish never uploads a
+    // stale/empty orderedImageUrls while the modal still shows thumbs.
+    if (cardGallery.length && aiDraft) {
+      updateAiDraft({ orderedImageUrls: cardGallery });
+      updateSellerMedia({
+        imageDataUrls: cardGallery,
+        imageDataUrl: cardGallery[0] ?? null,
+      });
+      notifyAgentPendingImages(cardGallery);
+    }
     const result = await publishListing({
       visibilityId,
-      pendingImageUrls: sessionPendingImageUrls,
+      pendingImageUrls:
+        cardGallery.length > 0
+          ? cardGallery
+          : sessionPendingImageUrls,
       // Flush visible form price so Publikuoti never re-asks when the field is filled.
       ...(formPrice > 0 ? { priceOverride: formPrice } : {}),
       // Lottie paper-plane overlay already shows „Skelbimas publikuotas!" —

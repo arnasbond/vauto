@@ -127,12 +127,8 @@ export function BottomNav() {
   const profileActive =
     pathname === "/profile" || pathname.startsWith("/profile/");
 
-  const placeAdBusy =
-    sellerStep !== "idle" && sellerStep !== "published";
-
   const handlePlaceAd = () => {
-    if (placeAdBusy) return;
-    // After auth, land on home so /add is never required for the 4-step AI sell flow.
+    // Always allow +Įdėti — force a fresh listing session even mid-draft.
     if (!requireAuthForListing("/")) return;
     void openAiSellerListingChat({ navigateHome: true });
   };
@@ -206,8 +202,7 @@ export function BottomNav() {
         <button
           type="button"
           onClick={handlePlaceAd}
-          disabled={placeAdBusy}
-          className="relative -mt-7 flex min-w-[72px] shrink-0 flex-col items-center gap-0.5 text-[10px] font-bold disabled:opacity-50"
+          className="relative -mt-7 flex min-w-[72px] shrink-0 flex-col items-center gap-0.5 text-[10px] font-bold"
           style={{ color: "var(--vauto-primary)" }}
           aria-label="Įdėti naują skelbimą"
         >

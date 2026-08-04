@@ -3496,7 +3496,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       markHeroListingFlowStart(kpiSource);
       trackEvent("kpi_listing_flow_start", { source: kpiSource });
       if (fashion) activateWardrobeSpinta();
-      applyAgentListingDraft(buildAiSellerListingSeed(user, { fashion }));
+      applyAgentListingDraft(buildAiSellerListingSeed(user, { fashion }), undefined, "agent", {
+        replaceSession: true,
+      });
       setBusy(false);
       setStreamThinkingLabelNow("");
       setMessages([

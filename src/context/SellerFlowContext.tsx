@@ -266,7 +266,21 @@ async function prepareListingImageForApi(
   listingId?: string
 ): Promise<string | null> {
   if (!src?.trim()) return null;
-  let image = (await resolveImageForUpload(src)) ?? src.trim();
+  let image = (await resolveImageForUpload(src)) ?? "";
+  if (!image) {
+    const trimmed = src.trim();
+    // Last-chance materialize for blob:/file: that failed the first resolve pass.
+    if (
+      trimmed.startsWith("blob:") ||
+      trimmed.startsWith("capacitor:") ||
+      trimmed.startsWith("file:") ||
+      trimmed.startsWith("data:image")
+    ) {
+      image = (await resolveImageForUpload(trimmed)) ?? trimmed;
+    } else {
+      image = trimmed;
+    }
+  }
   if (/^https?:\/\//i.test(image)) return image;
   if (!image.startsWith("data:image")) {
     console.error("[prepareListingImageForApi] unsupported image kind:", image.slice(0, 48));
@@ -393,7 +407,8 @@ export interface SellerFlowContextValue {
   applyAgentListingDraft: (
     draft: AiExtractedListing,
     imageUrl?: string,
-    draftSource?: import("@/lib/vauto-conductor").UnifiedDraftSource
+    draftSource?: import("@/lib/vauto-conductor").UnifiedDraftSource,
+    options?: { replaceSession?: boolean }
   ) => void;
   applyAgentWardrobeBulk: (
     items: import("@/lib/wardrobe-vision").WardrobeDraftItem[],
@@ -519,6 +534,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   );
 
   const resetSellerFlow = useCallback(() => {
+    // Sync refs immediately so applyAgentListingDraft in the same tick cannot
+    // re-merge the previous gallery / flow lock (React setState is async).
+    aiDraftRef.current = null;
+    sellerPreviewImageRef.current = null;
     setSellerStep("idle");
     setSellerInputMode(null);
     setSellerUserPrompt(null);
@@ -1191,7 +1210,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     (
       draft: AiExtractedListing,
       imageUrl?: string,
-      draftSource: import("@/lib/vauto-conductor").UnifiedDraftSource = "agent"
+      draftSource: import("@/lib/vauto-conductor").UnifiedDraftSource = "agent",
+      options?: { replaceSession?: boolean }
     ) => {
       if (!requireAuthForListing("/add")) return;
       void executeConductorRoute({
@@ -1203,25 +1223,33 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       categoryMismatchPendingRef.current = null;
       photoReplaceSnapshotRef.current = null;
       setAiManualFallback(false);
-      const previousDraft = aiDraftRef.current;
-      // Always union prior + incoming galleries so multi-photo chat uploads are not
-      // collapsed to a single Vision cover. Dedupe via filterSessionListingImages.
+      const replaceSession = options?.replaceSession === true;
+      const previousDraft = replaceSession ? null : aiDraftRef.current;
+      // Union prior + incoming for multi-photo chat — but never when starting a
+      // fresh +Įdėti session (prior must not bleed into the new draft).
       const incomingGallery = (draft.orderedImageUrls ?? [])
         .map((u) => String(u ?? "").trim())
         .filter(Boolean);
-      const priorGallery = (previousDraft?.orderedImageUrls ?? [])
-        .map((u) => String(u ?? "").trim())
-        .filter(Boolean);
+      const priorGallery = replaceSession
+        ? []
+        : (previousDraft?.orderedImageUrls ?? [])
+            .map((u) => String(u ?? "").trim())
+            .filter(Boolean);
       const coverHint = imageUrl ? String(imageUrl).trim() : "";
+      const priorExtras = priorGallery.filter(
+        (u) => !incomingGallery.includes(u) && u !== coverHint
+      );
       const gallerySource = mergeSellerGallerySources(
         incomingGallery,
-        coverHint,
-        priorGallery
+        coverHint && !incomingGallery.includes(coverHint) ? coverHint : null,
+        priorExtras
       );
-      const mergedAttrs = {
-        ...(previousDraft?.attributes ?? {}),
-        ...(draft.attributes ?? {}),
-      };
+      const mergedAttrs = replaceSession
+        ? { ...(draft.attributes ?? {}) }
+        : {
+            ...(previousDraft?.attributes ?? {}),
+            ...(draft.attributes ?? {}),
+          };
       // Product angles wrongly tagged as documents (Vision cover-only indexes) must
       // stay in the public gallery — only keep docs that are NOT in the product set.
       const productSet = new Set(gallerySource);
@@ -1245,46 +1273,62 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const draftWithPhotos =
         galleryPhotos.length > 0
           ? { ...draft, orderedImageUrls: galleryPhotos, attributes: nextAttrs }
-          : { ...draft, attributes: nextAttrs };
+          : {
+              ...draft,
+              orderedImageUrls: replaceSession ? [] : draft.orderedImageUrls,
+              attributes: nextAttrs,
+            };
       const { draft: merged } = commitConductorDraft(
         draftWithPhotos,
         draftSource,
-        previousDraft
+        replaceSession ? null : previousDraft
       );
       const mergedDraft = { ...draftWithPhotos, ...merged } as AiExtractedListing;
       if (galleryPhotos.length) {
         mergedDraft.orderedImageUrls = galleryPhotos;
+      } else if (replaceSession) {
+        mergedDraft.orderedImageUrls = [];
       }
       const sourceText = [mergedDraft.title, mergedDraft.description].filter(Boolean).join(" ");
       let enriched = enrichVehicleListingDraft(mergedDraft, [sourceText]);
       enriched = enrichClothingListingDraft(enriched, sourceText);
       if (galleryPhotos.length) {
         enriched = { ...enriched, orderedImageUrls: galleryPhotos };
+      } else if (replaceSession) {
+        enriched = { ...enriched, orderedImageUrls: [] };
       }
       const previousCategory = previousDraft?.category ?? null;
       const previousAttributes = previousDraft?.attributes ?? null;
       const hasPhotos =
         galleryPhotos.length > 0 ||
-        (previousDraft?.orderedImageUrls?.length ?? 0) > 0 ||
+        (!replaceSession && (previousDraft?.orderedImageUrls?.length ?? 0) > 0) ||
         Boolean(imageUrl);
       const inferredIncoming =
         enriched.listingFlowState ??
         (hasPhotos ? ("DRAFT_READY" as const) : undefined);
-      const lockedFlowState = resolveLockedListingFlowState(
-        previousDraft?.listingFlowState,
-        inferredIncoming
-      );
+      const lockedFlowState = replaceSession
+        ? inferredIncoming ?? draft.listingFlowState
+        : resolveLockedListingFlowState(
+            previousDraft?.listingFlowState,
+            inferredIncoming
+          );
       const finalized = ensureClientDraftId(
         finalizeListingDraft(enriched, previousCategory, previousAttributes)
       );
       const syncedForAgent = syncDraftWithProfile({
         ...finalized,
-        ...(galleryPhotos.length ? { orderedImageUrls: galleryPhotos } : {}),
+        ...(galleryPhotos.length
+          ? { orderedImageUrls: galleryPhotos }
+          : replaceSession
+            ? { orderedImageUrls: [] }
+            : {}),
         ...(lockedFlowState ? { listingFlowState: lockedFlowState } : {}),
       });
+      // Keep ref in sync for any same-tick follow-up merges.
+      aiDraftRef.current = syncedForAgent;
       setAiDraft(syncedForAgent);
       const coverForMulti =
-        galleryPhotos[0] ?? imageUrl ?? sellerPreviewImageRef.current ?? null;
+        galleryPhotos[0] ?? imageUrl ?? (replaceSession ? null : sellerPreviewImageRef.current) ?? null;
       if (syncedForAgent.title?.trim()) {
         upsertMultiListingDraft(syncedForAgent, coverForMulti);
       }
@@ -1293,8 +1337,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (galleryPhotos.length) {
         setSellerPreviewImages(galleryPhotos);
         setSellerPreviewImage(galleryPhotos[0] ?? null);
+        sellerPreviewImageRef.current = galleryPhotos[0] ?? null;
+      } else if (replaceSession) {
+        setSellerPreviewImages([]);
+        setSellerPreviewImage(null);
+        sellerPreviewImageRef.current = null;
       } else if (imageUrl) {
         setSellerPreviewImage(imageUrl);
+        sellerPreviewImageRef.current = imageUrl;
       }
       setChameleonTheme(enriched.category === "clothing" ? "wardrobe" : "flux");
       setSellerStep("idle");
@@ -1850,9 +1900,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     // standalone cover or a second Mano skelbimai card image set.
     const documentEvidence = parseDocumentUrlsFromAttributes(profileDraft.attributes);
     // Prefer https; drop pending data: twins so we do not re-upload 2→4 duplicates.
+    // When PrePublish flushes a canonical gallery via pendingImageUrls, put it first so
+    // stale orderedImageUrls / preview twins cannot reintroduce slot-1→slot-3 dups.
     const sessionCandidates = mergeSellerGallerySources(
-      profileDraft.orderedImageUrls,
-      pendingImageUrls,
+      pendingImageUrls.length > 0 ? pendingImageUrls : profileDraft.orderedImageUrls,
+      pendingImageUrls.length > 0 ? profileDraft.orderedImageUrls : pendingImageUrls,
       sellerPreviewImage,
       sellerPreviewImages
     );
