@@ -415,11 +415,12 @@ export function PrePublishModal({
     }
   }, [gallery.length, onPublish, photosOptional, publishing, visibilityId]);
 
-  // Vehicles / clothing / electronics keep core inputs even when empty so clearing
-  // a value does not remove the field. Vision/debug keys stay filtered out.
+  // Vehicles / clothing keep core inputs even when empty. Electronics show
+  // filled Vision specs only — never empty Apple/iPhone/128GB placeholder rows.
   const visibleSpecs = getPrePublishEditableAttributeEntries(
     localAttrs as Record<string, unknown>,
-    card.category as ListingCategory | undefined
+    card.category as ListingCategory | undefined,
+    { title: card.title, description: card.description }
   );
   const isVehicleCategory =
     card.category === "vehicles" || card.category === "transport";

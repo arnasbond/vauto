@@ -164,6 +164,45 @@ export function dedupeListingImageUrls(
 }
 
 /**
+ * Merge chat pending + draft ordered galleries without 2→4 duplication.
+ * Prefer durable https:// URLs; drop data:/blob: copies when https already covers
+ * the same shot count (exact-string Set cannot equate data↔https pairs).
+ */
+export function mergeSellerGallerySources(
+  ...groups: Array<readonly string[] | string | null | undefined>
+): string[] {
+  const flat: string[] = [];
+  for (const group of groups) {
+    if (group == null) continue;
+    if (typeof group === "string") {
+      const t = group.trim();
+      if (t) flat.push(t);
+      continue;
+    }
+    for (const url of group) {
+      const t = String(url ?? "").trim();
+      if (t) flat.push(t);
+    }
+  }
+  const unique = uniqueUrls(flat);
+  const https = unique.filter((u) => /^https?:\/\//i.test(u) && !isListingPlaceholderUrl(u));
+  const ephemeral = unique.filter(
+    (u) =>
+      (u.startsWith("data:image") || u.startsWith("blob:")) &&
+      !isListingPlaceholderUrl(u)
+  );
+  // Durable covers win — pending data URLs of the same shots caused Nuotraukos (4).
+  if (https.length > 0 && https.length >= ephemeral.length) {
+    return https;
+  }
+  if (https.length > 0) {
+    // Keep extra pending angles Vision omitted from orderedImageUrls.
+    return uniqueUrls([...https, ...ephemeral]);
+  }
+  return ephemeral;
+}
+
+/**
  * Full gallery for detail swipe.
  * Real seller photos only — never padded with Unsplash stock.
  */

@@ -174,7 +174,7 @@ import {
   buildPrePublishCardPayload,
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
-import { filterSessionListingImages } from "@/lib/listing-image";
+import { filterSessionListingImages, mergeSellerGallerySources } from "@/lib/listing-image";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import {
   AWAITING_PHOTOS_NUDGE,
@@ -739,9 +739,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           .map((u) => String(u ?? "").trim())
           .filter(Boolean);
         const photoUrls = capListingGalleryUrls(
-          [...priorPhotos, ...actionPhotos]
-            .filter(Boolean)
-            .filter((u, i, arr) => arr.indexOf(u) === i),
+          mergeSellerGallerySources(priorPhotos, actionPhotos),
           actions.listingDraft.category ?? aiDraft?.category
         );
         const proposedFlow =
@@ -1189,11 +1187,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         : undefined;
       const photos = capListingGalleryUrls(
         filterSessionListingImages(
-          [
-            ...(aiDraft?.orderedImageUrls ?? []),
-            ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-            ...sessionPendingImageUrls,
-          ],
+          mergeSellerGallerySources(
+            aiDraft?.orderedImageUrls,
+            sellerPreviewImage,
+            sessionPendingImageUrls
+          ),
           {
             attributes: aiDraft?.attributes,
             documentUrls: parseDocumentUrlsFromAttributes(aiDraft?.attributes),
@@ -1774,12 +1772,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (draftForTurn) {
           // Preserve prior server-confirmed docs; do not ban by client heuristic yet.
           const mergedPhotos = capListingGalleryUrls(
-            [
-              ...incomingImagesEarly,
-              ...(draftForTurn.orderedImageUrls ?? []),
-            ]
-              .filter(Boolean)
-              .filter((u, i, arr) => arr.indexOf(u) === i),
+            mergeSellerGallerySources(
+              incomingImagesEarly,
+              draftForTurn.orderedImageUrls
+            ),
             draftForTurn.category
           );
           const nextAttrs = priorDocs.length
@@ -1998,11 +1994,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         const cardPhotos = capListingGalleryUrls(
           filterSessionListingImages(
-            [
-              ...(patchedDraft.orderedImageUrls ?? []),
-              ...pendingForTurn,
-              ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-            ],
+            mergeSellerGallerySources(
+              patchedDraft.orderedImageUrls,
+              pendingForTurn,
+              sellerPreviewImage
+            ),
             {
               attributes: patchedDraft.attributes,
               documentUrls: parseDocumentUrlsFromAttributes(patchedDraft.attributes),

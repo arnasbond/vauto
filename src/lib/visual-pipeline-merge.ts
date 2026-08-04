@@ -1,4 +1,5 @@
 import type { AiExtractedListing } from "@/lib/types";
+import { mergeSellerGallerySources } from "@/lib/listing-image";
 
 export interface VisualPipelineConversationalHints {
   hasVisibleDefects: boolean;
@@ -60,6 +61,5 @@ export function resolveSellerGalleryImages(
   pipeline: VisualPipelinePayload | null | undefined,
   fallback: string[]
 ): string[] {
-  if (pipeline?.orderedImageUrls?.length) return pipeline.orderedImageUrls;
-  return fallback;
+  return mergeSellerGallerySources(pipeline?.orderedImageUrls, fallback);
 }

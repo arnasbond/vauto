@@ -46,6 +46,8 @@ import {
   collectListingGalleryCandidates,
   filterSessionListingImages,
   isListingPlaceholderUrl,
+  LISTING_PLACEHOLDER_IMAGE,
+  mergeSellerGallerySources,
 } from "@/lib/listing-image";
 import { stripHallucinatedListingDefaults } from "@/lib/conversation-listing-draft";
 import { normalizeKnownListingCity } from "@/lib/city-resolve";
@@ -68,7 +70,6 @@ import {
   listingCategoryAllowsPhotoless,
   capListingGalleryUrls,
 } from "@vauto/shared/listing-photo-policy";
-import { LISTING_PLACEHOLDER_IMAGE } from "@/lib/listing-image";
 import { sanitizeListingAttributesForPersistence } from "@vauto/shared/listing-attributes-sanitize";
 import { registerPushNotifications } from "@/lib/push-registration";
 import {
@@ -1212,11 +1213,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         .map((u) => String(u ?? "").trim())
         .filter(Boolean);
       const coverHint = imageUrl ? String(imageUrl).trim() : "";
-      const gallerySource = [
-        ...incomingGallery,
-        ...(coverHint ? [coverHint] : []),
-        ...priorGallery,
-      ];
+      const gallerySource = mergeSellerGallerySources(
+        incomingGallery,
+        coverHint,
+        priorGallery
+      );
       const mergedAttrs = {
         ...(previousDraft?.attributes ?? {}),
         ...(draft.attributes ?? {}),
@@ -1824,17 +1825,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     // Public gallery only — tech passport / registration evidence never becomes a
     // standalone cover or a second Mano skelbimai card image set.
     const documentEvidence = parseDocumentUrlsFromAttributes(profileDraft.attributes);
-    const sessionCandidates = resolveSellerGalleryImages(
-      {
-        orderedImageUrls: [
-          ...(profileDraft.orderedImageUrls ?? []),
-          ...pendingImageUrls,
-        ].filter((url, i, arr) => arr.indexOf(url) === i),
-      },
-      [
-        ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-        ...sellerPreviewImages.filter(Boolean),
-      ].filter((url, i, arr) => arr.indexOf(url) === i)
+    // Prefer https; drop pending data: twins so we do not re-upload 2→4 duplicates.
+    const sessionCandidates = mergeSellerGallerySources(
+      profileDraft.orderedImageUrls,
+      pendingImageUrls,
+      sellerPreviewImage,
+      sellerPreviewImages
     );
     let syncedGallery = capListingGalleryUrls(
       filterSessionListingImages(sessionCandidates, {
@@ -1856,12 +1852,27 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     const coords = await coordsPromise;
     const preparedGallery: string[] = [];
     let uploadFailures = 0;
+    let lastUploadError = "";
     for (const src of syncedGallery) {
-      const prepared = await prepareListingImageForApi(src, listingId);
+      const trimmed = src.trim();
+      if (!trimmed) continue;
+      // Keep existing HTTPS covers — never re-upload durable CDN URLs.
+      if (/^https?:\/\//i.test(trimmed)) {
+        preparedGallery.push(trimmed);
+        continue;
+      }
+      const prepared = await prepareListingImageForApi(trimmed, listingId);
       if (prepared && /^https?:\/\//i.test(prepared)) {
         preparedGallery.push(prepared);
-      } else if (src?.trim()) {
+      } else if (trimmed) {
         uploadFailures += 1;
+        lastUploadError = `prepare failed for ${trimmed.slice(0, 48)}…`;
+        console.error("[publishListing] image prepare failed", {
+          listingId,
+          kind: trimmed.startsWith("data:") ? "data" : "other",
+          bytes: trimmed.length,
+          preview: trimmed.slice(0, 64),
+        });
       }
     }
     const httpImages = preparedGallery.filter((u) => /^https?:\/\//i.test(u));
@@ -1872,6 +1883,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       galleryImages = [LISTING_PLACEHOLDER_IMAGE];
     }
     if (!galleryImages.length) {
+      console.error("[publishListing] gallery empty after upload", {
+        listingId,
+        syncedCount: syncedGallery.length,
+        uploadFailures,
+        lastUploadError,
+        syncedKinds: syncedGallery.map((u) =>
+          /^https?:\/\//i.test(u) ? "https" : u.startsWith("data:") ? "data" : "other"
+        ),
+      });
       const msg =
         uploadFailures > 0 || syncedGallery.length > 0
           ? "Nepavyko įkelti nuotraukų į saugyklą. Patikrinkite ryšį ir bandykite publikuoti dar kartą."

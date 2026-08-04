@@ -20,6 +20,7 @@ import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import {
   dedupeListingImageUrls,
   filterSessionListingImages,
+  mergeSellerGallerySources,
 } from "@/lib/listing-image";
 import {
   draftTextImpliesMissingPhoto,
@@ -52,13 +53,12 @@ export function buildPrePublishCardPayload(
   if (!readiness.ok || !readiness.syncedDraft) return null;
   const draft = readiness.syncedDraft;
   const documentUrls = parseDocumentUrlsFromAttributes(draft.attributes);
-  // Always union draft gallery + pending chat uploads so multi-photo sessions
-  // are not collapsed when orderedImageUrls already has a thin Vision cover.
-  const gallerySource = [
-    ...(draft.orderedImageUrls ?? []),
-    ...(opts?.pendingImageUrls ?? []),
-    ...(previewImage ? [previewImage] : []),
-  ];
+  // Prefer https covers; drop pending data: copies that duplicate Vision URLs (2→4 bug).
+  const gallerySource = mergeSellerGallerySources(
+    draft.orderedImageUrls,
+    opts?.pendingImageUrls,
+    previewImage
+  );
   const imageUrls = dedupeListingImageUrls(
     filterSessionListingImages(gallerySource, {
       documentUrls,
@@ -230,13 +230,13 @@ export function evaluatePrePublishReadiness(
   // Docs stay filtered out; user trims public photos via PrePublish thumbnail „x“.
   if (syncedDraft) {
     const documentUrls = parseDocumentUrlsFromAttributes(syncedDraft.attributes);
-    // Always union ordered + pending session photos (multi-upload chat).
-    const gallerySource: string[] = [
-      ...(syncedDraft.orderedImageUrls ?? []),
-      ...(input.orderedImageUrls ?? []),
-      ...(input.pendingImageUrls ?? []),
-      ...(input.previewImage ? [input.previewImage] : []),
-    ];
+    // Prefer durable https; do not keep data: twins of the same shots.
+    const gallerySource = mergeSellerGallerySources(
+      syncedDraft.orderedImageUrls,
+      input.orderedImageUrls,
+      input.pendingImageUrls,
+      input.previewImage
+    );
     const mergedPhotos = filterSessionListingImages(gallerySource, {
       documentUrls,
       attributes: syncedDraft.attributes,

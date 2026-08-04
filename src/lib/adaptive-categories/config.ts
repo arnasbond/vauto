@@ -451,9 +451,9 @@ export const ADAPTIVE_CATEGORIES: Record<
         key: "manufacturer",
         label: "Gamintojas",
         inputType: "select",
-        options: ["Apple", "Samsung", "Sony", "Huawei", "Xiaomi", "LG", "Kita"],
+        options: ["Apple", "Samsung", "Sony", "Huawei", "Xiaomi", "LG", "Canon", "HP", "Kita"],
       },
-      { key: "deviceModel", label: "Modelis", placeholder: "pvz. iPhone 14 Pro" },
+      { key: "deviceModel", label: "Modelis", placeholder: "pvz. modelis" },
       {
         key: "storageCapacity",
         label: "Atminties talpa",
@@ -538,8 +538,8 @@ export const ADAPTIVE_CATEGORIES: Record<
     layout: "universal",
     baseFields: ["title", "price", "location", "contact", "description"],
     fields: [
-      { key: "manufacturer", label: "Gamintojas", placeholder: "Apple / Samsung", critical: true },
-      { key: "deviceModel", label: "Modelis", placeholder: "iPhone 14 Pro", critical: true },
+      { key: "manufacturer", label: "Gamintojas", placeholder: "Gamintojas…", critical: true },
+      { key: "deviceModel", label: "Modelis", placeholder: "Modelis…", critical: true },
       {
         key: "storageCapacity",
         label: "Atmintis",

@@ -195,10 +195,9 @@ export const PREPUBLISH_ELECTRONICS_ALWAYS_ATTRS: ReadonlyArray<{
   label: string;
   placeholder: string;
 }> = [
-  { key: "manufacturer", label: "Gamintojas", placeholder: "Apple, Samsung…" },
-  { key: "deviceModel", label: "Modelis", placeholder: "iPhone 14 Pro…" },
-  { key: "condition", label: "Būklė", placeholder: "Kaip naujas…" },
-  { key: "storageCapacity", label: "Talpa", placeholder: "128 GB…" },
+  { key: "manufacturer", label: "Gamintojas", placeholder: "Gamintojas…" },
+  { key: "deviceModel", label: "Modelis", placeholder: "Modelis…" },
+  { key: "condition", label: "Būklė", placeholder: "Būklė…" },
 ];
 
 function alwaysAttrsForCategory(
@@ -208,42 +207,72 @@ function alwaysAttrsForCategory(
     return PREPUBLISH_VEHICLE_ALWAYS_ATTRS;
   }
   if (category === "clothing") return PREPUBLISH_CLOTHING_ALWAYS_ATTRS;
-  if (category === "electronics") return PREPUBLISH_ELECTRONICS_ALWAYS_ATTRS;
+  // Electronics: do not force empty phone-shaped sticky fields (Apple / iPhone /
+  // 128 GB) onto printers and other non-phone gear — filled Vision attrs still show.
+  if (category === "electronics") return [];
   return [];
 }
 
+function listingLooksLikePhone(
+  title?: string,
+  description?: string,
+  attributes?: Record<string, unknown> | null
+): boolean {
+  const blob = [
+    title,
+    description,
+    attributes?.deviceModel,
+    attributes?.manufacturer,
+    attributes?.brand,
+  ]
+    .map((v) => String(v ?? ""))
+    .join(" ");
+  return /\b(iphone|smartphone|telefonas|galaxy\s*[a-z]?\d|pixel\s*\d|xiaomi\s*redmi|huawei\s*p)\b/i.test(
+    blob
+  );
+}
+
+/** Schema demo defaults that must not stick on printers / cameras / etc. */
+function isPhoneSchemaDefaultValue(key: string, value: string): boolean {
+  const v = value.trim();
+  if (!v) return false;
+  if (key === "manufacturer" && /^apple$/i.test(v)) return true;
+  if (key === "deviceModel" && /\biphone\b/i.test(v)) return true;
+  if (
+    (key === "storageCapacity" || key === "storage") &&
+    /^(64|128|256)\s*GB$/i.test(v)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /**
- * PrePublish editor list: keep core category inputs even when empty so clearing
- * a value does not remove the field / collapse the form. Public listing detail
- * still uses getDynamicAttributeEntries (filled-only).
+ * PrePublish editor list: show filled public attrs + category sticky cores that
+ * already have values (or vehicle/clothing always cores). Never inject empty
+ * phone placeholder rows for unrelated electronics.
  */
 export function getPrePublishEditableAttributeEntries(
   attributes: Record<string, unknown> | null | undefined,
-  category?: ListingCategory
+  category?: ListingCategory,
+  opts?: { title?: string; description?: string }
 ): Array<DynamicAttributeEntry & { placeholder?: string }> {
-  const filled = getDynamicAttributeEntries(attributes, category);
+  const phoneContext = listingLooksLikePhone(
+    opts?.title,
+    opts?.description,
+    attributes
+  );
+  const filledRaw = getDynamicAttributeEntries(attributes, category);
+  const filled = phoneContext
+    ? filledRaw
+    : filledRaw.filter(
+        (entry) => !isPhoneSchemaDefaultValue(entry.key, entry.value)
+      );
   const always = alwaysAttrsForCategory(category);
 
   if (always.length === 0) {
-    // Non-schema verticals: keep keys that exist on the map even when cleared to "".
-    const sticky: Array<DynamicAttributeEntry & { placeholder?: string }> = [];
-    const seenLabels = new Set<string>();
-    if (attributes) {
-      for (const [key, raw] of Object.entries(attributes)) {
-        if (!isPublicDynamicAttributeKey(key)) continue;
-        if (isFashionOnlyForCategory(key, category)) continue;
-        if (raw === undefined || raw === null) continue;
-        const value = normalizeAttrValue(raw) ?? "";
-        const label = humanizeAttributeKey(key);
-        if (INTERNAL_LABEL_RE.test(label) || INTERNAL_LABEL_RE.test(key)) continue;
-        const dedupe = label.toLowerCase();
-        if (seenLabels.has(dedupe)) continue;
-        seenLabels.add(dedupe);
-        sticky.push({ key, label, value });
-      }
-    }
-    const base = sticky.length ? sticky : filled;
-    return base.slice(0, 16);
+    // Filled-only for electronics / other — hide empty hardcoded placeholders.
+    return filled.slice(0, 16);
   }
 
   const seenKeys = new Set<string>();
@@ -262,10 +291,11 @@ export function getPrePublishEditableAttributeEntries(
           : alwaysField.key === "colors"
             ? normalizeAttrValue(attributes?.color) ?? ""
             : "";
+    const resolved = value || alt;
     out.push({
       key: alwaysField.key,
       label: alwaysField.label,
-      value: value || alt,
+      value: resolved,
       placeholder: alwaysField.placeholder,
     });
     seenKeys.add(alwaysField.key);
