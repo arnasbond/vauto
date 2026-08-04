@@ -308,23 +308,104 @@ export async function apiVautoServer(
 }
 
 /**
- * PUBLISH-ONLY permanent media persist (Cloudinary).
+ * PUBLISH-ONLY permanent media persist (Cloudinary via /api/vauto-server).
  * Chat Vision / draft inspection must keep data URLs in-memory and MUST NOT call this.
+ *
+ * Returns HTTPS URL on success, or null on failure (always logs the exact provider error).
  */
-export async function apiUploadMedia(
+export type ApiUploadMediaResult = {
+  url: string | null;
+  error?: string;
+  code?: string;
+};
+
+export async function apiUploadMediaResult(
   imageDataUrl: string,
   listingId?: string
-): Promise<string | null> {
-  const res = await apiVautoServer({
+): Promise<ApiUploadMediaResult> {
+  const dataApi = getDataApiBaseUrl();
+  if (!dataApi) {
+    const error = "API not configured (NEXT_PUBLIC_API_URL / runtime-config)";
+    console.error("[apiUploadMedia]", error);
+    return { url: null, error, code: "api_not_configured" };
+  }
+  if (!imageDataUrl?.trim()) {
+    return { url: null, error: "imageDataUrl is empty", code: "empty_image" };
+  }
+  if (!/^data:image\//i.test(imageDataUrl) && !/^https?:\/\//i.test(imageDataUrl)) {
+    const error = `Unsupported image payload prefix: ${imageDataUrl.slice(0, 32)}`;
+    console.error("[apiUploadMedia]", error);
+    return { url: null, error, code: "invalid_image" };
+  }
+
+  const timeoutMs = AI_VISION_FETCH_TIMEOUT_MS;
+  const body = JSON.stringify({
     action: "upload_media",
     imageDataUrl,
     listingId,
     persist: true,
     phase: "publish",
   });
-  if (!res || typeof res !== "object") return null;
-  const url = "url" in res ? (res as { url?: unknown }).url : null;
-  return typeof url === "string" && /^https?:\/\//i.test(url) ? url : null;
+
+  const { data, error, code } = await aiFetchOnce<{
+    ok?: boolean;
+    url?: unknown;
+    deferred?: boolean;
+    code?: string;
+    error?: string;
+  }>(
+    dataApi,
+    "/api/vauto-server",
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body,
+    },
+    timeoutMs
+  );
+
+  if (!data) {
+    console.error("[apiUploadMedia] upload request failed:", {
+      error,
+      code,
+      listingId,
+      bytes: body.length,
+    });
+    return {
+      url: null,
+      error: error || "Nuotraukų įkėlimas nepavyko",
+      code: code || "network_error",
+    };
+  }
+
+  const url = typeof data.url === "string" ? data.url.trim() : "";
+  if (url && /^https?:\/\//i.test(url)) {
+    return { url, code: data.code };
+  }
+
+  const failCode = data.code || code || "upload_failed";
+  const failError =
+    data.error ||
+    error ||
+    (data.deferred
+      ? `Upload deferred (${failCode}) — Cloudinary negrąžino URL`
+      : "Cloudinary negrąžino HTTPS URL");
+  console.error("[apiUploadMedia] no HTTPS URL from provider:", {
+    code: failCode,
+    error: failError,
+    deferred: data.deferred,
+    listingId,
+    responseKeys: Object.keys(data),
+  });
+  return { url: null, error: failError, code: failCode };
+}
+
+export async function apiUploadMedia(
+  imageDataUrl: string,
+  listingId?: string
+): Promise<string | null> {
+  const result = await apiUploadMediaResult(imageDataUrl, listingId);
+  return result.url;
 }
 
 export async function apiVautoAgent(body: {

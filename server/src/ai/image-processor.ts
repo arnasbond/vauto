@@ -17,7 +17,9 @@ function toDataUrl(buffer: Buffer, mime = "image/webp"): string {
 
 function listingOutputFormat(): "webp" | "jpeg" {
   const raw = process.env.LISTING_IMAGE_FORMAT?.trim().toLowerCase();
-  return raw === "jpeg" || raw === "jpg" ? "jpeg" : "webp";
+  // Default JPEG — unsigned Cloudinary presets and older clients are more reliable with JPEG.
+  if (raw === "webp") return "webp";
+  return "jpeg";
 }
 
 function encodeListingImage(sharpInstance: sharp.Sharp): Promise<Buffer> {

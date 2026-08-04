@@ -22,8 +22,16 @@ vautoServerRouter.post("/", async (req, res) => {
     const result = await handleVautoServerAction(req.body);
     res.json(result);
   } catch (e) {
-    const err = e as Error & { status?: number };
+    const err = e as Error & { status?: number; code?: string };
     const status = err.status ?? 500;
-    res.status(status).json({ error: err.message || String(e) });
+    console.error("[vauto-server]", err.message || String(e), {
+      action: req.body?.action,
+      code: err.code,
+      status,
+    });
+    res.status(status).json({
+      error: err.message || String(e),
+      ...(err.code ? { code: err.code } : {}),
+    });
   }
 });

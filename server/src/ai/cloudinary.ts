@@ -1,4 +1,6 @@
-/** Cloudinary upload — unsigned preset OR signed admin credentials. */
+/** Cloudinary upload — unsigned preset OR signed api_key + signature. */
+
+import { createHash } from "node:crypto";
 
 export function isCloudinaryConfigured(): boolean {
   const cloud = Boolean(process.env.CLOUDINARY_CLOUD_NAME?.trim());
@@ -14,6 +16,49 @@ function basicAuth(key: string, secret: string): string {
   return Buffer.from(`${key}:${secret}`).toString("base64");
 }
 
+/** Cloudinary signed-upload signature (sha1 of sorted key=value&… + api_secret). */
+function signCloudinaryParams(
+  params: Record<string, string | number>,
+  apiSecret: string
+): string {
+  const toSign = Object.keys(params)
+    .filter((k) => params[k] !== undefined && params[k] !== null && params[k] !== "")
+    .sort()
+    .map((k) => `${k}=${params[k]}`)
+    .join("&");
+  return createHash("sha1").update(toSign + apiSecret).digest("hex");
+}
+
+function parseDataUrlFile(imageDataUrl: string): {
+  bytes: Buffer;
+  contentType: string;
+  filename: string;
+} {
+  const trimmed = imageDataUrl.trim();
+  const match = /^data:([^;]+);base64,(.+)$/is.exec(trimmed);
+  if (match) {
+    const contentType = (match[1] || "image/jpeg").trim().toLowerCase();
+    const bytes = Buffer.from(match[2]!, "base64");
+    const ext = contentType.includes("png")
+      ? "png"
+      : contentType.includes("webp")
+        ? "webp"
+        : contentType.includes("gif")
+          ? "gif"
+          : "jpg";
+    return { bytes, contentType, filename: `listing.${ext}` };
+  }
+  // Remote HTTPS URL — Cloudinary accepts it as the `file` string value.
+  if (/^https?:\/\//i.test(trimmed)) {
+    return {
+      bytes: Buffer.alloc(0),
+      contentType: "text/plain",
+      filename: "",
+    };
+  }
+  throw new Error("Cloudinary file must be a data:image URL or https URL");
+}
+
 export async function uploadImageToCloudinary(
   imageDataUrl: string,
   folder = "vauto",
@@ -27,39 +72,93 @@ export async function uploadImageToCloudinary(
     throw Object.assign(new Error("Cloudinary not configured"), { status: 503 });
   }
 
-  const form = new FormData();
-  form.append("file", imageDataUrl);
-  form.append("folder", folder);
-  if (options?.publicId) form.append("public_id", options.publicId);
-  if (options?.listingId) {
-    form.append("context", `listingId=${options.listingId}`);
-    form.append("tags", options.listingId);
-  }
+  const trimmed = imageDataUrl.trim();
 
-  const headers: Record<string, string> = {};
-  if (apiKey && apiSecret) {
-    headers.Authorization = `Basic ${basicAuth(apiKey, apiSecret)}`;
-  } else if (uploadPreset) {
-    form.append("upload_preset", uploadPreset);
-  }
-
-  const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-    { method: "POST", headers, body: form }
-  );
-
-  if (!res.ok) {
-    const err = await res.text().catch(() => "");
-    throw new Error(`Cloudinary upload failed: ${res.status} ${err}`);
-  }
-
-  const data = (await res.json()) as { secure_url?: string; public_id?: string };
-  if (!data.secure_url) throw new Error("Cloudinary returned no URL");
-
-  return {
-    url: data.secure_url,
-    publicId: data.public_id ?? "",
+  const appendFile = (form: FormData) => {
+    if (/^https?:\/\//i.test(trimmed)) {
+      form.append("file", trimmed);
+      return;
+    }
+    const parsed = parseDataUrlFile(trimmed);
+    // Blob/File multipart is more reliable than a multi-MB data-URI text field.
+    const blob = new Blob([new Uint8Array(parsed.bytes)], {
+      type: parsed.contentType,
+    });
+    form.append("file", blob, parsed.filename);
   };
+
+  const postUpload = async (form: FormData, mode: string) => {
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      { method: "POST", body: form }
+    );
+    const errText = res.ok ? "" : await res.text().catch(() => "");
+    if (!res.ok) {
+      console.error("[cloudinary] upload rejected:", res.status, errText.slice(0, 500), {
+        mode,
+        folder,
+        listingId: options?.listingId,
+      });
+      throw new Error(`Cloudinary upload failed: ${res.status} ${errText}`);
+    }
+    const data = (await res.json()) as {
+      secure_url?: string;
+      public_id?: string;
+    };
+    if (!data.secure_url) throw new Error("Cloudinary returned no URL");
+    return {
+      url: data.secure_url,
+      publicId: data.public_id ?? "",
+    };
+  };
+
+  /**
+   * Prefer unsigned preset when configured.
+   * Unsigned presets REJECT unknown overwrite params (folder/tags/context/public_id)
+   * unless explicitly allowed in the preset — that was breaking all listing uploads.
+   */
+  if (uploadPreset) {
+    try {
+      const form = new FormData();
+      appendFile(form);
+      form.append("upload_preset", uploadPreset);
+      return await postUpload(form, "unsigned_preset");
+    } catch (presetErr) {
+      if (!(apiKey && apiSecret)) throw presetErr;
+      console.warn(
+        "[cloudinary] unsigned preset failed — retrying signed upload:",
+        presetErr instanceof Error ? presetErr.message.slice(0, 200) : presetErr
+      );
+    }
+  }
+
+  if (apiKey && apiSecret) {
+    const timestamp = Math.round(Date.now() / 1000);
+    const params: Record<string, string | number> = {
+      timestamp,
+      folder,
+    };
+    if (options?.publicId) params.public_id = options.publicId;
+    if (options?.listingId) {
+      params.context = `listingId=${options.listingId}`;
+      params.tags = options.listingId;
+    }
+    const signature = signCloudinaryParams(params, apiSecret);
+    const form = new FormData();
+    appendFile(form);
+    form.append("api_key", apiKey);
+    form.append("timestamp", String(timestamp));
+    form.append("signature", signature);
+    form.append("folder", folder);
+    if (options?.publicId) form.append("public_id", options.publicId);
+    if (options?.listingId) {
+      form.append("context", `listingId=${options.listingId}`);
+      form.append("tags", options.listingId);
+    }
+    return await postUpload(form, "signed");
+  }
+
+  throw Object.assign(new Error("Cloudinary not configured"), { status: 503 });
 }
 
 /** Extract Cloudinary public_id from a delivery URL (ignores non-Cloudinary URLs). */

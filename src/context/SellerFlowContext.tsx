@@ -36,7 +36,7 @@ import {
 } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
-import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia, parseApiErrorMessage, SESSION_EXPIRED_MESSAGE } from "@/lib/api/client";
+import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMediaResult, parseApiErrorMessage, SESSION_EXPIRED_MESSAGE } from "@/lib/api/client";
 import { loadAccessToken } from "@/lib/auth/session";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { draftToListingPatch, type ListingEditPatch } from "@/lib/listing-edit";
@@ -256,7 +256,7 @@ function resolvePublishApiFailure(
 }
 
 /**
- * DEFERRED permanent storage — called only from publishListing (Publikuoti / Patvirtinti).
+ * DEFERRED permanent storage — called only from publishListing / edit-save.
  * Pre-flight chat Vision never enters here; it keeps high-res data URLs in session memory.
  * Returns HTTPS Cloudinary URL only — never a data: URL (feed strips those → blank cards).
  */
@@ -267,24 +267,47 @@ async function prepareListingImageForApi(
   if (!src?.trim()) return null;
   let image = (await resolveImageForUpload(src)) ?? src.trim();
   if (/^https?:\/\//i.test(image)) return image;
-  if (!image.startsWith("data:image")) return null;
+  if (!image.startsWith("data:image")) {
+    console.error("[prepareListingImageForApi] unsupported image kind:", image.slice(0, 48));
+    return null;
+  }
 
-  // Publish-size compress — lossy store budget (not Vision OCR quality).
+  // Publish-size compress — force JPEG canvas output for Cloudinary compatibility.
   image = await compressDataUrl(image, {
     maxDim: 1024,
     quality: 0.72,
     maxChars: 180_000,
     force: true,
   });
+  if (!image.startsWith("data:image")) {
+    console.error("[prepareListingImageForApi] compress produced non-data URL");
+    return null;
+  }
 
   // Retry Cloudinary — transient Render/OOM failures are common on first attempt.
+  let lastError = "";
+  let lastCode = "";
   for (let attempt = 0; attempt < 3; attempt++) {
-    const cloudUrl = await apiUploadMedia(image, listingId);
-    if (cloudUrl) return cloudUrl;
+    const result = await apiUploadMediaResult(image, listingId);
+    if (result.url && /^https?:\/\//i.test(result.url)) return result.url;
+    lastError = result.error || lastError;
+    lastCode = result.code || lastCode;
+    console.error("[prepareListingImageForApi] upload attempt failed:", {
+      attempt: attempt + 1,
+      listingId,
+      code: result.code,
+      error: result.error,
+      bytes: image.length,
+    });
     if (attempt < 2) {
       await new Promise((r) => setTimeout(r, 450 * (attempt + 1)));
     }
   }
+  console.error("[prepareListingImageForApi] all upload attempts failed:", {
+    listingId,
+    code: lastCode,
+    error: lastError,
+  });
   return null;
 }
 

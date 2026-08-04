@@ -761,19 +761,15 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       );
     }
     if (!isCloudinaryConfigured()) {
-      // Soft-fail: client keeps the compressed data URL for /api/listings.
-      console.warn(
-        `${LAZY_UPLOAD_LOG_TAG} Cloudinary not configured — deferred data-URL fallback`
+      console.error(
+        `${LAZY_UPLOAD_LOG_TAG} Cloudinary not configured — refusing publish upload`
       );
-      return {
-        ok: true,
-        action,
-        url: null,
-        deferred: true,
-        lazyUpload: true,
-        code: "cloudinary_not_configured",
-        listingId: body.listingId?.trim() || undefined,
-      };
+      throw Object.assign(
+        new Error(
+          "Nuotraukų saugykla nepasiekiama (Cloudinary nesukonfigūruota). Patikrinkite CLOUDINARY_* kintamuosius."
+        ),
+        { status: 503, code: "cloudinary_not_configured" }
+      );
     }
     const listingId = body.listingId?.trim() || `tmp-${Date.now()}`;
     let processed = image;
