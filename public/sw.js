@@ -1,5 +1,21 @@
-const CACHE = "vauto-shell-v19";
+const CACHE = "vauto-shell-v20";
 const PRECACHE = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"];
+
+function shouldBypassCache(pathname) {
+  return (
+    pathname === "/sw.js" ||
+    pathname === "/version-config.json" ||
+    pathname.endsWith("/sw.js")
+  );
+}
+
+function isHtmlShellPath(pathname) {
+  return (
+    pathname === "/" ||
+    pathname.endsWith(".html") ||
+    (pathname.endsWith("/") && !pathname.endsWith(".txt"))
+  );
+}
 
 /** @type {{ listings: object[]; savedQueries: string[]; seenIds: Set<string> }} */
 const alertState = {
@@ -112,43 +128,66 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
+  // Always hit the network for the worker script + version probe.
+  if (shouldBypassCache(url.pathname)) {
+    event.respondWith(fetch(event.request, { cache: "no-store" }));
+    return;
+  }
+
   const rscHtmlPath = htmlUrlForRscPath(url.pathname);
   if (event.request.mode === "navigate" && rscHtmlPath) {
     event.respondWith(Response.redirect(new URL(rscHtmlPath, url.origin), 302));
     return;
   }
 
-  if (event.request.mode === "navigate") {
+  // HTML shells + navigations: network-first so deploys win over stale cache.
+  if (event.request.mode === "navigate" || isHtmlShellPath(url.pathname)) {
     event.respondWith(
-      fetch(event.request).catch(async () => {
-        const cached = await caches.match(event.request);
-        if (cached) return cached;
-        const path = url.pathname.endsWith("/") ? url.pathname : `${url.pathname}/`;
-        return (
-          (await caches.match(`${path}index.html`)) ||
-          (await caches.match("/")) ||
-          fetch(event.request)
-        );
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok && event.request.mode === "navigate") {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          const path = url.pathname.endsWith("/")
+            ? url.pathname
+            : `${url.pathname}/`;
+          return (
+            (await caches.match(`${path}index.html`)) ||
+            (await caches.match("/")) ||
+            Response.error()
+          );
+        })
+    );
+    return;
+  }
+
+  // Hashed /_next/static assets: stale-while-revalidate (safe + fast).
+  if (url.pathname.startsWith("/_next/static/")) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        const network = fetch(event.request).then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        });
+        return cached || network;
       })
     );
     return;
   }
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (!response.ok || response.type === "opaque") return response;
-        const copy = response.clone();
-        if (
-          url.pathname.startsWith("/_next/static/") ||
-          url.pathname.endsWith(".html") ||
-          (url.pathname.endsWith("/") && !url.pathname.endsWith(".txt"))
-        ) {
-          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        }
-        return response;
-      });
+    fetch(event.request).catch(async () => {
+      const cached = await caches.match(event.request);
+      return cached || Response.error();
     })
   );
 });
@@ -157,6 +196,11 @@ self.addEventListener("fetch", (event) => {
 self.addEventListener("message", (event) => {
   const data = event.data;
   if (!data || typeof data !== "object") return;
+
+  if (data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+    return;
+  }
 
   if (data.type === "VAUTO_SYNC_ALERTS") {
     alertState.listings = data.listings || [];

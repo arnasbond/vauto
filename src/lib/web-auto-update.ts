@@ -1,10 +1,13 @@
 /**
- * Production web auto-update — polls remote version-config and soft-reloads when
+ * Production web auto-update — polls remote version-config and deep-refreshes when
  * the server versionCode advances past the build baked into this JS bundle.
+ * Deep refresh unregisters the service worker and clears Cache Storage so Safari
+ * PWA shells cannot stay stuck on a previous deploy.
  */
 import { initDataApiConfig } from "@/lib/api/config";
 import { subscribeAppVisibility } from "@/lib/app-visibility";
 import { fetchVersionConfig } from "@/lib/app-version";
+import { performDeepWebRefresh } from "@/lib/deep-web-refresh";
 import { isNativeApp } from "@/lib/mobile-install";
 import { WEB_BUILD_VERSION_CODE } from "@/lib/web-build-badge";
 
@@ -60,12 +63,12 @@ async function checkForWebUpdate(): Promise<void> {
 
     reloading = true;
     markReloadAttempt();
-    console.info("[VAUTO web-update] new version detected, reloading", {
+    console.info("[VAUTO web-update] new version detected, deep refresh", {
       boot: WEB_BUILD_VERSION_CODE,
       remote: remote.versionCode,
       label: remote.latestVersion,
     });
-    window.location.reload();
+    await performDeepWebRefresh();
   } catch (e) {
     console.warn("[VAUTO web-update] check failed:", e);
   } finally {

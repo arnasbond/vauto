@@ -62,9 +62,9 @@ export function HomeAiHero({
   }
 
   return (
-    <div className="relative mb-2 overflow-hidden">
+    <div className="relative mb-2">
       <div
-        className="pointer-events-none absolute inset-0 -mx-4 opacity-60 md:mx-0"
+        className="pointer-events-none absolute inset-0 -mx-4 overflow-hidden opacity-60 md:mx-0"
         style={{
           background:
             "radial-gradient(900px 420px at 50% -10%, var(--vauto-primary-soft), transparent 60%)",

@@ -9,6 +9,7 @@ import { attachNativePushNavigation, registerNativePush } from "@/lib/native-pus
 import { isNativePushDisabled } from "@/lib/mobile-install";
 import { storeOAuthCallbackPayload } from "@/lib/auth/oauth-redirect";
 import { attachNativeInstallLinkBlocker } from "@/lib/native-link-blocker";
+import { registerVautoServiceWorker } from "@/lib/register-service-worker";
 import { ExpressEscrowProcessor } from "@/components/escrow/ExpressEscrowProcessor";
 import { AppVersionGuard } from "@/components/version/AppVersionGuard";
 import { NativeMajorUpdatePrompt } from "@/components/version/NativeMajorUpdatePrompt";
@@ -42,11 +43,8 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
     ) {
       return;
     }
-    if (!Capacitor.isNativePlatform() && "serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
-        /* offline shell optional */
-      });
-    }
+    if (Capacitor.isNativePlatform()) return;
+    return registerVautoServiceWorker();
   }, []);
 
   useEffect(() => {

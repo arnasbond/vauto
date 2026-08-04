@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -19,6 +20,13 @@ import { useChat } from "@/context/ChatContext";
 import { countUnreadChats } from "@/lib/chat-helpers";
 import { cn } from "@/lib/cn";
 import { isSuperAdminUser } from "@/lib/admin-access";
+
+/** Sticky header clearance used in max-height formula. */
+const HEADER_CLEARANCE_PX = 56;
+const MENU_GAP_PX = 8;
+const VIEWPORT_EDGE_PX = 12;
+/** Keep the panel short enough that overflow always scrolls on phones. */
+const MOBILE_MAX_PANEL_RATIO = 0.72;
 
 interface UserProfileDropdownProps {
   variant?: "desktop" | "mobile";
@@ -53,11 +61,22 @@ function MenuLink({ href, icon, label, hint, badge, onNavigate }: MenuLinkProps)
           )}
         </span>
         {hint ? (
-          <span className="block truncate text-xs text-[var(--vauto-text-muted,var(--anonser-text-muted))]">{hint}</span>
+          <span className="block truncate text-xs text-[var(--vauto-text-muted,var(--anonser-text-muted))]">
+            {hint}
+          </span>
         ) : null}
       </span>
     </Link>
   );
+}
+
+function visibleViewportHeight(): number {
+  if (typeof window === "undefined") return 640;
+  const vv = window.visualViewport;
+  if (vv && Number.isFinite(vv.height) && vv.height > 0) {
+    return vv.height;
+  }
+  return window.innerHeight;
 }
 
 export function UserProfileDropdown({ variant = "desktop" }: UserProfileDropdownProps) {
@@ -65,25 +84,88 @@ export function UserProfileDropdown({ variant = "desktop" }: UserProfileDropdown
   const { chats } = useChat();
   const unread = countUnreadChats(chats, user?.id ?? "");
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const showControlCenter = isAuthenticated && isSuperAdminUser(user);
 
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const updateMenuPosition = useCallback(() => {
+    const trigger = triggerRef.current;
+    if (!trigger || typeof window === "undefined") return;
+
+    const rect = trigger.getBoundingClientRect();
+    const right = Math.max(VIEWPORT_EDGE_PX, window.innerWidth - rect.right);
+    const top = rect.bottom + MENU_GAP_PX;
+    const vh = visibleViewportHeight();
+    const remainingBelow = Math.max(140, vh - top - VIEWPORT_EDGE_PX);
+    const capped = Math.min(
+      remainingBelow,
+      Math.floor(vh * MOBILE_MAX_PANEL_RATIO),
+      vh - HEADER_CLEARANCE_PX - 20
+    );
+    // Pixel max-height is reliable on Android/iOS; CSS dvh is a fallback floor.
+    const maxHeightPx = Math.max(180, capped);
+
+    setMenuStyle({
+      position: "fixed",
+      top,
+      right,
+      zIndex: 280,
+      maxHeight: `${maxHeightPx}px`,
+      // Inline overflow so nothing can drop the scroller (Tailwind alone was flaky).
+      overflowY: "auto",
+      overflowX: "hidden",
+      WebkitOverflowScrolling: "touch",
+      overscrollBehavior: "contain",
+      touchAction: "pan-y",
+    });
+  }, []);
+
+  useLayoutEffect(() => {
     if (!open) return;
-    const onPointer = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        close();
-      }
+    updateMenuPosition();
+  }, [open, updateMenuPosition, showControlCenter, unread]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onReposition = () => updateMenuPosition();
+    window.addEventListener("resize", onReposition);
+    // Do NOT listen to scroll in capture mode — scrolling the menu itself would
+    // re-render position and cancel the gesture on mobile.
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", onReposition);
+    return () => {
+      window.removeEventListener("resize", onReposition);
+      vv?.removeEventListener("resize", onReposition);
+    };
+  }, [open, updateMenuPosition]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (rootRef.current?.contains(target)) return;
+      if (menuRef.current?.contains(target)) return;
+      close();
     };
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") close();
     };
     document.addEventListener("mousedown", onPointer);
+    document.addEventListener("touchstart", onPointer, { passive: true });
     document.addEventListener("keydown", onKey);
     return () => {
       document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("touchstart", onPointer);
       document.removeEventListener("keydown", onKey);
     };
   }, [open, close]);
@@ -100,9 +182,105 @@ export function UserProfileDropdown({ variant = "desktop" }: UserProfileDropdown
     ? user.firstName || user.name?.split(/\s+/)[0] || "Profilis"
     : "Prisijungti";
 
+  const menu =
+    open && isAuthenticated && mounted ? (
+      <div
+        ref={menuRef}
+        role="menu"
+        style={menuStyle}
+        className={cn(
+          "vauto-profile-menu min-w-[15.5rem] rounded-2xl border py-2 shadow-xl",
+          "border-[var(--vauto-border,var(--anonser-border))] bg-[var(--vauto-card-bg,var(--anonser-card))]",
+          // CSS fallback when inline style is not yet applied on first paint.
+          "max-h-[calc(100dvh-3.5rem-20px-env(safe-area-inset-bottom,0px))] overflow-y-auto overscroll-contain",
+          "[-webkit-overflow-scrolling:touch] [touch-action:pan-y]"
+        )}
+        onWheel={(e) => {
+          // Keep wheel / trackpad scrolls inside the menu (don't scroll the page).
+          e.stopPropagation();
+        }}
+        onTouchMove={(e) => {
+          e.stopPropagation();
+        }}
+      >
+        <div className="sticky top-0 z-[1] border-b border-[var(--vauto-border,var(--anonser-border))] bg-[var(--vauto-card-bg,var(--anonser-card))] px-4 pb-3 pt-1">
+          <p className="truncate text-sm font-semibold text-[var(--vauto-text-main,var(--anonser-text))]">
+            {user.name}
+          </p>
+          <p className="truncate text-xs text-[var(--vauto-text-muted,var(--anonser-text-muted))]">
+            {user.email || user.phone || "Asmeninis kabinetas"}
+          </p>
+        </div>
+
+        <div className="py-1">
+          {showControlCenter ? (
+            <MenuLink
+              href="/profile/?tab=ops"
+              icon={<Shield className="h-4 w-4" />}
+              label="VAUTO Control Center"
+              hint="Administratoriaus skydelis"
+              onNavigate={close}
+            />
+          ) : null}
+          <MenuLink
+            href="/mano-skelbimai/"
+            icon={<LayoutGrid className="h-4 w-4" />}
+            label="Mano skelbimai"
+            hint="Valdykite ir redaguokite skelbimus"
+            onNavigate={close}
+          />
+          <MenuLink
+            href="/chats/"
+            icon={<MessageCircle className="h-4 w-4" />}
+            label="Pokalbiai"
+            hint="Susirašinėjimai su pirkėjais"
+            badge={unread}
+            onNavigate={close}
+          />
+          <MenuLink
+            href="/verslui/"
+            icon={<BarChart3 className="h-4 w-4" />}
+            label="Mano verslas / Analitika"
+            hint="Verslo kabinetas ir statistika"
+            onNavigate={close}
+          />
+        </div>
+
+        <div className="border-t border-[var(--vauto-border,var(--anonser-border))] py-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+          <MenuLink
+            href="/profile/"
+            icon={<User className="h-4 w-4" />}
+            label="Profilis"
+            onNavigate={close}
+          />
+          <MenuLink
+            href="/profile/settings/"
+            icon={<Settings className="h-4 w-4" />}
+            label="Nustatymai"
+            onNavigate={close}
+          />
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              close();
+              logout();
+            }}
+            className="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
+          >
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50">
+              <LogOut className="h-4 w-4" />
+            </span>
+            Atsijungti
+          </button>
+        </div>
+      </div>
+    ) : null;
+
   return (
     <div ref={rootRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={handleToggle}
         className={cn(
@@ -132,93 +310,17 @@ export function UserProfileDropdown({ variant = "desktop" }: UserProfileDropdown
           <>
             <span className="max-w-[7rem] truncate">{triggerLabel}</span>
             <ChevronDown
-              className={cn("h-4 w-4 text-[var(--anonser-text-muted)] transition", open && "rotate-180")}
+              className={cn(
+                "h-4 w-4 text-[var(--anonser-text-muted)] transition",
+                open && "rotate-180"
+              )}
               aria-hidden
             />
           </>
         )}
       </button>
 
-      {open && isAuthenticated && (
-        <div
-          role="menu"
-          className={cn(
-            "absolute z-50 mt-2 min-w-[15.5rem] overflow-hidden rounded-2xl border py-2 shadow-xl",
-            "border-[var(--vauto-border,var(--anonser-border))] bg-[var(--vauto-card-bg,var(--anonser-card))]",
-            variant === "desktop" ? "right-0" : "right-0"
-          )}
-        >
-          <div className="border-b border-[var(--vauto-border,var(--anonser-border))] px-4 pb-3 pt-1">
-            <p className="truncate text-sm font-semibold text-[var(--vauto-text-main,var(--anonser-text))]">{user.name}</p>
-            <p className="truncate text-xs text-[var(--vauto-text-muted,var(--anonser-text-muted))]">
-              {user.email || user.phone || "Asmeninis kabinetas"}
-            </p>
-          </div>
-
-          <div className="py-1">
-            {showControlCenter ? (
-              <MenuLink
-                href="/profile/?tab=ops"
-                icon={<Shield className="h-4 w-4" />}
-                label="VAUTO Control Center"
-                hint="Administratoriaus skydelis"
-                onNavigate={close}
-              />
-            ) : null}
-            <MenuLink
-              href="/mano-skelbimai/"
-              icon={<LayoutGrid className="h-4 w-4" />}
-              label="Mano skelbimai"
-              hint="Valdykite ir redaguokite skelbimus"
-              onNavigate={close}
-            />
-            <MenuLink
-              href="/chats/"
-              icon={<MessageCircle className="h-4 w-4" />}
-              label="Pokalbiai"
-              hint="Susirašinėjimai su pirkėjais"
-              badge={unread}
-              onNavigate={close}
-            />
-            <MenuLink
-              href="/verslui/"
-              icon={<BarChart3 className="h-4 w-4" />}
-              label="Mano verslas / Analitika"
-              hint="Verslo kabinetas ir statistika"
-              onNavigate={close}
-            />
-          </div>
-
-          <div className="border-t border-[var(--vauto-border,var(--anonser-border))] py-1">
-            <MenuLink
-              href="/profile/"
-              icon={<User className="h-4 w-4" />}
-              label="Profilis"
-              onNavigate={close}
-            />
-            <MenuLink
-              href="/profile/settings/"
-              icon={<Settings className="h-4 w-4" />}
-              label="Nustatymai"
-              onNavigate={close}
-            />
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                close();
-                logout();
-              }}
-              className="mx-1 flex w-[calc(100%-0.5rem)] items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50"
-            >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50">
-                <LogOut className="h-4 w-4" />
-              </span>
-              Atsijungti
-            </button>
-          </div>
-        </div>
-      )}
+      {menu && createPortal(menu, document.body)}
     </div>
   );
 }

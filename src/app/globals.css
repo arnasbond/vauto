@@ -1250,6 +1250,16 @@ body.chameleon-cvbankas .portal-listing-card:hover {
   font-family: var(--font-geist-sans), var(--font-sans), system-ui, sans-serif;
 }
 
+/** Profile avatar dropdown — must scroll on short mobile viewports. */
+.vauto-profile-menu {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  max-height: calc(100dvh - 3.5rem - 20px - env(safe-area-inset-bottom, 0px));
+}
+
 .chameleon-wizard-shell > .mx-auto {
   background: var(--portal-wizard-surface, var(--vauto-card-bg, #fff));
   color: var(--portal-text, var(--vauto-text-main, #0f172a));
