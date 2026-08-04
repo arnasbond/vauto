@@ -94,11 +94,21 @@ export function applyProfileToListingDraft(
 
   const profile = buildProfileListingContact(user);
   const onlyIfEmpty = opts?.onlyIfEmpty !== false;
+  const locationEditedByUser =
+    String(draft.attributes?.locationEditedByUser ?? "").trim() === "true";
+  const draftLocation = isPlaceholderCity(draft.location)
+    ? ""
+    : String(draft.location ?? "").trim();
 
-  const location =
-    onlyIfEmpty && !isPlaceholderCity(draft.location)
-      ? draft.location
-      : profile.location || (onlyIfEmpty ? draft.location : "");
+  // Seller typed/cleared the city in PrePublish — never re-inject profile/placeholder.
+  let location = draftLocation;
+  if (!locationEditedByUser) {
+    if (onlyIfEmpty) {
+      location = draftLocation || profile.location;
+    } else {
+      location = profile.location || draftLocation;
+    }
+  }
 
   const contact =
     onlyIfEmpty && !isEmptyValue(draft.contact)
@@ -111,7 +121,11 @@ export function applyProfileToListingDraft(
   if (!onlyIfEmpty || isEmptyValue(String(attrs.contact ?? ""))) {
     attrs.contact = contact;
   }
-  if (!onlyIfEmpty || isPlaceholderCity(String(attrs.location ?? draft.location))) {
+  if (
+    locationEditedByUser ||
+    !onlyIfEmpty ||
+    isPlaceholderCity(String(attrs.location ?? draft.location))
+  ) {
     attrs.location = location;
   }
   if (profile.phone && (!onlyIfEmpty || isEmptyValue(String(attrs.phone ?? "")))) {
@@ -132,10 +146,14 @@ export function applyProfileToListingDraft(
   if (user.companyName?.trim()) attrs.companyName = user.companyName.trim();
   if (user.companyCode?.trim()) attrs.companyCode = user.companyCode.trim();
   attrs.profileContactSynced = "true";
+  if (locationEditedByUser) {
+    attrs.locationEditedByUser = "true";
+  }
 
   return {
     ...draft,
-    location: location || draft.location,
+    // Never persist UI placeholders like „Nežinoma lokacija“ back into the draft.
+    location,
     contact,
     attributes: attrs,
   };

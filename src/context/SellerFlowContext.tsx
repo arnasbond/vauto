@@ -76,7 +76,7 @@ import {
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
 import {
-  buildConversationalMissingPrompt,
+  buildPublishValidationToast,
   buildPostVisionHeroMessage,
   isHeroFlowLocked,
   POST_VISION_PUBLISH_CHIPS,
@@ -1513,11 +1513,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (prePublish.missingAuth && !isAuthenticated) {
         openAuthModal("/");
       }
-      const conversational = buildConversationalMissingPrompt(prePublish);
-      showToast(conversational, "error");
+      const toast = buildPublishValidationToast(prePublish);
+      showToast(toast.message, toast.type);
       return {
         ok: false,
-        error: conversational,
+        error: toast.message,
         prePublishBlocked: true,
       };
     }
@@ -1561,9 +1561,25 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     );
 
     if (!validation.canPublish) {
-      const conversational = buildConversationalMissingPrompt(prePublish);
-      showToast(conversational, "error");
-      return { ok: false, error: conversational, prePublishBlocked: true };
+      const toast = buildPublishValidationToast(
+        {
+          missingAuth: false,
+          missingPhoto: validation.needsPhoto,
+          missingPhone: Boolean(
+            validation.validationIssues?.some((x) => /kontakt/i.test(x))
+          ),
+          missingCity: Boolean(
+            validation.validationIssues?.some((x) => /miest/i.test(x))
+          ),
+          missingPrice: validation.needsPrice,
+        },
+        {
+          validationIssues: validation.validationIssues,
+          blockMessage: validation.blockMessage,
+        }
+      );
+      showToast(toast.message, toast.type);
+      return { ok: false, error: toast.message, prePublishBlocked: true };
     }
 
     const priceSanity =

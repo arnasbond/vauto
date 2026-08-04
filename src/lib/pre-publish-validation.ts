@@ -93,8 +93,9 @@ export function buildPrePublishCardPayload(
       if (draftLoc && !isPlaceholderCity(draftLoc)) return draftLoc;
       const city = String(readiness.resolvedCity ?? "").trim();
       if (city && !isPlaceholderCity(city)) return city;
-      // GPS-only / unresolved — soft editable label, never invent a town.
-      return "Nežinoma lokacija";
+      // Keep the controlled input empty so clearing/editing works.
+      // Placeholder copy belongs in the input's placeholder attr, not as a value.
+      return "";
     })(),
     phone: readiness.resolvedPhone,
     imageUrl: imageUrls[0] ?? null,
@@ -268,13 +269,25 @@ export function evaluatePrePublishReadiness(
     input.user.city,
     input.geoCoords
   );
+  // Strip UI placeholders from the live draft so the city input can stay empty.
+  if (syncedDraft && isPlaceholderCity(syncedDraft.location)) {
+    syncedDraft = {
+      ...syncedDraft,
+      location: "",
+      attributes: {
+        ...(syncedDraft.attributes ?? {}),
+        location: "",
+      },
+    };
+  }
   const hasGps =
     Boolean(input.geoCoords) &&
     Number.isFinite(input.geoCoords?.lat) &&
     Number.isFinite(input.geoCoords?.lng);
 
   const missingPhone = !isValidListingPhone(resolvedPhone);
-  // GPS permission satisfies location — never invent a city; typed city also OK.
+  // GPS permission satisfies location for readiness — typed city still required at
+  // conversational publish validation when the label would be a placeholder.
   const missingCity =
     !hasGps && (!resolvedCity.trim() || isPlaceholderCity(resolvedCity));
   const missingPrice = !draftHasSatisfiedPrice({

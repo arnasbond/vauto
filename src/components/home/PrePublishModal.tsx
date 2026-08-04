@@ -691,6 +691,7 @@ export function PrePublishModal({
                 <input
                   type="text"
                   value={card.location}
+                  placeholder="Įrašykite miestą"
                   disabled={busy || !onFieldsChange}
                   onChange={(e) =>
                     patchField({
@@ -698,7 +699,7 @@ export function PrePublishModal({
                       attributes: { locationEditedByUser: "true" },
                     })
                   }
-                  className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] py-2.5 pl-9 pr-3 text-sm font-medium text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
+                  className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] py-2.5 pl-9 pr-3 text-sm font-medium text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70 placeholder:font-normal placeholder:text-[var(--vauto-text-muted)]"
                 />
               </div>
             </label>

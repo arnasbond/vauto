@@ -22,7 +22,7 @@ import {
 import { extractAgentQuickReplies } from "@/lib/agent-reply-display";
 import { safeMessageKey, safeMessageText } from "@/lib/agent-message-safe";
 import { readListingEditSession } from "@/lib/listing-edit-session";
-import { buildConversationalMissingPrompt } from "@/lib/listing-conversational-flow";
+import { buildPublishValidationToast } from "@/lib/listing-conversational-flow";
 import {
   buildPrePublishCardPayload,
   evaluatePrePublishReadiness,
@@ -211,18 +211,19 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
       : prePublishReadiness;
     if (!readiness?.ok) {
       // If price is present but something else blocks — never ask for price again.
-      const reply =
-        readiness &&
-        readiness.missingPrice &&
-        formPrice > 0
-          ? buildConversationalMissingPrompt({
-              ...readiness,
-              missingPrice: false,
-            })
+      const flags = readiness
+        ? readiness.missingPrice && formPrice > 0
+          ? { ...readiness, missingPrice: false }
           : readiness
-            ? buildConversationalMissingPrompt(readiness)
-            : "Parašykite kainą ar unikalią detalę — sudėliosiu gražesnį aprašymą.";
-      showToast(reply, "info");
+        : {
+            missingAuth: false,
+            missingPhoto: false,
+            missingCity: false,
+            missingPrice: true,
+            missingPhone: false,
+          };
+      const toast = buildPublishValidationToast(flags);
+      showToast(toast.message, toast.type);
       return;
     }
     if (readiness.syncedDraft && formPrice > 0) {

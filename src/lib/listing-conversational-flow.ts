@@ -72,7 +72,59 @@ export function buildConversationalMissingPrompt(
   if (readiness.missingPhoto) {
     return AWAITING_PHOTOS_PROMPT;
   }
+  // Soft AI confirmation — never use as a red validation error toast.
   return "Ar dar ką nors patikslinsime aprašyme, ar judame prie publikavimo?";
+}
+
+/** Actionable publish-gate toast; never the soft AI confirmation fallback. */
+export function buildPublishValidationToast(
+  readiness: Pick<
+    PrePublishReadiness,
+    | "missingAuth"
+    | "missingPhoto"
+    | "missingCity"
+    | "missingPrice"
+    | "missingPhone"
+  >,
+  opts?: {
+    validationIssues?: string[];
+    blockMessage?: string;
+  }
+): { message: string; type: "error" | "info" } {
+  if (
+    readiness.missingAuth ||
+    readiness.missingPrice ||
+    readiness.missingPhone ||
+    readiness.missingCity ||
+    readiness.missingPhoto
+  ) {
+    return {
+      message: buildConversationalMissingPrompt(readiness),
+      type: "error",
+    };
+  }
+  const issue = opts?.validationIssues?.find((x) => Boolean(String(x ?? "").trim()));
+  if (issue) {
+    const normalized = String(issue).trim();
+    if (/miest/i.test(normalized)) {
+      return { message: PROFILE_CITY_REQUIRED, type: "error" };
+    }
+    return { message: normalized, type: "error" };
+  }
+  const block = String(opts?.blockMessage ?? "").trim();
+  if (block && block !== buildConversationalMissingPrompt({
+    missingAuth: false,
+    missingPhoto: false,
+    missingCity: false,
+    missingPrice: false,
+    missingPhone: false,
+  })) {
+    return { message: block, type: "error" };
+  }
+  return {
+    message: "Nepavyko publikuoti — patikrinkite privalomus laukus.",
+    type: "error",
+  };
 }
 
 export interface DraftConfirmationInput {

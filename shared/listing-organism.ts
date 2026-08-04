@@ -149,7 +149,7 @@ export const AWAITING_CONFIRMATION_LOCKED =
   "Skelbimas paruoštas patvirtinimui. Tekstas nekeičia aprašymo — peržiūrėkite PrePublish langą ir spauskite „Publikuoti skelbimą“.";
 
 export const PROFILE_CITY_REQUIRED =
-  "Kad pirkėjai žinotų, kur jus rasti — kokį miestą rodyti skelbime? Parašykite čia pokalbyje.";
+  "Prašome nurodyti miestą prieš publikuojant.";
 
 export const PROFILE_PHONE_REQUIRED =
   "Kad pirkėjai galėtų susisiekti — kokį telefono numerį rodyti skelbime? Parašykite čia, aš įrašysiu į profilį.";

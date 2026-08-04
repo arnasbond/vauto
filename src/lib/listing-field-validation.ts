@@ -240,7 +240,7 @@ export function evaluateConversationalPublishValidation(
   const validationIssues: string[] = [];
   if (needsPhoto) validationIssues.push("Pridėkite nuotrauką");
   if (needsContact) validationIssues.push("Įveskite kontaktą");
-  if (needsCity) validationIssues.push("Nurodykite miestą");
+  if (needsCity) validationIssues.push("Prašome nurodyti miestą prieš publikuojant.");
   if (needsCategory) validationIssues.push("Pasirinkite kategoriją");
 
   const canPublish =
