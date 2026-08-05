@@ -1,25 +1,84 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Building2, Loader2, LogOut, Pencil, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Building2,
+  Clock,
+  Loader2,
+  LogOut,
+  Pencil,
+  ShoppingBag,
+  Star,
+  X,
+} from "lucide-react";
 import type { UserProfile } from "@/lib/types";
 import { ProfileAvatarEditor } from "@/components/profile/ProfileAvatarEditor";
+import { Badge, Button, Card } from "@/design-system";
 import { useVauto } from "@/context/VautoContext";
 import {
   displayPublicNickname,
   splitUserName,
 } from "@/lib/profile-display";
 import { blockNativeClickThrough } from "@/lib/native-click-guard";
+import {
+  computeSellerRating,
+  isVerifiedTrustedSeller,
+} from "@/lib/reviews";
+import { cn } from "@/lib/cn";
 
 interface ProfileHeaderProps {
   user: UserProfile;
   onLogout: () => void;
 }
 
+function StarRow({ avg, count }: { avg: number; count: number }) {
+  const filled = count > 0 ? Math.round(avg) : 0;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <div className="flex items-center gap-0.5" aria-hidden>
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star
+            key={i}
+            className={cn(
+              "h-3.5 w-3.5",
+              i < filled
+                ? "fill-amber-400 text-amber-400"
+                : "text-[var(--ds-border-strong)]"
+            )}
+          />
+        ))}
+      </div>
+      <span className="text-xs text-[var(--ds-text-muted)]">
+        {count > 0 ? `${avg} · ${count} atsiliep.` : "Dar nėra atsiliepimų"}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Profile Hero 2.0 — pasitikėjimą kurianti pardavėjo kortelė.
+ * Tik UI; edit / logout handleriai nepakeisti.
+ */
 export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
-  const { updateUser, showToast } = useVauto();
+  const { updateUser, showToast, reviews } = useVauto();
   const isPro = user.role === "pro";
   const publicNickname = displayPublicNickname(user);
+  const { avg, count } = useMemo(
+    () => computeSellerRating(reviews, user.id),
+    [reviews, user.id]
+  );
+  const verified = isVerifiedTrustedSeller(
+    user.id,
+    reviews,
+    user.authProvider,
+    user
+  );
+  const responseLabel =
+    typeof user.averageResponseMinutes === "number" &&
+    Number.isFinite(user.averageResponseMinutes)
+      ? `~${Math.max(1, Math.round(user.averageResponseMinutes))} min`
+      : "Atsako per žinutes";
+  const soldCount = user.soldCount ?? 0;
 
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -79,34 +138,38 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
 
   return (
     <>
-      <div className="vauto-dashboard-card mb-4 rounded-3xl p-5">
+      <Card
+        variant="elevated"
+        data-profile-hero-2
+        className="mb-4"
+      >
         <div className="flex items-start gap-4">
           <ProfileAvatarEditor avatar={user.avatar} name={publicNickname} />
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={openEdit}
                 className="group flex min-w-0 items-center gap-1.5 text-left"
                 aria-label="Redaguoti profilio duomenis"
               >
-                <h1 className="truncate text-lg font-bold text-[var(--vauto-text-main)] group-hover:text-[var(--vauto-primary)]">
+                <h1 className="truncate font-[family-name:var(--font-outfit)] text-lg font-bold text-[var(--ds-text-primary)] group-hover:text-[var(--ds-brand)]">
                   @{publicNickname}
                 </h1>
-                <Pencil className="h-3.5 w-3.5 shrink-0 text-[var(--vauto-text-muted)] opacity-70 group-hover:text-[var(--vauto-primary)]" />
+                <Pencil className="h-3.5 w-3.5 shrink-0 text-[var(--ds-text-muted)] opacity-70 group-hover:text-[var(--ds-brand)]" />
               </button>
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                  isPro
-                    ? "bg-[color-mix(in_srgb,var(--vauto-accent)_20%,transparent)] text-[var(--vauto-accent)]"
-                    : "bg-[color-mix(in_srgb,var(--vauto-primary)_20%,transparent)] text-[var(--vauto-primary)]"
-                }`}
-              >
+              <Badge tone={isPro ? "premium" : "brand"}>
                 {isPro ? "Pro" : "Privatus"}
-              </span>
+              </Badge>
+              {verified ? (
+                <Badge tone="success">Patvirtintas pardavėjas</Badge>
+              ) : user.phone || user.authProvider ? (
+                <Badge tone="info">Paskyra patvirtinta</Badge>
+              ) : null}
             </div>
-            {isPro && user.businessType && (
-              <p className="mt-1 flex items-center gap-1 text-xs text-[var(--vauto-primary)]">
+
+            {isPro && user.businessType ? (
+              <p className="mt-1 flex items-center gap-1 text-xs text-[var(--ds-brand)]">
                 <Building2 className="h-3 w-3" />
                 {user.businessType === "dealer"
                   ? "Auto salonas"
@@ -114,18 +177,36 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
                     ? "Paslaugos"
                     : "Verslas"}
               </p>
-            )}
+            ) : null}
+
+            <div className="mt-3">
+              <StarRow avg={avg} count={count} />
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-3 text-xs text-[var(--ds-text-secondary)]">
+              <span className="inline-flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5 text-[var(--ds-brand)]" aria-hidden />
+                Atsako laikas: {responseLabel}
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <ShoppingBag
+                  className="h-3.5 w-3.5 text-[var(--ds-brand)]"
+                  aria-hidden
+                />
+                Pardavimai: {soldCount}
+              </span>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="rounded-xl bg-[color-mix(in_srgb,var(--vauto-text-main)_6%,transparent)] p-2.5 text-[var(--vauto-text-muted)] hover:text-[var(--vauto-text-main)]"
+          <Button
+            variant="ghost"
+            size="sm"
+            iconOnly
             aria-label="Atsijungti"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
+            onClick={onLogout}
+            leftIcon={<LogOut className="h-4 w-4" />}
+          />
         </div>
-      </div>
+      </Card>
 
       {editOpen && (
         <div
@@ -138,18 +219,18 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
           aria-modal="true"
           aria-labelledby="profile-edit-title"
         >
-          <div className="w-full max-w-md rounded-3xl bg-[var(--vauto-card-bg)] p-5 shadow-xl">
+          <div className="w-full max-w-md rounded-[var(--ds-radius-card)] bg-[var(--ds-surface-elevated,var(--vauto-card-bg))] p-5 shadow-[var(--ds-shadow-md)]">
             <div className="mb-4 flex items-center justify-between">
               <h2
                 id="profile-edit-title"
-                className="text-lg font-bold text-[var(--vauto-text-main)]"
+                className="text-lg font-bold text-[var(--ds-text-primary)]"
               >
                 Redaguoti profilį
               </h2>
               <button
                 type="button"
                 onClick={() => setEditOpen(false)}
-                className="rounded-xl p-2 text-[var(--vauto-text-muted)] hover:bg-[color-mix(in_srgb,var(--vauto-text-main)_6%,transparent)]"
+                className="rounded-xl p-2 text-[var(--ds-text-muted)] hover:bg-[var(--ds-surface-muted)]"
                 aria-label="Uždaryti"
               >
                 <X className="h-4 w-4" />
@@ -158,7 +239,7 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
 
             <div className="space-y-3">
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-[var(--vauto-text-muted)]">
+                <span className="mb-1 block text-xs font-medium text-[var(--ds-text-muted)]">
                   Vardas
                 </span>
                 <input
@@ -166,13 +247,13 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   maxLength={80}
-                  className="w-full rounded-xl border border-[color-mix(in_srgb,var(--vauto-text-main)_12%,transparent)] bg-transparent px-3 py-2.5 text-sm text-[var(--vauto-text-main)] outline-none focus:border-[var(--vauto-primary)]"
+                  className="w-full rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-transparent px-3 py-2.5 text-sm text-[var(--ds-text-primary)] outline-none focus:border-[var(--ds-brand)]"
                   placeholder="Jonas"
                   autoComplete="given-name"
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-[var(--vauto-text-muted)]">
+                <span className="mb-1 block text-xs font-medium text-[var(--ds-text-muted)]">
                   Pavardė
                 </span>
                 <input
@@ -180,13 +261,13 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   maxLength={80}
-                  className="w-full rounded-xl border border-[color-mix(in_srgb,var(--vauto-text-main)_12%,transparent)] bg-transparent px-3 py-2.5 text-sm text-[var(--vauto-text-main)] outline-none focus:border-[var(--vauto-primary)]"
+                  className="w-full rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-transparent px-3 py-2.5 text-sm text-[var(--ds-text-primary)] outline-none focus:border-[var(--ds-brand)]"
                   placeholder="Jonaitis"
                   autoComplete="family-name"
                 />
               </label>
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-[var(--vauto-text-muted)]">
+                <span className="mb-1 block text-xs font-medium text-[var(--ds-text-muted)]">
                   Nikas / slapyvardis
                 </span>
                 <input
@@ -194,7 +275,7 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   maxLength={80}
-                  className="w-full rounded-xl border border-[color-mix(in_srgb,var(--vauto-text-main)_12%,transparent)] bg-transparent px-3 py-2.5 text-sm text-[var(--vauto-text-main)] outline-none focus:border-[var(--vauto-primary)]"
+                  className="w-full rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-transparent px-3 py-2.5 text-sm text-[var(--ds-text-primary)] outline-none focus:border-[var(--ds-brand)]"
                   placeholder="jonas_vauto"
                   autoComplete="nickname"
                 />
@@ -202,23 +283,27 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
             </div>
 
             <div className="mt-5 flex gap-2">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                className="flex-1"
                 onClick={() => setEditOpen(false)}
                 disabled={saving}
-                className="flex-1 rounded-xl bg-[color-mix(in_srgb,var(--vauto-text-main)_8%,transparent)] py-2.5 text-sm font-semibold text-[var(--vauto-text-main)] disabled:opacity-60"
               >
                 Atšaukti
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="primary"
+                className="flex-1"
                 onClick={() => void handleSave()}
                 disabled={saving}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                leftIcon={
+                  saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : undefined
+                }
               >
-                {saving && <Loader2 className="h-4 w-4 animate-spin" />}
                 Išsaugoti
-              </button>
+              </Button>
             </div>
           </div>
         </div>

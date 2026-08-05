@@ -190,7 +190,8 @@ export function UserProfileDropdown({ variant = "desktop" }: UserProfileDropdown
         style={menuStyle}
         className={cn(
           "vauto-profile-menu min-w-[15.5rem] rounded-2xl border py-2 shadow-xl",
-          "border-[var(--vauto-border,var(--anonser-border))] bg-[var(--vauto-card-bg,var(--anonser-card))]",
+          "border-[var(--vauto-border,var(--anonser-border))]",
+          "bg-[color-mix(in_srgb,var(--vauto-card-bg,var(--anonser-card))_88%,transparent)] backdrop-blur-md",
           // CSS fallback when inline style is not yet applied on first paint.
           "max-h-[calc(100dvh-3.5rem-20px-env(safe-area-inset-bottom,0px))] overflow-y-auto overscroll-contain",
           "[-webkit-overflow-scrolling:touch] [touch-action:pan-y]"
@@ -203,7 +204,7 @@ export function UserProfileDropdown({ variant = "desktop" }: UserProfileDropdown
           e.stopPropagation();
         }}
       >
-        <div className="sticky top-0 z-[1] border-b border-[var(--vauto-border,var(--anonser-border))] bg-[var(--vauto-card-bg,var(--anonser-card))] px-4 pb-3 pt-1">
+        <div className="sticky top-0 z-[1] border-b border-[var(--vauto-border,var(--anonser-border))] bg-[color-mix(in_srgb,var(--vauto-card-bg,var(--anonser-card))_92%,transparent)] px-4 pb-3 pt-1 backdrop-blur-md">
           <p className="truncate text-sm font-semibold text-[var(--vauto-text-main,var(--anonser-text))]">
             {user.name}
           </p>

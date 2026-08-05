@@ -1,0 +1,278 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   VAUTO Design System 2.0 — semantic tokens (additive; does not replace legacy)
+   Namespace: --ds-*
+   Direction: Apple minimal + Stripe/Vercel clarity + ChatGPT AI + Vinted simplicity
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Typography (Geist as primary) ── */
+  --ds-font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --ds-font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --ds-text-display-size: clamp(3.25rem, 5vw, 4rem); /* 52–64px */
+  --ds-text-display-leading: 1.05;
+  --ds-text-display-weight: 700;
+  --ds-text-display-tracking: -0.03em;
+
+  --ds-text-h1-size: clamp(2.5rem, 3.5vw, 3rem); /* 40–48px */
+  --ds-text-h1-leading: 1.12;
+  --ds-text-h1-weight: 700;
+  --ds-text-h1-tracking: -0.025em;
+
+  --ds-text-h2-size: clamp(1.875rem, 2.5vw, 2.25rem); /* 30–36px */
+  --ds-text-h2-leading: 1.2;
+  --ds-text-h2-weight: 600;
+  --ds-text-h2-tracking: -0.02em;
+
+  --ds-text-h3-size: clamp(1.375rem, 1.8vw, 1.625rem); /* 22–26px */
+  --ds-text-h3-leading: 1.3;
+  --ds-text-h3-weight: 600;
+  --ds-text-h3-tracking: -0.015em;
+
+  --ds-text-body-lg-size: 1.125rem; /* 18px */
+  --ds-text-body-lg-leading: 1.55;
+  --ds-text-body-lg-weight: 400;
+
+  --ds-text-body-size: 1rem; /* 16px */
+  --ds-text-body-leading: 1.55;
+  --ds-text-body-weight: 400;
+
+  --ds-text-body-sm-size: 0.875rem; /* 14px */
+  --ds-text-body-sm-leading: 1.5;
+  --ds-text-body-sm-weight: 400;
+
+  --ds-text-caption-size: 0.75rem; /* 12px */
+  --ds-text-caption-leading: 1.4;
+  --ds-text-caption-weight: 500;
+  --ds-text-caption-tracking: 0.01em;
+
+  --ds-text-label-size: 0.8125rem; /* 13px */
+  --ds-text-label-leading: 1.35;
+  --ds-text-label-weight: 600;
+  --ds-text-label-tracking: 0.02em;
+
+  --ds-text-button-size: 0.875rem;
+  --ds-text-button-leading: 1.2;
+  --ds-text-button-weight: 600;
+  --ds-text-button-tracking: -0.01em;
+
+  /* ── Color — light ── */
+  --ds-brand: #1b4dff;
+  --ds-brand-hover: #1539cc;
+  --ds-brand-soft: rgba(27, 77, 255, 0.1);
+  --ds-brand-contrast: #ffffff;
+
+  --ds-text-primary: #0b1220;
+  --ds-text-secondary: #3a4558;
+  --ds-text-muted: #4f596c;
+  --ds-text-inverse: #ffffff;
+
+  --ds-surface-page: #f7f8fb;
+  --ds-surface-card: #ffffff;
+  --ds-surface-elevated: #ffffff;
+  --ds-surface-muted: #f1f3f6;
+  --ds-surface-inverse: #0b1220;
+
+  --ds-border-subtle: #e6e9f0;
+  --ds-border-strong: #c9d2e5;
+
+  --ds-success: #059669;
+  --ds-success-soft: #ecfdf5;
+  --ds-success-contrast: #ffffff;
+
+  --ds-warning: #d97706;
+  --ds-warning-soft: #fffbeb;
+  --ds-warning-contrast: #ffffff;
+
+  --ds-danger: #e11d48;
+  --ds-danger-soft: #fff1f2;
+  --ds-danger-contrast: #ffffff;
+
+  --ds-info: #0284c7;
+  --ds-info-soft: #f0f9ff;
+  --ds-info-contrast: #ffffff;
+
+  /* AI — indigo/violet (distinct from brand blue) */
+  --ds-ai: #6366f1;
+  --ds-ai-strong: #4f46e5;
+  --ds-ai-soft: #eef2ff;
+  --ds-ai-contrast: #ffffff;
+  --ds-ai-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #a78bfa 100%);
+
+  /* Premium / B2B */
+  --ds-premium: #0f172a;
+  --ds-premium-gold: #b45309;
+  --ds-premium-soft: #f8fafc;
+  --ds-premium-contrast: #f8fafc;
+
+  --ds-focus-ring: 0 0 0 3px rgba(27, 77, 255, 0.35);
+  --ds-focus-ring-ai: 0 0 0 3px rgba(99, 102, 241, 0.4);
+  --ds-focus-ring-danger: 0 0 0 3px rgba(225, 29, 72, 0.35);
+
+  /* ── Spacing (4px grid) ── */
+  --ds-space-1: 0.25rem; /* 4 */
+  --ds-space-2: 0.5rem; /* 8 */
+  --ds-space-3: 0.75rem; /* 12 */
+  --ds-space-4: 1rem; /* 16 */
+  --ds-space-5: 1.25rem; /* 20 */
+  --ds-space-6: 1.5rem; /* 24 */
+  --ds-space-8: 2rem; /* 32 */
+  --ds-space-10: 2.5rem; /* 40 */
+  --ds-space-12: 3rem; /* 48 */
+  --ds-space-16: 4rem; /* 64 */
+  --ds-space-20: 5rem; /* 80 */
+  --ds-space-24: 6rem; /* 96 */
+
+  /* ── Radius ── */
+  --ds-radius-sm: 0.5rem; /* 8 — chips */
+  --ds-radius-control: 0.75rem; /* 12 — input/button */
+  --ds-radius-card: 1rem; /* 16 */
+  --ds-radius-panel: 1.25rem; /* 20 */
+  --ds-radius-panel-lg: 1.5rem; /* 24 */
+  --ds-radius-full: 999px;
+
+  /* ── Shadows (subtle; avoid stacking with strong borders) ── */
+  --ds-shadow-xs: 0 1px 2px rgba(11, 18, 32, 0.04);
+  --ds-shadow-sm: 0 1px 2px rgba(11, 18, 32, 0.05), 0 4px 12px -4px rgba(11, 18, 32, 0.08);
+  --ds-shadow-md: 0 2px 4px rgba(11, 18, 32, 0.04), 0 12px 28px -10px rgba(11, 18, 32, 0.12);
+  --ds-shadow-lg: 0 4px 8px rgba(11, 18, 32, 0.04), 0 24px 48px -16px rgba(11, 18, 32, 0.18);
+
+  /* ── Motion ── */
+  --ds-duration-fast: 120ms;
+  --ds-duration-normal: 180ms;
+  --ds-duration-slow: 240ms;
+  --ds-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ds-transition: var(--ds-duration-normal) var(--ds-ease);
+}
+
+/* Dark-ready (activates with existing app theme OR explicit ds dark) */
+html[data-app-theme="dark"],
+html[data-ds-theme="dark"],
+.ds-theme-dark {
+  --ds-brand: #5b8aff;
+  --ds-brand-hover: #7aa0ff;
+  --ds-brand-soft: rgba(91, 138, 255, 0.18);
+  --ds-brand-contrast: #0b1220;
+
+  --ds-text-primary: #f4f6fb;
+  --ds-text-secondary: #c5ccd9;
+  --ds-text-muted: #9aa3b5;
+  --ds-text-inverse: #0b1220;
+
+  --ds-surface-page: #0b1220;
+  --ds-surface-card: #121a2b;
+  --ds-surface-elevated: #182235;
+  --ds-surface-muted: #0f172a;
+  --ds-surface-inverse: #f4f6fb;
+
+  --ds-border-subtle: rgba(244, 246, 251, 0.1);
+  --ds-border-strong: rgba(244, 246, 251, 0.22);
+
+  --ds-success: #34d399;
+  --ds-success-soft: rgba(52, 211, 153, 0.12);
+  --ds-warning: #fbbf24;
+  --ds-warning-soft: rgba(251, 191, 36, 0.12);
+  --ds-danger: #fb7185;
+  --ds-danger-soft: rgba(251, 113, 133, 0.14);
+  --ds-info: #38bdf8;
+  --ds-info-soft: rgba(56, 189, 248, 0.12);
+
+  --ds-ai: #818cf8;
+  --ds-ai-strong: #a5b4fc;
+  --ds-ai-soft: rgba(129, 140, 248, 0.16);
+  --ds-ai-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #c4b5fd 100%);
+
+  --ds-premium: #e2e8f0;
+  --ds-premium-gold: #fbbf24;
+  --ds-premium-soft: #111827;
+
+  --ds-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --ds-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 20px -8px rgba(0, 0, 0, 0.55);
+  --ds-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --ds-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.55);
+
+  --ds-focus-ring: 0 0 0 3px rgba(91, 138, 255, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-duration-fast: 0ms;
+    --ds-duration-normal: 0ms;
+    --ds-duration-slow: 0ms;
+    --ds-transition: 0ms linear;
+  }
+}
+
+/* ── Typography utilities ── */
+.ds-display {
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-text-display-size);
+  line-height: var(--ds-text-display-leading);
+  font-weight: var(--ds-text-display-weight);
+  letter-spacing: var(--ds-text-display-tracking);
+  color: var(--ds-text-primary);
+}
+.ds-h1 {
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-text-h1-size);
+  line-height: var(--ds-text-h1-leading);
+  font-weight: var(--ds-text-h1-weight);
+  letter-spacing: var(--ds-text-h1-tracking);
+  color: var(--ds-text-primary);
+}
+.ds-h2 {
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-text-h2-size);
+  line-height: var(--ds-text-h2-leading);
+  font-weight: var(--ds-text-h2-weight);
+  letter-spacing: var(--ds-text-h2-tracking);
+  color: var(--ds-text-primary);
+}
+.ds-h3 {
+  font-family: var(--ds-font-sans);
+  font-size: var(--ds-text-h3-size);
+  line-height: var(--ds-text-h3-leading);
+  font-weight: var(--ds-text-h3-weight);
+  letter-spacing: var(--ds-text-h3-tracking);
+  color: var(--ds-text-primary);
+}
+.ds-body-lg {
+  font-size: var(--ds-text-body-lg-size);
+  line-height: var(--ds-text-body-lg-leading);
+  font-weight: var(--ds-text-body-lg-weight);
+  color: var(--ds-text-secondary);
+}
+.ds-body {
+  font-size: var(--ds-text-body-size);
+  line-height: var(--ds-text-body-leading);
+  font-weight: var(--ds-text-body-weight);
+  color: var(--ds-text-secondary);
+}
+.ds-body-sm {
+  font-size: var(--ds-text-body-sm-size);
+  line-height: var(--ds-text-body-sm-leading);
+  font-weight: var(--ds-text-body-sm-weight);
+  color: var(--ds-text-muted);
+}
+.ds-caption {
+  font-size: var(--ds-text-caption-size);
+  line-height: var(--ds-text-caption-leading);
+  font-weight: var(--ds-text-caption-weight);
+  letter-spacing: var(--ds-text-caption-tracking);
+  color: var(--ds-text-muted);
+}
+.ds-label {
+  font-size: var(--ds-text-label-size);
+  line-height: var(--ds-text-label-leading);
+  font-weight: var(--ds-text-label-weight);
+  letter-spacing: var(--ds-text-label-tracking);
+  color: var(--ds-text-primary);
+}
+
+/* Focus helper for controls */
+.ds-focusable:focus {
+  outline: none;
+}
+.ds-focusable:focus-visible {
+  box-shadow: var(--ds-focus-ring);
+}

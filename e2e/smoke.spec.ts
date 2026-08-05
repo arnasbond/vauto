@@ -23,7 +23,7 @@ test.describe("VAUTO smoke", () => {
   test("home page loads with listings", async ({ page }) => {
     await waitForHomeReady(page);
     await expect(
-      page.getByRole("heading", { name: /Parduok ir rask greičiau Lietuvoje/i })
+      page.getByRole("heading", { name: /Parduok greičiau/i })
     ).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(/Naujausi skelbimai/i).first()).toBeVisible({
       timeout: 10_000,
@@ -167,7 +167,7 @@ test.describe("VAUTO smoke", () => {
     await expect(results.getByText(/Skelbimai Lietuvoje:.*rezultat/i)).toBeVisible({
       timeout: 10_000,
     });
-    await expect(results.getByText(/Patikslinkite žemiau per AI asistentą/i)).toBeVisible();
+    await expect(results.getByText(/Filtrai · AI patikslinimas|Patikslinkite žemiau/i)).toBeVisible();
   });
 
   test("bottom navigation visible on home", async ({ page }) => {

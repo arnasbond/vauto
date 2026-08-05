@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { LineChart } from "lucide-react";
 import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
@@ -11,6 +12,7 @@ import { LaunchTrialBanner } from "@/components/dashboard/LaunchTrialBanner";
 import { BulkUploadCard } from "@/components/dashboard/BulkUploadCard";
 import { BusinessIdentityCard } from "@/components/dashboard/BusinessIdentityCard";
 import { BusinessMarketInsights } from "@/components/dashboard/BusinessMarketInsights";
+import { BusinessCockpitOverview } from "@/components/business/BusinessCockpitOverview";
 import { SellerDraftsStrip } from "@/components/dashboard/SellerDraftsStrip";
 import { SoldPromptBanner } from "@/components/dashboard/SoldPromptBanner";
 import { ProListingCard } from "@/components/dashboard/ProListingCard";
@@ -22,7 +24,6 @@ import { VautoWallet } from "@/components/dashboard/VautoWallet";
 import {
   Disclosure,
   SegmentedTabs,
-  StatGrid,
   type SegmentedTabItem,
 } from "@/components/ui/surface";
 import { mockServiceBookings } from "@/lib/dashboard-mock";
@@ -33,6 +34,14 @@ import { computeSellerRating } from "@/lib/reviews";
 import type { Listing, UserProfile } from "@/lib/types";
 
 type DashboardTab = "overview" | "listings" | "pricing" | "services";
+
+type PortalSection =
+  | "overview"
+  | "analytics"
+  | "leads"
+  | "import"
+  | "ai"
+  | "plan";
 
 interface ProBusinessDashboardProps {
   user: UserProfile;
@@ -46,6 +55,20 @@ interface ProBusinessDashboardProps {
   onRenew: (id: string) => void;
 }
 
+function parseSection(raw: string | null): PortalSection | null {
+  if (
+    raw === "analytics" ||
+    raw === "leads" ||
+    raw === "import" ||
+    raw === "ai" ||
+    raw === "plan"
+  ) {
+    return raw;
+  }
+  if (raw === "overview") return "overview";
+  return null;
+}
+
 export function ProBusinessDashboard({
   user,
   listings,
@@ -57,6 +80,9 @@ export function ProBusinessDashboard({
   onTopUp,
   onRenew,
 }: ProBusinessDashboardProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const {
     buyerIntentCount,
     soldPromptDismissed,
@@ -89,6 +115,46 @@ export function ProBusinessDashboard({
   const [tab, setTab] = useState<DashboardTab>("overview");
   const [promoteTargetId, setPromoteTargetId] = useState<string | null>(null);
 
+  const section = parseSection(searchParams.get("section"));
+
+  useEffect(() => {
+    if (!section || section === "overview") {
+      setTab("overview");
+      return;
+    }
+    if (section === "analytics" || section === "ai") {
+      setTab("overview");
+      const id =
+        section === "analytics" ? "business-analytics" : "business-ai";
+      window.setTimeout(() => {
+        document.getElementById(id)?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 80);
+      return;
+    }
+    if (section === "leads") {
+      setTab(showServices ? "services" : "overview");
+      window.setTimeout(() => {
+        document
+          .getElementById("business-leads")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+      return;
+    }
+    if (section === "import" || section === "plan") {
+      setTab("pricing");
+      window.setTimeout(() => {
+        document
+          .getElementById(
+            section === "import" ? "business-import" : "business-plan"
+          )
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    }
+  }, [section, showServices]);
+
   const tabs = useMemo<SegmentedTabItem<DashboardTab>[]>(() => {
     const base: SegmentedTabItem<DashboardTab>[] = [
       { id: "overview", label: "Apžvalga" },
@@ -98,6 +164,17 @@ export function ProBusinessDashboard({
     if (showServices) base.push({ id: "services", label: "Paslaugos" });
     return base;
   }, [activeListingCount, showServices]);
+
+  const handleTabChange = useCallback(
+    (next: DashboardTab) => {
+      setTab(next);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("section");
+      const q = params.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname || "/verslui/");
+    },
+    [pathname, router, searchParams]
+  );
 
   const handlePromoteFromInsights = useCallback((listingId: string) => {
     setTab("listings");
@@ -109,32 +186,52 @@ export function ProBusinessDashboard({
     });
   }, []);
 
+  const scrollToAi = useCallback(() => {
+    document
+      .getElementById("business-ai")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
   return (
-    <div>
+    <div data-pro-business-dashboard>
+      <BusinessCockpitOverview
+        listings={listings}
+        allListings={allListings}
+        analytics={liveAnalytics}
+        buyerIntentCount={buyerIntentCount}
+        walletBalance={user.walletBalance ?? 0}
+        onOpenAiTips={scrollToAi}
+        mode="kpi"
+        className="mb-4"
+      />
+
       <BusinessIdentityCard user={user} />
       <SellerDraftsStrip />
       <LaunchTrialBanner user={user} />
 
-      <StatGrid
-        className="mb-4"
-        stats={[
-          { label: "Aktyvūs skelbimai", value: String(activeListingCount) },
-          { label: "Pirkėjų signalai", value: String(buyerIntentCount) },
-          { label: "Peržiūros", value: String(liveAnalytics.views) },
-        ]}
-      />
-
       <SegmentedTabs
         items={tabs}
         value={tab}
-        onChange={setTab}
+        onChange={handleTabChange}
         ariaLabel="Verslo kabineto skirtukai"
         className="mb-4"
       />
 
       {tab === "overview" && (
         <>
-          <BuyerIntentBanner intentCount={buyerIntentCount} />
+          <BusinessCockpitOverview
+            listings={listings}
+            allListings={allListings}
+            analytics={liveAnalytics}
+            buyerIntentCount={buyerIntentCount}
+            walletBalance={user.walletBalance ?? 0}
+            onOpenAiTips={scrollToAi}
+            mode="analytics"
+            className="mb-4"
+          />
+          <div id="business-leads">
+            <BuyerIntentBanner intentCount={buyerIntentCount} />
+          </div>
           <SoldPromptBanner
             listings={listings}
             dismissedIds={soldPromptDismissed}
@@ -142,7 +239,9 @@ export function ProBusinessDashboard({
             onRenew={onRenew}
             onDismiss={dismissSoldPrompt}
           />
-          <B2BAnalyticsPanel analytics={liveAnalytics} />
+          <div id="business-analytics-panel">
+            <B2BAnalyticsPanel analytics={liveAnalytics} />
+          </div>
           <BusinessMarketInsights
             listings={listings}
             allListings={allListings}
@@ -203,46 +302,50 @@ export function ProBusinessDashboard({
 
       {tab === "pricing" && (
         <>
-          <VautoWallet
-            balance={user.walletBalance ?? 0}
-            onTopUp={onTopUp}
-            demoTopUp={apiActive && !stripeEnabled}
-            topUpDisabled={apiActive && stripeEnabled}
-          />
-          {user.role === "pro" && (
-            <B2BPlanCreditsCard
-              user={user}
-              activeJobListings={activeJobListings}
-              onOpenCheckout={openCheckout}
+          <div id="business-plan">
+            <VautoWallet
+              balance={user.walletBalance ?? 0}
+              onTopUp={onTopUp}
+              demoTopUp={apiActive && !stripeEnabled}
+              topUpDisabled={apiActive && stripeEnabled}
             />
-          )}
-          <B2BBillingCard
-            balance={user.walletBalance ?? 0}
-            clicks={liveAnalytics.views}
-            callClicks={liveAnalytics.callClicks}
-            activeListings={listings.length}
-            currentPlan={user.billingPlan}
-            onOpenCheckout={openCheckout}
-            stripeEnabled={stripeEnabled}
-          />
-          <VisibilityPricingCard
-            listings={listings}
-            allListings={allListings}
-            user={user}
-          />
-          <BulkUploadCard />
+            {user.role === "pro" && (
+              <B2BPlanCreditsCard
+                user={user}
+                activeJobListings={activeJobListings}
+                onOpenCheckout={openCheckout}
+              />
+            )}
+            <B2BBillingCard
+              balance={user.walletBalance ?? 0}
+              clicks={liveAnalytics.views}
+              callClicks={liveAnalytics.callClicks}
+              activeListings={listings.length}
+              currentPlan={user.billingPlan}
+              onOpenCheckout={openCheckout}
+              stripeEnabled={stripeEnabled}
+            />
+            <VisibilityPricingCard
+              listings={listings}
+              allListings={allListings}
+              user={user}
+            />
+          </div>
+          <div id="business-import">
+            <BulkUploadCard />
+          </div>
         </>
       )}
 
       {tab === "services" && showServices && (
-        <>
+        <div id="business-leads">
           <ServiceLeadInbox
             balance={user.walletBalance ?? 0}
             user={user}
             rating={serviceRating}
           />
           <ServiceCalendar bookings={mockServiceBookings()} />
-        </>
+        </div>
       )}
     </div>
   );

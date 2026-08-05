@@ -82,4 +82,4 @@ export function buildNoResultsRefinementMessage(
 }
 
 export const AI_FIRST_SEARCH_PLACEHOLDER =
-  "Aprašykite ko ieškote... pvz. „iPhone 15 nebrangiai…“";
+  "Parašykite ar įkelkite — AI paruoš skelbimą ar paiešką…";

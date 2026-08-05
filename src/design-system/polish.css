@@ -1,0 +1,135 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   VAUTO Design System 2.0 — Etapas 9 Final Polish
+   Micro-motion, glass, AI glow, shimmer, a11y helpers
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --ds-duration-hover: 160ms;
+  --ds-lift-y: 2px;
+  --ds-glass-bg: color-mix(in srgb, var(--ds-surface-card) 82%, transparent);
+  --ds-glass-strong: color-mix(in srgb, var(--ds-surface-elevated) 88%, transparent);
+  --ds-ai-glow: 0 0 0 1px color-mix(in srgb, var(--ds-ai) 28%, transparent),
+    0 8px 28px -10px color-mix(in srgb, var(--ds-ai) 45%, transparent);
+}
+
+html[data-app-theme="dark"],
+html[data-ds-theme="dark"],
+.ds-theme-dark {
+  --ds-glass-bg: color-mix(in srgb, var(--ds-surface-card) 78%, transparent);
+  --ds-glass-strong: color-mix(in srgb, var(--ds-surface-elevated) 84%, transparent);
+  --ds-ai-glow: 0 0 0 1px color-mix(in srgb, var(--ds-ai) 40%, transparent),
+    0 10px 32px -8px color-mix(in srgb, var(--ds-ai) 55%, transparent);
+}
+
+/* Glass surfaces — sticky chrome / drawers / modals */
+.ds-glass {
+  background: var(--ds-glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.ds-glass-strong {
+  background: var(--ds-glass-strong);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Card lift — 150–180ms + 2–3px */
+.ds-card-lift {
+  transition:
+    transform var(--ds-duration-hover, 160ms) var(--ds-ease),
+    box-shadow var(--ds-duration-hover, 160ms) var(--ds-ease),
+    border-color var(--ds-duration-hover, 160ms) var(--ds-ease);
+}
+
+.ds-card-lift:hover {
+  transform: translateY(calc(var(--ds-lift-y) * -1));
+  box-shadow: var(--ds-shadow-md);
+}
+
+/* Control hover polish */
+.ds-control-motion {
+  transition:
+    background-color var(--ds-duration-hover, 160ms) var(--ds-ease),
+    color var(--ds-duration-hover, 160ms) var(--ds-ease),
+    box-shadow var(--ds-duration-hover, 160ms) var(--ds-ease),
+    border-color var(--ds-duration-hover, 160ms) var(--ds-ease),
+    transform var(--ds-duration-fast) var(--ds-ease),
+    opacity var(--ds-duration-fast) var(--ds-ease);
+}
+
+/* Loading shimmer */
+@keyframes ds-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.ds-shimmer {
+  background-image: linear-gradient(
+    110deg,
+    var(--ds-surface-muted) 25%,
+    color-mix(in srgb, var(--ds-surface-card) 70%, var(--ds-surface-muted)) 45%,
+    var(--ds-surface-muted) 65%
+  );
+  background-size: 200% 100%;
+  animation: ds-shimmer 1.35s var(--ds-ease) infinite;
+}
+
+/* AI indigo glow + soft pulse */
+@keyframes ds-ai-pulse {
+  0%,
+  100% {
+    box-shadow: var(--ds-ai-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ds-ai) 45%, transparent),
+      0 12px 36px -8px color-mix(in srgb, var(--ds-ai) 55%, transparent);
+  }
+}
+
+.ds-ai-glow {
+  box-shadow: var(--ds-ai-glow);
+}
+
+.ds-ai-pulse {
+  animation: ds-ai-pulse 2.8s var(--ds-ease) infinite;
+}
+
+/* Focus-visible for native controls without .ds-focusable */
+:where(a, button, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])):focus {
+  outline: none;
+}
+
+:where(a, button, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])):focus-visible {
+  box-shadow: var(--ds-focus-ring);
+}
+
+.ds-focusable-ai:focus-visible {
+  box-shadow: var(--ds-focus-ring-ai);
+}
+
+.ds-focusable-danger:focus-visible {
+  box-shadow: var(--ds-focus-ring-danger);
+}
+
+/* WCAG AA muted contrast is owned by tokens.css (--ds-text-muted). */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --ds-duration-hover: 0ms;
+  }
+
+  .ds-card-lift,
+  .ds-card-lift:hover,
+  .ds-control-motion,
+  .ds-shimmer,
+  .ds-ai-pulse {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}

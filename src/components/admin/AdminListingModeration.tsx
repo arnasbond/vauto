@@ -11,6 +11,7 @@ import {
   Sparkles,
   UserX,
 } from "lucide-react";
+import { Badge, Button, Card } from "@/design-system";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { listingPath } from "@/lib/seo";
@@ -24,6 +25,27 @@ function formatConductorSources(listing: Listing): string | null {
   const raw = listing.attributes?.[CONDUCTOR_SOURCES_ATTR];
   if (typeof raw === "string" && raw.trim()) return raw;
   return null;
+}
+
+/** UI-only risk from existing listing flags (no new scoring API). */
+function resolveListingRisk(
+  listing: Listing
+): { label: string; tone: "risk-low" | "risk-medium" | "risk-high" } {
+  if (listing.banned || listing.requiresReview) {
+    if (listing.banned) return { label: "Risk High", tone: "risk-high" };
+    const score = listing.appraisalScore;
+    if (typeof score === "number" && score < 40) {
+      return { label: "Risk High", tone: "risk-high" };
+    }
+    if (typeof score === "number" && score < 70) {
+      return { label: "Risk Medium", tone: "risk-medium" };
+    }
+    return { label: "Risk Medium", tone: "risk-medium" };
+  }
+  if (listing.isVerified || listing.vinVerified) {
+    return { label: "Risk Low", tone: "risk-low" };
+  }
+  return { label: "Risk Low", tone: "risk-low" };
 }
 
 export function AdminListingModeration() {
@@ -75,36 +97,43 @@ export function AdminListingModeration() {
     [listings]
   );
 
+  const markAiReview = (listing: Listing) => {
+    setOpen(true);
+    void sendAgentMessage(
+      `Pažymėk skelbimą „${listing.title}“ (${listing.id}) AI patikrai: requiresReview, conductor šaltiniai, rizikos požymiai.`
+    );
+  };
+
   return (
-    <div className="px-4 pb-8">
+    <div className="px-4 pb-8 pt-4" data-cc-mission-8="listings">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-[var(--ds-text-muted)]">
           Peržiūrėkite AI-assisted skelbimus, patvirtinkite arba blokuokite.
           Eilėje laukiantys skelbimai nerodomi viešame kataloge.
         </p>
-        <button
-          type="button"
+        <Button
+          variant="ai"
+          size="sm"
+          leftIcon={<Sparkles className="h-3.5 w-3.5" />}
           onClick={() => {
             setOpen(true);
             void sendAgentMessage(
               "Peržiūrėk skelbimus, kuriems reikia moderacijos (requiresReview), ir blokuok įtartinus. Naudok blockListing įrankį su listingId ir priežastimi."
             );
           }}
-          className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#1167b1] px-3 py-1.5 text-xs font-semibold text-white"
         >
-          <Sparkles className="h-3.5 w-3.5" />
           AI moderacija
-        </button>
+        </Button>
       </div>
 
       <div className="relative mb-4">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--ds-text-muted)]" />
         <input
           type="search"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Ieškoti pagal pavadinimą, miestą, pardavėją…"
-          className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-600"
+          className="w-full rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] py-2.5 pl-9 pr-3 text-sm text-[var(--ds-text-primary)] placeholder:text-[var(--ds-text-muted)]"
         />
       </div>
 
@@ -117,83 +146,79 @@ export function AdminListingModeration() {
             { id: "banned" as const, label: "Blokuoti" },
           ] as const
         ).map((item) => (
-          <button
+          <Button
             key={item.id}
             type="button"
+            size="sm"
+            variant={filter === item.id ? "primary" : "secondary"}
             onClick={() => setFilter(item.id)}
-            className={cn(
-              "rounded-full px-3 py-1.5 text-xs font-semibold",
-              filter === item.id
-                ? item.id === "review" && counts.review > 0
-                  ? "bg-amber-500 text-white"
-                  : "bg-[var(--vauto-teal)] text-white"
-                : "bg-slate-100 text-slate-600"
-            )}
           >
             {item.label} ({counts[item.id]})
-          </button>
+          </Button>
         ))}
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3">
         {rows.length === 0 ? (
-          <p className="vauto-dashboard-card rounded-2xl py-10 text-center text-sm text-slate-500">
+          <Card variant="muted" className="py-10 text-center text-sm text-[var(--ds-text-muted)]">
             {filter === "review"
               ? "Nėra skelbimų laukiančių peržiūros."
               : "Skelbimų nerasta."}
-          </p>
+          </Card>
         ) : (
           rows.map((listing) => {
             const sellerBanned = bannedUserIds.has(listing.sellerId);
             const conductorSources = formatConductorSources(listing);
-            const pendingReview = Boolean(listing.requiresReview && !listing.banned);
+            const pendingReview = Boolean(
+              listing.requiresReview && !listing.banned
+            );
+            const risk = resolveListingRisk(listing);
             return (
-              <div
+              <Card
                 key={listing.id}
-                className={cn(
-                  "vauto-dashboard-card rounded-2xl p-3",
-                  listing.banned && "ring-1 ring-red-400/30",
-                  pendingReview && "ring-1 ring-amber-400/40"
-                )}
+                variant={
+                  listing.banned
+                    ? "danger"
+                    : pendingReview
+                      ? "warning"
+                      : "default"
+                }
+                className={cn(pendingReview && "ring-1 ring-[var(--ds-warning)]/30")}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      {pendingReview && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-900">
-                          Laukia peržiūros
-                        </span>
-                      )}
-                      {listing.banned && (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-800">
-                          Blokuotas
-                        </span>
-                      )}
-                      {sellerBanned && (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">
-                          Pardavėjas blokuotas
-                        </span>
-                      )}
-                      <span className="text-[10px] uppercase text-slate-500">
+                      <Badge tone={risk.tone}>{risk.label}</Badge>
+                      {pendingReview ? (
+                        <Badge tone="warning">Laukia peržiūros</Badge>
+                      ) : null}
+                      {listing.banned ? (
+                        <Badge tone="danger">Blokuotas</Badge>
+                      ) : null}
+                      {sellerBanned ? (
+                        <Badge tone="warning">Pardavėjas blokuotas</Badge>
+                      ) : null}
+                      <Badge tone="category">
                         {listing.category ?? "—"}
-                      </span>
-                      {conductorSources && (
-                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700">
-                          AI: {conductorSources}
-                        </span>
-                      )}
+                      </Badge>
+                      {conductorSources ? (
+                        <Badge tone="ai">AI: {conductorSources}</Badge>
+                      ) : null}
                     </div>
-                    <p className="mt-1 text-sm font-semibold text-slate-900">{listing.title}</p>
-                    <p className="text-xs text-slate-400">
-                      {listing.location} · {listing.priceLabel ?? `${listing.price} €`}
+                    <p className="mt-2 text-sm font-semibold text-[var(--ds-text-primary)]">
+                      {listing.title}
                     </p>
-                    <p className="mt-0.5 text-[10px] text-slate-600">
+                    <p className="text-xs text-[var(--ds-text-muted)]">
+                      {listing.location} ·{" "}
+                      {listing.priceLabel ?? `${listing.price} €`}
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-[var(--ds-text-muted)]">
                       Pardavėjas: {listing.sellerId}
                     </p>
                   </div>
                   <Link
                     href={listingPath(listing)}
-                    className="shrink-0 rounded-lg bg-slate-100 p-2 text-slate-600"
+                    className="shrink-0 rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)] p-2 text-[var(--ds-text-secondary)]"
                     aria-label="Atidaryti skelbimą"
                   >
                     <ExternalLink className="h-4 w-4" />
@@ -201,72 +226,77 @@ export function AdminListingModeration() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {pendingReview && (
+                  {pendingReview ? (
                     <>
-                      <button
-                        type="button"
-                        onClick={() => resolveListingReview(listing.id, "approve")}
-                        className="flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800"
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        leftIcon={<ClipboardCheck className="h-3.5 w-3.5" />}
+                        onClick={() =>
+                          resolveListingReview(listing.id, "approve")
+                        }
+                        className="bg-[var(--ds-success)] hover:brightness-95"
                       >
-                        <ClipboardCheck className="h-3.5 w-3.5" />
                         Patvirtinti
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => resolveListingReview(listing.id, "reject")}
-                        className="flex items-center gap-1 rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700"
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        leftIcon={<Ban className="h-3.5 w-3.5" />}
+                        onClick={() =>
+                          resolveListingReview(listing.id, "reject")
+                        }
                       >
-                        <Ban className="h-3.5 w-3.5" />
                         Atmesti
-                      </button>
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ai"
+                        leftIcon={<Sparkles className="h-3.5 w-3.5" />}
+                        onClick={() => markAiReview(listing)}
+                      >
+                        Pažymėti AI patikrai
+                      </Button>
                     </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setListingBanned(listing.id, !listing.banned)}
-                    className={cn(
-                      "flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium",
-                      listing.banned
-                        ? "bg-emerald-50 text-emerald-800"
-                        : "bg-red-50 text-red-700"
-                    )}
-                  >
-                    {listing.banned ? (
-                      <>
+                  ) : null}
+                  <Button
+                    size="sm"
+                    variant={listing.banned ? "secondary" : "tertiary"}
+                    leftIcon={
+                      listing.banned ? (
                         <CheckCircle className="h-3.5 w-3.5" />
-                        Atblokuoti skelbimą
-                      </>
-                    ) : (
-                      <>
+                      ) : (
                         <Ban className="h-3.5 w-3.5" />
-                        Blokuoti skelbimą
-                      </>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSellerBanned(listing.sellerId, !sellerBanned)}
-                    className={cn(
-                      "flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium",
-                      sellerBanned
-                        ? "bg-emerald-50 text-emerald-800"
-                        : "bg-amber-50 text-amber-800"
-                    )}
+                      )
+                    }
+                    onClick={() =>
+                      setListingBanned(listing.id, !listing.banned)
+                    }
                   >
-                    {sellerBanned ? (
-                      <>
+                    {listing.banned
+                      ? "Atblokuoti skelbimą"
+                      : "Blokuoti skelbimą"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    leftIcon={
+                      sellerBanned ? (
                         <CheckCircle className="h-3.5 w-3.5" />
-                        Atblokuoti pardavėją
-                      </>
-                    ) : (
-                      <>
+                      ) : (
                         <UserX className="h-3.5 w-3.5" />
-                        Blokuoti pardavėją
-                      </>
-                    )}
-                  </button>
+                      )
+                    }
+                    onClick={() =>
+                      setSellerBanned(listing.sellerId, !sellerBanned)
+                    }
+                  >
+                    {sellerBanned
+                      ? "Atblokuoti pardavėją"
+                      : "Blokuoti pardavėją"}
+                  </Button>
                 </div>
-              </div>
+              </Card>
             );
           })
         )}

@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
-import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
@@ -25,9 +24,6 @@ function AddRedirectShell({
     <VautoAdaptiveLayout>
       <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg">
         <HeroSection>
-          <div className="md:hidden">
-            <Header />
-          </div>
           <div className="mt-10 flex flex-col items-center gap-3 px-4 text-center">
             <Sparkles className="h-8 w-8 text-[var(--vauto-primary)]" aria-hidden />
             <h2 className="font-display text-xl font-bold text-[var(--vauto-text-main)]">
@@ -100,7 +96,6 @@ export default function AddPage() {
       <VautoAdaptiveLayout>
         <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg">
           <HeroSection>
-            <Header />
             <h2 className="mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
               {isFashion ? "Spinta — naujas drabužis" : "Naujas skelbimas"}
             </h2>

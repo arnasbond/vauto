@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Eye,
 } from "lucide-react";
+import { Badge, Card } from "@/design-system";
 import type { SellerListingAnalytics } from "@/lib/seller-listing-analytics";
 
 interface B2BAnalyticsPanelProps {
@@ -41,54 +42,52 @@ export function B2BAnalyticsPanel({ analytics }: B2BAnalyticsPanelProps) {
   const contactW = Math.max(8, Math.round((contacts / funnelMax) * 100));
 
   return (
-    <section className="vauto-dashboard-card mb-4 rounded-2xl p-4">
+    <Card variant="elevated" className="mb-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
-            B2B analitika
-          </p>
-          <h3 className="text-sm font-bold text-[var(--vauto-text)]">
+          <p className="ds-label text-[var(--ds-text-muted)]">B2B analitika</p>
+          <h3 className="font-[family-name:var(--font-outfit)] text-sm font-bold text-[var(--ds-text-primary)]">
             ROI ir 9:16 pasiekiamumas
           </h3>
         </div>
-        <span className="rounded-full bg-[var(--vauto-surface-page)] px-2 py-0.5 text-[10px] text-[var(--vauto-muted)]">
+        <Badge tone={source === "server" ? "success" : "neutral"}>
           {source === "server" ? "Gyvi duomenys" : "Lokalu"}
-        </span>
+        </Badge>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <div className="rounded-xl bg-[var(--vauto-surface-page)] p-2.5">
-          <p className="flex items-center gap-1 text-[10px] text-[var(--vauto-muted)]">
+        <div className="rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)] p-2.5">
+          <p className="flex items-center gap-1 text-[10px] text-[var(--ds-text-muted)]">
             <Megaphone className="h-3 w-3" />
             Išleista
           </p>
-          <p className="mt-0.5 text-lg font-bold text-[var(--vauto-text)]">
+          <p className="mt-0.5 text-lg font-bold text-[var(--ds-text-primary)]">
             {promoteSpendEur.toLocaleString("lt-LT", {
               minimumFractionDigits: 0,
               maximumFractionDigits: 2,
             })}{" "}
             €
           </p>
-          <p className="text-[9px] text-[var(--vauto-muted)]">Promote spend</p>
+          <p className="text-[9px] text-[var(--ds-text-muted)]">Promote spend</p>
         </div>
-        <div className="rounded-xl bg-[var(--vauto-surface-page)] p-2.5">
-          <p className="flex items-center gap-1 text-[10px] text-[var(--vauto-muted)]">
+        <div className="rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)] p-2.5">
+          <p className="flex items-center gap-1 text-[10px] text-[var(--ds-text-muted)]">
             <Phone className="h-3 w-3" />
             Kontaktai
           </p>
-          <p className="mt-0.5 text-lg font-bold text-[var(--vauto-text)]">
+          <p className="mt-0.5 text-lg font-bold text-[var(--ds-text-primary)]">
             {contacts}
           </p>
-          <p className="text-[9px] text-[var(--vauto-muted)]">
+          <p className="text-[9px] text-[var(--ds-text-muted)]">
             {callClicks} skamb. · {chatStarts} pokalb.
           </p>
         </div>
-        <div className="rounded-xl bg-[var(--vauto-teal)]/10 p-2.5">
-          <p className="flex items-center gap-1 text-[10px] text-[var(--vauto-teal)]">
+        <div className="rounded-[var(--ds-radius-control)] bg-[var(--ds-ai-soft)] p-2.5">
+          <p className="flex items-center gap-1 text-[10px] text-[var(--ds-ai-strong)]">
             <Target className="h-3 w-3" />
             Kaina / kontaktas
           </p>
-          <p className="mt-0.5 text-lg font-bold text-[var(--vauto-teal)]">
+          <p className="mt-0.5 text-lg font-bold text-[var(--ds-ai-strong)]">
             {costPerContact != null
               ? `${costPerContact.toLocaleString("lt-LT", {
                   minimumFractionDigits: 2,
@@ -96,24 +95,26 @@ export function B2BAnalyticsPanel({ analytics }: B2BAnalyticsPanelProps) {
                 })} €`
               : "—"}
           </p>
-          <p className="text-[9px] text-[var(--vauto-muted)]">Spend ÷ contacts</p>
+          <p className="text-[9px] text-[var(--ds-text-muted)]">Spend ÷ contacts</p>
         </div>
-        <div className="rounded-xl bg-[var(--vauto-surface-page)] p-2.5">
-          <p className="flex items-center gap-1 text-[10px] text-[var(--vauto-muted)]">
+        <div className="rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)] p-2.5">
+          <p className="flex items-center gap-1 text-[10px] text-[var(--ds-text-muted)]">
             <TrendingUp className="h-3 w-3" />
             Konversija
           </p>
-          <p className="mt-0.5 text-lg font-bold text-[var(--vauto-text)]">
+          <p className="mt-0.5 text-lg font-bold text-[var(--ds-text-primary)]">
             {pct(contacts, views)}
           </p>
-          <p className="text-[9px] text-[var(--vauto-muted)]">Kontaktai / peržiūros</p>
+          <p className="text-[9px] text-[var(--ds-text-muted)]">
+            Kontaktai / peržiūros
+          </p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-[var(--vauto-border)] p-3">
+      <div className="rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] p-3">
         <div className="mb-2 flex items-center gap-1.5">
-          <Share2 className="h-3.5 w-3.5 text-[var(--vauto-teal)]" />
-          <p className="text-xs font-semibold text-[var(--vauto-text)]">
+          <Share2 className="h-3.5 w-3.5 text-[var(--ds-ai-strong)]" />
+          <p className="text-xs font-semibold text-[var(--ds-text-primary)]">
             Social Engine · 9:16 piltuvėlis
           </p>
         </div>
@@ -125,7 +126,7 @@ export function B2BAnalyticsPanel({ analytics }: B2BAnalyticsPanelProps) {
             widthPct={viewW}
             note="Skelbimo atidarymai"
           />
-          <div className="flex justify-center text-[var(--vauto-muted)]">
+          <div className="flex justify-center text-[var(--ds-text-muted)]">
             <ArrowDownRight className="h-3.5 w-3.5" />
           </div>
           <FunnelRow
@@ -136,7 +137,7 @@ export function B2BAnalyticsPanel({ analytics }: B2BAnalyticsPanelProps) {
             note={`${pct(shareStory, views)} nuo peržiūrų`}
             accent
           />
-          <div className="flex justify-center text-[var(--vauto-muted)]">
+          <div className="flex justify-center text-[var(--ds-text-muted)]">
             <ArrowDownRight className="h-3.5 w-3.5" />
           </div>
           <FunnelRow
@@ -148,7 +149,7 @@ export function B2BAnalyticsPanel({ analytics }: B2BAnalyticsPanelProps) {
           />
         </div>
       </div>
-    </section>
+    </Card>
   );
 }
 
@@ -170,25 +171,25 @@ function FunnelRow({
   return (
     <div>
       <div className="mb-1 flex items-center justify-between gap-2">
-        <p className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--vauto-text)]">
+        <p className="flex items-center gap-1.5 text-[11px] font-medium text-[var(--ds-text-primary)]">
           <Icon
             className={`h-3.5 w-3.5 ${
-              accent ? "text-[var(--vauto-teal)]" : "text-[var(--vauto-muted)]"
+              accent ? "text-[var(--ds-ai-strong)]" : "text-[var(--ds-text-muted)]"
             }`}
           />
           {label}
         </p>
-        <p className="text-sm font-bold text-[var(--vauto-text)]">{value}</p>
+        <p className="text-sm font-bold text-[var(--ds-text-primary)]">{value}</p>
       </div>
-      <div className="h-2 overflow-hidden rounded-full bg-[var(--vauto-surface-page)]">
+      <div className="h-2 overflow-hidden rounded-full bg-[var(--ds-surface-muted)]">
         <div
           className={`h-full rounded-full transition-all ${
-            accent ? "bg-[var(--vauto-teal)]" : "bg-sky-400/80"
+            accent ? "bg-[var(--ds-ai)]" : "bg-[var(--ds-brand)]"
           }`}
           style={{ width: `${widthPct}%` }}
         />
       </div>
-      <p className="mt-0.5 text-[9px] text-[var(--vauto-muted)]">{note}</p>
+      <p className="mt-0.5 text-[9px] text-[var(--ds-text-muted)]">{note}</p>
     </div>
   );
 }

@@ -8,10 +8,8 @@ import { SmartBrokerCard } from "@/components/broker/SmartBrokerCard";
 import { VisualSearchStrip } from "@/components/search/VisualSearchStrip";
 import { WantedEmptyState } from "@/components/wishlist/WantedEmptyState";
 import { MarketplaceFilterBar } from "@/components/marketplace/MarketplaceFilterBar";
-import {
-  MarketplaceGridCard,
-  MarketplaceListRow,
-} from "@/components/marketplace/MarketplaceListingCards";
+import { ListingCard } from "@/components/marketplace/ListingCard";
+import { ListingGridSkeleton } from "@/components/marketplace/ListingCardSkeleton";
 import { ListingMapView } from "@/components/marketplace/ListingMapView";
 import { isAbsurdSearchQuery } from "@/lib/search-query-match";
 import { agentHasSupervisorReply } from "@/lib/agent-chat-layout";
@@ -103,12 +101,13 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     if (viewMode === "list") {
       return (
         <>
-          <div className="listing-card-row mt-1 divide-y divide-[var(--vauto-border)] rounded-2xl border border-[var(--vauto-border)] px-3">
+          <div className="listing-card-row mt-1 space-y-2">
             {visible.map((listing) => (
-              <MarketplaceListRow
+              <ListingCard
                 key={listing.id}
                 listing={listing}
-                priceColor="var(--vauto-ink)"
+                layout="list"
+                priceColor="var(--ds-brand, var(--vauto-ink))"
               />
             ))}
           </div>
@@ -120,10 +119,11 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
       <>
         <div className="mt-3 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
           {visible.map((listing) => (
-            <MarketplaceGridCard
+            <ListingCard
               key={listing.id}
               listing={listing}
-              priceColor="var(--vauto-ink)"
+              layout="grid"
+              priceColor="var(--ds-brand, var(--vauto-ink))"
             />
           ))}
         </div>
@@ -150,12 +150,10 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
       </div>
 
       {searchLoading ? (
-        <p
-          className="vauto-surface-panel mt-4 rounded-2xl border border-dashed p-6 text-center text-sm"
-          style={{ borderColor: ui.border, color: ui.textMuted }}
-        >
-          Ieškoma…
-        </p>
+        <ListingGridSkeleton
+          count={viewMode === "list" ? 6 : 8}
+          layout={viewMode === "list" ? "list" : "grid"}
+        />
       ) : displayListings.length === 0 ? (
         <>
           {!browseAllActive &&

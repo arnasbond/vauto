@@ -8,7 +8,13 @@ import { AdminListingModeration } from "@/components/admin/AdminListingModeratio
 import { AdminAccountPanel } from "@/components/admin/AdminAccountPanel";
 import { AdminGeminiContextPanel } from "@/components/admin/AdminGeminiContextPanel";
 import { AdminOpsPanel } from "@/components/admin/AdminOpsPanel";
+import {
+  AdminHealthLegend,
+  AdminMissionOverview,
+} from "@/components/admin/AdminMissionOverview";
+import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { SegmentedTabs, type SegmentedTabItem } from "@/components/ui/surface";
+import { Badge } from "@/design-system";
 import { useVauto } from "@/context/VautoContext";
 import { useAdminProjectContext } from "@/context/AdminProjectContext";
 import { useAuth } from "@/context/AuthContext";
@@ -51,7 +57,6 @@ export function AdminProfileShell() {
     if (fromUrl) setTab(fromUrl);
   }, [searchParams]);
 
-  // Tabs stay bookmarkable / shareable — admins swap context via URL.
   const handleTabChange = useCallback(
     (next: AdminTab) => {
       setTab(next);
@@ -82,54 +87,78 @@ export function AdminProfileShell() {
   const geminiChars = geminiCtx?.contextText.length ?? 0;
 
   return (
-    <div className="vauto-dashboard min-h-dvh pb-24">
-      <header className="sticky top-0 z-10 border-b border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-card-bg)_92%,transparent)] px-4 py-3 backdrop-blur">
-        <h1 className="vauto-page-title">Control Center</h1>
-        <p className="vauto-page-subtitle">VAUTO administratoriaus valdymas</p>
-        <SegmentedTabs
-          items={tabs}
-          value={tab}
-          onChange={handleTabChange}
-          ariaLabel="Administratoriaus skirtukai"
-          className="mt-3"
-        />
-      </header>
-
-      {tab === "ops" ? (
-        <AdminOpsPanel />
-      ) : tab === "moderation" ? (
-        <Suspense
-          fallback={
-            <p className="py-16 text-center text-sm text-[var(--vauto-text-muted)]">
-              Kraunama moderacija…
-            </p>
-          }
-        >
-          <AdminReportInbox embedded />
-        </Suspense>
-      ) : tab === "listings" ? (
-        <AdminListingModeration />
-      ) : tab === "agent" ? (
-        <div className="space-y-3 px-4 pt-4 pb-8">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="vauto-panel-eyebrow">
-              Gemini kontekstas
-              {geminiChars > 0
-                ? ` · ${geminiChars.toLocaleString("lt-LT")} simb.`
-                : " · tuščias"}
-            </p>
-            <Link
-              href="/admin/ai/"
-              className="text-xs font-semibold text-[var(--vauto-primary)] underline-offset-4 hover:underline"
-            >
-              Pilnas puslapis →
-            </Link>
+    <VautoAdaptiveLayout variant="plain">
+      <div
+        className="vauto-dashboard flex w-full flex-1 flex-col"
+        data-cc-mission-8="root"
+        data-cc-tab={tab}
+      >
+        <header className="sticky top-0 z-10 border-b border-[var(--ds-border-subtle,var(--vauto-border))] bg-[color-mix(in_srgb,var(--ds-surface-elevated,var(--vauto-card-bg))_92%,transparent)] px-4 py-3 backdrop-blur-md">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-[family-name:var(--font-outfit)] text-xl font-bold tracking-tight text-[var(--ds-text-primary)]">
+              Control Center
+            </h1>
+            <Badge tone="premium">Mission Control 2.0</Badge>
           </div>
-          <AdminGeminiContextPanel />
+          <p className="mt-0.5 text-sm text-[var(--ds-text-muted)]">
+            Sistemos būsena, moderacija, AI Gemini kontekstas ir Escrow
+          </p>
+          <SegmentedTabs
+            items={tabs}
+            value={tab}
+            onChange={handleTabChange}
+            ariaLabel="Administratoriaus skirtukai"
+            className="mt-3"
+          />
+        </header>
+
+        <div className="space-y-4 px-4 pt-4">
+          <AdminMissionOverview
+            onOpenModeration={() => handleTabChange("moderation")}
+            onOpenListings={() => handleTabChange("listings")}
+            onOpenAi={() => handleTabChange("agent")}
+          />
+          {tab === "ops" ? <AdminHealthLegend /> : null}
         </div>
-      ) : (
-        <AdminAccountPanel onLogout={logout} />
-      )}
-    </div>
+
+        {tab === "ops" ? (
+          <div data-cc-mission-8="ops">
+            <AdminOpsPanel />
+          </div>
+        ) : tab === "moderation" ? (
+          <Suspense
+            fallback={
+              <p className="py-16 text-center text-sm text-[var(--ds-text-muted)]">
+                Kraunama moderacija…
+              </p>
+            }
+          >
+            <AdminReportInbox embedded />
+          </Suspense>
+        ) : tab === "listings" ? (
+          <AdminListingModeration />
+        ) : tab === "agent" ? (
+          <div className="space-y-3 px-4 pt-4 pb-8" data-cc-mission-8="agent">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ds-text-muted)]">
+                Gemini kontekstas
+                {geminiChars > 0
+                  ? ` · ${geminiChars.toLocaleString("lt-LT")} simb.`
+                  : " · tuščias"}
+              </p>
+              <Link
+                href="/admin/ai/"
+                className="text-xs font-semibold text-[var(--ds-brand)] underline-offset-4 hover:underline"
+              >
+                Pilnas puslapis →
+              </Link>
+            </div>
+            <AdminGeminiContextPanel />
+          </div>
+        ) : (
+          <AdminAccountPanel onLogout={logout} />
+        )}
+      </div>
+    </VautoAdaptiveLayout>
   );
 }

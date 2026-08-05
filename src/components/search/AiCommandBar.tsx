@@ -1,7 +1,7 @@
 "use client";
 // @disk-refresh 2026-07-08T00:04 — supervisor DOM fixes
 
-import { ArrowUp, Camera, ChevronDown, Loader2, MessageCircle, Plus, Sparkles } from "lucide-react";
+import { ArrowUp, Camera, ChevronDown, Loader2, MessageCircle, Mic, Plus, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
@@ -61,6 +61,7 @@ import {
   VISION_UPLOAD_BATCH_SIZE,
   chunkForVisionUpload,
 } from "@vauto/shared/listing-photo-policy";
+import { isSpeechRecognitionSupported } from "@/lib/wake-word-engine";
 
 const GEMINI_BLUE = "var(--vauto-primary)";
 
@@ -71,6 +72,9 @@ export interface AiCommandBarProps {
   phase?: AgentFlowPhase;
   seedQuery?: string | null;
   onSeedConsumed?: () => void;
+  /** Fill composer only (no auto-submit) — used by homepage example chips. */
+  draftSeed?: string | null;
+  onDraftSeedConsumed?: () => void;
   className?: string;
   /** Wizard mode — collapsed FAB until tap or new assistant reply. */
   collapsible?: boolean;
@@ -84,6 +88,8 @@ export function AiCommandBar({
   phase = "idle",
   seedQuery,
   onSeedConsumed,
+  draftSeed,
+  onDraftSeedConsumed,
   className,
   collapsible = false,
 }: AiCommandBarProps) {
@@ -131,6 +137,7 @@ export function AiCommandBar({
   >([]);
   const [isPickingChatMedia, setIsPickingChatMedia] = useState(false);
   const [photoSourceSheetOpen, setPhotoSourceSheetOpen] = useState(false);
+  const [voiceListening, setVoiceListening] = useState(false);
   const photoSourceModeRef = useRef<"attach" | "search">("attach");
   const inputRef = useRef<HTMLInputElement>(null);
   const prevAssistantRef = useRef("");
@@ -157,8 +164,42 @@ export function AiCommandBar({
       setIsPhotoSearching(false);
       setDraftQuery("");
       setComposerAttachments([]);
+      setVoiceListening(false);
     });
   }, []);
+
+  const handleVoiceInput = useCallback(() => {
+    if (typeof window === "undefined") return;
+    if (!isSpeechRecognitionSupported()) {
+      showToast("Balso įvestis šiame įrenginyje nepalaikoma", "info");
+      inputRef.current?.focus();
+      return;
+    }
+    const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!Ctor) return;
+    try {
+      const rec = new Ctor();
+      rec.lang = "lt-LT";
+      rec.interimResults = false;
+      rec.maxAlternatives = 1;
+      setVoiceListening(true);
+      rec.onresult = (ev) => {
+        const text = ev.results?.[0]?.[0]?.transcript?.trim();
+        if (text) setDraftQuery(text);
+        setVoiceListening(false);
+        requestAnimationFrame(() => inputRef.current?.focus());
+      };
+      rec.onerror = () => {
+        setVoiceListening(false);
+        showToast("Nepavyko atpažinti balso — bandykite dar kartą", "info");
+      };
+      rec.onend = () => setVoiceListening(false);
+      rec.start();
+    } catch {
+      setVoiceListening(false);
+      showToast("Nepavyko paleisti mikrofono", "info");
+    }
+  }, [showToast]);
 
   const activeTheme =
     sellerStep !== "idle"
@@ -301,6 +342,15 @@ export function AiCommandBar({
     setDraftQuery(seedQuery);
     void commitSearch(seedQuery).finally(() => onSeedConsumed?.());
   }, [seedQuery, commitSearch, onSeedConsumed]);
+
+  const lastDraftSeedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!draftSeed?.trim() || draftSeed === lastDraftSeedRef.current) return;
+    lastDraftSeedRef.current = draftSeed;
+    setDraftQuery(draftSeed);
+    onDraftSeedConsumed?.();
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [draftSeed, onDraftSeedConsumed]);
 
   const handleSubmit = useCallback(
     async (e?: React.FormEvent) => {
@@ -784,12 +834,16 @@ export function AiCommandBar({
             "agent-chat-composer flex w-full flex-col gap-1.5 rounded-2xl border-[var(--vauto-primary)]/20 bg-[var(--vauto-bg)] p-2 shadow-md",
           !isChatBar && "flex w-full items-center",
           isTopBar
-            ? "home-ai-hero-search rounded-full py-2 pl-4 pr-2 shadow-md sm:pl-5 sm:pr-2"
+            ? "home-ai-hero-search home-ai-copilot-bar ds-ai-glow rounded-full py-2 pl-4 pr-2 shadow-md sm:pl-5 sm:pr-2"
             : !isChatBar && "vauto-surface-panel rounded-xl py-1.5 pl-3.5 pr-2",
           zeroUiActive && "zero-ui-search-active",
           className
         )}
-        style={{ borderColor: isTopBar ? "var(--vauto-border)" : ui.searchBorder }}
+        style={{
+          borderColor: isTopBar
+            ? "color-mix(in srgb, var(--ds-ai, #6366f1) 35%, var(--vauto-border))"
+            : ui.searchBorder,
+        }}
         onSubmit={(e) => void handleSubmit(e)}
         role={isChatBar ? undefined : "search"}
         aria-label={isChatBar ? "VAUTO asistento atsakymas" : "Skelbimų paieška"}
@@ -836,7 +890,7 @@ export function AiCommandBar({
               isTopBar ? "h-5 w-5" : "h-4 w-4",
               agentBusy && "zero-ui-icon-pulse"
             )}
-            style={{ color: isTopBar ? "var(--vauto-primary)" : GEMINI_BLUE }}
+            style={{ color: isTopBar ? "var(--ds-ai, var(--vauto-primary))" : GEMINI_BLUE }}
             aria-hidden
           />
         )}
@@ -853,7 +907,7 @@ export function AiCommandBar({
           className={cn(
             "min-w-0 flex-1 border-none bg-transparent outline-none vauto-body-text",
             isTopBar
-              ? "truncate text-[15px] text-[var(--vauto-text-main)] placeholder:text-[#4b5563]"
+              ? "truncate text-[15px] text-[var(--vauto-text-main)] caret-[var(--ds-ai,#6366f1)] placeholder:text-[#4b5563]"
               : "text-sm text-[var(--vauto-text-main)] caret-[var(--vauto-primary)] placeholder:text-[#4b5563]"
           )}
           disabled={isChatBar ? listingComposerLocked : searchComposerLocked}
@@ -878,9 +932,14 @@ export function AiCommandBar({
             isChatBar
               ? "h-10 min-w-[2.75rem] bg-[var(--vauto-primary)] px-3 text-[var(--vauto-primary-contrast)]"
               : isTopBar
-              ? "h-10 w-10 bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)] hover:opacity-90"
+              ? "h-10 w-10 text-[var(--ds-ai-contrast,#fff)] hover:opacity-90"
               : "h-10 w-10 bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)]"
           )}
+          style={
+            isTopBar && !isChatBar
+              ? { background: "var(--ds-ai-gradient)" }
+              : undefined
+          }
           aria-label={isChatBar ? "Siųsti" : "Ieškoti"}
         >
           {(isChatBar ? hardBusy : busy) ? (
@@ -895,13 +954,39 @@ export function AiCommandBar({
           )}
         </button>
 
+        {!isChatBar && isTopBar ? (
+          <button
+            type="button"
+            onClick={handleVoiceInput}
+            disabled={searchComposerLocked || voiceListening}
+            className={cn(
+              "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition disabled:opacity-40",
+              voiceListening
+                ? "bg-[var(--ds-ai-soft)] text-[var(--ds-ai)]"
+                : "text-[var(--ds-ai)] hover:bg-[var(--ds-ai-soft)]"
+            )}
+            aria-label={voiceListening ? "Klausoma…" : "Balso įvestis"}
+            title="Balso įvestis"
+            aria-pressed={voiceListening}
+          >
+            {voiceListening ? (
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+            ) : (
+              <Mic className="h-5 w-5" aria-hidden />
+            )}
+          </button>
+        ) : null}
+
         {!isChatBar ? (
         <button
           type="button"
           onClick={handlePhotoSearch}
           disabled={isPhotoSearching}
           className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-bg)] disabled:opacity-40",
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition hover:bg-[var(--vauto-bg)] disabled:opacity-40",
+            isTopBar
+              ? "text-[var(--ds-ai)] hover:bg-[var(--ds-ai-soft)]"
+              : "text-[var(--vauto-primary)]",
             !isTopBar && "rounded-lg"
           )}
           aria-label="Vision AI paieška pagal nuotrauką"

@@ -23,6 +23,7 @@ import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { AppVersionStatusCard } from "@/components/version/AppVersionStatusCard";
 import { SystemDiagnosticsCard } from "@/components/settings/SystemDiagnosticsCard";
 import { Disclosure, PageHeader, Panel } from "@/components/ui/surface";
+import { Card } from "@/design-system";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
@@ -31,16 +32,27 @@ import { useVauto } from "@/context/VautoContext";
 
 function SettingsSection({
   label,
+  description,
   children,
 }: {
   label: string;
+  description?: string;
   children: ReactNode;
 }) {
   return (
-    <section>
-      <p className="vauto-group-label">{label}</p>
+    <Card variant="default" className="space-y-3">
+      <div>
+        <h2 className="font-[family-name:var(--font-outfit)] text-sm font-semibold text-[var(--ds-text-primary)]">
+          {label}
+        </h2>
+        {description ? (
+          <p className="mt-0.5 text-xs text-[var(--ds-text-muted)]">
+            {description}
+          </p>
+        ) : null}
+      </div>
       <div className="space-y-3">{children}</div>
-    </section>
+    </Card>
   );
 }
 
@@ -137,48 +149,23 @@ export default function ProfileSettingsPage() {
           <ListingContactFocusBanner />
         </Suspense>
 
-        <div className="space-y-6">
-          <SettingsSection label="Išvaizda">
+        <div className="space-y-6" data-profile-settings-page-2>
+          <SettingsSection
+            label="Paskyros duomenys ir kontaktinė informacija"
+            description="Išvaizda ir AI asistento preferencijos"
+          >
             <ThemeSettingsCard />
-          </SettingsSection>
-
-          <SettingsSection label="AI asistentas">
             <AiPreferenceCenter embedded />
             <AiPersonalizationSurveyCard embedded />
           </SettingsSection>
 
-          <SettingsSection label="Privatumas ir pranešimai">
+          <SettingsSection
+            label="Pranešimų ir paieškų nustatymai"
+            description="Privatumas, push alertai ir išsaugoti skelbimai"
+          >
             <PrivacySettingsCard />
             <SocialSyncSettingsCard />
             <PushAlertsSettingsCard />
-          </SettingsSection>
-
-          <SettingsSection label="Mokėjimai">
-            <Suspense
-              fallback={
-                <Panel description="Kraunami mokėjimo metodai…" />
-              }
-            >
-              <PaymentMethodsCard />
-            </Suspense>
-            <Panel
-              icon={<CreditCard className="h-4 w-4 text-[var(--vauto-primary)]" />}
-              title="Prenumerata ir kortelės"
-              description="Tvarkykite Stripe prenumeratą, mokėjimo būdus ir sąskaitas neišeidami iš VAUTO."
-            >
-              <button
-                type="button"
-                disabled={!apiActive}
-                onClick={() => void openBillingPortal()}
-                className="rounded-xl bg-[var(--vauto-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] disabled:opacity-50"
-              >
-                Tvarkyti prenumeratą
-              </button>
-            </Panel>
-            <PaymentHistorySection user={user} refreshKey={paymentHistoryVersion} />
-          </SettingsSection>
-
-          <SettingsSection label="Paieška ir išsaugoti">
             <Disclosure
               title="Asmeniniai alertai"
               subtitle="Išsaugoti skelbimai ir paieškos raktiniai žodžiai"
@@ -204,7 +191,55 @@ export default function ProfileSettingsPage() {
             </Disclosure>
           </SettingsSection>
 
-          <SettingsSection label="Sistema">
+          <SettingsSection
+            label="Saugumas ir slaptažodis"
+            description="Prisijungimo būdas ir paskyros apsauga"
+          >
+            <Panel
+              icon={<Activity className="h-4 w-4 text-[var(--vauto-primary)]" />}
+              title="Saugumo būsena"
+              description={
+                user.authProvider
+                  ? `Aktyvus prisijungimas: ${user.authProvider}. Slaptažodžio keitimas vykdomas per jūsų autentifikavimo tiekėją.`
+                  : user.phone
+                    ? "Prisijungimas telefonu aktyvus. Papildomi saugumo nustatymai — per jūsų autentifikavimo tiekėją."
+                    : "Prisijunkite su telefonu, Google arba Apple, kad apsaugotumėte paskyrą."
+              }
+            />
+          </SettingsSection>
+
+          <SettingsSection
+            label="Mokėjimai ir banko sąskaita"
+            description="Kortelės, Stripe portalas ir istorija"
+          >
+            <Suspense
+              fallback={
+                <Panel description="Kraunami mokėjimo metodai…" />
+              }
+            >
+              <PaymentMethodsCard />
+            </Suspense>
+            <Panel
+              icon={<CreditCard className="h-4 w-4 text-[var(--vauto-primary)]" />}
+              title="Prenumerata ir kortelės"
+              description="Tvarkykite Stripe prenumeratą, mokėjimo būdus ir sąskaitas neišeidami iš VAUTO."
+            >
+              <button
+                type="button"
+                disabled={!apiActive}
+                onClick={() => void openBillingPortal()}
+                className="rounded-xl bg-[var(--vauto-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] disabled:opacity-50"
+              >
+                Tvarkyti prenumeratą
+              </button>
+            </Panel>
+            <PaymentHistorySection user={user} refreshKey={paymentHistoryVersion} />
+          </SettingsSection>
+
+          <SettingsSection
+            label="Verslo planas / Narystė"
+            description="Sistema, diagnostika ir verslo portalas"
+          >
             <Disclosure
               title="Ryšys ir versija"
               subtitle="API būsena, programėlės versija, diagnostika"
@@ -214,25 +249,24 @@ export default function ProfileSettingsPage() {
               <AppVersionStatusCard />
               {showBusinessBlock ? <SystemDiagnosticsCard /> : null}
             </Disclosure>
-          </SettingsSection>
-
-          {showBusinessBlock && (
-            <SettingsSection label="Verslas">
-              <Panel
-                icon={<BarChart3 className="h-4 w-4 text-[var(--vauto-primary)]" />}
-                title="Verslo portalas"
-                description="Analitika, masinis CSV/XML įkėlimas, skelbimų valdymas ir atsiskaitymai — atskirame verslo kabinete."
-              >
-                <Link
-                  href={BUSINESS_PORTAL_PATH}
-                  className="inline-flex rounded-xl bg-[var(--vauto-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] transition hover:brightness-110"
+            {showBusinessBlock ? (
+              <>
+                <Panel
+                  icon={<BarChart3 className="h-4 w-4 text-[var(--vauto-primary)]" />}
+                  title="Verslo portalas"
+                  description="Analitika, masinis CSV/XML įkėlimas, skelbimų valdymas ir atsiskaitymai — atskirame verslo kabinete."
                 >
-                  Atidaryti verslo portalą
-                </Link>
-              </Panel>
-              <SellerTrustCard user={user} listings={listings} />
-            </SettingsSection>
-          )}
+                  <Link
+                    href={BUSINESS_PORTAL_PATH}
+                    className="inline-flex rounded-xl bg-[var(--vauto-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] transition hover:brightness-110"
+                  >
+                    Atidaryti verslo portalą
+                  </Link>
+                </Panel>
+                <SellerTrustCard user={user} listings={listings} />
+              </>
+            ) : null}
+          </SettingsSection>
         </div>
       </DashboardShell>
     </ProfileViewProvider>

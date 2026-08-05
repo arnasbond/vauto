@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, Save, Sparkles } from "lucide-react";
+import { AiInsightCard, Badge, Button, Card } from "@/design-system";
 import { MAX_ADMIN_PROJECT_CONTEXT_CHARS } from "@/lib/admin-agent-context";
 import { useAdminProjectContext } from "@/context/AdminProjectContext";
 import { useVauto } from "@/context/VautoContext";
@@ -41,86 +42,110 @@ export function AdminGeminiUploadPanel({
 
   if (!isAdmin) {
     return (
-      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      <Card variant="warning" className="text-sm">
         Tik administratoriams. Prisijunkite per „VAUTO Control Center (admin)“.
-      </div>
+      </Card>
     );
   }
 
   if (!ctx) {
     return (
-      <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+      <Card
+        variant="muted"
+        className="flex items-center gap-2 text-sm text-[var(--ds-text-muted)]"
+      >
         <Loader2 className="h-4 w-4 animate-spin" />
         Kraunama admin kontekstą…
-      </div>
+      </Card>
     );
   }
 
   const { contextText, setContextText, hydrated, saving } = ctx;
+  const preview =
+    contextText.trim().slice(0, compact ? 280 : 600) ||
+    "// Dar nėra konteksto — įklijuokite Gemini transcriptą.";
 
   return (
-    <section
-      className={`rounded-2xl border-2 border-indigo-300 bg-gradient-to-br from-indigo-50 via-white to-violet-50 shadow-md ${
-        compact ? "p-3" : "p-4"
-      }`}
-      data-admin-gemini-panel={ADMIN_GEMINI_BUILD}
-    >
-      <div className="mb-3 flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white shadow">
-          <Sparkles className="h-5 w-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-base font-bold text-slate-900">
-            Gemini pokalbių istorijos sinchronizavimas
-          </h2>
-          <p className="mt-1 text-xs leading-relaxed text-slate-600">
-            Įklijuokite Gemini pokalbio transkriptą. Kontekstas bus įterptas į VAUTO agentą
-            tik jūsų (admin) žinutėms.
-          </p>
-          <p className="mt-1 text-[10px] font-mono text-indigo-600">
-            Versija: {ADMIN_GEMINI_BUILD}
-          </p>
-        </div>
-      </div>
+    <div className="space-y-3" data-admin-gemini-panel={ADMIN_GEMINI_BUILD}>
+      <AiInsightCard
+        title="Gemini Context Inspector"
+        body="Įklijuokite Gemini pokalbio transkriptą. Kontekstas bus įterptas į VAUTO agentą tik jūsų (admin) žinutėms — be papildomos API logikos."
+      />
 
-      {!hydrated ? (
-        <div className="flex items-center gap-2 py-6 text-sm text-slate-500">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Kraunama…
-        </div>
-      ) : (
-        <>
-          <textarea
-            value={contextText}
-            onChange={(e) => setContextText(e.target.value)}
-            rows={compact ? 6 : 12}
-            placeholder="Įklijuokite čia Gemini pokalbių istoriją…"
-            className="w-full resize-y rounded-xl border-2 border-indigo-200 bg-white px-3 py-3 font-mono text-xs leading-relaxed text-slate-900 shadow-inner focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-            maxLength={MAX_ADMIN_PROJECT_CONTEXT_CHARS}
-          />
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p
-              className={`text-[11px] ${nearLimit ? "font-semibold text-amber-700" : "text-slate-500"}`}
-            >
-              {chars.toLocaleString("lt-LT")} /{" "}
-              {MAX_ADMIN_PROJECT_CONTEXT_CHARS.toLocaleString("lt-LT")} simbolių
-            </p>
-            <button
-              type="button"
-              onClick={() => void handleSave()}
-              disabled={saving}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white shadow hover:bg-indigo-700 disabled:opacity-60"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4" />
-              )}
-              Išsaugoti kontekstą
-            </button>
+      <Card variant="ai" className={compact ? "p-3" : "p-4"}>
+        <div className="mb-3 flex items-start gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[var(--ds-radius-control)] bg-[var(--ds-ai)] text-[var(--ds-ai-contrast)] shadow">
+            <Sparkles className="h-5 w-5" />
           </div>
-        </>
-      )}
-    </section>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-base font-bold text-[var(--ds-text-primary)]">
+                Gemini pokalbių istorijos sinchronizavimas
+              </h2>
+              <Badge tone="ai">Inspector</Badge>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-[var(--ds-text-secondary)]">
+              Sistemos promptų ir konteksto peržiūra · Mission Control 2.0
+            </p>
+            <p className="mt-1 font-mono text-[10px] text-[var(--ds-ai-strong)]">
+              Versija: {ADMIN_GEMINI_BUILD}
+            </p>
+          </div>
+        </div>
+
+        {!hydrated ? (
+          <div className="flex items-center gap-2 py-6 text-sm text-[var(--ds-text-muted)]">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Kraunama…
+          </div>
+        ) : (
+          <>
+            <pre
+              className="mb-3 max-h-40 overflow-auto rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-inverse,#0b1220)] p-3 font-mono text-[11px] leading-relaxed text-[var(--ds-text-inverse,#e8eef7)]"
+              aria-label="Konteksto peržiūra"
+            >
+              {preview}
+              {contextText.trim().length > (compact ? 280 : 600) ? "\n…" : ""}
+            </pre>
+
+            <textarea
+              value={contextText}
+              onChange={(e) => setContextText(e.target.value)}
+              rows={compact ? 6 : 12}
+              placeholder="Įklijuokite čia Gemini pokalbių istoriją…"
+              className="w-full resize-y rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-inverse,#0b1220)] px-3 py-3 font-mono text-xs leading-relaxed text-[var(--ds-text-inverse,#e8eef7)] shadow-inner focus:border-[var(--ds-ai)] focus:outline-none focus:ring-2 focus:ring-[var(--ds-ai)]/30"
+              maxLength={MAX_ADMIN_PROJECT_CONTEXT_CHARS}
+            />
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p
+                className={`text-[11px] ${
+                  nearLimit
+                    ? "font-semibold text-[var(--ds-warning)]"
+                    : "text-[var(--ds-text-muted)]"
+                }`}
+              >
+                {chars.toLocaleString("lt-LT")} /{" "}
+                {MAX_ADMIN_PROJECT_CONTEXT_CHARS.toLocaleString("lt-LT")}{" "}
+                simbolių
+              </p>
+              <Button
+                variant="ai"
+                onClick={() => void handleSave()}
+                disabled={saving}
+                leftIcon={
+                  saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )
+                }
+              >
+                Išsaugoti kontekstą
+              </Button>
+            </div>
+          </>
+        )}
+      </Card>
+    </div>
   );
 }

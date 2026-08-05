@@ -1,7 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { DesktopHeader } from "@/components/layout/desktop/DesktopHeader";
+import { Suspense } from "react";
+import { AppHeader } from "@/components/app-shell/AppHeader";
 import { DesktopFooter } from "@/components/layout/desktop/DesktopFooter";
 import { SyncErrorBanner } from "@/components/SyncErrorBanner";
 
@@ -13,7 +14,9 @@ interface DesktopShellProps {
 export function DesktopShell({ children }: DesktopShellProps) {
   return (
     <div className="anonser-desktop flex min-h-dvh flex-col bg-[var(--anonser-bg)] text-[var(--anonser-text)]">
-      <DesktopHeader />
+      <Suspense fallback={<div className="h-16 border-b border-[var(--anonser-border)]" />}>
+        <AppHeader zone="marketplace" />
+      </Suspense>
       <main className="mx-auto w-full max-w-[var(--anonser-desktop-max)] flex-1 px-6 py-6">
         <SyncErrorBanner />
         {children}

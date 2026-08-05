@@ -18,26 +18,8 @@ import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 import { SearchEmptyAssistantBanner } from "@/components/search/SearchEmptyAssistantBanner";
 import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
 import { subscribeHomeReset } from "@/lib/home-reset";
-import { HowItWorksSection, type HowItWorksStep } from "@/components/ui";
 import { HomeAiValueBand } from "@/components/home/HomeValuePropCards";
-
-const HOME_HOW_STEPS: HowItWorksStep[] = [
-  {
-    n: "1",
-    title: "Parašykite arba įkelkite foto",
-    text: "Vision AI + pokalbio asistentas — be formų: nuotrauka ar sakinys užtenka.",
-  },
-  {
-    n: "2",
-    title: "AI paruošia skelbimą ir kainą",
-    text: "Antraštė, aprašymas ir AI kainos vertintojas (rinkos rėžis) — tu tik patvirtini.",
-  },
-  {
-    n: "3",
-    title: "Skelbkite ir siųskite per Omniva",
-    text: "Publikuokite iškart; pirkėjui — užsakymas su paštomatu vienu paspaudimu.",
-  },
-];
+import { HomeVisualFlow } from "@/components/home/HomeVisualFlow";
 
 function MarketplaceView() {
   const { rankedListings } = useVauto();
@@ -58,6 +40,14 @@ function MarketplaceView() {
 
   useEffect(() => {
     return subscribeHomeReset(() => setSeedQuery(null));
+  }, []);
+
+  const focusCopilot = useCallback(() => {
+    const box = document.querySelector<HTMLElement>(
+      '[aria-label="Skelbimų paieška"] [role="searchbox"], [aria-label="Skelbimų paieška"] input'
+    );
+    box?.focus();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
   return (
@@ -84,10 +74,7 @@ function MarketplaceView() {
       </HeroSection>
       {showHowItWorks ? (
         <>
-          <HowItWorksSection
-            steps={HOME_HOW_STEPS}
-            className="border-b border-[var(--vauto-border-subtle)] py-10 sm:py-12"
-          />
+          <HomeVisualFlow onInsightCta={focusCopilot} />
           <HomeAiValueBand />
         </>
       ) : null}

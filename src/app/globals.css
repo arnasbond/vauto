@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "../design-system/tokens.css";
+@import "../design-system/polish.css";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    VAUTO Design System — world-class semantic tokens (Light + Dark)
@@ -412,8 +414,31 @@ body {
 
 .home-ai-hero-search {
   background: #ffffff;
-  border-color: var(--vauto-premium-border, var(--vauto-border)) !important;
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
+  border-color: color-mix(in srgb, var(--ds-ai, #6366f1) 28%, var(--vauto-premium-border, var(--vauto-border))) !important;
+  box-shadow:
+    0 4px 24px rgba(15, 23, 42, 0.06),
+    0 0 0 1px color-mix(in srgb, var(--ds-ai, #6366f1) 12%, transparent);
+  transition: box-shadow var(--ds-duration-normal, 180ms) var(--ds-ease, ease),
+    border-color var(--ds-duration-normal, 180ms) var(--ds-ease, ease);
+}
+
+.home-ai-hero-search:focus-within,
+.home-ai-copilot-bar:focus-within {
+  border-color: color-mix(in srgb, var(--ds-ai, #6366f1) 55%, transparent) !important;
+  box-shadow:
+    var(--ds-focus-ring-ai, 0 0 0 3px rgba(99, 102, 241, 0.4)),
+    0 8px 28px rgba(99, 102, 241, 0.18);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .vauto-flux-glass {

@@ -1,75 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback } from "react";
-import { Plus } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
-import { VautoLogo } from "@/components/VautoLogo";
-import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
-import { useActivePortal } from "@/hooks/useActivePortal";
-import { useVauto } from "@/context/VautoContext";
-import { useVautoAgent } from "@/context/VautoAgentContext";
-import { cn } from "@/lib/cn";
-
+/**
+ * Legacy in-page header — replaced by App Shell 2.0 `AppHeader`.
+ * Kept as a no-op so remaining page imports do not render a duplicate chrome.
+ */
 export function Header() {
-  const { ui } = useActivePortal();
-  const pathname = usePathname();
-  const router = useRouter();
-  const { requireAuthForListing } = useVauto();
-  const { resetHomeAgentSession, openAiSellerListingChat } = useVautoAgent();
-  const skelbimaiActive = pathname === "/" || pathname === "";
-
-  const handleHomeNav = useCallback(
-    (e: React.MouseEvent<HTMLAnchorElement>) => {
-      e.preventDefault();
-      resetHomeAgentSession();
-      if (!skelbimaiActive) {
-        router.push("/");
-      }
-    },
-    [resetHomeAgentSession, router, skelbimaiActive]
-  );
-
-  const handleAddListing = useCallback(() => {
-    if (!requireAuthForListing("/")) return;
-    void openAiSellerListingChat({ navigateHome: true });
-  }, [openAiSellerListingChat, requireAuthForListing]);
-
-  return (
-    <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
-      <Link
-        href="/"
-        onClick={handleHomeNav}
-        className="justify-self-start"
-        aria-label="VAUTO pradžia"
-      >
-        <VautoLogo color={ui.accent} dotColor={ui.cta} />
-      </Link>
-
-      <Link
-        href="/"
-        onClick={handleHomeNav}
-        className={cn(
-          "justify-self-center rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide transition",
-          skelbimaiActive
-            ? "bg-[var(--vauto-primary-soft,#e8edff)] text-[var(--vauto-primary,#1b4dff)]"
-            : "text-[var(--vauto-text-muted,#5b6578)] hover:text-[var(--vauto-primary,#1b4dff)]"
-        )}
-      >
-        Skelbimai
-      </Link>
-
-      <div className="flex items-center justify-end gap-2 justify-self-end">
-        <button
-          type="button"
-          onClick={handleAddListing}
-          className="inline-flex items-center gap-1 rounded-full bg-[var(--vauto-primary,#1b4dff)] px-3 py-1.5 text-xs font-semibold text-[var(--vauto-primary-contrast,#fff)] shadow-sm transition hover:opacity-95"
-        >
-          <Plus className="h-3.5 w-3.5" aria-hidden />
-          Įdėti
-        </button>
-        <UserProfileDropdown variant="mobile" />
-      </div>
-    </header>
-  );
+  return null;
 }

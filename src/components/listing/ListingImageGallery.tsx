@@ -76,7 +76,7 @@ export function ListingImageGallery({
         <button
           type="button"
           onClick={() => setZoomOpen(true)}
-          className="relative block h-[min(50vh,420px)] max-h-[50vh] w-full cursor-zoom-in"
+          className="relative block h-[min(52vh,480px)] max-h-[560px] w-full cursor-zoom-in lg:h-[min(58vh,520px)]"
           aria-label="Padidinti nuotrauką"
         >
           <Image

@@ -15,6 +15,7 @@ import {
   Search,
   Wallet,
 } from "lucide-react";
+import { Badge, Card } from "@/design-system";
 import {
   apiAdminBillingLookup,
   apiAdminCreditWallet,
@@ -29,17 +30,9 @@ import {
 type StatusTone = "ok" | "warn" | "off";
 
 function StatusPill({ tone, label }: { tone: StatusTone; label: string }) {
-  const cls =
-    tone === "ok"
-      ? "bg-emerald-100 text-emerald-800"
-      : tone === "warn"
-        ? "bg-amber-100 text-amber-900"
-        : "bg-slate-100 text-slate-500";
-  return (
-    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${cls}`}>
-      {label}
-    </span>
-  );
+  const badgeTone =
+    tone === "ok" ? "success" : tone === "warn" ? "warning" : "neutral";
+  return <Badge tone={badgeTone}>{label}</Badge>;
 }
 
 function toneFromOk(ok: boolean): StatusTone {
@@ -58,22 +51,27 @@ function StatusRow({
   ok: boolean;
 }) {
   return (
-    <div className="vauto-dashboard-card flex items-center gap-3 rounded-2xl p-3.5">
+    <Card
+      variant={ok ? "default" : "warning"}
+      className="flex items-center gap-3 py-3"
+    >
       <span
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--ds-radius-control)] ${
           ok
-            ? "bg-[color-mix(in_srgb,var(--vauto-teal)_15%,transparent)] text-[var(--vauto-teal)]"
-            : "bg-amber-50 text-amber-700"
+            ? "bg-[var(--ds-success-soft)] text-[var(--ds-success)]"
+            : "bg-[var(--ds-warning-soft)] text-[var(--ds-warning)]"
         }`}
       >
         <Icon className="h-[18px] w-[18px]" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-slate-900">{title}</p>
-        <p className="truncate text-xs text-slate-500">{detail}</p>
+        <p className="text-sm font-semibold text-[var(--ds-text-primary)]">
+          {title}
+        </p>
+        <p className="truncate text-xs text-[var(--ds-text-muted)]">{detail}</p>
       </div>
-      <StatusPill tone={toneFromOk(ok)} label={ok ? "OK" : "DĖMESIO"} />
-    </div>
+      <StatusPill tone={toneFromOk(ok)} label={ok ? "Operatyvus" : "Įspėjimas"} />
+    </Card>
   );
 }
 

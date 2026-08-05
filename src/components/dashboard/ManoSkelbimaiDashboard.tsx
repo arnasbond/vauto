@@ -1,198 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
-import Link from "next/link";
 import {
-  BarChart3,
-  ExternalLink,
-  EyeOff,
   LayoutGrid,
-  Pause,
-  Pencil,
   Sparkles,
-  Trash2,
-  TrendingUp,
 } from "lucide-react";
-import { formatPrice } from "@/data/mockListings";
-import { getListingCoverImage } from "@/lib/listing-image";
+import { Badge, StatCard } from "@/design-system";
 import { getListingMetrics } from "@/lib/listing-analytics";
-import {
-  dashboardListingState,
-  dashboardStateClass,
-  dashboardStateLabel,
-  togglePauseStatus,
-} from "@/lib/listing-visibility";
-import { listingPath } from "@/lib/seo";
+import { dashboardListingState } from "@/lib/listing-visibility";
+import { copyListingLink } from "@/lib/social-share";
 import { useVauto } from "@/context/VautoContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
-import { SmartPromoteModal } from "@/components/dashboard/SmartPromoteModal";
+import { ListingManagementCard } from "@/components/dashboard/ListingManagementCard";
 import type { Listing } from "@/lib/types";
-import { cn } from "@/lib/cn";
 
 interface ManoSkelbimaiDashboardProps {
   listings: Listing[];
-}
-
-function ManoSkelbimaiCard({
-  listing,
-  onPause,
-  onHide,
-  onRestore,
-  onPermanentDelete,
-  onStats,
-  onEdit,
-  onActivateAiTwin,
-  onBoost,
-}: {
-  listing: Listing;
-  onPause: () => void;
-  onHide: () => void;
-  onRestore: () => void;
-  onPermanentDelete: () => void;
-  onStats: () => void;
-  onEdit: () => void;
-  onActivateAiTwin: () => void;
-  onBoost: () => void;
-}) {
-  const state = dashboardListingState(listing);
-  const isPaused = listing.status === "paused";
-  const isDeleted = listing.status === "deleted";
-  // Always use query `id` — static export has no /listing/[slug] HTML for new posts.
-  const publicHref = listing.id?.trim()
-    ? `/listing/?id=${encodeURIComponent(listing.id.trim())}`
-    : listingPath(listing);
-
-  return (
-    <article
-      className={cn(
-        "group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md",
-        isDeleted && "opacity-80"
-      )}
-    >
-      <Link
-        href={publicHref}
-        className="relative block aspect-[4/3] overflow-hidden bg-slate-100"
-      >
-        <Image
-          src={getListingCoverImage(listing)}
-          alt={listing.title}
-          fill
-          sizes="(max-width: 768px) 50vw, 25vw"
-          className="object-cover transition duration-300 group-hover:scale-[1.02]"
-        />
-        <span
-          className={cn(
-            "absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold",
-            dashboardStateClass(state)
-          )}
-        >
-          {dashboardStateLabel(state)}
-        </span>
-      </Link>
-
-      <div className="p-3">
-        <h3 className="line-clamp-2 text-sm font-semibold text-slate-900">
-          {listing.title}
-        </h3>
-        <p className="mt-1 text-base font-bold text-blue-800">
-          {formatPrice(listing.price, listing.priceLabel)}
-        </p>
-
-        <div className="listing-card-actions mt-3">
-          {isDeleted ? (
-            <>
-              <button
-                type="button"
-                onClick={onRestore}
-                className="listing-card-btn listing-card-btn--primary listing-card-btn--span2"
-              >
-                Atkurti skelbimą
-              </button>
-              <button
-                type="button"
-                onClick={onPermanentDelete}
-                className="listing-card-btn listing-card-btn--danger listing-card-btn--span2"
-              >
-                <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                Ištrinti visam laikui
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                href={publicHref}
-                className="listing-card-btn listing-card-btn--secondary listing-card-btn--span2"
-              >
-                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-                Peržiūrėti skelbimą
-              </Link>
-
-              {!listing.isAiTwinActive ? (
-                <button
-                  type="button"
-                  onClick={onActivateAiTwin}
-                  className="listing-card-btn listing-card-btn--ai listing-card-btn--span2"
-                >
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                  Aktyvuoti AI derybininką
-                </button>
-              ) : (
-                <div className="listing-card-btn listing-card-btn--ai listing-card-btn--span2 cursor-default">
-                  AI derybininkas aktyvus
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={onEdit}
-                className="listing-card-btn listing-card-btn--primary"
-              >
-                <Pencil className="h-3.5 w-3.5" aria-hidden />
-                Redaguoti
-              </button>
-              <button
-                type="button"
-                onClick={onBoost}
-                disabled={state === "sold"}
-                className="listing-card-btn listing-card-btn--accent"
-              >
-                <TrendingUp className="h-3.5 w-3.5" aria-hidden />
-                Iškelti
-              </button>
-
-              <button
-                type="button"
-                onClick={onStats}
-                className="listing-card-btn listing-card-btn--secondary"
-              >
-                <BarChart3 className="h-3.5 w-3.5" aria-hidden />
-                Statistika
-              </button>
-              <button
-                type="button"
-                onClick={onPause}
-                disabled={state === "sold"}
-                className="listing-card-btn listing-card-btn--secondary"
-              >
-                <Pause className="h-3.5 w-3.5" aria-hidden />
-                {isPaused ? "Aktyvuoti" : "Stabdyti"}
-              </button>
-
-              <button
-                type="button"
-                onClick={onHide}
-                className="listing-card-btn listing-card-btn--danger listing-card-btn--span2"
-              >
-                <EyeOff className="h-3.5 w-3.5" aria-hidden />
-                Paslėpti
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </article>
-  );
 }
 
 export function ManoSkelbimaiDashboard({
@@ -203,14 +26,13 @@ export function ManoSkelbimaiDashboard({
     permanentlyDeleteListing,
     restoreListing,
     updateListing,
+    markListingSold,
     startEditListingFlow,
     showToast,
     showConfirm,
-    openCheckout,
   } = useVauto();
   const { openMicroPayment } = useZeroUiScreen();
   const [statsTarget, setStatsTarget] = useState<Listing | null>(null);
-  const [promoteListing, setPromoteListing] = useState<Listing | null>(null);
 
   const sorted = useMemo(
     () =>
@@ -234,9 +56,24 @@ export function ManoSkelbimaiDashboard({
     [listings]
   );
 
-  const activeCount = sorted.filter(
-    (l) => l.status !== "sold" && l.status !== "deleted"
-  ).length;
+  const kpis = useMemo(() => {
+    const active = sorted.filter(
+      (l) =>
+        l.status !== "sold" &&
+        l.status !== "deleted" &&
+        l.status !== "paused"
+    ).length;
+    let views = 0;
+    let contacts = 0;
+    let sales = 0;
+    for (const l of sorted) {
+      const m = getListingMetrics(l);
+      views += m.views;
+      contacts += m.callClicks + m.chatStarts;
+      if (l.status === "sold") sales += 1;
+    }
+    return { active, views, contacts, sales };
+  }, [sorted]);
 
   const handleHide = async (listing: Listing) => {
     const ok = await showConfirm({
@@ -273,13 +110,16 @@ export function ManoSkelbimaiDashboard({
     showToast("Skelbimas atkurtas ir vėl matomas kataloge", "success");
   };
 
-  const handlePause = (listing: Listing) => {
-    const next = togglePauseStatus(listing.status);
-    updateListing(listing.id, { status: next });
-    showToast(
-      next === "paused" ? "Skelbimas sustabdytas" : "Skelbimas vėl aktyvus",
-      "success"
-    );
+  const handleMarkSold = async (listing: Listing) => {
+    const ok = await showConfirm({
+      title: "Pažymėti kaip parduotą?",
+      message: `„${listing.title}" nebebus rodomas kataloge.`,
+      confirmLabel: "Parduota",
+      cancelLabel: "Atšaukti",
+    });
+    if (!ok) return;
+    markListingSold(listing.id);
+    showToast("Skelbimas pažymėtas kaip parduotas", "success");
   };
 
   const handleStats = (listing: Listing) => {
@@ -291,12 +131,20 @@ export function ManoSkelbimaiDashboard({
     );
   };
 
-  const handleActivateAiTwin = async (listing: Listing) => {
+  const handleShare = async (listing: Listing) => {
+    const ok = await copyListingLink(listing);
+    showToast(
+      ok ? "Nuoroda nukopijuota" : "Nepavyko nukopijuoti nuorodos",
+      ok ? "success" : "error"
+    );
+  };
+
+  const handleAiOptimize = async (listing: Listing) => {
     const ok = await showConfirm({
-      title: "Aktyvuoti AI dvynį?",
+      title: "AI Optimizuoti?",
       message:
-        "AI dvynys atsakys tik šablonais (ar dar aktualu, kainos riba) ir prireikus perduos pokalbį jums. Norėsite tęsti aktyvavimą?",
-      confirmLabel: "Taip, aktyvuoti",
+        "AI dvynys padės atsakyti pirkėjams ir pagerinti skelbimo matomumą. Norėsite tęsti?",
+      confirmLabel: "Taip, tęsti",
       cancelLabel: "Atšaukti",
     });
     if (!ok) return;
@@ -308,10 +156,10 @@ export function ManoSkelbimaiDashboard({
       voiceConfirmPhrase: "Taip, apmokėti",
       metadata: { kind: "ai_twin", listingId: listing.id },
     });
-    showToast("Atidarau AI dvynio aktyvavimą", "info");
+    showToast("Atidarau AI optimizavimą", "info");
     if (!listing.minNegotiationPrice) {
       showToast(
-        "Patarimas: nustatykite minimalią kainą (minNegotiationPrice), kad dvynys žinotų ribas.",
+        "Patarimas: nustatykite minimalią kainą, kad AI žinotų ribas.",
         "info"
       );
     }
@@ -324,65 +172,81 @@ export function ManoSkelbimaiDashboard({
   };
 
   return (
-    <section className="pb-8">
+    <section className="pb-8" data-mano-skelbimai-2>
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 font-display text-2xl font-bold tracking-tight text-slate-900">
-          <LayoutGrid className="h-6 w-6 text-blue-800" />
+        <h1 className="flex items-center gap-2 font-[family-name:var(--font-outfit)] text-2xl font-bold tracking-tight text-[var(--ds-text-primary,var(--vauto-ink))]">
+          <LayoutGrid className="h-6 w-6 text-[var(--ds-brand,var(--vauto-primary))]" />
           Mano skelbimai
         </h1>
-        {activeCount > 0 && (
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
-            {activeCount} aktyvūs
-          </span>
-        )}
+        {kpis.active > 0 ? (
+          <Badge tone="brand">{kpis.active} aktyvūs</Badge>
+        ) : null}
       </div>
 
-      <p className="mb-6 text-sm text-slate-600">
-        Valdykite visus skelbimus vienoje vietoje — privatūs ir verslo klientai
-        naudoja tą pačią sistemą. Spauskite „Redaguoti“, kad atnaujintumėte
-        duomenis ir nuotraukas.
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          label="Aktyvūs skelbimai"
+          value={String(kpis.active)}
+          hint="Viešame kataloge"
+        />
+        <StatCard
+          label="Peržiūros"
+          value={String(kpis.views)}
+          hint="Visų skelbimų suma"
+          trend={kpis.views > 0 ? "up" : "flat"}
+        />
+        <StatCard
+          label="Kontaktai / Žinutės"
+          value={String(kpis.contacts)}
+          hint="Skambučiai + pokalbiai"
+        />
+        <StatCard
+          label="Pardavimai"
+          value={String(kpis.sales)}
+          hint="Pažymėti parduotu"
+          trend={kpis.sales > 0 ? "up" : "flat"}
+        />
+      </div>
+
+      <p className="mb-6 text-sm text-[var(--ds-text-secondary,var(--vauto-body))]">
+        Valdykite visus skelbimus vienoje vietoje. Primary veiksmas —
+        „Redaguoti“; papildomi veiksmai — statistika, AI ir dalijimasis.
       </p>
 
       {sorted.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-16 text-center">
-          <Sparkles className="mx-auto mb-3 h-10 w-10 text-teal-600" />
-          <p className="text-sm text-slate-600">
+        <div className="rounded-[var(--ds-radius-card)] border border-dashed border-[var(--ds-border-strong)] bg-[var(--ds-surface-muted)] px-6 py-16 text-center">
+          <Sparkles className="mx-auto mb-3 h-10 w-10 text-[var(--ds-ai-strong)]" />
+          <p className="text-sm text-[var(--ds-text-muted)]">
             Dar neturite skelbimų — pradėkite pokalbį pagrindiniame puslapyje ir
             DI paruoš skelbimą už jus.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        <div className="flex flex-col gap-4">
           {sorted.map((listing) => (
-            <ManoSkelbimaiCard
+            <ListingManagementCard
               key={listing.id}
               listing={listing}
-              onPause={() => handlePause(listing)}
+              onEdit={() =>
+                startEditListingFlow(listing, { stayOnPage: true })
+              }
+              onStats={() => handleStats(listing)}
+              onAiOptimize={() => void handleAiOptimize(listing)}
+              onShare={() => void handleShare(listing)}
+              onMarkSold={() => void handleMarkSold(listing)}
               onHide={() => void handleHide(listing)}
+              onDelete={() => void handleHide(listing)}
               onRestore={() => void handleRestore(listing)}
               onPermanentDelete={() => void handlePermanentDelete(listing)}
-              onStats={() => handleStats(listing)}
-              onEdit={() => startEditListingFlow(listing, { stayOnPage: true })}
-              onActivateAiTwin={() => void handleActivateAiTwin(listing)}
-              onBoost={() => setPromoteListing(listing)}
             />
           ))}
         </div>
       )}
 
-      {statsTarget && (
+      {statsTarget ? (
         <span className="sr-only" aria-live="polite">
           Statistika: {statsTarget.title}
         </span>
-      )}
-
-      {promoteListing ? (
-        <SmartPromoteModal
-          open
-          listing={promoteListing}
-          onClose={() => setPromoteListing(null)}
-          onOpenCheckout={openCheckout}
-        />
       ) : null}
     </section>
   );
