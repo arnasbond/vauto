@@ -33,7 +33,7 @@ export async function registerNativePush(): Promise<boolean> {
 
       const regHandle = PushNotifications.addListener(
         "registration",
-        async (token) => {
+        async (token: { value: string }) => {
           const value = token.value;
           if (!value) {
             done(false);

@@ -1942,6 +1942,7 @@ export interface ChatThreadMeta {
   id: string;
   buyerId: string;
   sellerId: string;
+  listingId: string;
   listingTitle: string;
   escrowOffered: boolean;
   messageCount: number;
@@ -1955,12 +1956,13 @@ export async function getChatThreadMeta(
     id: string;
     buyer_id: string;
     seller_id: string;
+    listing_id: string;
     listing_title: string;
     escrow_offered: boolean;
     message_count: string;
     buyer_message_count: string;
   }>(
-    `SELECT t.id, t.buyer_id, t.seller_id, t.listing_title, t.escrow_offered,
+    `SELECT t.id, t.buyer_id, t.seller_id, t.listing_id, t.listing_title, t.escrow_offered,
             COUNT(m.id)::text AS message_count,
             COUNT(m.id) FILTER (WHERE m.sender_id = t.buyer_id)::text AS buyer_message_count
      FROM chat_threads t
@@ -1975,6 +1977,7 @@ export async function getChatThreadMeta(
     id: t.id,
     buyerId: t.buyer_id,
     sellerId: t.seller_id,
+    listingId: t.listing_id,
     listingTitle: t.listing_title,
     escrowOffered: t.escrow_offered,
     messageCount: Number(t.message_count) || 0,

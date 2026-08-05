@@ -1,3 +1,5 @@
+import { sanitizePromptUserInput } from "../shared/prompt-injection.js";
+
 export type PendingChatDocumentInput = {
   fileName?: string;
   mimeType?: string;
@@ -11,7 +13,9 @@ export type ExtractedChatDocument = {
   text: string;
 };
 
-const MAX_TEXT = 50_000;
+/** Client pendingDocuments.text hard cap (audit L-03). */
+export const PENDING_DOCUMENT_TEXT_MAX = 20_000;
+const MAX_TEXT = PENDING_DOCUMENT_TEXT_MAX;
 const MAX_COMBINED = 12_000;
 
 function guessMime(fileName: string, fallback = ""): string {
@@ -43,13 +47,15 @@ function parseDataUrl(dataUrl: string): { mime: string; buffer: Buffer } | null 
 }
 
 function scrubText(raw: string): string {
-  return String(raw ?? "")
+  const cleaned = String(raw ?? "")
     .replace(/\u0000/g, "")
     .replace(/\r\n/g, "\n")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
     .slice(0, MAX_TEXT);
+  const scrubbed = sanitizePromptUserInput(cleaned).text;
+  return scrubbed || cleaned;
 }
 
 /** Best-effort readable strings from legacy .doc binary. */

@@ -74,6 +74,17 @@ export function validateProductionEnv(): EnvCheckResult {
       warnings.push("SMS OTP carrier credentials missing (BulkGate / Twilio)");
     }
 
+    if (
+      !process.env.STRIPE_SECRET_KEY?.trim() ||
+      !process.env.STRIPE_WEBHOOK_SECRET?.trim()
+    ) {
+      errors.push(
+        "STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET are required in production (payments must not fail-open)"
+      );
+    } else if (!process.env.STRIPE_SECRET_KEY.trim().startsWith("sk_")) {
+      warnings.push("STRIPE_SECRET_KEY does not look like a secret key (sk_…)");
+    }
+
     const cloudinary = getCloudinaryConfigStatus();
     if (!cloudinary.configured) {
       warnings.push(

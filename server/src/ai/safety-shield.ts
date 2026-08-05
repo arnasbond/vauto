@@ -155,20 +155,43 @@ export function geminiResponseLooksSafetyBlocked(data: {
   return Boolean(block && block !== "BLOCK_REASON_UNSPECIFIED");
 }
 
+export type ImageSafetyResult = {
+  safe: boolean;
+  requiresReview?: boolean;
+  reason?: string;
+};
+
+const SAFETY_UNAVAILABLE: ImageSafetyResult = {
+  safe: false,
+  requiresReview: true,
+  reason: "safety_check_unavailable",
+};
+
+function isProductionNode(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+/** Fail-open only outside production (local/dev). Production always quarantines. */
+function unavailableResult(detail: string): ImageSafetyResult {
+  console.warn("[safety-shield] classifyImagesSafe unavailable", detail);
+  if (isProductionNode()) return { ...SAFETY_UNAVAILABLE };
+  return { safe: true, reason: detail };
+}
+
 /**
  * Fast image safety classification via Gemini.
- * Returns false when unsafe / blocked; true when safe or check unavailable.
+ * Production is fail-closed: errors / invalid JSON / timeout / missing key
+ * return { safe: false, requiresReview: true } so unchecked images are not auto-published.
  */
 export async function classifyImagesSafe(
   imageDataUrls: string[]
-): Promise<{ safe: boolean; reason?: string }> {
+): Promise<ImageSafetyResult> {
   const images = normalizeImageInputList(imageDataUrls).slice(0, 4);
   if (!images.length) return { safe: true };
 
   const key = resolveGeminiApiKey();
   if (!key) {
-    // Fail-open when no key (local/dev) — production always has a key.
-    return { safe: true };
+    return unavailableResult("missing_api_key");
   }
 
   const parts: object[] = [
@@ -194,7 +217,10 @@ export async function classifyImagesSafe(
     }
   }
 
-  if (parts.length < 2) return { safe: true };
+  if (parts.length < 2) {
+    // Had URLs but none usable as inline data — cannot verify.
+    return unavailableResult("no_inline_images");
+  }
 
   try {
     const model =
@@ -218,6 +244,9 @@ export async function classifyImagesSafe(
         signal: AbortSignal.timeout(20_000),
       }
     );
+    if (!res.ok) {
+      return unavailableResult(`http_${res.status}`);
+    }
     const raw = await res.text();
     let data: {
       candidates?: { finishReason?: string; content?: { parts?: { text?: string }[] } }[];
@@ -226,33 +255,41 @@ export async function classifyImagesSafe(
     try {
       data = JSON.parse(raw) as typeof data;
     } catch {
-      return { safe: true };
+      return unavailableResult("invalid_response_json");
     }
     if (geminiResponseLooksSafetyBlocked(data)) {
       return { safe: false, reason: "gemini_safety_block" };
     }
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     const jsonMatch = /\{[\s\S]*\}/.exec(text);
-    if (!jsonMatch) return { safe: true };
-    const parsed = JSON.parse(jsonMatch[0]) as { safe?: boolean; reason?: string };
+    if (!jsonMatch) return unavailableResult("missing_classifier_json");
+    let parsed: { safe?: boolean; reason?: string };
+    try {
+      parsed = JSON.parse(jsonMatch[0]) as { safe?: boolean; reason?: string };
+    } catch {
+      return unavailableResult("invalid_classifier_json");
+    }
     if (parsed.safe === false) {
       return { safe: false, reason: parsed.reason || "unsafe" };
     }
+    if (parsed.safe !== true) {
+      return unavailableResult("ambiguous_classifier_result");
+    }
     return { safe: true };
   } catch (err) {
-    console.warn(
-      "[safety-shield] classifyImagesSafe failed open",
-      err instanceof Error ? err.message : err
-    );
-    return { safe: true };
+    const msg = err instanceof Error ? err.message : String(err);
+    return unavailableResult(msg.includes("abort") || msg.includes("Timeout") ? "timeout" : msg);
   }
 }
 
-/** Run image shield; throw ImageSafetyBlockedError when unsafe. */
+/** Run image shield; throw when unsafe or production quarantine (requiresReview). */
 export async function assertChatImagesSafe(imageDataUrls: string[]): Promise<void> {
   const result = await classifyImagesSafe(imageDataUrls);
-  if (!result.safe) {
-    console.warn("[safety-shield] image rejected", { reason: result.reason });
+  if (!result.safe || result.requiresReview) {
+    console.warn("[safety-shield] image rejected", {
+      reason: result.reason,
+      requiresReview: result.requiresReview,
+    });
     throw new ImageSafetyBlockedError(IMAGE_SAFETY_REJECT_NOTICE);
   }
 }

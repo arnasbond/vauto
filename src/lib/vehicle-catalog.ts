@@ -9,7 +9,7 @@ export {
   type VehicleModification,
 } from "@vauto/shared/vehicle-spec-catalog";
 
-import { modificationsFor } from "@vauto/shared/vehicle-spec-catalog";
+import { modificationsFor, type VehicleModification } from "@vauto/shared/vehicle-spec-catalog";
 
 export const BODY_TYPES = [
   "Sedanas",
@@ -95,14 +95,22 @@ export { modelsForMake } from "@/data/vehicle-makes-models";
 
 export function engineCcSuggestions(make: string, model: string): string[] {
   const mods = modificationsFor(make, model);
-  const set = new Set(mods.map((m) => m.engineCc).filter(Boolean) as string[]);
-  return [...set];
+  const set = new Set(
+    mods
+      .map((m: VehicleModification) => m.engineCc)
+      .filter((v: string | undefined): v is string => Boolean(v))
+  );
+  return Array.from(set);
 }
 
 export function powerKwSuggestions(make: string, model: string): string[] {
   const mods = modificationsFor(make, model);
-  const set = new Set(mods.map((m) => m.powerKw).filter(Boolean) as string[]);
-  return [...set];
+  const set = new Set(
+    mods
+      .map((m: VehicleModification) => m.powerKw)
+      .filter((v: string | undefined): v is string => Boolean(v))
+  );
+  return Array.from(set);
 }
 
 export function vehicleSummaryLabel(

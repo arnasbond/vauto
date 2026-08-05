@@ -305,11 +305,12 @@ export function EscrowModal({
 
     if (stripeEscrowLive && isDataApiEnabled()) {
       const res = await apiEscrowCheckout({
-        escrow: draft,
-        listingTitle: chat.listingTitle,
+        listingId: chat.listingId,
+        threadId: chat.id,
         shippingProvider: omnivaEligibility.eligible ? shippingProvider : "omniva",
         shippingLockerId: selectedLocker?.id ?? "pickup-courier",
         shippingLockerName: selectedLocker?.name ?? "Atsiėmimas vietoje / Kurjeris",
+        userId: user.id,
       });
       if (res.ok && res.data.checkoutUrl) {
         window.location.assign(res.data.checkoutUrl);

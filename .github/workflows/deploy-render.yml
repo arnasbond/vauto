@@ -1,21 +1,64 @@
 name: Deploy Render API
 
+# Production branch: master only.
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [master]
-    paths:
-      - "server/**"
-      - "render.yaml"
-      - "scripts/redeploy-render.mjs"
-      - "scripts/configure-render-env.mjs"
-      - "scripts/verify-health.mjs"
   workflow_dispatch:
+    inputs:
+      git_ref:
+        description: "Commit SHA on master to deploy (default: current master tip)"
+        required: false
+        default: ""
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: production
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'master') ||
+      github.event_name == 'workflow_dispatch'
     steps:
+      - name: Resolve deploy SHA
+        id: sha
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+          elif [ -n "${{ github.event.inputs.git_ref }}" ]; then
+            SHA="${{ github.event.inputs.git_ref }}"
+          else
+            SHA=$(gh api "repos/${{ github.repository }}/commits/master" --jq .sha)
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Deploy SHA=$SHA"
+
+      - name: Require green CI for manual deploy
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.sha.outputs.sha }}"
+          # Fail closed unless CI workflow concluded success for this commit on master.
+          CONCLUSION=$(gh api \
+            "repos/${{ github.repository }}/actions/runs?head_sha=${SHA}&status=completed&per_page=30" \
+            --jq '[.workflow_runs[] | select(.name=="CI" and .head_branch=="master")] | .[0].conclusion // empty')
+          echo "CI conclusion for $SHA = '${CONCLUSION}'"
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "Manual deploy blocked: CI is not green for $SHA"
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.sha.outputs.sha }}
 
       - uses: actions/setup-node@v4
         with:
@@ -25,11 +68,27 @@ jobs:
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: srv-d8q3fk6q1p3s739fd9h0
+          APP_GIT_SHA: ${{ steps.sha.outputs.sha }}
         run: |
           if [ -z "$RENDER_API_KEY" ]; then
-            echo "RENDER_API_KEY not set — skipping Render deploy"
-            exit 0
+            echo "RENDER_API_KEY not set — failing deploy (strict)"
+            exit 1
           fi
+          # Stamp expected commit for /api/version verification (Render also sets RENDER_GIT_COMMIT).
+          node -e "
+            const key=process.env.RENDER_API_KEY;
+            const svc=process.env.RENDER_SERVICE_ID;
+            const sha=process.env.APP_GIT_SHA;
+            fetch('https://api.render.com/v1/services/'+svc+'/env-vars/APP_GIT_SHA',{
+              method:'PUT',
+              headers:{Authorization:'Bearer '+key,Accept:'application/json','Content-Type':'application/json'},
+              body:JSON.stringify({value:sha})
+            }).then(async r=>{
+              const t=await r.text();
+              if(!r.ok){console.error(t);process.exit(1);}
+              console.log('APP_GIT_SHA set to', sha);
+            });
+          "
           node scripts/redeploy-render.mjs
 
       - name: Wait for API health
@@ -60,33 +119,22 @@ jobs:
           COUNT=$(curl -sf "https://vauto-api.onrender.com/api/listings" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).length))")
           echo "Listings on API: $COUNT"
 
-      - name: Bootstrap catalog and embeddings
+      - name: Verify deployed commitSha
         env:
-          VAUTO_OPS_SECRET: ${{ secrets.VAUTO_OPS_SECRET }}
+          EXPECTED_SHA: ${{ steps.sha.outputs.sha }}
         run: |
-          for i in $(seq 1 12); do
-            RESP=$(curl -s -w "\n%{http_code}" -X POST "https://vauto-api.onrender.com/api/bootstrap" -H "X-Vauto-Ops-Secret: ${VAUTO_OPS_SECRET}" || true)
-            CODE=$(echo "$RESP" | tail -1)
-            BODY=$(echo "$RESP" | sed '$d')
-            echo "Bootstrap attempt $i/12 — HTTP $CODE: $BODY"
-            HEALTH=$(curl -sf "https://vauto-api.onrender.com/api/health" || echo '{}')
-            echo "$HEALTH" | node -e "
-              let d=''; process.stdin.on('data',c=>d+=c);
-              process.stdin.on('end',()=>{
-                try {
-                  const h=JSON.parse(d);
-                  const e=h.embeddings||{};
-                  console.log('Embeddings:', JSON.stringify(e));
-                  const text=Number(e.textIndexed||0);
-                  const image=Number(e.imageIndexed||0);
-                  if (text>0 && image>=text) process.exit(0);
-                  if (text===0) process.exit(0);
-                  process.exit(1);
-                } catch { process.exit(1); }
-              });
-            " && exit 0
-            echo "Waiting for Render deploy + embedding sync…"
-            sleep 30
+          set -euo pipefail
+          BASE="https://vauto-api.onrender.com"
+          for i in $(seq 1 24); do
+            BODY=$(curl -sf "$BASE/api/version" || true)
+            echo "version: ${BODY:0:300}"
+            GOT=$(echo "$BODY" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).commitSha||'')}catch{console.log('')}})")
+            if [ -n "$GOT" ] && { [ "$GOT" = "$EXPECTED_SHA" ] || [ "${GOT:0:7}" = "${EXPECTED_SHA:0:7}" ]; }; then
+              echo "commitSha OK: $GOT"
+              exit 0
+            fi
+            echo "Attempt $i/24 — expected $EXPECTED_SHA got '${GOT}'"
+            sleep 15
           done
-          echo "Bootstrap finished (embeddings may sync on next deploy)"
-          curl -sf "https://vauto-api.onrender.com/api/health" || true
+          echo "Deployed commitSha mismatch"
+          exit 1

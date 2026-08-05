@@ -1,10 +1,7 @@
 name: Bootstrap Render API
 
+# Manual ops only — never run on ordinary production deploy (H-04).
 on:
-  push:
-    branches: [master]
-    paths:
-      - "server/**"
   workflow_dispatch:
 
 jobs:
@@ -38,10 +35,9 @@ jobs:
                   } catch { process.exit(0); }
                 });
               " && exit 0
-              echo "Text/image embeddings not yet in sync — retrying after deploy"
             fi
-            echo "Attempt $i/18 — HTTP ${CODE:-000} (endpoint may need redeploy)"
+            echo "Bootstrap attempt $i/18 — HTTP $CODE: $BODY"
             sleep 20
           done
-          echo "Bootstrap endpoint not available yet — frontend merge covers demo catalog"
-          exit 0
+          echo "Bootstrap failed"
+          exit 1

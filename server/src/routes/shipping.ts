@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { sendInternalError } from "../lib/http-errors.js";
 import { searchOmnivaParcelLockers } from "../services/omniva.js";
 import {
   estimateNationalShippingRoute,
@@ -50,7 +51,7 @@ shippingRouter.get("/lockers", async (req, res) => {
       coverage: "Visa Lietuva",
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "shipping");
   }
 });
 
@@ -81,6 +82,6 @@ shippingRouter.post("/route-estimate", (req, res) => {
 
     res.json({ ok: true, estimate });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "shipping");
   }
 });

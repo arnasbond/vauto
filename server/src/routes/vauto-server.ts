@@ -1,6 +1,10 @@
 import { Router } from "express";
 import { hasAiKey } from "../ai/llm-provider.js";
 import { handleVautoServerAction } from "../ai/vauto-unified.js";
+import {
+  safeDomainMessage,
+  sendInternalError,
+} from "../lib/http-errors.js";
 
 export const vautoServerRouter = Router();
 
@@ -29,17 +33,12 @@ vautoServerRouter.post("/", async (req, res) => {
       hint?: string;
     };
     const status = err.status ?? 500;
-    console.error("[vauto-server]", err.message || String(e), {
-      action: req.body?.action,
-      code: err.code,
-      missing: err.missing,
-      status,
-    });
-    res.status(status).json({
-      error: err.message || String(e),
+    if (status >= 500) {
+      return sendInternalError(res, err, "vauto-server");
+    }
+    return res.status(status).json({
+      error: safeDomainMessage(err) || "Užklausa nepavyko",
       ...(err.code ? { code: err.code } : {}),
-      ...(err.missing?.length ? { missing: err.missing } : {}),
-      ...(err.hint ? { hint: err.hint } : {}),
     });
   }
 });

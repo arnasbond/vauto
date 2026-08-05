@@ -1,4 +1,5 @@
 import { Router, type Response } from "express";
+import { sendInternalError } from "../lib/http-errors.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { getUser } from "../repository.js";
 import { getStripe } from "../billing/stripe-client.js";
@@ -81,7 +82,7 @@ paymentMethodsRouter.get("/", requireAuth, async (req: AuthedRequest, res) => {
       canSellWithShipping: payout?.status === "verified",
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "payment-methods");
   }
 });
 
@@ -112,7 +113,7 @@ paymentMethodsRouter.post("/setup-session", requireAuth, async (req: AuthedReque
 
     res.json({ ok: true, checkoutUrl: session.url, sessionId: session.id });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "payment-methods");
   }
 });
 
@@ -140,7 +141,7 @@ paymentMethodsRouter.post("/confirm", requireAuth, async (req: AuthedRequest, re
       },
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "payment-methods");
   }
 });
 
@@ -153,7 +154,7 @@ paymentMethodsRouter.delete("/", requireAuth, async (req: AuthedRequest, res) =>
     await clearCardDetails(req.authUserId!);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "payment-methods");
   }
 });
 
@@ -176,7 +177,7 @@ paymentMethodsRouter.post("/payout/onboarding", requireAuth, async (req: AuthedR
 
     res.json({ ok: true, onboardingUrl: url });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "payment-methods");
   }
 });
 
@@ -206,6 +207,6 @@ paymentMethodsRouter.post("/payout/sync", requireAuth, async (req: AuthedRequest
       },
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "payment-methods");
   }
 });

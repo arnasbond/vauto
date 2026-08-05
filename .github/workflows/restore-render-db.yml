@@ -1,31 +1,162 @@
 name: Restore Render DB
 
+# Production branch policy: master only (ops workflow_dispatch).
 on:
   workflow_dispatch:
     inputs:
+      backup_artifact_id:
+        description: "GitHub Actions artifact ID from 'Database backup' (vauto-db-backup-*)"
+        required: false
+        default: ""
+      backup_artifact_name:
+        description: "Artifact name (used when artifact ID empty), e.g. vauto-db-backup-123"
+        required: false
+        default: ""
+      confirm:
+        description: "Type RESTORE to confirm destructive DB restore"
+        required: true
+        default: ""
+      use_isolated_target:
+        description: "Restore into RESTORE_TARGET_DATABASE_URL secret (isolated DB before cutover)"
+        required: false
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      ensure_available:
+        description: "Upgrade suspended/free Postgres before restore"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
       plan:
-        description: "Render Postgres plan (basic_256mb recommended)"
+        description: "Render Postgres plan if ensure_available=true"
         required: false
         default: "basic_256mb"
 
 jobs:
   restore:
     runs-on: ubuntu-latest
+    environment: production
+    if: ${{ github.event.inputs.confirm == 'RESTORE' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: master
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
 
-      - name: Upgrade expired Postgres and redeploy API
+      - name: Install server deps + PostgreSQL 18 client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl ca-certificates
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /usr/share/keyrings/pgdg.gpg
+          echo "deb [signed-by=/usr/share/keyrings/pgdg.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          psql --version
+          pg_restore --version
+          npm ci --prefix server
+
+      - name: Download backup artifact by ID
+        if: ${{ github.event.inputs.backup_artifact_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ github.event.inputs.backup_artifact_id }}
+          path: backups
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download backup artifact by name
+        if: ${{ github.event.inputs.backup_artifact_id == '' && github.event.inputs.backup_artifact_name != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ github.event.inputs.backup_artifact_name }}
+          path: backups
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Require backup inputs
+        if: ${{ github.event.inputs.backup_artifact_id == '' && github.event.inputs.backup_artifact_name == '' }}
+        run: |
+          echo "Provide backup_artifact_id OR backup_artifact_name (from Database backup workflow)."
+          exit 1
+
+      - name: List downloaded backups
+        run: |
+          find backups -type f | sort
+          test -n "$(find backups -type f \( -name '*.sql.gz' -o -name '*.sql' -o -name '*.dump' \) | head -1)"
+          test -n "$(find backups -type f -name '*.sha256' | head -1)" || {
+            echo "Missing *.sha256 sidecar — refuse restore"
+            exit 1
+          }
+
+      - name: Restore SQL dump (isolated target preferred)
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: srv-d8q3fk6q1p3s739fd9h0
+          RENDER_DB_NAME: vauto-db
           RENDER_POSTGRES_PLAN: ${{ github.event.inputs.plan || 'basic_256mb' }}
-        run: node scripts/restore-render-db.mjs
+          NODE_TLS_REJECT_UNAUTHORIZED: "0"
+          PGSSLMODE: require
+          ENSURE_DB_AVAILABLE: ${{ github.event.inputs.ensure_available || 'false' }}
+          USE_ISOLATED_TARGET: ${{ github.event.inputs.use_isolated_target || 'true' }}
+          RESTORE_TARGET_DATABASE_URL: ${{ secrets.RESTORE_TARGET_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ "${USE_ISOLATED_TARGET}" = "true" ]; then
+            if [ -z "${RESTORE_TARGET_DATABASE_URL:-}" ]; then
+              echo "use_isolated_target=true requires secret RESTORE_TARGET_DATABASE_URL"
+              exit 1
+            fi
+            export RESTORE_TARGET_DATABASE_URL
+            echo "Restoring into isolated RESTORE_TARGET_DATABASE_URL"
+          else
+            unset RESTORE_TARGET_DATABASE_URL || true
+            URL=$(node scripts/resolve-render-database-url.mjs --print)
+            case "$URL" in
+              *sslmode=*) ;;
+              *\?*) URL="${URL}&sslmode=require" ;;
+              *) URL="${URL}?sslmode=require" ;;
+            esac
+            export DATABASE_URL="$URL"
+            echo "WARNING: restoring directly into production DATABASE_URL"
+          fi
+          ARGS=(--dir backups --confirm RESTORE)
+          if [ "${ENSURE_DB_AVAILABLE}" = "true" ]; then
+            ARGS+=(--ensure-available)
+          fi
+          node scripts/restore-render-db.mjs "${ARGS[@]}"
+
+      - name: Post-restore table/row count report
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_DB_NAME: vauto-db
+          NODE_TLS_REJECT_UNAUTHORIZED: "0"
+          PGSSLMODE: require
+          USE_ISOLATED_TARGET: ${{ github.event.inputs.use_isolated_target || 'true' }}
+          RESTORE_TARGET_DATABASE_URL: ${{ secrets.RESTORE_TARGET_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          if [ "${USE_ISOLATED_TARGET}" = "true" ]; then
+            export DATABASE_URL="$RESTORE_TARGET_DATABASE_URL"
+          else
+            URL=$(node scripts/resolve-render-database-url.mjs --print)
+            case "$URL" in
+              *sslmode=*) ;;
+              *\?*) URL="${URL}&sslmode=require" ;;
+              *) URL="${URL}?sslmode=require" ;;
+            esac
+            export DATABASE_URL="$URL"
+          fi
+          node scripts/backup-db.mjs --dry-run
 
       - name: Wait for API health
+        if: ${{ github.event.inputs.use_isolated_target != 'true' }}
         run: |
           for i in $(seq 1 36); do
             BODY=$(curl -sf "https://vauto-api.onrender.com/api/health" || true)
@@ -40,6 +171,7 @@ jobs:
           exit 1
 
       - name: Verify AI health
+        if: ${{ github.event.inputs.use_isolated_target != 'true' }}
         run: |
           for i in $(seq 1 12); do
             BODY=$(curl -sf "https://vauto-api.onrender.com/api/ai/health" || true)

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { sendInternalError } from "../lib/http-errors.js";
 import {
   demoOtpCode,
   isDemoBypassPhone,
@@ -445,7 +446,7 @@ authRouter.post("/otp/verify", async (req, res) => {
     );
     res.json(await finalizeSessionWithReferral(userId, session, referralCode));
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "auth");
   }
 });
 
@@ -670,7 +671,7 @@ authRouter.post("/social", async (req, res) => {
     );
     res.json(await finalizeSessionWithReferral(userId, session, referralCode));
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "auth");
   }
 });
 
@@ -703,7 +704,7 @@ authRouter.get("/session", requireAuth, async (req: AuthedRequest, res) => {
       userId: req.authUserId,
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "auth");
   }
 });
 
@@ -740,7 +741,7 @@ authRouter.post("/refresh", requireAuth, async (req: AuthedRequest, res) => {
       expiresAt: new Date(Date.now() + getTokenTtlMs()).toISOString(),
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "auth");
   }
 });
 
@@ -820,6 +821,6 @@ authRouter.post("/upgrade", requireAuth, async (req: AuthedRequest, res) => {
       provider: existing.authProvider ?? "phone",
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "auth");
   }
 });

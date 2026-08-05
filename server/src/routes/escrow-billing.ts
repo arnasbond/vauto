@@ -10,19 +10,20 @@ import {
 } from "../billing/stripe-b2b.js";
 import {
   confirmEscrowDelivery,
+  getChatThreadMeta,
   getEscrowById,
+  getEscrowForThread,
+  getListingForEmbedding,
   getUserStripeConnectAccountId,
   markEscrowPaidFromStripe,
   upsertEscrow,
 } from "../repository.js";
-import { validateEscrow, type ValidationResult } from "../validation.js";
 import {
   applyReferralEscrowRewards,
   consumeProtectionCredit,
   getFreeProtectionCredits,
 } from "../referral/referral-service.js";
 import type { ApiEscrowTransaction } from "../types.js";
-import type { Response } from "express";
 import { resolveCarrierAdapter } from "../shipping/providers/carrier-adapters.js";
 import type { ShippingProviderId } from "../shipping/shipping-routing.js";
 import { rejectIfCheckoutDisabled } from "../platform/platform-guards.js";
@@ -31,19 +32,9 @@ import {
   notifyEscrowPaid,
   notifyShippingLabelReady,
 } from "../services/sale-notifications.js";
+import { sendInternalError } from "../lib/http-errors.js";
 
 export const escrowBillingRouter = Router();
-
-function badRequest<T>(
-  res: Response,
-  result: ValidationResult<T>
-): result is { ok: false; error: string } {
-  if (!result.ok) {
-    res.status(400).json({ error: result.error });
-    return true;
-  }
-  return false;
-}
 
 function canAccessEscrow(req: AuthedRequest, escrow: ApiEscrowTransaction): boolean {
   const uid = req.authUserId;
@@ -55,54 +46,95 @@ escrowBillingRouter.get("/status", (_req, res) => {
   res.json({ live: isStripeEscrowLive() });
 });
 
+/**
+ * H-01: Checkout accepts only thread/listing + shipping prefs.
+ * Amount, sellerId, listing title come from DB — never from client body.
+ */
 escrowBillingRouter.post("/checkout", requireAuth, async (req: AuthedRequest, res) => {
   try {
     if (await rejectIfCheckoutDisabled(res)) return;
     if (!isStripeEscrowLive()) {
-      return res.status(503).json({ error: "Stripe escrow not configured" });
+      return res.status(503).json({ error: "Payments temporarily unavailable" });
     }
 
-    const parsed = validateEscrow((req.body as { escrow?: unknown })?.escrow);
-    if (badRequest(res, parsed)) return;
-    const escrow = parsed.value;
-    if (escrow.buyerId !== req.authUserId) {
-      return res.status(403).json({ error: "Only buyer can initiate payment" });
-    }
-    if (await rejectIfBuyerHasNoCard(res, escrow.buyerId)) return;
-
-    const locker = req.body as {
+    const body = req.body as {
+      listingId?: string;
+      threadId?: string;
       shippingProvider?: string;
       shippingLockerId?: string;
       shippingLockerName?: string;
     };
+    const listingId = String(body.listingId ?? "").trim();
+    const threadId = String(body.threadId ?? "").trim();
+    if (!listingId || !threadId) {
+      return res.status(400).json({ error: "listingId and threadId are required" });
+    }
 
-    const freeCredits = await getFreeProtectionCredits(escrow.buyerId);
-    const buyerProtectionFee = calculateBuyerProtectionFee(escrow.amount, freeCredits);
-    const buyerTotal = calculateBuyerTotal(escrow.amount, freeCredits);
+    const thread = await getChatThreadMeta(threadId);
+    if (!thread) return res.status(404).json({ error: "Chat thread not found" });
+    if (thread.listingId !== listingId) {
+      return res.status(400).json({ error: "listingId does not match thread" });
+    }
+    if (req.authUserId !== thread.buyerId) {
+      return res.status(403).json({ error: "Only buyer can initiate payment" });
+    }
+    if (await rejectIfBuyerHasNoCard(res, thread.buyerId)) return;
+
+    const listing = await getListingForEmbedding(listingId);
+    if (!listing) return res.status(404).json({ error: "Listing not found" });
+    if (listing.sellerId && listing.sellerId !== thread.sellerId) {
+      return res.status(400).json({ error: "Listing seller mismatch" });
+    }
+    const amount = Number(listing.price);
+    if (!Number.isFinite(amount) || amount < 0.01) {
+      return res.status(400).json({ error: "Listing has no payable price" });
+    }
+
+    const existing =
+      (await getEscrowForThread(threadId)) ??
+      (await getEscrowById(`esc-${threadId}`));
+
+    if (existing && !["offered", "paying", "cancelled"].includes(existing.status)) {
+      return res.status(409).json({
+        error: "Escrow already in progress — use billing transition routes",
+        status: existing.status,
+      });
+    }
+
+    const freeCredits = await getFreeProtectionCredits(thread.buyerId);
+    const buyerProtectionFee = calculateBuyerProtectionFee(amount, freeCredits);
+    const buyerTotal = calculateBuyerTotal(amount, freeCredits);
     const now = new Date().toISOString();
+    const escrowId = existing?.id ?? `esc-${threadId}`;
+
     const draft: ApiEscrowTransaction = {
-      ...escrow,
+      id: escrowId,
+      threadId: thread.id,
+      listingId: thread.listingId,
+      buyerId: thread.buyerId,
+      sellerId: thread.sellerId,
+      amount,
       status: "paying",
       buyerProtectionFee,
       buyerTotal,
       deliveryStatus: "pending",
       buyerConfirmed: false,
-      shippingProvider: locker.shippingProvider,
-      shippingLockerId: locker.shippingLockerId,
-      shippingLockerName: locker.shippingLockerName,
+      shippingProvider: body.shippingProvider,
+      shippingLockerId: body.shippingLockerId,
+      shippingLockerName: body.shippingLockerName,
+      createdAt: existing?.createdAt ?? now,
       updatedAt: now,
-      createdAt: escrow.createdAt || now,
     };
     await upsertEscrow(draft);
 
-    const sellerConnect = await getUserStripeConnectAccountId(escrow.sellerId);
+    const sellerConnect = await getUserStripeConnectAccountId(thread.sellerId);
     const session = await createEscrowCheckoutSession({
-      escrowId: escrow.id,
-      threadId: escrow.threadId,
-      listingTitle: (req.body as { listingTitle?: string }).listingTitle ?? "VAUTO pirkimas",
-      buyerId: escrow.buyerId,
+      escrowId: draft.id,
+      threadId: draft.threadId,
+      listingTitle: listing.title || thread.listingTitle || "VAUTO pirkimas",
+      buyerId: draft.buyerId,
       sellerConnectAccountId: sellerConnect,
-      amountEur: escrow.amount,
+      amountEur: amount,
       buyerProtectionFeeEur: buyerProtectionFee,
       buyerTotalEur: buyerTotal,
     });
@@ -117,9 +149,11 @@ escrowBillingRouter.post("/checkout", requireAuth, async (req: AuthedRequest, re
       sessionId: session.id,
       buyerProtectionFee,
       buyerTotal,
+      amount,
+      escrowId: draft.id,
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "escrow-billing/checkout");
   }
 });
 
@@ -157,10 +191,13 @@ escrowBillingRouter.post("/confirm-session", requireAuth, async (req: AuthedRequ
     );
     res.json({ ok: true, escrow: updated });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "escrow-billing/confirm-session");
   }
 });
 
+/**
+ * H-02: Only the seller may create a shipping label, and only after escrow is paid.
+ */
 escrowBillingRouter.post("/shipping-label", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const body = req.body as {
@@ -175,11 +212,37 @@ escrowBillingRouter.post("/shipping-label", requireAuth, async (req: AuthedReque
 
     const escrow = await getEscrowById(escrowId);
     if (!escrow) return res.status(404).json({ error: "Escrow not found" });
-    if (!canAccessEscrow(req, escrow)) {
-      return res.status(403).json({ error: "Forbidden" });
+    if (escrow.sellerId !== req.authUserId) {
+      return res.status(403).json({ error: "Only seller can create shipping label" });
+    }
+    if (escrow.status !== "paid") {
+      return res.status(409).json({
+        error: "Shipping label requires escrow status paid",
+        status: escrow.status,
+      });
     }
 
-    const provider = (body.providerId ?? "omniva") as ShippingProviderId;
+    const allowedCarriers = ["omniva", "dpd", "lpexpress", "venipak"] as const;
+    const rawProvider = String(body.providerId ?? "omniva").trim().toLowerCase();
+    if (!(allowedCarriers as readonly string[]).includes(rawProvider)) {
+      return res.status(400).json({
+        error: "Unsupported shipping provider",
+        allowed: allowedCarriers,
+      });
+    }
+    const providerMap: Record<(typeof allowedCarriers)[number], ShippingProviderId | null> = {
+      omniva: "omniva",
+      dpd: "dpd",
+      lpexpress: "lp_express",
+      venipak: null,
+    };
+    const provider = providerMap[rawProvider as (typeof allowedCarriers)[number]];
+    if (!provider) {
+      return res.status(400).json({
+        error: "Shipping provider is not enabled",
+        allowed: ["omniva", "dpd", "lpexpress"],
+      });
+    }
     const adapter = resolveCarrierAdapter(provider);
     const label = await adapter.createLabel({
       escrowId,
@@ -219,24 +282,7 @@ escrowBillingRouter.post("/shipping-label", requireAuth, async (req: AuthedReque
       },
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
-  }
-});
-
-escrowBillingRouter.get("/shipping-tracking/:trackingCode", requireAuth, async (req: AuthedRequest, res) => {
-  try {
-    const trackingCode = String(req.params.trackingCode ?? "").trim();
-    if (!trackingCode) return res.status(400).json({ error: "trackingCode is required" });
-
-    const provider = (String(req.query.provider ?? "omniva") as ShippingProviderId) || "omniva";
-    const adapter = resolveCarrierAdapter(provider);
-    if (!adapter.getTrackingStatus) {
-      return res.status(501).json({ error: "Tracking not supported for this carrier" });
-    }
-    const status = await adapter.getTrackingStatus(trackingCode);
-    res.json({ ok: true, trackingCode, provider, ...status });
-  } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "escrow-billing/shipping-label");
   }
 });
 
@@ -251,17 +297,13 @@ escrowBillingRouter.post("/confirm-delivery", requireAuth, async (req: AuthedReq
       return res.status(403).json({ error: "Only buyer can confirm delivery" });
     }
 
-    if (isStripeEscrowLive() && escrow.stripePaymentIntentId) {
-      await confirmDelivery(escrow.stripePaymentIntentId);
-    }
-
+    const stripeResult = await confirmDelivery(escrowId);
     const updated = await confirmEscrowDelivery(escrowId);
-    await applyReferralEscrowRewards({
-      buyerId: escrow.buyerId,
-      sellerId: escrow.sellerId,
-    });
-    res.json({ ok: true, escrow: updated });
+    if (updated) {
+      await applyReferralEscrowRewards(updated);
+    }
+    res.json({ ok: true, escrow: updated, stripe: stripeResult });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "escrow-billing/confirm-delivery");
   }
 });

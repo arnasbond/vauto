@@ -29,10 +29,15 @@ import {
   scrubProfanity,
 } from "./safety-shield.js";
 import {
+  sanitizePromptUserInput,
+  wrapUntrustedXml,
+} from "../shared/prompt-injection.js";
+import {
   isImageOnlyChatUpload,
   isPhotoSearchIntentText,
   isPhotoSellIntentText,
 } from "../shared/intents/photo.js";
+import { devLog } from "../lib/dev-log.js";
 
 export {
   isImageOnlyChatUpload,
@@ -135,14 +140,16 @@ async function resolveListingPhotoScan(input: {
   const imageUrls = uniqueImageUrls(input.imageUrls);
   // Lazy Upload invariant: Vision OCR uses in-memory data/http URLs only.
   // Permanent Cloudinary + insertListing wait for Publikuoti / Patvirtinti.
-  console.log(`${LAZY_UPLOAD_LOG_TAG} resolveListingPhotoScan`, {
+  // Do not log raw userText (PII / prompt leakage).
+  devLog(`${LAZY_UPLOAD_LOG_TAG} resolveListingPhotoScan`, {
     phase: LAZY_UPLOAD_PHASE.VISION,
     lazyUpload: LAZY_UPLOAD_VISION,
     persist: false,
     imageCount: imageUrls.length,
     flowState: input.flowState,
     hasDraft: Boolean(input.listingDraft?.title?.trim()),
-    userTextHead: input.userText?.trim().slice(0, 120) ?? null,
+    hasUserText: Boolean(input.userText?.trim()),
+    userTextChars: input.userText?.trim().length ?? 0,
     imageKinds: imageUrls.map((u) =>
       u.startsWith("data:")
         ? `data(${u.length})`
@@ -162,15 +169,28 @@ async function resolveListingPhotoScan(input: {
       input.listingDraft?.attributes?.documentFacts ??
       ""
   ).trim();
+  const safeDocFacts = attachedDocFacts
+    ? wrapUntrustedXml(
+        "untrusted_document_context",
+        attachedDocFacts.slice(0, 3500),
+        3500
+      )
+    : "";
+  const safeUserNote =
+    input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
+      ? wrapUntrustedXml(
+          "untrusted_ocr_context",
+          `user note: ${sanitizePromptUserInput(input.userText.trim()).text}`,
+          1_500
+        )
+      : "";
   const extraBits = [
     input.listingDraft?.category
-      ? `category hint: ${input.listingDraft.category}`
+      ? `category hint: ${sanitizePromptUserInput(input.listingDraft.category).text}`
       : "",
-    input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
-      ? `user note: ${input.userText.trim()}`
-      : "",
-    attachedDocFacts
-      ? `ATTACHED DOCUMENT FACTS (PDF/CV/TXT — use for Pass-1/Pass-2 synthesis, do not invent): ${attachedDocFacts.slice(0, 3500)}`
+    safeUserNote,
+    safeDocFacts
+      ? `ATTACHED DOCUMENT FACTS (PDF/CV/TXT — use for Pass-1/Pass-2 synthesis, do not invent):\n${safeDocFacts}`
       : "",
     "Vision MULTIMODAL FUSION (UNIVERSAL OCR + MASTER SALES COPYWRITER): passport PRIMARY OCR across ALL attached photos. HARD SPECS A/B/D.1/D.3/S.1/P.1–P.3/R/V.9/G/C.1.3/E → technicalFields TIK iš OCR. PARTS/WHEELS: ratlankiai/padangos — BE salono/variklio/pavarų. DRAUDŽIAMA išgalvoti kainą/TA/ridą/odinį saloną. documentImageIndexes = OCR-only.",
     "ANTI-STALE: title/make/model TIK iš dabartinių nuotraukų+OCR. IGNORUOK seną listingDraft.title / myListings antraštes, jei vizualiai nesutampa.",
@@ -238,7 +258,7 @@ async function resolveListingPhotoScan(input: {
     );
     throw err;
   }
-  console.log("[vision] resolveListingPhotoScan parsed", {
+  devLog("[vision] resolveListingPhotoScan parsed", {
     needsClarification: parsed.needsClarification,
     title: parsed.listing.title?.slice(0, 80),
     descriptionChars: parsed.listing.description?.length ?? 0,
@@ -547,9 +567,11 @@ export async function resolveChatMediaAttachmentResponse(input: {
   userText?: string;
 }): Promise<MediaResponse | null> {
   const imageUrls = uniqueImageUrls(input.imageUrls);
-  console.log("[vision] resolveChatMediaAttachmentResponse enter", {
+  // Metadata only — never log raw userTextHead.
+  devLog("[vision] resolveChatMediaAttachmentResponse enter", {
     imageCount: imageUrls.length,
-    userTextHead: input.userText?.trim().slice(0, 120) ?? null,
+    hasUserText: Boolean(input.userText?.trim()),
+    userTextChars: input.userText?.trim().length ?? 0,
     hasDraftTitle: Boolean(input.listingDraft?.title?.trim()),
   });
   if (!imageUrls.length) {
@@ -560,7 +582,7 @@ export async function resolveChatMediaAttachmentResponse(input: {
   const userNote = input.userText;
   const sellIntent = isPhotoSellIntentText(userNote);
   const searchIntent = isPhotoSearchIntentText(userNote);
-  console.log("[vision] resolveChatMediaAttachmentResponse intents", {
+  devLog("[vision] resolveChatMediaAttachmentResponse intents", {
     sellIntent,
     searchIntent,
     imageOnly: isImageOnlyChatUpload(userNote),
@@ -573,7 +595,7 @@ export async function resolveChatMediaAttachmentResponse(input: {
   });
 
   if (searchIntent && !sellIntent) {
-    console.log("[vision] resolveChatMediaAttachmentResponse: search path (skip scan)", {
+    devLog("[vision] resolveChatMediaAttachmentResponse: search path (skip scan)", {
       flowState,
     });
     return {
@@ -599,7 +621,7 @@ export async function resolveChatMediaAttachmentResponse(input: {
     };
   }
 
-  console.log("[vision] resolveChatMediaAttachmentResponse → resolveListingPhotoScan", {
+  devLog("[vision] resolveChatMediaAttachmentResponse → resolveListingPhotoScan", {
     flowState,
     sellIntent,
     hasDraftTitle: Boolean(input.listingDraft?.title?.trim()),

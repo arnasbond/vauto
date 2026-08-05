@@ -1,5 +1,6 @@
 name: Deploy to Vercel
 
+# Production branch: master only.
 on:
   workflow_run:
     workflows: ["CI"]
@@ -18,11 +19,13 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    # Block production unless CI passed on push. Manual dispatch requires force=true.
+    environment: production
+    # Block production unless CI passed on push to master. Manual dispatch requires force=true.
     if: >-
       (github.event_name == 'workflow_run' &&
        github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push') ||
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'master') ||
       (github.event_name == 'workflow_dispatch' &&
        inputs.force == true)
     steps:
@@ -64,7 +67,6 @@ jobs:
 
       - name: Verify Render API health
         run: npm run verify:health
-        continue-on-error: true
 
       - name: Install Vercel CLI
         run: npm install -g vercel@latest

@@ -46,7 +46,7 @@ function fallbackShareCopy(
   const detail = [brand, size].filter(Boolean).join(" · ");
   const hook = detail ? `${listing.title} (${detail})` : listing.title;
   const hashtags = categoryHashtags(listing.category, city);
-  const tagLine = hashtags.map((t) => `#${t}`).join(" ");
+  const tagLine = hashtags.map((t: string) => `#${t}`).join(" ");
 
   let facebook: string;
   let instagram: string;

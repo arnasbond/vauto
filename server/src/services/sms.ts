@@ -157,6 +157,15 @@ async function sendViaBulkGate(phone: string, body: string): Promise<boolean> {
 }
 
 function logMockSms(phone: string, body: string, reason: string): void {
+  // Never emit full phone / OTP body in production logs (PII).
+  if (isNodeProduction()) {
+    logProductionWarn("sms", "SMS mock suppressed in production", {
+      reason,
+      phoneSuffix: phone.slice(-4),
+      bodyChars: body.length,
+    });
+    return;
+  }
   console.log(`[VAUTO SMS:mock] (${reason}) to ${phone}: ${body}`);
 }
 
@@ -178,11 +187,12 @@ export async function sendSms(phone: string, body: string): Promise<boolean> {
   const provider = getSmsProvider();
 
   if (provider === "mock" || provider === "log") {
-    console.log(`[VAUTO SMS:${provider}] to ${phone}: ${body}`);
-    if (provider === "log" && isNodeProduction()) {
-      logProductionWarn("sms", "SMS logged (no live carrier) — set SMS_MODE=live + BulkGate/Twilio", {
+    if (isNodeProduction()) {
+      logProductionWarn("sms", `SMS ${provider} — body not written to logs in production`, {
         phoneSuffix: phone.slice(-4),
       });
+    } else {
+      console.log(`[VAUTO SMS:${provider}] to ${phone}: ${body}`);
     }
     return true;
   }

@@ -325,7 +325,6 @@ async function geminiChatJson(
       inlineImagesRequested: imageDataUrls.length,
       approxPayloadChars: imageSummary.approxChars + prompt.length,
       apiKeyPresent: Boolean(key),
-      apiKeyPrefix: key ? `${key.slice(0, 6)}…` : null,
     });
     throw new Error(
       `Gemini ${model} ${res.status}: ${errBody || res.statusText || "empty error body"}`
@@ -347,7 +346,7 @@ async function geminiChatJson(
       status: res.status,
       elapsedMs,
       parseErr: jsonErr instanceof Error ? jsonErr.message : String(jsonErr),
-      bodyHead: responseText.slice(0, 1000),
+      responseLength: responseText.length,
     });
     throw new Error(`Gemini ${model}: invalid JSON response body`);
   }
@@ -366,23 +365,17 @@ async function geminiChatJson(
   console.log(
     `[vision] geminiChatJson response ${JSON.stringify({
       model,
-      elapsedMs,
+      latency: elapsedMs,
       finishReason: data.candidates?.[0]?.finishReason ?? null,
-      responseChars: text?.length ?? 0,
-      responseHead: text?.slice(0, 280) ?? null,
-      promptFeedback: data.promptFeedback ?? null,
-      candidateCount: data.candidates?.length ?? 0,
+      responseLength: text?.length ?? 0,
     })}`
   );
   if (!text) {
     visionLogError("geminiChatJson empty text", {
       model,
-      status: res.status,
-      elapsedMs,
+      latency: elapsedMs,
       finishReason: data.candidates?.[0]?.finishReason ?? null,
-      promptFeedback: data.promptFeedback ?? null,
-      rawKeys: Object.keys(data ?? {}),
-      candidateCount: data.candidates?.length ?? 0,
+      responseLength: 0,
     });
     throw new Error("Empty Gemini response");
   }
@@ -391,8 +384,10 @@ async function geminiChatJson(
   } catch (parseErr) {
     visionLogError("geminiChatJson JSON parse failed", {
       model,
+      latency: elapsedMs,
+      finishReason: data.candidates?.[0]?.finishReason ?? null,
+      responseLength: text.length,
       parseErr: parseErr instanceof Error ? parseErr.message : String(parseErr),
-      responseHead: text.slice(0, 1000),
     });
     throw parseErr;
   }

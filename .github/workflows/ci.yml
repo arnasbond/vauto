@@ -1,5 +1,6 @@
 name: CI
 
+# Production branch: master only.
 on:
   push:
     branches: [master]
@@ -20,6 +21,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Typecheck
+        run: npx tsc --noEmit
+
       - name: Lint
         run: npm run lint
 
@@ -28,6 +32,9 @@ jobs:
 
       - name: Install server dependencies
         run: npm run server:install
+
+      - name: Typecheck server
+        run: npx tsc --noEmit -p server/tsconfig.json
 
       - name: Build server
         run: npm run server:build

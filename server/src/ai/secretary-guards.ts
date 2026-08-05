@@ -7,6 +7,10 @@ import {
   SECRETARY_SESSION_TTL_MS,
   hasMeaningfulShortToken,
 } from "./secretary-persona.js";
+import {
+  sanitizePromptUserInput,
+  wrapUntrustedXml,
+} from "../shared/prompt-injection.js";
 
 export interface CurrentPageContextPayload {
   page_id: string;
@@ -67,15 +71,20 @@ export function buildPageContextInjectionBlock(
 ): string {
   if (!page?.page_id && !page?.active_listing_id) return "";
 
+  const titleSafe = sanitizePromptUserInput(page.active_listing_title ?? "").text;
   const json = JSON.stringify({
-    page_id: page.page_id,
-    active_listing_id: page.active_listing_id ?? null,
-    active_listing_title: page.active_listing_title ?? null,
-    zero_ui_screen: page.zero_ui_screen ?? null,
+    page_id: String(page.page_id ?? "").slice(0, 120),
+    active_listing_id: page.active_listing_id
+      ? String(page.active_listing_id).slice(0, 80)
+      : null,
+    active_listing_title: titleSafe || null,
+    zero_ui_screen: page.zero_ui_screen
+      ? String(page.zero_ui_screen).slice(0, 80)
+      : null,
   });
 
   return `[UI kontekstas — rodo „šitas/anas"]:
-${json}
+${wrapUntrustedXml("untrusted_page_context", json, 2_000)}
 Jei vartotojas sako „šitą", „aną", „išimk skelbimą", „archyvuok" — naudok active_listing_id be papildomų klausimų (markListingSold ar kitas įrankis).`;
 }
 
@@ -83,7 +92,10 @@ export function buildSessionExpiredInjectionBlock(
   firstName: string,
   lastTopic: string
 ): string {
+  const safeName = sanitizePromptUserInput(firstName).text || "drauge";
+  const safeTopic =
+    sanitizePromptUserInput(lastTopic).text || "skelbimus ar paiešką";
   return `[Sesijos TTL — vartotojas sugrįžo po ${Math.round(SECRETARY_SESSION_TTL_MS / 60_000)} min pertraukos]
-Senoji pokalbio istorija nebegalioja. Paskutinė tema: „${lastTopic}".
-Pradėk šiltai: „Sveiki sugrįžę, ${firstName}! Matau praeitą kartą kalbėjome apie ${lastTopic} — tęsiame ar pradedame naują skelbimą?"`;
+Senoji pokalbio istorija nebegalioja. Paskutinė tema: „${safeTopic}".
+Pradėk šiltai: „Sveiki sugrįžę, ${safeName}! Matau praeitą kartą kalbėjome apie ${safeTopic} — tęsiame ar pradedame naują skelbimą?"`;
 }

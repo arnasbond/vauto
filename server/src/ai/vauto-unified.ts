@@ -14,6 +14,7 @@ import {
 import { unifiedLlmJson } from "./llm-provider.js";
 import { generateImageMetadata } from "./image-metadata-generator.js";
 import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js";
+import { devLog } from "../lib/dev-log.js";
 import {
   VISION_DEEP_OCR_EXTRACTION_RULE,
   VISION_EXTRACTION_ANTI_HALLUCINATION_RULE,
@@ -791,7 +792,7 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       const uploaded = await uploadImageToCloudinary(processed, "vauto", {
         listingId,
       });
-      console.log(`${LAZY_UPLOAD_LOG_TAG} publish persist ok`, {
+      devLog(`${LAZY_UPLOAD_LOG_TAG} publish persist ok`, {
         listingId,
         publicId: uploaded.publicId,
       });
@@ -946,7 +947,7 @@ export async function parseListingImagesForAgent(params: {
 }> {
   const images = normalizeImageInputList(params.imageDataUrls);
   // Lazy Upload: in-memory Gemini only — never Cloudinary / insertListing here.
-  console.log(`${LAZY_UPLOAD_LOG_TAG} vision in-memory parse`, {
+  devLog(`${LAZY_UPLOAD_LOG_TAG} vision in-memory parse`, {
     phase: LAZY_UPLOAD_PHASE.VISION,
     rawCount: params.imageDataUrls?.length ?? 0,
     normalizedCount: images.length,
@@ -978,7 +979,7 @@ export async function parseListingImagesForAgent(params: {
     params.text,
     params.extraContext
   );
-  console.log("[vision] parseListingImagesForAgent two-pass", {
+  devLog("[vision] parseListingImagesForAgent two-pass", {
     promptChars: extractionPrompt.length,
     promptHead: extractionPrompt.slice(0, 280),
     categoryRouter: true,
@@ -1042,7 +1043,7 @@ export async function parseListingImagesForAgent(params: {
     delete listing.attributes.inspectionValidUntil;
     delete listing.attributes.taValidUntil;
   }
-  console.log("[vision] parseListingImagesForAgent listing", {
+  devLog("[vision] parseListingImagesForAgent listing", {
     title: listing.title?.slice(0, 80),
     descriptionChars: listing.description?.length ?? 0,
     category: listing.category,
@@ -1082,7 +1083,7 @@ export async function parseListingImagesForAgent(params: {
       documentImageCount: String(documentUrls.length),
     };
   }
-  console.log("[vision] parseListingImagesForAgent gallery split", {
+  devLog("[vision] parseListingImagesForAgent gallery split", {
     galleryCount: galleryUrls.length,
     documentCount: documentUrls.length,
     documentSoftUnclear,

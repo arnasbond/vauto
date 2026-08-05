@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { sendInternalError } from "../lib/http-errors.js";
 import {
   deletePushSubscription,
   getUserAlertQueries,
@@ -37,7 +38,7 @@ pushRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) => {
     });
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "push");
   }
 });
 
@@ -51,7 +52,7 @@ pushRouter.post("/unsubscribe", requireAuth, async (req: AuthedRequest, res) => 
     await deletePushSubscription(req.authUserId!, endpoint);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "push");
   }
 });
 
@@ -63,7 +64,7 @@ pushRouter.put("/alert-queries", requireAuth, async (req: AuthedRequest, res) =>
     await setUserAlertQueries(req.authUserId!, queries);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "push");
   }
 });
 
@@ -72,7 +73,7 @@ pushRouter.get("/alert-queries", requireAuth, async (req: AuthedRequest, res) =>
     const queries = await getUserAlertQueries(req.authUserId!);
     res.json({ queries });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "push");
   }
 });
 
@@ -87,6 +88,6 @@ pushRouter.post("/fcm-token", requireAuth, async (req: AuthedRequest, res) => {
     await upsertUserPushToken(req.authUserId!, token, platform);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "push");
   }
 });

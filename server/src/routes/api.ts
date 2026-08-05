@@ -26,9 +26,10 @@ import {
   permanentlyDeleteListing,
   getAdminAgentContext,
   getBannedUserIds,
-  getChats,
   getChatThreadMeta,
+  getChats,
   getEscrowForThread,
+  getEscrowById,
   getEmbeddingIndexStats,
   getListings,
   getReportById,
@@ -120,6 +121,8 @@ import {
 import {
   notifyNegotiationDealClosed,
 } from "../services/push-service.js";
+import { sendInternalError } from "../lib/http-errors.js";
+import { logProductionError } from "../lib/production-log.js";
 import { AUTH_SESSION_EXPIRED_MESSAGE, isAdminRole, optionalAuth, requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
 import type {
   ApiChatThread,
@@ -160,7 +163,7 @@ import {
 } from "../services/auth-reset.js";
 import { purgeAiTestListings } from "../services/purge-ai-test-listings.js";
 import { proxyImageHandler } from "../controllers/proxy-controller.js";
-import { resolveAppVersionPayload } from "../lib/app-version-config.js";
+import { resolveAppVersionPayload, resolveCommitSha } from "../lib/app-version-config.js";
 
 export const apiRouter = Router();
 
@@ -365,6 +368,83 @@ function canAccessEscrow(req: AuthedRequest, escrow: ApiEscrowTransaction): bool
   return canActForUser(req, escrow.buyerId) || canActForUser(req, escrow.sellerId);
 }
 
+/**
+ * C-01: Client PUT /escrow must never overwrite authoritative escrow fields.
+ * Status / amount / parties / Stripe / release markers are server-owned;
+ * transitions go through /api/escrow-billing/* routes.
+ */
+function buildSafeEscrowUpsert(params: {
+  incoming: ApiEscrowTransaction;
+  existing: ApiEscrowTransaction | null;
+  thread: { id: string; buyerId: string; sellerId: string; listingId: string };
+}): ApiEscrowTransaction {
+  const { incoming, existing, thread } = params;
+  const now = new Date().toISOString();
+
+  if (existing) {
+    const shippingWritable =
+      existing.status === "offered" || existing.status === "paying";
+    return {
+      ...existing,
+      // Preserve all critical fields from DB — ignore client status/amount/ids/stripe/fees.
+      id: existing.id,
+      threadId: existing.threadId,
+      listingId: existing.listingId,
+      buyerId: existing.buyerId,
+      sellerId: existing.sellerId,
+      amount: existing.amount,
+      status: existing.status,
+      buyerProtectionFee: existing.buyerProtectionFee,
+      buyerTotal: existing.buyerTotal,
+      stripePaymentIntentId: existing.stripePaymentIntentId,
+      shippingLabelId: existing.shippingLabelId,
+      deliveryStatus: existing.deliveryStatus,
+      buyerConfirmed: existing.buyerConfirmed,
+      deliveredToLockerAt: existing.deliveredToLockerAt,
+      claimDeadlineAt: existing.claimDeadlineAt,
+      courierStatus: existing.courierStatus,
+      courierProvider: existing.courierProvider,
+      trackingCode: existing.trackingCode,
+      createdAt: existing.createdAt,
+      updatedAt: now,
+      ...(shippingWritable
+        ? {
+            shippingProvider:
+              incoming.shippingProvider ?? existing.shippingProvider,
+            shippingLockerId:
+              incoming.shippingLockerId ?? existing.shippingLockerId,
+            shippingLockerName:
+              incoming.shippingLockerName ?? existing.shippingLockerName,
+            expressEscrow24h:
+              incoming.expressEscrow24h ?? existing.expressEscrow24h,
+          }
+        : {
+            shippingProvider: existing.shippingProvider,
+            shippingLockerId: existing.shippingLockerId,
+            shippingLockerName: existing.shippingLockerName,
+            expressEscrow24h: existing.expressEscrow24h,
+          }),
+    };
+  }
+
+  // Create: parties + listing from chat thread; initial status forced server-side.
+  return {
+    id: incoming.id,
+    threadId: thread.id,
+    listingId: thread.listingId,
+    buyerId: thread.buyerId,
+    sellerId: thread.sellerId,
+    amount: incoming.amount,
+    status: "offered",
+    shippingProvider: incoming.shippingProvider,
+    shippingLockerId: incoming.shippingLockerId,
+    shippingLockerName: incoming.shippingLockerName,
+    expressEscrow24h: incoming.expressEscrow24h,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 function routeActorId(req: AuthedRequest): string {
   if (isAdmin(req) && requestedUserId(req)) return requestedUserId(req);
   return actorId(req);
@@ -475,6 +555,7 @@ apiRouter.get("/health", async (_req, res) => {
     res.json({
       ok: true,
       service: "vauto-api",
+      commitSha: resolveCommitSha(),
       db: "connected",
       smsMode,
       features: { ...features, serviceLeads },
@@ -483,16 +564,17 @@ apiRouter.get("/health", async (_req, res) => {
       embeddings,
       readiness,
     });
-  } catch (e) {
+  } catch (_e) {
     res.status(503).json({
       ok: false,
       service: "vauto-api",
+      commitSha: resolveCommitSha(),
       db: "unavailable",
       smsMode,
       features,
       visualPipeline,
       infra: infraWithFlags,
-      error: String(e),
+      error: "Service temporarily unavailable",
     });
   }
 });
@@ -503,7 +585,7 @@ apiRouter.get("/test/e2e-simulation", requireOpsSecret, async (_req, res) => {
     const result = await runVautoE2eSimulation();
     res.json(result);
   } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -513,7 +595,7 @@ apiRouter.get("/ops/auth-hygiene", requireOpsSecret, async (_req, res) => {
     const hygiene = await getAuthHygieneSnapshot();
     res.json({ ok: true, hygiene });
   } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -530,7 +612,7 @@ apiRouter.post("/ops/auth-reset", requireOpsSecret, async (req, res) => {
     });
     res.json(result);
   } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -546,7 +628,7 @@ apiRouter.post("/ops/purge-ai-test-listings", requireOpsSecret, async (req, res)
     });
     res.json(result);
   } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -609,7 +691,7 @@ apiRouter.post("/ops/strip-stock-covers", requireOpsSecret, async (req, res) => 
       samples: samples.slice(0, 30),
     });
   } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -619,7 +701,7 @@ apiRouter.post("/test/auth-flow", requireOpsSecret, async (_req, res) => {
     const result = await runAuthFlowSelfTest();
     res.status(result.ok ? 200 : 500).json(result);
   } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -657,7 +739,7 @@ apiRouter.post("/bootstrap", requireOpsSecret, async (_req, res) => {
       embeddings,
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -675,7 +757,7 @@ apiRouter.post("/admin/backfill-embeddings", requireAdmin, async (req, res) => {
     const embeddings = await getEmbeddingIndexStats();
     res.json({ ok: true, text, image, embeddings });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -702,7 +784,7 @@ apiRouter.post("/admin/setup-stripe", requireAdmin, async (_req, res) => {
       },
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -711,7 +793,7 @@ apiRouter.get("/admin/platform-flags", requireAdmin, async (_req, res) => {
     const flags = await getPlatformFlags();
     res.json({ ok: true, ...flags });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -740,7 +822,7 @@ apiRouter.put("/admin/platform-flags", requireAdmin, async (req: AuthedRequest, 
     const flags = await setPlatformFlags(patch, req.authUserId ?? null);
     res.json({ ok: true, ...flags });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -749,7 +831,7 @@ apiRouter.get("/listings/mine", requireAuth, async (req: AuthedRequest, res) => 
     const sellerId = routeActorId(req);
     res.json(await getSellerListings(sellerId));
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -765,7 +847,7 @@ apiRouter.get("/listings", async (req, res) => {
     }
     res.json(page.items);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -913,7 +995,7 @@ apiRouter.post("/listings/:id/hide", requireAuth, async (req: AuthedRequest, res
     const ok = await deleteListing(req.params.id, sellerId);
     res.status(ok ? 204 : 404).end();
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -925,7 +1007,7 @@ apiRouter.delete("/listings/:id", requireAuth, async (req: AuthedRequest, res) =
     if (!result.ok) return res.status(404).end();
     res.status(204).end();
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -936,7 +1018,7 @@ apiRouter.post("/listings/:id/restore", requireAuth, async (req: AuthedRequest, 
     if (!listing) return res.status(404).json({ error: "Not found" });
     res.json(listing);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -947,7 +1029,7 @@ apiRouter.post("/listings/:id/renew", requireAuth, async (req: AuthedRequest, re
     if (!listing) return res.status(404).json({ error: "Not found" });
     res.json(listing);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1028,7 +1110,7 @@ apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) =>
     }
     res.json(listing);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1036,7 +1118,7 @@ apiRouter.get("/reports", requireAdmin, async (_req, res) => {
   try {
     res.json(await getReports());
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1044,7 +1126,7 @@ apiRouter.get("/reports/mine", requireAuth, async (req: AuthedRequest, res) => {
   try {
     res.json(await getReportsByReporter(req.authUserId!));
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1069,7 +1151,7 @@ apiRouter.post("/reports", requireAuth, async (req: AuthedRequest, res) => {
     );
     res.status(201).json(report);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1132,7 +1214,7 @@ apiRouter.patch("/reports/:id", requireAuth, async (req: AuthedRequest, res) => 
     if (!ok) return res.status(404).json({ error: "Not found" });
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1140,7 +1222,7 @@ apiRouter.get("/banned-users", requireAdmin, async (_req, res) => {
   try {
     res.json(await getBannedUserIds());
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1151,7 +1233,7 @@ apiRouter.put("/banned-users", requireAdmin, async (req, res) => {
     await setBannedUserIds(parsed.value);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1159,7 +1241,7 @@ apiRouter.get("/admin/listings/review-queue", requireAdmin, async (_req, res) =>
   try {
     res.json(await getListingsPendingReview(100));
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1197,7 +1279,7 @@ apiRouter.patch("/admin/listings/:id", requireAdmin, async (req, res) => {
     }
     res.json(listing);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1206,7 +1288,7 @@ apiRouter.post("/users/:id/warn", requireAdmin, async (req, res) => {
     await warnUser(req.params.id);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1243,7 +1325,7 @@ apiRouter.post("/admin/wallet/credit", requireAdmin, async (req, res) => {
       transactionId: credited.transactionId,
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1289,7 +1371,7 @@ apiRouter.get("/admin/billing/lookup", requireAdmin, async (req, res) => {
       })),
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1301,7 +1383,7 @@ apiRouter.get(
       const context = await getAdminAgentContext(req.authUserId!);
       res.json({ context });
     } catch (e) {
-      res.status(500).json({ error: String(e) });
+      sendInternalError(res, e);
     }
   }
 );
@@ -1316,7 +1398,7 @@ apiRouter.put(
       const saved = await setAdminAgentContext(req.authUserId!, context);
       res.json({ ok: true, context: saved });
     } catch (e) {
-      res.status(500).json({ error: String(e) });
+      sendInternalError(res, e);
     }
   }
 );
@@ -1333,7 +1415,7 @@ apiRouter.put("/user/profile", requireAuth, async (req: AuthedRequest, res) => {
     }
     res.json(updated);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1353,7 +1435,11 @@ apiRouter.post("/user/avatar", requireAuth, async (req: AuthedRequest, res) => {
     res.json(updated);
   } catch (e) {
     const err = e as Error & { status?: number };
-    res.status(err.status ?? 500).json({ error: err.message || String(e) });
+    if (err.status && err.status >= 400 && err.status < 500) {
+      res.status(err.status).json({ error: "Request failed" });
+      return;
+    }
+    sendInternalError(res, e, "user/avatar");
   }
 });
 
@@ -1383,7 +1469,7 @@ apiRouter.post("/user/profile-type", requireAuth, async (req: AuthedRequest, res
     }
     res.json({ user: updated, profileType: updated.profileType });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1392,7 +1478,7 @@ apiRouter.get("/user/preferences", requireAuth, async (req: AuthedRequest, res) 
     const prefs = await getUserPreferences(req.authUserId!);
     res.json({ preferences: prefs });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1434,7 +1520,7 @@ apiRouter.put("/user/preferences", requireAuth, async (req: AuthedRequest, res) 
     });
     res.json({ preferences: prefs });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1451,7 +1537,7 @@ apiRouter.post("/user/behavior-events", requireAuth, async (req: AuthedRequest, 
     );
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1478,7 +1564,8 @@ apiRouter.post(
       );
       res.json({ ok: true, inserted });
     } catch (e) {
-      res.status(200).json({ ok: true, inserted: 0, error: String(e) });
+      logProductionError("analytics.listing-events", e);
+      return res.status(202).json({ ok: false, inserted: 0 });
     }
   }
 );
@@ -1497,7 +1584,7 @@ apiRouter.get(
       );
       res.json({ ok: true, metrics });
     } catch (e) {
-      res.status(500).json({ error: String(e) });
+      sendInternalError(res, e);
     }
   }
 );
@@ -1507,7 +1594,7 @@ apiRouter.get("/user/nudges", requireAuth, async (req: AuthedRequest, res) => {
     const nudges = await buildProactiveNudgesForUser(req.authUserId!);
     res.json({ nudges });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1516,7 +1603,7 @@ apiRouter.get("/user/onboarding", requireAuth, async (req: AuthedRequest, res) =
     const onboarding = await getUserOnboarding(req.authUserId!);
     res.json({ onboarding });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1538,7 +1625,7 @@ apiRouter.put("/user/onboarding", requireAuth, async (req: AuthedRequest, res) =
     }
     res.json({ onboarding });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1555,7 +1642,7 @@ apiRouter.post("/user/push-token", requireAuth, async (req: AuthedRequest, res) 
     await upsertUserPushToken(req.authUserId!, token, deviceType);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1569,7 +1656,7 @@ apiRouter.get("/users/:id", requireAuth, async (req: AuthedRequest, res) => {
     if (!user) return res.status(404).json({ error: "Not found" });
     res.json(user);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1588,7 +1675,7 @@ apiRouter.get("/users/:id/public", requireAuth, async (req: AuthedRequest, res) 
       city: user.city ?? null,
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1615,7 +1702,7 @@ apiRouter.put("/users/:id", requireAuth, async (req: AuthedRequest, res) => {
     }
     res.json({ ...user, id: req.params.id });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1637,7 +1724,7 @@ apiRouter.patch("/users/:id/avatar", requireAuth, async (req: AuthedRequest, res
     }
     res.json(updatedUser);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1649,7 +1736,7 @@ apiRouter.get("/saved/:userId", requireAuth, async (req: AuthedRequest, res) => 
     }
     res.json(await getSavedIds(req.params.userId));
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1664,7 +1751,7 @@ apiRouter.put("/saved/:userId", requireAuth, async (req: AuthedRequest, res) => 
     await setSavedIds(req.params.userId, parsed.value);
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1684,7 +1771,7 @@ apiRouter.get("/chats/:userId", requireAuth, async (req: AuthedRequest, res) => 
     }
     res.json(await getChats(req.params.userId));
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1880,7 +1967,7 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
       }
     })();
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1897,7 +1984,7 @@ apiRouter.get(
       }
       res.json(escrow);
     } catch (e) {
-      res.status(500).json({ error: String(e) });
+      sendInternalError(res, e);
     }
   }
 );
@@ -1906,15 +1993,63 @@ apiRouter.put("/escrow", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const parsed = validateEscrow(req.body);
     if (badRequest(res, parsed)) return;
-    const escrow = parsed.value;
-    if (!canAccessEscrow(req, escrow)) {
+    const incoming = parsed.value;
+
+    const thread = await getChatThreadMeta(incoming.threadId);
+    if (!thread) {
+      res.status(404).json({ error: "Chat thread not found" });
+      return;
+    }
+
+    // Authorize against the real thread participants (not spoofable body buyer/seller).
+    const threadAsEscrow: ApiEscrowTransaction = {
+      ...incoming,
+      buyerId: thread.buyerId,
+      sellerId: thread.sellerId,
+      listingId: thread.listingId,
+      threadId: thread.id,
+    };
+    if (!canAccessEscrow(req, threadAsEscrow)) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
-    await upsertEscrow(escrow);
-    res.json(escrow);
+
+    const existing = await getEscrowById(incoming.id);
+    if (existing) {
+      if (!canAccessEscrow(req, existing)) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+      if (existing.threadId !== thread.id) {
+        res.status(400).json({ error: "Escrow thread mismatch" });
+        return;
+      }
+      // C-01: status/amount/release transitions are billing-route only.
+      if (!["offered", "paying"].includes(existing.status)) {
+        res.status(409).json({
+          error:
+            "Escrow locked — use /api/escrow-billing transition routes for status changes",
+          status: existing.status,
+        });
+        return;
+      }
+    } else {
+      // New escrow: only buyer may open an offer (seller cannot invent buyer-funded escrow).
+      if (req.authUserId !== thread.buyerId && !isAdmin(req)) {
+        res.status(403).json({ error: "Only buyer can create escrow offer" });
+        return;
+      }
+    }
+
+    const safe = buildSafeEscrowUpsert({
+      incoming,
+      existing,
+      thread,
+    });
+    await upsertEscrow(safe);
+    res.json(safe);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1922,7 +2057,7 @@ apiRouter.get("/reviews", async (_req, res) => {
   try {
     res.json(await getReviews());
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1946,7 +2081,7 @@ apiRouter.post("/reviews", requireAuth, async (req: AuthedRequest, res) => {
       },
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -1968,7 +2103,7 @@ apiRouter.post("/wallet/top-up", requireAuth, async (req: AuthedRequest, res) =>
     }
     res.json({ ...result, mode: "demo" });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -2015,7 +2150,7 @@ apiRouter.post(
       }
       res.json({ ...result, chargedEur: cost, tier, usedFreeBoost });
     } catch (e) {
-      res.status(500).json({ error: String(e) });
+      sendInternalError(res, e);
     }
   }
 );
@@ -2042,7 +2177,7 @@ apiRouter.post("/vehicle/lookup", async (req, res) => {
     }
     res.json(result);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -2062,7 +2197,7 @@ apiRouter.post("/product/lookup", async (req, res) => {
     }
     res.json(result);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -2082,7 +2217,7 @@ apiRouter.post("/product/scan-image", async (req, res) => {
     }
     res.json({ barcode });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -2113,7 +2248,7 @@ apiRouter.post("/vehicle/scan-image", async (req, res) => {
 
     res.json({ vin });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -2139,7 +2274,7 @@ apiRouter.post("/product/fashion-description", async (req, res) => {
     );
     res.json(copy);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -2148,7 +2283,7 @@ apiRouter.get("/service-leads", requireAuth, async (req: AuthedRequest, res) => 
     const leads = await getServiceLeadsForProvider(req.authUserId!);
     res.json(leads);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -2163,7 +2298,7 @@ apiRouter.post("/service-leads", requireAuth, async (req: AuthedRequest, res) =>
     }
     res.status(201).json(lead);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -2185,7 +2320,7 @@ apiRouter.post(
       }
       res.json(result);
     } catch (e) {
-      res.status(500).json({ error: String(e) });
+      sendInternalError(res, e);
     }
   }
 );
@@ -2219,7 +2354,7 @@ apiRouter.post("/requirements", requireAuth, async (req: AuthedRequest, res) => 
     }
     res.status(201).json({ ok: true, id: created.id, query: queryText });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e);
   }
 });
 
@@ -2228,15 +2363,16 @@ const visionSearchBodyParser = (
   res: express.Response,
   next: express.NextFunction
 ) => {
+  const aiLimit = process.env.AI_JSON_BODY_LIMIT?.trim() || "12mb";
   if (req.is("multipart/form-data")) {
-    express.raw({ type: "multipart/form-data", limit: "50mb" })(req, res, next);
+    express.raw({ type: "multipart/form-data", limit: aiLimit })(req, res, next);
     return;
   }
   if (req.body && typeof req.body === "object" && Object.keys(req.body as object).length > 0) {
     next();
     return;
   }
-  express.json({ limit: "50mb" })(req, res, next);
+  express.json({ limit: aiLimit })(req, res, next);
 };
 
 /** Legacy photo search endpoint — maps Vision intent to keywords for older clients. */
@@ -2308,6 +2444,6 @@ apiRouter.post("/search/vision", visionSearchBodyParser, async (req, res) => {
       needsClarification,
     });
   } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
+    sendInternalError(res, e);
   }
 });

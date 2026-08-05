@@ -25,7 +25,7 @@ export function listingToApiPayload(
   const gallery = capListingGalleryUrls(
     hardFilterPublicGalleryUrls(images, undefined, attributes),
     listing.category
-  ).filter((u) => !/unsplash\.com|picsum\.photos/i.test(u));
+  ).filter((u: string) => !/unsplash\.com|picsum\.photos/i.test(u));
   const { cover, httpGallery } = resolveListingApiCover(gallery);
   if (httpGallery.length >= 1) {
     attributes.galleryUrls = httpGallery;
@@ -66,8 +66,8 @@ export function listingPatchToApiPayload(
   }
   if (images !== undefined) {
     const gallery = images
-      .map((u) => String(u ?? "").trim())
-      .filter((u) => /^https?:\/\//i.test(u) && !/unsplash\.com|picsum\.photos/i.test(u));
+      .map((u: string | undefined | null) => String(u ?? "").trim())
+      .filter((u: string) => /^https?:\/\//i.test(u) && !/unsplash\.com|picsum\.photos/i.test(u));
     // PATCH cover must be HTTPS only — never fall back to data:/blob (no server materialize).
     out.image = gallery[0] ?? "";
     out.images = gallery;

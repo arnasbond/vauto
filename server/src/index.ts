@@ -22,15 +22,55 @@ import { ogRouter } from "./routes/og.js";
 import { optionalAuth, requireAuth } from "./middleware/auth.js";
 import { aiRateLimiter, actionRateLimiter, apiRateLimiter, authRateLimiter, searchRateLimiter } from "./middleware/rate-limit.js";
 import { assertProductionEnv } from "./env-check.js";
+import { silenceProductionConsole } from "./lib/dev-log.js";
 
+silenceProductionConsole();
 assertProductionEnv();
 
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
 
-// Reflect request Origin — JWT Bearer auth (Authorization header) does not rely on cookies.
-// OAuth CSRF uses a short-lived SameSite=Lax Secure cookie on the frontend origin only.
-app.use(cors({ origin: true }));
+const isProd = process.env.NODE_ENV === "production";
+const corsAllowlist = new Set(
+  [
+    "https://vauto.lt",
+    "https://www.vauto.lt",
+    process.env.APP_ORIGIN?.replace(/\/+$/, ""),
+    process.env.CORS_ORIGIN?.replace(/\/+$/, ""),
+    process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL.replace(/^https?:\/\//, "")}`
+      : "",
+    ...String(process.env.CORS_ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((s) => s.trim().replace(/\/+$/, ""))
+      .filter(Boolean),
+    ...(!isProd
+      ? [
+          "http://localhost:3000",
+          "http://127.0.0.1:3000",
+          "http://localhost:4173",
+          "http://127.0.0.1:4173",
+        ]
+      : []),
+  ].filter(Boolean)
+);
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Non-browser / same-origin tools (no Origin header).
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (corsAllowlist.has(origin.replace(/\/+$/, ""))) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
+  })
+);
 app.post(
   "/api/billing/webhook",
   express.raw({ type: "application/json" }),
@@ -44,12 +84,43 @@ app.post(
  */
 app.use("/og", ogRouter);
 /**
- * Multi-photo agent uploads (up to 6× Base64 data URLs) need a large JSON body.
- * Client pre-resizes cars to ≤1600px / docs ≤2800px (OCR); keep 50mb headroom for ≤10-image Vision.
+ * Default JSON body: 512kb. Vision / agent routes get 12mb (Base64 photos).
+ * Override with JSON_BODY_LIMIT / AI_JSON_BODY_LIMIT only for emergency capacity.
  */
-const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT?.trim() || "50mb";
-app.use(express.json({ limit: JSON_BODY_LIMIT }));
-app.use(express.urlencoded({ limit: JSON_BODY_LIMIT, extended: true }));
+const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT?.trim() || "512kb";
+const AI_JSON_BODY_LIMIT = process.env.AI_JSON_BODY_LIMIT?.trim() || "12mb";
+const largeJsonParser = express.json({ limit: AI_JSON_BODY_LIMIT });
+const defaultJsonParser = express.json({ limit: JSON_BODY_LIMIT });
+const largeUrlencoded = express.urlencoded({
+  limit: AI_JSON_BODY_LIMIT,
+  extended: true,
+});
+const defaultUrlencoded = express.urlencoded({
+  limit: JSON_BODY_LIMIT,
+  extended: true,
+});
+
+function needsLargeJsonBody(path: string): boolean {
+  return (
+    path.startsWith("/api/ai") ||
+    path.startsWith("/api/vauto-agent") ||
+    path.startsWith("/api/vauto-server") ||
+    path.startsWith("/api/search/vision")
+  );
+}
+
+app.use((req, res, next) => {
+  if (needsLargeJsonBody(req.path)) {
+    return largeJsonParser(req, res, next);
+  }
+  return defaultJsonParser(req, res, next);
+});
+app.use((req, res, next) => {
+  if (needsLargeJsonBody(req.path)) {
+    return largeUrlencoded(req, res, next);
+  }
+  return defaultUrlencoded(req, res, next);
+});
 app.use(optionalAuth);
 app.use("/api/search", searchRateLimiter, searchRouter);
 /** Legacy vision search is Gemini-heavy — apply AI tier before general API limiter. */
@@ -147,7 +218,7 @@ app.use(
     );
     res.status(err.status && err.status >= 400 && err.status < 600 ? err.status : 500).json({
       ok: false,
-      error: err?.message || "Internal Server Error",
+      error: "Internal server error",
     });
   }
 );

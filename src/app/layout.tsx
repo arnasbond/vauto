@@ -5,7 +5,10 @@ import { NativeShell } from "@/components/NativeShell";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { ToastHost } from "@/components/ui/ToastHost";
 import { SITE_URL } from "@/lib/site-url";
+import { silenceProductionConsole } from "@/lib/dev-log";
 import "./globals.css";
+
+silenceProductionConsole();
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

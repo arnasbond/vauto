@@ -1557,23 +1557,32 @@ export async function apiEscrowBillingStatus(): Promise<{ live: boolean } | null
 }
 
 export async function apiEscrowCheckout(body: {
-  escrow: import("@/lib/types").EscrowTransaction;
-  listingTitle?: string;
+  listingId: string;
+  threadId: string;
   shippingProvider?: string;
   shippingLockerId?: string;
   shippingLockerName?: string;
+  userId: string;
 }): Promise<
   ApiResult<{
     checkoutUrl: string;
     sessionId: string;
     buyerProtectionFee: number;
     buyerTotal: number;
+    amount?: number;
+    escrowId?: string;
   }>
 > {
   return dataFetch("/api/escrow-billing/checkout", {
     method: "POST",
-    body: JSON.stringify(body),
-    userId: body.escrow.buyerId,
+    body: JSON.stringify({
+      listingId: body.listingId,
+      threadId: body.threadId,
+      shippingProvider: body.shippingProvider,
+      shippingLockerId: body.shippingLockerId,
+      shippingLockerName: body.shippingLockerName,
+    }),
+    userId: body.userId,
   });
 }
 

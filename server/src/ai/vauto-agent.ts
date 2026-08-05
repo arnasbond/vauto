@@ -26,6 +26,10 @@ import {
   resolveSecretaryNoiseReply,
 } from "./secretary-guards.js";
 import {
+  sanitizePromptUserInput,
+  wrapUntrustedXml,
+} from "../shared/prompt-injection.js";
+import {
   buildSellListingDraftFallback,
   buildSellClarificationReply,
   detectServerSellIntent,
@@ -1466,7 +1470,10 @@ async function runVautoAgentInner(
       `attachedDocuments=${extractedDocuments.map((d) => d.fileName).join("|")}`
     );
     if (docFacts) {
-      wizardBits.push(`documentFacts=${slimDocumentFactsForLlm(docFacts, 1200)}`);
+      const slim = slimDocumentFactsForLlm(docFacts, 1200);
+      wizardBits.push(
+        `documentFacts=${wrapUntrustedXml("untrusted_document_context", slim, 1200)}`
+      );
     }
   }
   if (req.context.sellerMetrics) {
@@ -1495,11 +1502,18 @@ async function runVautoAgentInner(
 
   if (req.context.proactiveOffer?.kind === "bargaining") {
     const po = req.context.proactiveOffer;
+    const offerPayload = [
+      `listingId=${sanitizePromptUserInput(po.listingId ?? "").text}`,
+      `title=${sanitizePromptUserInput(po.listingTitle ?? "").text}`,
+      `price=${po.listingPrice ?? ""}`,
+      `category=${sanitizePromptUserInput(po.category ?? "").text}`,
+      `wardrobeMode=${Boolean(po.wardrobeMode)}`,
+    ].join("\n");
     contents.unshift({
       role: "user",
       parts: [
         {
-          text: `[Proaktyvus derybų signalas — PRIVALOMA proposeSmartBargaining]\n${SMART_BARGAINING_HINT}\nlistingId=${po.listingId ?? ""}\ntitle=${po.listingTitle ?? ""}\nprice=${po.listingPrice ?? ""}\ncategory=${po.category ?? ""}\nwardrobeMode=${Boolean(po.wardrobeMode)}`,
+          text: `[Proaktyvus derybų signalas — PRIVALOMA proposeSmartBargaining]\n${SMART_BARGAINING_HINT}\n${wrapUntrustedXml("untrusted_proactive_offer", offerPayload, 2_000)}`,
         },
       ],
     });
@@ -1507,11 +1521,16 @@ async function runVautoAgentInner(
 
   if (req.context.proactiveOffer?.kind === "search_refine") {
     const po = req.context.proactiveOffer;
+    const offerPayload = [
+      `query=${sanitizePromptUserInput(po.query ?? req.context.lastSearchQuery ?? "").text}`,
+      `resultCount=${po.resultCount ?? req.context.searchResultCount ?? ""}`,
+      `filters=${JSON.stringify(req.context.activeSearchFilters ?? po.filters ?? null)}`,
+    ].join("\n");
     contents.unshift({
       role: "user",
       parts: [
         {
-          text: `[Search Refinement — per daug rezultatų]\n${SEARCH_REFINE_HINT}\nquery=${po.query ?? req.context.lastSearchQuery ?? ""}\nresultCount=${po.resultCount ?? req.context.searchResultCount ?? ""}\nfilters=${JSON.stringify(req.context.activeSearchFilters ?? po.filters ?? null)}`,
+          text: `[Search Refinement — per daug rezultatų]\n${SEARCH_REFINE_HINT}\n${wrapUntrustedXml("untrusted_proactive_offer", offerPayload, 2_000)}`,
         },
       ],
     });
@@ -1527,11 +1546,15 @@ async function runVautoAgentInner(
       req.context.proactiveOffer?.query ??
       req.context.lastSearchQuery ??
       "";
+    const offerPayload = [
+      `query=${sanitizePromptUserInput(q).text}`,
+      `filters=${JSON.stringify(req.context.activeSearchFilters ?? req.context.proactiveOffer?.filters ?? null)}`,
+    ].join("\n");
     contents.unshift({
       role: "user",
       parts: [
         {
-          text: `[No-Match Lead — 0 rezultatų]\n${NO_MATCH_LEAD_HINT}\nquery=${q}\nfilters=${JSON.stringify(req.context.activeSearchFilters ?? req.context.proactiveOffer?.filters ?? null)}`,
+          text: `[No-Match Lead — 0 rezultatų]\n${NO_MATCH_LEAD_HINT}\n${wrapUntrustedXml("untrusted_proactive_offer", offerPayload, 2_000)}`,
         },
       ],
     });

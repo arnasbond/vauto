@@ -1,4 +1,5 @@
 import express, { Router } from "express";
+import { sendInternalError } from "../lib/http-errors.js";
 import {
   chatJson,
   hasAiKey,
@@ -102,7 +103,7 @@ aiRouter.post("/visual-pipeline", async (req, res) => {
     });
     res.json({ ok: true, ...visualPipelineResponseSlice(pipeline) });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -140,7 +141,7 @@ aiRouter.post("/studio-photos", async (req, res) => {
     });
   } catch (e) {
     logProductionError("studio-photos", e);
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -202,8 +203,7 @@ aiRouter.post("/photo-intent", async (req, res) => {
       clarificationPrompt: intent.clarificationPrompt,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    res.status(500).json({ error: message });
+    return sendInternalError(res, e, "ai.visual-intent");
   }
 });
 
@@ -461,7 +461,7 @@ aiRouter.post("/analyze-search", async (req, res) => {
     });
     res.json(result);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -470,15 +470,16 @@ const visualSearchBodyParser = (
   res: express.Response,
   next: express.NextFunction
 ) => {
+  const aiLimit = process.env.AI_JSON_BODY_LIMIT?.trim() || "12mb";
   if (req.is("multipart/form-data")) {
-    express.raw({ type: "multipart/form-data", limit: "50mb" })(req, res, next);
+    express.raw({ type: "multipart/form-data", limit: aiLimit })(req, res, next);
     return;
   }
   if (req.body && typeof req.body === "object" && Object.keys(req.body as object).length > 0) {
     next();
     return;
   }
-  express.json({ limit: "50mb" })(req, res, next);
+  express.json({ limit: aiLimit })(req, res, next);
 };
 
 async function handleVisualSearchIntent(
@@ -537,7 +538,7 @@ async function handleVisualSearchIntent(
     });
     res.json(intent);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 }
 
@@ -558,7 +559,7 @@ aiRouter.post("/analyze-wardrobe-photo", async (req, res) => {
     });
     res.json(result);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -601,7 +602,7 @@ aiRouter.post("/process-express-escrow", async (req, res) => {
       escrow: confirmed ?? confirmTransaction(escrow),
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -623,7 +624,7 @@ aiRouter.post("/magic-mirror-fit", async (req, res) => {
     });
     res.json(result);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -640,7 +641,7 @@ aiRouter.post("/price-appraisal", async (req, res) => {
     const result = await calculateAppraisal(meta, category, listings);
     res.json(result);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -730,7 +731,7 @@ aiRouter.post("/negotiation-twin", requireAuth, async (req: AuthedRequest, res) 
     res.json(result);
   } catch (e) {
     logProductionError("negotiation-twin", e);
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -761,7 +762,7 @@ aiRouter.post("/generate-description-personas", async (req, res) => {
     });
     res.json(variants);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -797,7 +798,7 @@ aiRouter.post("/chat-shield", async (req, res) => {
     }
     res.json(result);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -901,7 +902,7 @@ aiRouter.post("/extract-combined", async (req, res) => {
       visualPipeline: visualPipelineResponseSlice(pipeline),
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -930,7 +931,7 @@ aiRouter.post("/extract-text", async (req, res) => {
     ]);
     res.json(toListing(raw, city, phone));
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -951,7 +952,7 @@ aiRouter.post("/image-search", async (req, res) => {
     const scores = await imageSearchScores(imageDataUrl, limit);
     res.json({ scores });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -987,7 +988,7 @@ aiRouter.post("/semantic-search", async (req, res) => {
     const scores = await semanticSearchScores(queryText, limit);
     res.json({ scores });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -1055,7 +1056,7 @@ ${listText}`;
 
     res.json({ scores: normalized });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -1147,7 +1148,7 @@ aiRouter.post("/listing-share", async (req, res) => {
 
     res.json({ ok: true, persisted, ...copy });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -1173,7 +1174,7 @@ aiRouter.post("/analyze-report", async (req, res) => {
     });
     res.json(analysis);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });
 
@@ -1218,6 +1219,6 @@ aiRouter.post("/translate", async (req, res) => {
     });
   } catch (e) {
     logProductionError("ai/translate", e);
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "ai");
   }
 });

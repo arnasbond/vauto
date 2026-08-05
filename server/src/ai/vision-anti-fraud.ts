@@ -1,8 +1,10 @@
 /**
- * Vision Anti-Fraud Guard — DISABLED (domain-bounded autonomy).
- * Stock / watermark / “inadequate photo” judgments must not block the unified
- * Client → Gemini pipeline. Illegal-content moderation stays in listing-moderation.
+ * Vision Anti-Fraud Guard — image safety quarantine gate.
+ * Stock / watermark judgments stay out of the Client → Gemini pipeline;
+ * illegal-content / unavailable-check quarantine uses classifyImagesSafe (fail-closed in prod).
  */
+
+import { classifyImagesSafe } from "./safety-shield.js";
 
 export interface AntiFraudResult {
   isVerified: boolean;
@@ -21,12 +23,23 @@ const SAFE_DEFAULT: AntiFraudResult = {
 };
 
 /**
- * No-op: always allow. Kept as a stable export so call sites compile without
- * reintroducing stock-photo rejection.
+ * Delegates to classifyImagesSafe. Production fail-closed:
+ * unavailable checks → requiresReview (do not auto-publish).
  */
 export async function runVisionAntiFraudGuard(
-  _imageDataUrls: string[],
+  imageDataUrls: string[],
   _listingContext?: { title?: string; category?: string }
 ): Promise<AntiFraudResult> {
-  return SAFE_DEFAULT;
+  if (!imageDataUrls?.length) return SAFE_DEFAULT;
+  const result = await classifyImagesSafe(imageDataUrls);
+  if (result.safe && !result.requiresReview) return SAFE_DEFAULT;
+  return {
+    isVerified: false,
+    requiresReview: true,
+    riskScore: result.requiresReview ? 55 : 90,
+    reasons: [result.reason || "unsafe"],
+    userNotice: result.requiresReview
+      ? "Vaizdų saugumo patikra nepasiekiama — skelbimas reikalauja peržiūros."
+      : "Nuotrauka neatitinka saugumo reikalavimų.",
+  };
 }

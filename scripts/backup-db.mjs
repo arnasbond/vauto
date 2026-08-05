@@ -3,8 +3,9 @@
  * Full logical Postgres dump for VAUTO disaster recovery.
  *
  * Produces:
- *   backups/vauto-<stamp>.sql.gz     — pg_dump (plain SQL, gzipped)
- *   backups/vauto-<stamp>.meta.json  — row counts + media URL inventory
+ *   backups/vauto-<stamp>.sql.gz        — pg_dump (plain SQL, gzipped)
+ *   backups/vauto-<stamp>.sql.gz.sha256 — SHA-256 of the dump (integrity)
+ *   backups/vauto-<stamp>.meta.json     — row counts + media URL inventory
  *
  * Usage:
  *   DATABASE_URL=postgres://… node scripts/backup-db.mjs
@@ -14,7 +15,8 @@
  * npm: npm run db:backup
  */
 import { spawnSync } from "node:child_process";
-import { createWriteStream, mkdirSync, writeFileSync } from "node:fs";
+import { createReadStream, createWriteStream, mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { createGzip } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -303,6 +305,16 @@ function sqlLiteral(value) {
   return `'${String(value).replace(/\\/g, "\\\\").replace(/'/g, "''")}'`;
 }
 
+/** Write companion SHA-256 sidecar: `<file>.sha256` with `hex  basename`. */
+async function writeSha256Sidecar(filePath) {
+  const hash = createHash("sha256");
+  await pipeline(createReadStream(filePath), hash);
+  const hex = hash.digest("hex");
+  const sidecar = `${filePath}.sha256`;
+  writeFileSync(sidecar, `${hex}  ${path.basename(filePath)}\n`, "utf8");
+  return { sidecar, hex };
+}
+
 async function main() {
   const connectionString = resolveDatabaseUrl();
   const id = stamp();
@@ -342,12 +354,14 @@ async function main() {
 
   mkdirSync(outDir, { recursive: true });
   const dumpInfo = await runDump(connectionString, sqlGz);
+  const { sidecar, hex } = await writeSha256Sidecar(sqlGz);
   writeFileSync(
     metaPath,
-    JSON.stringify({ ...meta, dump: dumpInfo }, null, 2)
+    JSON.stringify({ ...meta, dump: dumpInfo, sha256: hex }, null, 2)
   );
 
   console.log(`[backup-db] method=${dumpInfo.method} wrote ${sqlGz}`);
+  console.log(`[backup-db] sha256=${hex} → ${sidecar}`);
   console.log(`[backup-db] wrote ${metaPath}`);
   console.log("[backup-db] done");
 }

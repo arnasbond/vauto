@@ -11,6 +11,18 @@ export interface AppVersionPayload {
   installHintLt?: string;
   forceUpdate?: boolean;
   minSupportedVersionCode?: number;
+  /** Deployed git commit (Render / CI). */
+  commitSha?: string;
+}
+
+/** Resolve running build commit for health/version probes. */
+export function resolveCommitSha(): string {
+  return (
+    process.env.RENDER_GIT_COMMIT?.trim() ||
+    process.env.APP_GIT_SHA?.trim() ||
+    process.env.GITHUB_SHA?.trim() ||
+    "dev"
+  );
 }
 
 const DEFAULT_VERSION: AppVersionPayload = {
@@ -71,5 +83,6 @@ export function resolveAppVersionPayload(): AppVersionPayload {
     minSupportedVersionCode:
       Number(process.env.APP_MIN_SUPPORTED_VERSION_CODE ?? base.minSupportedVersionCode) ||
       base.minSupportedVersionCode,
+    commitSha: resolveCommitSha(),
   };
 }

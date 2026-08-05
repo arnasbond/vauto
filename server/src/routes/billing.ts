@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from "express";
+import { sendInternalError } from "../lib/http-errors.js";
 import type Stripe from "stripe";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import {
@@ -130,7 +131,7 @@ billingRouter.post("/confirm", requireAuth, async (req: AuthedRequest, res) => {
             : "Starto planas aktyvuotas!",
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "billing");
   }
 });
 
@@ -194,7 +195,7 @@ billingRouter.post("/promote-checkout", requireAuth, async (req: AuthedRequest, 
       tier,
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "billing");
   }
 });
 
@@ -219,7 +220,7 @@ billingRouter.post("/portal", requireAuth, async (req: AuthedRequest, res) => {
 
     res.json({ ok: true, portalUrl: session.url });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "billing");
   }
 });
 
@@ -228,7 +229,7 @@ billingRouter.get("/invoices", requireAuth, async (req: AuthedRequest, res) => {
     const invoices = await listBillingInvoicesForUser(req.authUserId!);
     res.json({ ok: true, invoices });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "billing");
   }
 });
 
@@ -242,6 +243,7 @@ billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) =>
 
     const plan = STRIPE_PLANS[planId as StripePlanId];
     // Starto akcija — activate immediately at 0 € without Stripe/card.
+    // Only the free Starto / promo path; never used as Stripe fail-open.
     if (plan.amount <= 0) {
       const user = await subscribeUserPlan(req.authUserId!, planId);
       if (!user) return res.status(404).json({ error: "User not found" });
@@ -256,42 +258,33 @@ billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) =>
     }
 
     const stripe = getStripe();
-    if (stripe) {
-      const user = await getUser(req.authUserId!);
-      const existingCustomerId = await getUserStripeCustomerId(req.authUserId!);
-      const session = await createPlanCheckoutSession({
-        userId: req.authUserId!,
-        planId: planId as StripePlanId,
-        email: user?.email,
-        customerId: existingCustomerId ?? undefined,
-      });
-      if (!session.url) {
-        return res.status(500).json({ error: "Stripe checkout URL missing" });
-      }
-      return res.json({
-        ok: true,
-        mode: "stripe",
-        checkoutUrl: session.url,
-        sessionId: session.id,
+    if (!stripe) {
+      return res.status(503).json({
+        error: "Payments temporarily unavailable",
+        mode: "unavailable",
       });
     }
 
-    const user = await subscribeUserPlan(req.authUserId!, planId);
-    if (!user) return res.status(404).json({ error: "User not found" });
-
-    res.json({
+    const user = await getUser(req.authUserId!);
+    const existingCustomerId = await getUserStripeCustomerId(req.authUserId!);
+    const session = await createPlanCheckoutSession({
+      userId: req.authUserId!,
+      planId: planId as StripePlanId,
+      email: user?.email,
+      customerId: existingCustomerId ?? undefined,
+    });
+    if (!session.url) {
+      return res.status(500).json({ error: "Stripe checkout URL missing" });
+    }
+    return res.json({
       ok: true,
-      mode: "local",
-      user,
-      message:
-        planId === "enterprise"
-          ? "Enterprise planas aktyvuotas."
-          : planId === "pro"
-            ? "Pro planas aktyvuotas."
-            : "Starto planas užregistruotas.",
+      mode: "stripe",
+      checkoutUrl: session.url,
+      sessionId: session.id,
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    const { sendInternalError } = await import("../lib/http-errors.js");
+    sendInternalError(res, e, "billing/subscribe");
   }
 });
 

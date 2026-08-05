@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { sendInternalError } from "../lib/http-errors.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import {
   getUser,
@@ -22,7 +23,7 @@ growthRouter.get("/notifications", requireAuth, async (req: AuthedRequest, res) 
     const unreadCount = items.filter((n) => !n.readAt).length;
     res.json({ ok: true, notifications: items, unreadCount });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "growth");
   }
 });
 
@@ -38,7 +39,7 @@ growthRouter.post(
       if (!ok) return res.status(404).json({ error: "Notification not found" });
       res.json({ ok: true });
     } catch (e) {
-      res.status(500).json({ error: String(e) });
+      sendInternalError(res, e, "growth");
     }
   }
 );
@@ -51,7 +52,7 @@ growthRouter.post(
       const count = await markAllUserNotificationsRead(req.authUserId!);
       res.json({ ok: true, marked: count });
     } catch (e) {
-      res.status(500).json({ error: String(e) });
+      sendInternalError(res, e, "growth");
     }
   }
 );
@@ -63,7 +64,7 @@ growthRouter.get("/referral/me", requireAuth, async (req: AuthedRequest, res) =>
     const credits = await getFreeProtectionCredits(userId);
     res.json({ ok: true, referralCode: code, freeProtectionCredits: credits });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "growth");
   }
 });
 
@@ -85,7 +86,7 @@ growthRouter.post("/referral/apply", requireAuth, async (req: AuthedRequest, res
       freeProtectionCredits: user?.freeProtectionCredits ?? 0,
     });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "growth");
   }
 });
 
@@ -96,6 +97,6 @@ growthRouter.post("/referral/validate", async (req, res) => {
     const referrerId = await resolveReferralCode(code);
     res.json({ ok: Boolean(referrerId), valid: Boolean(referrerId) });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    sendInternalError(res, e, "growth");
   }
 });
