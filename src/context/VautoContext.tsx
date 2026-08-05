@@ -63,7 +63,6 @@ import {
 import { getUserCoords, type UserCoords } from "@/lib/geolocation";
 import { applyBuyerDistances } from "@/lib/buyer-distance";
 import {
-  distanceToListing,
   enrichListingCoords,
 } from "@/lib/geocoding";
 import { normalizeListings } from "@/lib/listing-normalize";

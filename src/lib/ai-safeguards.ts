@@ -125,16 +125,61 @@ export function isValidAiExtracted(
 export function createManualFallbackDraft(opts: {
   location: string;
   contact: string;
+  /** Optional free-text / vision context used to seed a safe heuristic draft. */
+  transcript?: string;
+  category?: ListingCategory;
+  title?: string;
 }): AiExtractedListing {
+  const transcript = String(opts.transcript ?? "").trim();
+  const titleHint = String(opts.title ?? "").trim();
+  const category = opts.category ?? "other";
+  const looksVehicle =
+    category === "vehicles" ||
+    category === "transport" ||
+    /\b(auto|bmw|audi|vw|citro|toyota|mašin|masin|automobil)/i.test(
+      `${titleHint} ${transcript}`
+    );
+  const makeMatch = transcript.match(
+    /\b(bmw|audi|volkswagen|vw|toyota|mercedes|opel|ford|renault|skoda|volvo|peugeot|citro[eë]?n)\b/i
+  );
+  const make = makeMatch
+    ? makeMatch[1]!.replace(/\bvw\b/i, "Volkswagen")
+    : "";
+  const title =
+    titleHint ||
+    (make
+      ? `Parduodamas ${make.charAt(0).toUpperCase()}${make.slice(1)}`
+      : looksVehicle
+        ? "Parduodamas naudotas automobilis"
+        : transcript.slice(0, 64) || "Naujas skelbimas");
+  const city = opts.location?.trim() || "";
+  const description = looksVehicle
+    ? [
+        `Parduodamas naudotas automobilis${make ? ` ${make}` : ""}.`,
+        "Techniniai duomenys (metai, dyzelinis / benzininis variklis, kėbulo tipas, rida) bus patikslinti pagal nuotraukas ir dokumentus.",
+        city
+          ? `Automobilis stovi ${city.replace(/ys$/i, "yse")}.`
+          : "",
+        "Dėl apžiūros kreipkitės nurodytu telefonu.",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : transcript
+      ? `${transcript.slice(0, 280)} — papildykite detales pokalbyje.`
+      : "Automatinis atpažinimas nepavyko — aprašykite prekę pokalbyje, o aš padėsiu suformuoti skelbimą.";
+
   return {
-    title: "",
+    title,
     price: 0,
     location: opts.location,
     contact: opts.contact,
-    category: "other",
-    confidence: 0,
-    description: "",
-    attributes: {},
+    category: looksVehicle ? "vehicles" : category,
+    confidence: 0.35,
+    description,
+    attributes: {
+      ...(make ? { make } : {}),
+      heuristicFallback: "true",
+    },
   };
 }
 

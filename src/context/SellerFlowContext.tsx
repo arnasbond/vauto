@@ -64,7 +64,6 @@ import {
 import {
   hasListingPhoto,
   LISTING_PHOTO_REQUIRED_MESSAGE,
-  LISTING_PHOTO_UPLOAD_FAILED_MESSAGE,
 } from "@/lib/listing-form-validation";
 import {
   listingCategoryAllowsPhotoless,

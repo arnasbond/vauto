@@ -11,6 +11,7 @@ import {
   normalizeChaoticUserText,
 } from "../shared/chaotic-input.js";
 import { parsePriceFromChatInput } from "./listing-chat-input.js";
+import { cityInLocative } from "../shared/vehicle-sales-copy.js";
 
 /** Country-only / empty city → leave empty (user or GPS fills later). Never invent Vilnius. */
 function sanitizeFallbackListingCity(raw?: string | null): string {
@@ -285,11 +286,18 @@ function buildFallbackDescription(input: {
   location: string;
 }): string {
   const subject = input.make || input.title;
+  const city = input.location?.trim() || "";
   if (input.category === "vehicles" || input.make) {
+    const makeLabel = input.make || "automobilis";
+    // Natural LT — nominative fuel/body filled later from vision; city in locative when known.
+    const cityLine = city
+      ? `Automobilis stovi ${cityInLocative(city)}.`
+      : "";
     return [
-      `${subject}: techniniai duomenys bus patikslinti pagal tech passport / nuotraukas (metai, variklis, kW, kuras, rida, komplektacija).`,
-      "Matomi defektai ir komplektacija — pagal faktines nuotraukas; dokumentų nuotraukos naudojamos tik specs, ne viešai galerijai.",
-      input.location ? `Vieta: ${input.location}.` : "",
+      `Parduodamas naudotas automobilis ${makeLabel}.`,
+      "Techniniai duomenys (metai, dyzelinis / benzininis variklis, kW, rida, kėbulo tipas) bus patikslinti pagal tech passport ir nuotraukas.",
+      cityLine,
+      "Dėl apžiūros kreipkitės nurodytu telefonu.",
     ]
       .filter(Boolean)
       .join(" ");

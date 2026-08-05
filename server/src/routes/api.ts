@@ -340,8 +340,9 @@ function sanitizeListingPatchBody(raw: unknown): Record<string, unknown> {
   return body;
 }
 
+/** Session subject only — never trust client X-User-Id for ownership. */
 function actorId(req: AuthedRequest): string {
-  return req.authUserId ?? String(req.headers["x-user-id"] ?? "");
+  return req.authUserId ?? "";
 }
 
 function isAdmin(req: AuthedRequest): boolean {

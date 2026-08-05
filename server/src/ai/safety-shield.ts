@@ -9,8 +9,19 @@ import {
   detectExplicitReplicaClaim,
   REPLICA_HARD_BLOCK_REPLY,
 } from "./authenticity-shield.js";
+import {
+  detectPromptInjection as detectSharedPromptInjection,
+  scrubPromptInjection,
+  sanitizePromptUserInput,
+  PROMPT_INJECTION_RE,
+} from "../shared/prompt-injection.js";
 
 export { detectExplicitReplicaClaim, REPLICA_HARD_BLOCK_REPLY };
+export {
+  scrubPromptInjection,
+  sanitizePromptUserInput,
+  PROMPT_INJECTION_RE,
+};
 
 /** Rejected image — never persist / never fuse into draft. */
 export const IMAGE_SAFETY_REJECT_NOTICE =
@@ -70,10 +81,6 @@ export function isImageSafetyBlockedError(err: unknown): err is ImageSafetyBlock
 const TOXIC_RE =
   /\b(blet|blyat|blyad|nahui|naxui|na\s*hui|pizd\w*|kurva|kurvos|šūdas|sudas|shudas|byb\w*|šik\w*|sikn\w*|fuck(?:ing|er)?|motherfuck\w*|shit(?:ty)?|asshole|cunt|dickhead|whore|slut|nigger|nigga|faggot|idiot(?:e|as)?|debil(?:as|e)?|dalbajob\w*|еб\w*|хуй|пизд\w*|сука|бля)\b/i;
 
-/** Prompt injection / jailbreak attempts. */
-const JAILBREAK_RE =
-  /\b(ignore\s+(all\s+)?(previous\s+|prior\s+)?(rules|instructions|prompts?)|forget\s+(your\s+)?(rules|instructions)|system\s*prompt|jail\s*break|dan\s*mode|developer\s*mode|you\s+are\s+now\s+(a|an|my)|pretend\s+you\s+are|bypass\s+(your\s+)?(safety|rules|filters)|override\s+(your\s+)?(rules|instructions)|do\s+anything\s+now|ignore\s+rules)\b/i;
-
 /** Clearly off-domain asks (not listing/search). */
 const OFF_DOMAIN_RE =
   /\b(write\s+(me\s+)?(python|javascript|typescript|java|c\+\+|code|sql|html)|tell\s+(me\s+)?a\s+joke|what'?s\s+the\s+weather|weather\s+in|recipe\s+for|solve\s+this\s+math|homework|parašyk\s+kod[aą]|parasys?\s+kod|papasakok\s+juok|koks\s+oras|recept[aą]s?\s+kaip|politin\w*\s+nuomon)/i;
@@ -95,9 +102,7 @@ export function detectToxicLanguage(text: string): boolean {
 }
 
 export function detectPromptInjection(text: string): boolean {
-  const t = String(text ?? "").trim();
-  if (!t) return false;
-  return JAILBREAK_RE.test(t);
+  return detectSharedPromptInjection(text);
 }
 
 export function detectOffDomainPrompt(text: string): boolean {

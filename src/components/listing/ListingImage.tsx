@@ -31,8 +31,8 @@ export function ListingImage({
   const [src, setSrc] = useState(primary);
 
   useEffect(() => {
-    setSrc(resolveListingImage(listing));
-  }, [listing.id, listing.images, listing.image, listing.title, listing.category]);
+    setSrc(primary);
+  }, [primary]);
 
   const handleError = () => {
     if (typeof console !== "undefined") {

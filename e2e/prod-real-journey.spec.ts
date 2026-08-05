@@ -357,7 +357,7 @@ test.describe("Prod REAL journey A→Z (no mocks)", () => {
       launchPromoDaysRemaining,
       isLaunchPromoActive,
       LAUNCH_PROMO_BADGE,
-    } = await import("../shared/launch-promo.ts");
+    } = await import("../shared/launch-promo");
     expect(isLaunchPromoActive()).toBe(true);
     expect(LAUNCH_PROMO_BADGE).toMatch(/0\s*€/);
     const in30 = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();

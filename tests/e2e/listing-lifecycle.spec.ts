@@ -136,6 +136,11 @@ test.describe("Enterprise — skelbimų ciklas", () => {
       dialog.getByRole("button", { name: /^Išsaugoti pakeitimus$/i })
     ).toBeEnabled();
 
+    await page.screenshot({
+      path: "tests/screenshots/listing-preview-edit.png",
+      fullPage: false,
+    });
+
     const path = new URL(page.url()).pathname.replace(/\/$/, "") || "/";
     expect(path).toContain("listing");
     expect(path).not.toBe("/");

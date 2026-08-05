@@ -1,14 +1,37 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const liveBaseURL =
-  process.env.PLAYWRIGHT_BASE_URL?.trim() || "http://127.0.0.1:3000";
-
 /**
- * Live Next.js E2E (no static serve).
+ * Live Next.js E2E (no static serve) — localhost LOCKOUT.
  * Auto-starts `npm run dev` when nothing is listening; reuses an already-running
  * server (including when release:hero sets CI=true).
- * Override with PLAYWRIGHT_BASE_URL if needed.
+ *
+ * Only loopback hosts are allowed. Production URLs must use playwright.prod-real.config.ts.
  */
+function assertLocalhostOnlyBaseUrl(raw: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(`[playwright.live.config] Invalid PLAYWRIGHT_BASE_URL: ${raw}`);
+  }
+
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const isLoopback =
+    host === "localhost" || host === "127.0.0.1" || host === "::1";
+
+  if (!isLoopback || /vauto\.lt/i.test(raw)) {
+    throw new Error(
+      `[playwright.live.config] LOCKOUT: live Vision E2E may only target localhost/127.0.0.1 (got ${raw}).`
+    );
+  }
+
+  return raw;
+}
+
+const liveBaseURL = assertLocalhostOnlyBaseUrl(
+  process.env.PLAYWRIGHT_BASE_URL?.trim() || "http://127.0.0.1:3000"
+);
+
 export default defineConfig({
   testDir: "./e2e",
   testMatch: /prepublish-(live|modal-smoke)\.spec\.ts/,

@@ -546,6 +546,10 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
     if (await priceInput.isVisible()) {
       const val = await priceInput.inputValue();
       if (!val || Number(val) <= 0) await priceInput.fill("2250");
+      // Real value assertion after Vision → PrePublish (not merely visible).
+      await expect(priceInput).toHaveValue(/^[1-9]\d*$/);
+      const numeric = Number(await priceInput.inputValue());
+      expect(numeric).toBeGreaterThan(0);
     }
     // f) scroll photo grid for observation
     const photoGrid = shell.locator('[data-prepublish-photos], [data-photo-grid]').first();
@@ -561,6 +565,10 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
     await page.screenshot({
       path: testInfo.outputPath("05-prepublish-modal.png"),
       fullPage: true,
+    });
+    await page.screenshot({
+      path: "tests/screenshots/listing-created.png",
+      fullPage: false,
     });
 
     const publishBtn = shell.locator('[data-prepublish-submit="1"]');

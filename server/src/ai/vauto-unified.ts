@@ -60,6 +60,7 @@ import {
   buildHandbookExtractionFewShots,
   getCategoryPrompter,
 } from "./prompters/index.js";
+import { sanitizePromptUserInput } from "./safety-shield.js";
 
 export { getCategoryPrompter } from "./prompters/index.js";
 export {
@@ -433,13 +434,15 @@ function buildExtractionTextPrompt(
   userCity: string,
   extraContext?: string
 ): string {
-  const extra = extraContext?.trim()
-    ? `\nPapildomas kontekstas: ${extraContext.trim()}`
+  const safeText = sanitizePromptUserInput(text).text;
+  const safeExtra = sanitizePromptUserInput(extraContext).text;
+  const extra = safeExtra
+    ? `\nPapildomas kontekstas: ${safeExtra}`
     : "";
   return `${EXTRACTION_RULES}
 
 PASS 1 — STRUCTURED EXTRACTION (šalti faktai → JSON).
-Vartotojo tekstas: """${text}"""${extra}
+Vartotojo tekstas: """${safeText}"""${extra}
 Miestas iš konteksto (naudok tik jei vartotojas jo nepateikė ir jis žinomas): ${userCity || "(nežinomas — palik city null)"}
 Grąžink JSON: ${EXTRACTION_SCHEMA}`;
 }
@@ -449,12 +452,12 @@ function buildExtractionImagePrompt(
   text?: string,
   extraContext?: string
 ): string {
-  const textNote = text?.trim()
-    ? `\nVartotojo papildomas aprašymas (prioritetas kainai ir detalėms): """${text.trim()}"""`
+  const safeText = sanitizePromptUserInput(text).text;
+  const safeExtra = sanitizePromptUserInput(extraContext).text;
+  const textNote = safeText
+    ? `\nVartotojo papildomas aprašymas (prioritetas kainai ir detalėms): """${safeText}"""`
     : "";
-  const extra = extraContext?.trim()
-    ? `\nKontekstas: ${extraContext.trim()}`
-    : "";
+  const extra = safeExtra ? `\nKontekstas: ${safeExtra}` : "";
   return `${EXTRACTION_RULES}
 ${VISION_EXTRACTION_ANTI_HALLUCINATION_RULE}
 

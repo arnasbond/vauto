@@ -716,8 +716,9 @@ export async function unifiedLlmJson(
     );
     return result;
   } catch (err) {
-    // Vision 429 / spend cap: never throw — return text-only listing so UI gets a draft.
-    if (images.length > 0 && isGeminiQuotaExhaustedError(err)) {
+    // Any Vision Gemini failure (429 / 5xx / timeout / network): safe heuristic draft,
+    // never crash the publish/extract UX with a bare 500.
+    if (images.length > 0) {
       return resolveTextFallbackPayload(
         input,
         err instanceof Error ? err.message : String(err)

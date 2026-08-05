@@ -1,0 +1,21 @@
+---
+description: Never delete files inside node_modules; only clean project build roots or full reinstall
+alwaysApply: true
+---
+
+# Disk cleanup — node_modules safety
+
+**NEVER** delete, prune, or recursively clean `dist`, `out`, `build`, `.cache`, or any other paths **inside** `node_modules/` (including nested package folders like `node_modules/@scope/pkg/dist`).
+
+## Allowed
+
+- Delete **project-root** build artifacts only: `/.next`, `/out`, `/dist`, `/build`, `/server/dist`, Playwright reports, coverage, etc.
+- Delete the **entire** `node_modules` directory, then restore with `npm ci` / `npm install` (or equivalent).
+- Clean package-manager caches (`npm cache clean`, pnpm store prune) and OS temp — not package contents under `node_modules`.
+
+## Forbidden
+
+- `Get-ChildItem -Recurse` / globs that match `**/node_modules/**/dist` or `**/node_modules/**/out`
+- Selective removal of files under `node_modules` “to free space”
+
+When freeing disk space, target explicit project build dirs or wipe+reinstall `node_modules` as a whole.

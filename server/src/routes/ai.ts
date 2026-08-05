@@ -43,6 +43,8 @@ import {
   resolveNegotiationProfileType,
 } from "../services/ai-negotiator.js";
 import { logProductionError } from "../lib/production-log.js";
+import { buildVisionQuotaTextFallbackJson } from "../ai/sell-intent-fallback.js";
+import { sanitizePromptUserInput } from "../ai/safety-shield.js";
 import {
   imagesAfterPipeline,
   mergePipelineIntoListingFields,
@@ -267,17 +269,25 @@ aiRouter.post("/extract-image", async (req, res) => {
     return res.status(400).json({ error: "imageDataUrl is required" });
   }
 
+  const safeExtra = sanitizePromptUserInput(extraContext);
+  if (safeExtra.blocked) {
+    return res.status(400).json({
+      error: "Netinkamas papildomas kontekstas.",
+      code: "prompt_injection_blocked",
+    });
+  }
+
   const imageCountNote =
     images.length > 1
       ? ` Vartotojas įkėlė ${images.length} nuotraukas — naudok visas analizei.`
       : "";
-  const contextNote = extraContext?.trim()
-    ? ` Papildoma informacija (ko nematyti nuotraukose): ${extraContext.trim()}`
+  const contextNote = safeExtra.text
+    ? ` Papildoma informacija (ko nematyti nuotraukose): ${safeExtra.text}`
     : "";
 
   try {
     const pipeline = await runVisualPipelineForExtract(images, {
-      listingTitle: extraContext?.trim(),
+      listingTitle: safeExtra.text || undefined,
     });
     const visionImages = imagesAfterPipeline(pipeline, images);
     const raw = await visionExtractJson(
@@ -292,8 +302,26 @@ aiRouter.post("/extract-image", async (req, res) => {
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    const status = /invalid image|required|decode/i.test(message) ? 400 : 500;
-    res.status(status).json({ error: message });
+    if (/invalid image|required|decode/i.test(message)) {
+      return res.status(400).json({ error: message });
+    }
+    // Soft fallback — never 500 the seller UI when Gemini is down/rate-limited.
+    const fallback = buildVisionQuotaTextFallbackJson({
+      userText: safeExtra.text || "Parduodu prekę pagal nuotrauką",
+      userCity: city,
+    });
+    const listing = toListing(fallback, city, phone);
+    res.status(200).json({
+      ...listing,
+      confidence: Math.min(Number(listing.confidence) || 0.55, 0.7),
+      attributes: {
+        ...(listing.attributes ?? {}),
+        visionFallback: "true",
+        visionFallbackReason: message.slice(0, 180),
+      },
+      fallback: true,
+      code: "vision_heuristic_fallback",
+    });
   }
 });
 

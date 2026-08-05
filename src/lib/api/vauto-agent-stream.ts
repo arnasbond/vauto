@@ -156,13 +156,15 @@ export async function apiVautoAgentStream(
   };
   const payloadJson = JSON.stringify(wireBody);
   const pending = wireBody.context?.pendingImageUrls;
-  console.log("[vauto-agent/stream] payload", {
-    bytes: payloadJson.length,
-    kb: Math.round((payloadJson.length / 1024) * 10) / 10,
-    pendingImageCount: wireBody.context?.pendingImageCount ?? null,
-    pendingUrls: Array.isArray(pending) ? pending.length : 0,
-    wireCap: AGENT_STREAM_WIRE_CAP,
-  });
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[vauto-agent/stream] payload", {
+      bytes: payloadJson.length,
+      kb: Math.round((payloadJson.length / 1024) * 10) / 10,
+      pendingImageCount: wireBody.context?.pendingImageCount ?? null,
+      pendingUrls: Array.isArray(pending) ? pending.length : 0,
+      wireCap: AGENT_STREAM_WIRE_CAP,
+    });
+  }
   const pendingCount = Array.isArray(pending) ? pending.length : 0;
   const pendingImageCount =
     typeof wireBody.context?.pendingImageCount === "number"

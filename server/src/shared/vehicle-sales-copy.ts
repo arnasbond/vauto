@@ -220,7 +220,20 @@ export function buildVehicleBenchmarkSalesCopy(draft: SalesCopyDraft): string {
     powerKw,
   });
 
-  const headline = `🚗 Parduodamas ${makeModel}${yearBit}`.replace(/\s+/g, " ").trim();
+  const conditionRaw = attr(attrs, "condition", "state", "būklė", "bukle");
+  const isUsed =
+    !conditionRaw ||
+    /naudot|used|ger[aą]|labai\s+gera|tvarking/i.test(conditionRaw);
+  const isNew = /naujas|new|0\s*km/i.test(conditionRaw);
+  const vehicleNoun = isNew
+    ? "naujas automobilis"
+    : isUsed
+      ? "naudotas automobilis"
+      : "automobilis";
+
+  const headline = `🚗 Parduodamas ${makeModel}${yearBit}`
+    .replace(/\s+/g, " ")
+    .trim();
 
   const lines: string[] = [
     headline,
@@ -271,13 +284,16 @@ export function buildVehicleBenchmarkSalesCopy(draft: SalesCopyDraft): string {
 
   lines.push("", "**Aprašymas:**");
   const descParts: string[] = [];
-  const open = `Parduodamas erdvus ir praktiškas ${makeModel}${yearBit}`
+  // Natural LT: „Parduodamas naudotas automobilis … su dyzeliniu … varikliu.“
+  const openBase = `Parduodamas ${vehicleNoun} ${makeModel}${yearBit}`
     .replace(/\s+/g, " ")
     .trim();
   if (engineProse) {
-    descParts.push(`${open} su ${engineProse}.`);
+    descParts.push(`${openBase}. Yra ${engineProse}.`);
+  } else if (body) {
+    descParts.push(`${openBase} (${body.toLowerCase()}).`);
   } else {
-    descParts.push(`${open}.`);
+    descParts.push(`${openBase}.`);
   }
   if (interiorLines.length) {
     descParts.push(`Salonas: ${interiorLines.join(", ").toLowerCase()}.`);

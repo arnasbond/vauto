@@ -373,7 +373,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     sellerVisionRecoveryActive,
     cancelSellerFlow,
     sellerPreviewImage,
-    finishPublishedFlow,
   } = useSellerFlow();
   const { startChat } = useChat();
   const pathname = usePathname();

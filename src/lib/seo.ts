@@ -4,7 +4,6 @@ import { SITE_URL } from "@/lib/site-url";
 import {
   buildListingOgMeta,
   listingSharePath,
-  listingShareUrl,
 } from "@vauto/shared/listing-og";
 
 export { SITE_URL } from "@/lib/site-url";

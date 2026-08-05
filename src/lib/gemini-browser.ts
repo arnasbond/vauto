@@ -12,6 +12,7 @@ import { normalizeKnownListingCity } from "@/lib/city-resolve";
 import { verifiedProfileCity } from "@/lib/listing-location-context";
 import { SPINTA_SEARCH_SYSTEM_RULE } from "@/lib/wardrobe-cabinet-mode";
 import { isDevClientGeminiEnabled } from "@/lib/ai-pipeline";
+import { sanitizePromptUserInput } from "@vauto/shared/prompt-injection";
 
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 
@@ -218,21 +219,17 @@ const SEARCH_CATEGORIES = new Set([
 
 
 export function getClientGeminiApiKey(): string | null {
-
+  // Stage 0: never expose/use a browser Gemini key in production bundles.
+  if (process.env.NODE_ENV === "production") return null;
+  if (!isDevClientGeminiEnabled()) return null;
   const key = process.env.NEXT_PUBLIC_GEMINI_API_KEY?.trim();
-
   return key || null;
-
 }
 
-
-
 export function isClientGeminiAvailable(): boolean {
-
+  if (process.env.NODE_ENV === "production") return false;
   if (!isDevClientGeminiEnabled()) return false;
-
   return typeof window !== "undefined" && Boolean(getClientGeminiApiKey());
-
 }
 
 
@@ -594,28 +591,16 @@ function mapRawListingJson(
 
 
 function buildListingImagePrompt(
-
   userCity: string,
-
   text?: string,
-
   extraContext?: string
-
 ): string {
-
-  const textNote = text?.trim()
-
-    ? `\nVartotojo papildomas aprašymas: """${text.trim()}"""`
-
+  const safeText = sanitizePromptUserInput(text).text;
+  const safeExtra = sanitizePromptUserInput(extraContext).text;
+  const textNote = safeText
+    ? `\nVartotojo papildomas aprašymas: """${safeText}"""`
     : "";
-
-  const extra = extraContext?.trim()
-
-    ? `\nKontekstas: ${extraContext.trim()}`
-
-    : "";
-
-
+  const extra = safeExtra ? `\nKontekstas: ${safeExtra}` : "";
 
   const cityNote = userCity.trim()
     ? `\nPatvirtintas vartotojo regionas (naudok tik jei skelbime miestas aiškiai nenurodytas): ${userCity.trim()}`
@@ -628,7 +613,6 @@ function buildListingImagePrompt(
 ${textNote}${extra}${cityNote}
 
 Grąžink JSON: ${LISTING_SCHEMA}`;
-
 }
 
 
@@ -1044,8 +1028,8 @@ export async function clientAnalyzeVisualSearchIntent(input: {
     throw new Error("Nuotraukos Base64 konversija nepavyko");
   }
 
-  const contextNote = input.extraContext?.trim()
-    ? ` Papildomas vartotojo tekstas: ${input.extraContext.trim()}`
+  const contextNote = sanitizePromptUserInput(input.extraContext).text
+    ? ` Papildomas vartotojo tekstas: ${sanitizePromptUserInput(input.extraContext).text}`
     : "";
 
   const systemInstruction = `Esi VAUTO pirkėjo VISUAL paieškos intent analizatorius su Gemini Vision.

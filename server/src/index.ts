@@ -62,7 +62,8 @@ app.use("/api/push", pushRouter);
 app.use("/api", apiRouter);
 app.use("/api/ai", aiRateLimiter, aiRouter);
 app.use("/api/vauto-server", aiRateLimiter, requireAuth, vautoServerRouter);
-app.use("/api/vauto-agent", aiRateLimiter, optionalAuth, vautoAgentRouter);
+/** Stage 0 cost abuse: agent requires JWT (guest text spend closed). */
+app.use("/api/vauto-agent", aiRateLimiter, requireAuth, vautoAgentRouter);
 app.use("/api/billing", billingRouter);
 app.use("/api/escrow-billing", escrowBillingRouter);
 app.use("/api/payment-methods", paymentMethodsRouter);

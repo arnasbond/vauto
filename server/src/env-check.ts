@@ -1,5 +1,6 @@
 import { getCloudinaryConfigStatus } from "./ai/cloudinary.js";
 
+/** Must match server/src/auth/tokens.ts DEV_JWT_SECRET. */
 const DEV_JWT_SECRET = "vauto-dev-secret-change-in-production";
 
 export interface EnvCheckResult {
@@ -83,6 +84,12 @@ export function validateProductionEnv(): EnvCheckResult {
     }
   } else if (!process.env.TWILIO_ACCOUNT_SID && !process.env.BULKGATE_APPLICATION_ID) {
     warnings.push("SMS OTP disabled (Twilio/BulkGate not configured) — using demo OTP in non-prod");
+  }
+
+  if (process.env.ALLOW_LEGACY_USER_HEADER === "true" && !isProd) {
+    warnings.push(
+      "ALLOW_LEGACY_USER_HEADER=true — X-User-Id auth bypass enabled (local QA only; never on shared hosts)"
+    );
   }
 
   if (!process.env.GOOGLE_CLIENT_ID) {

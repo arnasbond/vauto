@@ -1,6 +1,32 @@
 import crypto from "node:crypto";
 
-const SECRET = process.env.JWT_SECRET ?? "vauto-dev-secret-change-in-production";
+/** Known weak default — forbidden in production (see env-check assertProductionEnv). */
+export const DEV_JWT_SECRET = "vauto-dev-secret-change-in-production";
+
+function resolveJwtSecret(): string {
+  const fromEnv = process.env.JWT_SECRET?.trim();
+  if (process.env.NODE_ENV === "production") {
+    if (!fromEnv || fromEnv === DEV_JWT_SECRET) {
+      throw new Error(
+        "JWT_SECRET must be a strong non-default value when NODE_ENV=production"
+      );
+    }
+    return fromEnv;
+  }
+  if (fromEnv && fromEnv !== DEV_JWT_SECRET) return fromEnv;
+  if (!fromEnv) {
+    console.warn(
+      "[auth] JWT_SECRET unset — using insecure dev default (OK only for local NODE_ENV≠production)"
+    );
+  } else if (fromEnv === DEV_JWT_SECRET) {
+    console.warn(
+      "[auth] JWT_SECRET is the known dev default — set a unique secret before any shared/staging host"
+    );
+  }
+  return fromEnv || DEV_JWT_SECRET;
+}
+
+const SECRET = resolveJwtSecret();
 const TTL_MS = Number(process.env.JWT_TTL_MS ?? 7 * 24 * 60 * 60 * 1000);
 
 export interface TokenPayload {

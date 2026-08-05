@@ -12,11 +12,14 @@ export interface AuthedRequest extends Request {
   authSource?: "bearer" | "legacy-header";
 }
 
+/**
+ * Legacy X-User-Id auth bypass — OFF by default.
+ * Stage 0: must be explicitly enabled (local QA only). Never auto-on for
+ * "not production" (staging hosts often omit NODE_ENV=production).
+ * Production + ALLOW_LEGACY_USER_HEADER=true is FATAL in env-check.
+ */
 function allowLegacyUserHeader(): boolean {
-  return (
-    process.env.ALLOW_LEGACY_USER_HEADER === "true" ||
-    process.env.NODE_ENV !== "production"
-  );
+  return process.env.ALLOW_LEGACY_USER_HEADER === "true";
 }
 
 export function optionalAuth(
