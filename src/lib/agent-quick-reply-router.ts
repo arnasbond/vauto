@@ -311,7 +311,7 @@ export function tryHandleAgentQuickReply(
     return {
       handled: true,
       reply:
-        "Puiku — AI Dvynys–Derybininkas veiks 24/7. Parašykite minimalią kainą (pvz. „min 250 €“), ir aš jį aktyvuosiu skelbimui. Skelbimą publikuojam dabar, ar pirmiau nustatom ribas?",
+        "Puiku — derybų asistentas siūlys šabloninius atsakymus pagal jūsų ribas. Sandorį tvirtinate jūs. Parašykite minimalią kainą (pvz. „min 250 €“), ir aktyvuosiu jį skelbimui. Skelbimą publikuojam dabar, ar pirmiau nustatom ribas?",
       quickReplies: ["Taip, publikuoti", "Nustatyti min kainą", "Ne, be reklamos"],
     };
   }

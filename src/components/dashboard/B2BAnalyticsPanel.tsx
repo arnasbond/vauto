@@ -115,7 +115,7 @@ export function B2BAnalyticsPanel({ analytics }: B2BAnalyticsPanelProps) {
         <div className="mb-2 flex items-center gap-1.5">
           <Share2 className="h-3.5 w-3.5 text-[var(--ds-ai-strong)]" />
           <p className="text-xs font-semibold text-[var(--ds-text-primary)]">
-            Social Engine · 9:16 piltuvėlis
+            Dalijimosi vizualai · 9:16 piltuvėlis
           </p>
         </div>
         <div className="space-y-2.5">

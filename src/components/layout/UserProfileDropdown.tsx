@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   LogOut,
   MessageCircle,
+  Handshake,
   Settings,
   Shield,
   User,
@@ -236,6 +237,13 @@ export function UserProfileDropdown({ variant = "desktop" }: UserProfileDropdown
             label="Pokalbiai"
             hint="Susirašinėjimai su pirkėjais"
             badge={unread}
+            onNavigate={close}
+          />
+          <MenuLink
+            href="/sandoriai/"
+            icon={<Handshake className="h-4 w-4" />}
+            label="Sandoriai"
+            hint="Mokėjimas, Omniva, ginčai ir atsiliepimai"
             onNavigate={close}
           />
           <MenuLink

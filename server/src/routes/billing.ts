@@ -3,18 +3,12 @@ import { sendInternalError } from "../lib/http-errors.js";
 import type Stripe from "stripe";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import {
-  calculateBuyerProtectionFee,
-  calculateBuyerTotal,
-  resolveEscrowPaymentIntentId,
-} from "../billing/stripe-b2b.js";
-import {
   applyListingPromotePaid,
   cancelUserBillingByStripeCustomer,
   getListingForEmbedding,
   getUser,
   getUserStripeCustomerId,
   listBillingInvoicesForUser,
-  markEscrowPaidFromStripe,
   subscribeUserPlan,
 } from "../repository.js";
 import {
@@ -42,7 +36,6 @@ import {
   saveCardDetails,
   savePayoutAccount,
 } from "../billing/payment-methods-repo.js";
-import { notifyEscrowPaid } from "../services/sale-notifications.js";
 
 export const billingRouter = Router();
 
@@ -288,6 +281,86 @@ billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) =>
   }
 });
 
+/**
+ * Stage 11F.7 — checkout.session.completed business logic (billing route).
+ * Legacy escrow short-circuits BEFORE any invoice / DB mutation.
+ * Exported for behavioral regression tests.
+ */
+export type BillingCheckoutSessionResult =
+  | { received: true; legacyEscrowIgnored: true }
+  | { received: true };
+
+export type BillingCheckoutSessionDeps = {
+  /** Override invoice persistence (tests measure 0 mutations). */
+  persistInvoice?: (session: Stripe.Checkout.Session) => Promise<void>;
+};
+
+export async function processBillingCheckoutSessionCompleted(
+  session: Stripe.Checkout.Session,
+  deps: BillingCheckoutSessionDeps = {}
+): Promise<BillingCheckoutSessionResult> {
+  // H-01: escrow check MUST run before persistInvoiceFromCheckoutSession
+  if (session.metadata?.kind === "escrow") {
+    console.info(
+      "[billing/webhook] legacy escrow event ignored (no-op); use /api/webhooks/stripe",
+      {
+        sessionId: session.id,
+        escrowId: session.metadata.escrowId ?? null,
+      }
+    );
+    return { received: true, legacyEscrowIgnored: true };
+  }
+
+  const persist = deps.persistInvoice ?? persistInvoiceFromCheckoutSession;
+  try {
+    await persist(session);
+  } catch (e) {
+    console.error("Invoice persist failed:", e);
+  }
+
+  if (session.metadata?.kind === "payment_method_setup") {
+    try {
+      const { userId, card } = await resolveSetupSessionCard(session.id);
+      if (userId && card) {
+        await saveCardDetails(userId, card);
+      }
+    } catch (e) {
+      console.error("Payment method setup webhook failed:", e);
+    }
+  } else if (
+    session.metadata?.kind === "b2c_promote" &&
+    session.metadata.listingId &&
+    session.metadata.userId
+  ) {
+    try {
+      const tier = normalizePromoteTier(session.metadata.tier);
+      const listing = await applyListingPromotePaid({
+        userId: session.metadata.userId,
+        listingId: session.metadata.listingId,
+        tier,
+        stripeSessionId: session.id,
+      });
+      if (!listing) {
+        console.error(
+          "Promote webhook: listing not found",
+          session.metadata.listingId
+        );
+      }
+    } catch (e) {
+      console.error("Promote webhook apply failed:", e);
+    }
+  } else {
+    const userId = session.metadata?.userId;
+    const planId = session.metadata?.planId;
+    const customerId = resolveStripeCustomerId(session.customer);
+    if (userId && planId && VALID_PLANS.has(planId)) {
+      await subscribeUserPlan(userId, planId, session.id, customerId);
+    }
+  }
+
+  return { received: true };
+}
+
 export async function handleStripeWebhook(
   req: Request,
   res: Response
@@ -328,75 +401,10 @@ export async function handleStripeWebhook(
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    try {
-      await persistInvoiceFromCheckoutSession(session);
-    } catch (e) {
-      console.error("Invoice persist failed:", e);
-    }
-    if (session.metadata?.kind === "escrow" && session.metadata.escrowId) {
-      try {
-        const { paymentIntentId } = await resolveEscrowPaymentIntentId(session.id);
-        const escrowId = session.metadata.escrowId;
-        const itemAmount = Number(session.metadata.itemAmountEur ?? 0);
-        const fee = Number(session.metadata.buyerProtectionFeeEur ?? 0);
-        const buyerProtectionFee =
-          fee > 0 ? fee : calculateBuyerProtectionFee(itemAmount);
-        const buyerTotal =
-          session.amount_total != null
-            ? session.amount_total / 100
-            : calculateBuyerTotal(itemAmount);
-        const updated = await markEscrowPaidFromStripe({
-          escrowId,
-          paymentIntentId,
-          buyerProtectionFee,
-          buyerTotal,
-        });
-        if (updated) {
-          await notifyEscrowPaid(updated).catch((e) =>
-            console.error("Sale email (escrow webhook) failed:", e)
-          );
-        }
-      } catch (e) {
-        console.error("Escrow webhook mark paid failed:", e);
-      }
-    } else if (session.metadata?.kind === "payment_method_setup") {
-      try {
-        const { userId, card } = await resolveSetupSessionCard(session.id);
-        if (userId && card) {
-          await saveCardDetails(userId, card);
-        }
-      } catch (e) {
-        console.error("Payment method setup webhook failed:", e);
-      }
-    } else if (
-      session.metadata?.kind === "b2c_promote" &&
-      session.metadata.listingId &&
-      session.metadata.userId
-    ) {
-      try {
-        const tier = normalizePromoteTier(session.metadata.tier);
-        const listing = await applyListingPromotePaid({
-          userId: session.metadata.userId,
-          listingId: session.metadata.listingId,
-          tier,
-          stripeSessionId: session.id,
-        });
-        if (!listing) {
-          console.error(
-            "Promote webhook: listing not found",
-            session.metadata.listingId
-          );
-        }
-      } catch (e) {
-        console.error("Promote webhook apply failed:", e);
-      }
-    } else {
-      const userId = session.metadata?.userId;
-      const planId = session.metadata?.planId;
-      const customerId = resolveStripeCustomerId(session.customer);
-      if (userId && planId && VALID_PLANS.has(planId)) {
-        await subscribeUserPlan(userId, planId, session.id, customerId);
-      }
+    const result = await processBillingCheckoutSessionCompleted(session);
+    if ("legacyEscrowIgnored" in result && result.legacyEscrowIgnored) {
+      res.status(200).json(result);
+      return;
     }
   }
 

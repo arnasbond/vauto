@@ -16,7 +16,7 @@ test.describe("Homepage Premium UI 3.0 snapshots", () => {
     await page.goto("/");
     await dismissGdpr(page);
     await expect(
-      page.getByRole("heading", { name: /Parduok greičiau/i })
+      page.getByRole("heading", { name: /Žmogus sprendžia/i })
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole("searchbox").first()).toBeVisible();
     await expect(
@@ -33,7 +33,7 @@ test.describe("Homepage Premium UI 3.0 snapshots", () => {
     await page.goto("/");
     await dismissGdpr(page);
     await expect(
-      page.getByRole("heading", { name: /Parduok greičiau/i })
+      page.getByRole("heading", { name: /Žmogus sprendžia/i })
     ).toBeVisible({ timeout: 15_000 });
     await expect(
       page.getByRole("navigation", { name: "Pagrindinė navigacija" })

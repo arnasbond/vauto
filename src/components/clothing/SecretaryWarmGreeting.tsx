@@ -13,7 +13,7 @@ import type { Listing } from "@/lib/types";
 const ACCENT = "#09b1a8";
 
 export const WARDROBE_SECRETARY_CLICK_GREETING =
-  "Labas! Aš esu tavo AI asistentas — padėsiu paruošti skelbimą, patarti dėl rinkos kainos, Omniva paštomato ir Stories / Reels vizualų. Ką išbandome pirmiausia?";
+  "Labas! Aš esu tavo AI asistentas — padėsiu paruošti skelbimą, pasiūlyti kainos rėžį, Omniva paštomatą ir Stories / Reels vizualus. Sandorį tvirtinate jūs. Ką išbandome pirmiausia?";
 
 function buildSummary(
   firstName: string,
@@ -25,7 +25,7 @@ function buildSummary(
   const express = countExpressEscrowTimers(deals);
 
   if (active.length === 0 && deals.length === 0) {
-    return `${firstName}, tavo spinta laukia pirmos prekės — padėsiu viską supakuoti ir saugiai išsiųsti.`;
+    return `${firstName}, tavo spinta laukia pirmos prekės — padėsiu paruošti skelbimą. Publikuojate jūs.`;
   }
 
   const parts: string[] = [];

@@ -24,7 +24,7 @@ export function calculateBuyerTotal(
 
 export function buyerProtectionExplanation(): string {
   return (
-    "Šis mokestis garantuoja visišką pinigų grąžinimą, jei prekė neatitiks nuotraukos."
+    "Platformos mokestis padeda vesti sandorį per VAUTO: mokėjimas laikomas, kol patvirtinate gavimą arba sprendžiamas ginčas. Tai nėra visų rizikų draudimas ir nepakeičia prekės apžiūros."
   );
 }
 

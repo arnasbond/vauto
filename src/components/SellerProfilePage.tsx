@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { ArrowLeft, Calendar, Package } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { SellerRatingBadge } from "@/components/listing/SellerRatingBadge";
+import { VerifiedReputationBadge } from "@/components/reputation/VerifiedReputationBadge";
 import { MarketplaceGridCard } from "@/components/marketplace/MarketplaceListingCards";
 import { useVauto } from "@/context/VautoContext";
 import {
@@ -83,6 +84,9 @@ export function SellerProfilePage({ sellerId: sellerIdProp }: SellerProfilePageP
                 sellerId={sellerId}
                 reviews={reviews}
               />
+              <div className="mt-1">
+                <VerifiedReputationBadge userId={sellerId} />
+              </div>
               <p className="mt-3 flex items-center gap-1.5 text-sm text-slate-600">
                 <Package className="h-4 w-4 shrink-0 text-slate-400" />
                 {active.length} aktyvūs skelbim{active.length === 1 ? "as" : "ai"}

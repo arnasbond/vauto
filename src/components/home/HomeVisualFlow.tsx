@@ -13,8 +13,8 @@ import { cn } from "@/lib/cn";
 const STEPS = [
   {
     n: "1",
-    title: "Nuotrauka / Tekstas",
-    text: "Įkelkite foto arba aprašykite — Vision AI ir pokalbio asistentas pradeda iškart.",
+    title: "Parduodu",
+    text: "Parodau nuotrauką arba papasakoju. VAUTO paruošia skelbimą. Aš patikrinu ir patvirtinu.",
     icon: Camera,
     mock: (
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-dashed border-[var(--ds-border-strong)] bg-[var(--ds-surface-muted)] px-3 py-2.5">
@@ -27,28 +27,28 @@ const STEPS = [
   },
   {
     n: "2",
-    title: "AI analizuoja & nustato kainą",
-    text: "Antraštė, specifikacijos ir rinkos kainos rėžis — jūs tik patvirtinate.",
+    title: "Perku",
+    text: "Pasakau, ko ieškau. VAUTO atrenka. Palyginu ir pasirinkiu — AI nereiškia, kad pirkėjas garantuotas.",
     icon: Sparkles,
     mock: (
       <div className="mt-4 space-y-2">
         <div className="h-2 w-[80%] rounded-full bg-[var(--ds-ai)]/25" />
         <div className="h-2 w-[60%] rounded-full bg-[var(--ds-ai)]/15" />
         <Badge tone="ai" className="mt-1">
-          Rinka: 6 200 – 7 100 €
+          Atrinkta palyginimui
         </Badge>
       </div>
     ),
   },
   {
     n: "3",
-    title: "Skelbimas aktyvus · Omniva",
-    text: "Publikuojate vienu paspaudimu; pirkėjui — saugus užsakymas su paštomatu.",
+    title: "Sandoris",
+    text: "Susitariame. VAUTO padeda aiškiai pereiti eigą: mokėjimas, Omniva, gavimas. Būsenas tvirtina serveris.",
     icon: Package,
     mock: (
       <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-[var(--ds-success)]">
         <CheckCircle2 className="h-4 w-4" aria-hidden />
-        Aktyvus · Omniva paruošta
+        Eiga matoma Deal Room
       </div>
     ),
   },
@@ -81,7 +81,8 @@ export function HomeVisualFlow({ className, onInsightCta }: HomeVisualFlowProps)
             Kaip tai veikia
           </h2>
           <p className="mt-2 text-[length:var(--ds-text-body-sm-size)] text-[var(--ds-text-muted)] sm:text-base">
-            Trys žingsniai — nuo minties iki aktyvaus skelbimo su Omniva.
+            Trys keliai: parduoti, pirkti ir vesti sandorį. AI padeda — jūs
+            sprendžiate.
           </p>
         </div>
 
@@ -127,8 +128,8 @@ export function HomeVisualFlow({ className, onInsightCta }: HomeVisualFlowProps)
 
         <div className="mx-auto mt-8 max-w-2xl">
           <AiInsightCard
-            title="Siūloma kaina: 6 650 €"
-            body="Pagal panašius Citroën C4 skelbimus Lietuvoje AI rekomenduoja rinkos vidurį — greičiau parduodate be nuvertinimo."
+            title="Kainos rėžis (rekomendacija): 6 650 €"
+            body="Pagal panašius Citroën C4 skelbimus tai analitinis rėžis, ne garantuota rinkos vertė ir ne automobilio būklės pažyma. Galutinę kainą nustato pardavėjas."
             ctaLabel="Pradėti su AI"
             onCta={onInsightCta}
           />

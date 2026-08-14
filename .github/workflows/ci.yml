@@ -10,6 +10,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: vauto_test
+          POSTGRES_USER: vauto_test
+          POSTGRES_PASSWORD: vauto_test_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      TEST_DATABASE_URL: postgres://vauto_test:vauto_test_pass@localhost:5432/vauto_test
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +63,86 @@ jobs:
 
       - name: AI golden path (offline)
         run: npm run test:ai-golden
+
+      - name: Stage 10 AI foundation
+        run: npm run test:ai-foundation --prefix server
+
+      - name: Stage 10A Intent
+        run: npm run test:ai-intent --prefix server
+
+      - name: Stage 10B Search
+        run: npm run test:ai-search --prefix server
+
+      - name: Stage 10C Sell
+        run: npm run test:ai-sell --prefix server
+
+      - name: Stage 10D Market Intelligence
+        run: npm run test:ai-market --prefix server
+
+      - name: Stage 10E VAUTO Score
+        run: npm run test:vauto-score --prefix server
+
+      - name: Stage 10F Buyer Match
+        run: npm run test:buyer-match --prefix server
+
+      - name: Stage 10G Compare Engine
+        run: npm run test:compare-engine --prefix server
+
+      - name: Stage 10H AI Watch
+        run: npm run test:ai-watch --prefix server
+
+      - name: Stage 10I Red Team
+        run: npm run test:ai-red-team --prefix server
+
+      - name: Stage 10J Integration (PostgreSQL)
+        run: npm run test:stage10-integration --prefix server
+
+      - name: Stage 10K HTTP Auth Integration
+        run: npm run test:stage10-http-integration --prefix server
+
+      - name: Stage 11A Transaction State Machine
+        run: npm run test:transaction-state-machine --prefix server
+
+      - name: Stage 11B Structured Offers
+        run: npm run test:structured-offers --prefix server
+
+      - name: Stage 11C Transaction Chat
+        run: npm run test:transaction-chat --prefix server
+
+      - name: Stage 11D Negotiation Copilot
+        run: npm run test:negotiation-copilot --prefix server
+
+      - name: Stage 11E Deal Room
+        run: npm run test:deal-room --prefix server
+
+      - name: Stage 11E.2 Real PostgreSQL pg.Pool gate
+        run: npm run test:real-postgres-pool --prefix server
+        env:
+          TEST_DATABASE_URL: postgres://vauto_test:vauto_test_pass@localhost:5432/vauto_test
+
+      - name: Stage 11F.1 Payment Domain & Ledger
+        run: npm run test:payment-ledger --prefix server
+
+      - name: Stage 11F.2 Stripe PaymentIntent Integration
+        run: npm run test:stripe-payment-intent --prefix server
+
+      - name: Stage 11F.3 Stripe Signed Webhooks
+        run: npm run test:stripe-webhooks --prefix server
+
+      - name: Stage 11F.4 Funds Transfer & Refund
+        run: npm run test:funds-transfer --prefix server
+
+      - name: Stage 11F.5 Financial Reconciliation & Red Team
+        run: npm run test:financial-reconciliation --prefix server
+
+      - name: Stage 11G.1 Delivery & Shipping
+        run: npm run test:delivery-shipping --prefix server
+
+      - name: Stage 11H.1 Dispute Resolution
+        run: npm run test:dispute-resolution --prefix server
+
+      - name: Stage 11I.1 Reputation Engine
+        run: npm run test:reputation-engine --prefix server
 
       - name: Conductor kill-switch drill
         run: node scripts/conductor-kill-switch-drill.mjs
@@ -97,6 +193,16 @@ jobs:
 
       - name: Build static export
         run: npm run build:e2e
+
+      - name: Install server dependencies (Stage 12A harness)
+        run: npm run server:install
+
+      - name: Run Stage 12A Deal Room E2E
+        run: npx playwright test e2e/stage12a-deal-room-flows.spec.ts
+        env:
+          CI: "true"
+          E2E_MINT_REAL_JWT: "1"
+          JWT_SECRET: vauto-dev-secret-change-in-production
 
       - name: Run E2E smoke tests
         run: npx playwright test e2e/smoke.spec.ts

@@ -146,8 +146,8 @@ export default function ApiePage() {
     }
 
     const payload = {
-      title: "VAUTO — Pirmoji Lietuvoje išmanioji skelbimų ekosistema",
-      text: "Pamirškite ilgas formas — nufotografuokite daiktą, o AI paruoš skelbimą per kelias sekundes. Starto mėnuo — 0 €!",
+      title: "VAUTO — Šiuolaikiška automobilių prekybos ir sandorių platforma",
+      text: "AI padeda paruošti skelbimą ir vesti sandorio eigą. Žmogus sprendžia.",
       url: SITE_URL,
       dialogTitle: "Pasidalinti su draugais",
     };
@@ -172,20 +172,21 @@ export default function ApiePage() {
     <AppShell variant="plain">
       <Header />
       <div className="pb-4 pt-2">
-        {/* Hero & promo */}
         <section className="relative overflow-hidden rounded-3xl border border-[var(--vauto-border)] bg-gradient-to-br from-[var(--vauto-teal)]/15 via-[var(--vauto-surface)] to-[var(--vauto-orange)]/10 p-6 shadow-sm sm:p-8">
           <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[var(--vauto-teal)]/10 blur-2xl" />
           <div className="absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-[var(--vauto-orange)]/10 blur-2xl" />
           <p className="inline-flex items-center gap-1.5 rounded-full bg-[var(--vauto-orange)]/15 px-3 py-1 text-[11px] font-bold text-[var(--vauto-orange)] ring-1 ring-[var(--vauto-orange)]/25">
-            🎉 Starto akcija: 0 € (3 mėnesius nemokamai)!
+            AI padeda. Žmogus sprendžia.
           </p>
           <h1 className="mt-4 text-2xl font-extrabold leading-tight text-[var(--vauto-text)] sm:text-3xl lg:text-[2rem]">
-            VAUTO — Pirmoji Lietuvoje išmanioji skelbimų ekosistema
+            VAUTO — Šiuolaikiška automobilių prekybos ir sandorių platforma
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--vauto-text-muted)] sm:text-[15px]">
-            Vision AI + pokalbio asistentas paruošia skelbimą iš nuotraukos, AI kainos
-            vertintojas parenka rinkos kainą, o Omniva paštomatai — siuntimą vienu
-            paspaudimu.
+            Vision AI ir pokalbio asistentas paruošia skelbimo juodraštį iš
+            nuotraukos ar sakinio. Kainos rėžis yra rekomendacija, ne garantuota
+            rinkos kaina. Omniva siuntų sekimo integracija veikia sandorio
+            kambaryje, po jūsų patvirtinimo. Publikavimą, mokėjimą ir gavimą
+            tvirtinate jūs.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -205,7 +206,6 @@ export default function ApiePage() {
           </div>
         </section>
 
-        {/* Kam skirta */}
         <section className="mt-10">
           <div className="mb-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-orange)]">
@@ -223,22 +223,21 @@ export default function ApiePage() {
             <AudienceCard
               icon={Search}
               title="Pirkėjams"
-              description="Ieškokite automobilio, buto, paslaugos ar daikto vienu sakiniu. Nerandate dabar? Įjunkite „Laukiu šio daikto“ — pranešime, kai atsiras."
+              description="Ieškokite automobilio, buto, paslaugos ar daikto vienu sakiniu. Nerandate dabar? Įjunkite „Laukiu šio daikto“ — pranešime, kai atsiras atitikmuo. Pasirinkimą darote jūs."
             />
             <AudienceCard
               icon={Heart}
               title="Privatiems pardavėjams"
-              description="Nuotrauka — ir skelbimas paruoštas. AI kainos rėžis, Omniva paštomatas, realaus laiko pokalbiai ir atsiliepimai su TOP dovana."
+              description="Nuotrauka — ir juodraštis paruoštas. AI kainos rėžis, Omniva siuntų sekimas, pokalbiai ir patvirtinti atsiliepimai po užbaigto sandorio. Publikaciją tvirtinate jūs."
             />
             <AudienceCard
               icon={Users}
               title="Verslui ir profesionalams"
-              description="ROI analitikos skydelis, 9:16 Social Engine, bulk įkėlimas ir aukštesnis reitingas (b2bTrustBoost) su Omniva logistika."
+              description="Kabineto statistika (peržiūros ir kontaktai), dalijimosi vizualai, masinis katalogo įkėlimas ir Omniva logistika sandorio kambaryje."
             />
           </div>
         </section>
 
-        {/* Core ecosystem advantages */}
         <section className="mt-10">
           <div className="mb-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-orange)]">
@@ -248,61 +247,61 @@ export default function ApiePage() {
               Kodėl VAUTO — daugiau nei skelbimų lenta
             </h2>
             <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
-              Visa išmanioji grandinė: nuo nuotraukos iki skelbimo ir pokalbio — AI,
-              pasitikėjimas, pranešimai ir gyvas Omniva paštomatų lipdukų API.
+              Nuo nuotraukos iki skelbimo ir sandorio eigos: AI paruošia, jūs
+              tvirtinate. Būsenas saugo serveris, ne naršyklė.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <FeatureCard
               icon={Sparkles}
-              title="🧠 Gilusis AI atpažinimas (Deep OCR)"
-              description="Auto-pildymas iš pakuočių, techninių specifikacijų ir Regitra dokumentų — be ilgų formų."
+              title="🧠 Gilusis AI atpažinimas"
+              description="Auto-pildymas iš pakuočių ir įskaitomų specifikacijų — be ilgų formų. Laukų teisingumą peržiūrite jūs."
             />
             <FeatureCard
               icon={Star}
               title="⭐️ Patikimumo ir reitingų sistema"
-              description="Skaidrūs įvertinimai, „Patikrintas pardavėjas“ ženkliukas ir dovanų TOP iškėlimas už paliktą atsiliepimą."
+              description="Patvirtintas atsiliepimas galimas tik po užbaigto (COMPLETED) sandorio, kuriame dalyvavote. Tuščia reputacija nėra 0 žvaigždučių."
             />
             <FeatureCard
               icon={Bell}
               title="🔔 Išmanieji norų pranešimai („Laukiu šio daikto“)"
-              description="Automatinis pirkėjo perspėjimas, kai tik atsiranda jo ieškoma prekė — Web Push arba programėlėje."
+              description="Pranešimas, kai atsiranda atitikmuo — Web Push arba programėlėje. Negarantuojame, kad skelbimas atsiras."
             />
             <FeatureCard
               icon={Package}
-              title="📦 AI gabaritai ir paštomatai"
-              description="AI tikrina matmenis (S, M, L) ir siūlo tinkamą paštomatą. Omniva lipdukai — oficialus OMX live API (Escrow → Siuntos lipdukas)."
+              title="📦 Gabaritai ir paštomatai"
+              description="AI siūlo matmenų klasę (S, M, L) ir paštomatą. Omniva siuntų sekimo integracija — lipdukas kuriamas sandorio kambaryje po jūsų veiksmo."
             />
             <FeatureCard
               icon={Languages}
               title="🌐 Tiesioginis pokalbių vertėjas"
-              description="Tiesioginis žinučių vertimas pokalbių lange vienu paspaudimu — „🌐 Išversti“ ant kiekvienos žinutės."
+              description="Žinučių vertimas pokalbių lange vienu paspaudimu — „🌐 Išversti“ ant kiekvienos žinutės."
             />
             <FeatureCard
               icon={LineChart}
-              title="💰 AI Kainų vertintojas"
-              description="PriceRangeBar prieš publikavimą — rinkos rėžis ir optimali kaina, kad greičiau rastumėte pirkėją."
+              title="💰 AI kainų rėžis"
+              description="PriceRangeBar prieš publikavimą — rinkos rėžis kaip rekomendacija, ne garantuota kaina ir ne būklės pažyma."
             />
             <FeatureCard
               icon={KeyRound}
-              title="🔑 Greita ir saugi autorizacija"
-              description="Prisijungimas vienu paspaudimu su Apple Sign-In, Google arba SMS OTP patvirtinimu."
+              title="🔑 Greita autorizacija"
+              description="Prisijungimas su Apple Sign-In, Google arba SMS OTP patvirtinimu."
             />
             <FeatureCard
               icon={Wallet}
-              title="🎉 Starto akcija — 0 €"
-              description="3 mėnesius nemokamai (0 €), be kortelės. Augant — matomumo paketai, escrow apsauga ir TOP iškėlimai."
+              title="🤝 Sandorio kambarys"
+              description="Pasiūlymas, mokėjimas per VAUTO, Omniva sekimas, gavimas ir patvirtintas atsiliepimas. AI nesiunčia pinigų ir nekeičia būsenos."
             />
           </div>
         </section>
 
-        {/* How it works — 3 steps */}
         <section className="mt-10 rounded-3xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] p-6 shadow-sm sm:p-8">
           <h2 className="text-lg font-bold text-[var(--vauto-text)] sm:text-xl">
             Kaip tai veikia
           </h2>
           <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
-            Trys paprasti žingsniai — nuo nuotraukos iki publikavimo per ~10 sekundžių.
+            Trys paprasti žingsniai — greitas skelbimo paruošimas su AI asistentu.
+            Publikaciją visada tvirtinate jūs.
           </p>
 
           <div className="relative mt-8 grid gap-10 sm:grid-cols-3 sm:gap-6">
@@ -320,35 +319,34 @@ export default function ApiePage() {
               step={2}
               icon={Sparkles}
               title="AI analizė ir aprašymas"
-              description="Deep OCR ištraukia faktus, sugeneruoja kategorijos aprašymą ir pasiūlo kainą bei pristatymą."
+              description="AI ištraukia įskaitomus faktus, paruošia kategorijos aprašymą ir pasiūlo kainos rėžį bei pristatymą."
             />
             <JourneyStep
               step={3}
               icon={UserCheck}
-              title="Publikavimas per 10 s"
-              description="Patvirtinate — skelbimas gyvas. Toliau: realaus laiko pokalbiai, atsiliepimai ir Omniva siuntos lipdukas."
+              title="Jūs tvirtinate"
+              description="Patvirtinate — skelbimas gyvas. Toliau: pokalbiai, sandorio eiga ir Omniva siuntų sekimas."
             />
           </div>
         </section>
 
-        {/* Categories */}
         <section className="mt-10">
           <div className="mb-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-orange)]">
               Kategorijos
             </p>
             <h2 className="mt-1 text-lg font-bold text-[var(--vauto-text)] sm:text-xl">
-              Pilnas palaikymas visoms skelbimų kategorijoms
+              Palaikymas skelbimų kategorijoms
             </h2>
             <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
-              Viena ekosistema — nuo transporto iki mados ir elektronikos.
+              Viena platforma — nuo transporto iki mados ir elektronikos.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <CategoryRow
               icon={Car}
               title="🚗 Automobiliai ir transportas"
-              description="VIN / numerių OCR, tech. duomenys iš Regitra dokumentų ir auto kabinetas."
+              description="VIN / numerių OCR padeda užpildyti laukus. Duomenis peržiūrite jūs — tai nepakeičia fizinės apžiūros."
             />
             <CategoryRow
               icon={Home}
@@ -363,12 +361,12 @@ export default function ApiePage() {
             <CategoryRow
               icon={Briefcase}
               title="💼 Darbo skelbimai"
-              description="Darbo pozicijos verslui ir specialistams — vienoje ekosistemoje."
+              description="Darbo pozicijos verslui ir specialistams — vienoje platformoje."
             />
             <CategoryRow
               icon={Smartphone}
               title="📦 Elektronika, mada ir daiktai"
-              description="Telefonai, drabužiai, buitis — Deep OCR iš pakuotės ir greitas publikavimas."
+              description="Telefonai, drabužiai, buitis — juodraštis iš pakuotės nuotraukos ir rankinis publikavimas."
             />
             <CategoryRow
               icon={MessageCircle}
@@ -378,7 +376,6 @@ export default function ApiePage() {
           </div>
         </section>
 
-        {/* Mobile install */}
         <section className="mt-10 rounded-3xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] p-6 shadow-sm">
           <h2 className="text-lg font-bold text-[var(--vauto-text)]">
             Atsisiųskite programėlę
@@ -391,7 +388,6 @@ export default function ApiePage() {
           </div>
         </section>
 
-        {/* CTA */}
         <section
           className={cn(
             "mt-10 rounded-3xl border border-[var(--vauto-orange)]/40 p-6 text-center",
@@ -399,11 +395,11 @@ export default function ApiePage() {
           )}
         >
           <h2 className="text-lg font-bold text-[var(--vauto-text)]">
-            Pakvieskite draugą — gaukite TOP iškėlimą nemokamai
+            Pakvieskite draugą į VAUTO
           </h2>
           <p className="mx-auto mt-2 max-w-sm text-xs text-[var(--vauto-text-muted)]">
-            Pasidalinkite VAUTO per Messenger, Viber ar SMS — ir startuokite su 0 €
-            pirmuoju mėnesiu.
+            Pasidalinkite VAUTO per Messenger, Viber ar SMS. AI padeda — žmogus
+            sprendžia.
           </p>
           <button
             type="button"

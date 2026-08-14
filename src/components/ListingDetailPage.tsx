@@ -14,6 +14,7 @@ import {
   Sparkles,
   Tag,
   Truck,
+  Handshake,
 } from "lucide-react";
 import { OrderWithShippingModal } from "@/components/shipping/OrderWithShippingModal";
 import { ListingBuyerTipsModal } from "@/components/listing/ListingBuyerTipsModal";
@@ -115,6 +116,8 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     reviews,
     listings,
     chameleonTheme,
+    isAuthenticated,
+    openAuthModal,
   } = useVauto();
   const { startEditListingFlow } = useSellerFlow();
   const { hydrated } = useVautoBridge();
@@ -236,6 +239,18 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     if (chatId) router.push(chatThreadPath(chatId));
   };
 
+  const handleStartDeal = () => {
+    if (isOwner) {
+      showToast("Tai jūsų skelbimas.", "info");
+      return;
+    }
+    if (!isAuthenticated) {
+      openAuthModal(`/sandoriai/?listingId=${encodeURIComponent(listing.id)}`);
+      return;
+    }
+    router.push(`/sandoriai/?listingId=${encodeURIComponent(listing.id)}`);
+  };
+
   const handleChat = () => {
     if (isOwner) {
       showToast("Tai jūsų skelbimas — negalite rašyti sau.", "info");
@@ -337,7 +352,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
                   ? "Pagal panašius skelbimus ši kaina atrodo patraukli pirkėjui."
                   : aiPrice.label === "Rinkos mediana"
                     ? "Kaina artima rinkos viduriui — derėtis galima, bet vertė aiški."
-                    : "AI įvertino šį skelbimą pagal nuotrauką ir aprašymą."
+                    : "AI įvertino šį skelbimą pagal nuotrauką ir aprašymą — tai rekomendacija, ne garantija."
               }
               ctaLabel="AI klausimai"
               onCta={() => setBuyerTipsOpen(true)}
@@ -528,6 +543,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               onOpenShipping={() => setOrderShippingOpen(true)}
               onOpenTips={() => setBuyerTipsOpen(true)}
               onNegotiate={handleNegotiate}
+              onStartDeal={handleStartDeal}
             />
           </aside>
         </div>
@@ -622,6 +638,15 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
                 <Truck className="h-5 w-5" aria-hidden />
               </button>
             ) : null}
+            <button
+              type="button"
+              onClick={handleStartDeal}
+              className={iconActionClass}
+              aria-label="Pradėti saugų sandorį"
+              data-start-deal-cta="1"
+            >
+              <Handshake className="h-5 w-5" aria-hidden />
+            </button>
           </>
         )}
       </div>

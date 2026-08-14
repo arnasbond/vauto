@@ -104,10 +104,10 @@ export function buildLeanSellGreeting(category?: string | null): string {
     cat === "paslaugos" ||
     cat === "nt"
   ) {
-    return "Puiku — esu jūsų pardavimo partneris! Aprašykite pasiūlymą (darbas, paslauga ar NT) ir kainą ar atlygį — padėsiu sudėlioti skelbimą ir rinkos kainą. Nuotraukos neprivalomos.";
+    return "Puiku — esu jūsų pardavimo partneris! Aprašykite pasiūlymą (darbas, paslauga ar NT) ir kainą ar atlygį — padėsiu sudėlioti skelbimą ir kainos rėžį (rekomendacija). Nuotraukos neprivalomos.";
   }
   if (!cat || cat === "other" || cat === "kita" || cat === "rental" || cat === "nuoma") {
-    return "Puiku — esu jūsų pardavimo partneris! Aprašykite, ką norite skelbti, ir kainą — padėsiu su aprašymu, rinkos kaina ir Omniva paštomatu. Nuotraukas galite įkelti dabar arba vėliau.";
+    return "Puiku — esu jūsų pardavimo partneris! Aprašykite, ką norite skelbti, ir kainą — padėsiu su aprašymu, kainos rėžiu (rekomendacija) ir Omniva paštomatu. Nuotraukas galite įkelti dabar arba vėliau.";
   }
   return LEAN_SELL_GREETING;
 }

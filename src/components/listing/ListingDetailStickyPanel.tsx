@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   Calendar,
+  Handshake,
   MapPin,
   MessageCircle,
   Package,
@@ -14,6 +15,7 @@ import {
 import { AiInsightCard, Badge, Button, Card } from "@/design-system";
 import { TrustBadges } from "@/components/trust/TrustBadges";
 import { SellerRatingBadge } from "@/components/listing/SellerRatingBadge";
+import { VerifiedReputationBadge } from "@/components/reputation/VerifiedReputationBadge";
 import { ShareListingPanel } from "@/components/social/ShareListingPanel";
 import { resolveAiPriceSignal } from "@/components/marketplace/ListingCard";
 import { formatListingPlaceLine, formatPrice } from "@/data/mockListings";
@@ -53,6 +55,7 @@ export type ListingDetailStickyPanelProps = {
   onOpenShipping: () => void;
   onOpenTips: () => void;
   onNegotiate: () => void;
+  onStartDeal?: () => void;
   className?: string;
 };
 
@@ -77,6 +80,7 @@ export function ListingDetailStickyPanel({
   onOpenShipping,
   onOpenTips,
   onNegotiate,
+  onStartDeal,
   className,
 }: ListingDetailStickyPanelProps) {
   const aiPrice = resolveAiPriceSignal(listing);
@@ -169,6 +173,7 @@ export function ListingDetailStickyPanel({
           authProvider={currentUser?.authProvider}
           profile={currentUser}
         />
+        <VerifiedReputationBadge userId={listing.sellerId} />
         <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--ds-text-muted)]">
           <span className="inline-flex items-center gap-1">
             <MapPin className="h-4 w-4 shrink-0" aria-hidden />
@@ -234,6 +239,17 @@ export function ListingDetailStickyPanel({
             >
               Skambinti ({phoneDisplay})
             </Button>
+            {onStartDeal ? (
+              <Button
+                variant="primary"
+                leftIcon={<Handshake className="h-4 w-4" />}
+                onClick={onStartDeal}
+                className="w-full"
+                data-start-deal-cta="1"
+              >
+                Pradėti saugų sandorį
+              </Button>
+            ) : null}
             {offersOmnivaShipping ? (
               <Button
                 variant="ai"

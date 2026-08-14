@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import Link from "next/link";
 import { Badge } from "@/design-system";
 import { AiCommandBar } from "@/components/search/AiCommandBar";
 import { AgentChatStrip } from "@/components/home/AgentChatStrip";
@@ -108,7 +109,7 @@ export function HomeAiHero({
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <Badge tone="ai">AI Copilot</Badge>
               <span className="text-[length:var(--ds-text-caption-size)] font-medium text-[var(--ds-text-muted,var(--vauto-muted))]">
-                Pardavimas · Paieška · Omniva
+                Skelbimas · Paieška · Sandorio eiga
               </span>
             </div>
 
@@ -117,19 +118,21 @@ export function HomeAiHero({
                 VAUTO
               </span>
               <span className="mt-1.5 block">
-                Parduok greičiau.{" "}
+                AI padeda.{" "}
                 <span
                   className="bg-clip-text text-transparent"
                   style={{ backgroundImage: "var(--ds-ai-gradient)" }}
                 >
-                  AI padarys likusį darbą
+                  Žmogus sprendžia.
                 </span>
               </span>
             </h1>
 
             <p className="mt-3 max-w-2xl text-[length:var(--ds-text-body-lg-size,1.125rem)] leading-relaxed text-[var(--ds-text-secondary,var(--vauto-muted))]">
-              Nuotrauka ar sakinys — AI sudėlioja skelbimą, pasiūlo kainą ir
-              paruošia Omniva pristatymą. Be formų triukšmo.
+              Parduodate: parodote arba papasakojate — VAUTO paruošia — jūs
+              patvirtinate. Perkate: pasakote, ko ieškote — VAUTO atrenka —
+              palyginate ir pasirenkate. Sandoris: susitariate — VAUTO padeda
+              aiškiai pereiti eigą. Tai ne paprasta skelbimų lenta.
             </p>
 
             <div className="home-ai-copilot-shell relative mt-6 w-full max-w-3xl">
@@ -174,6 +177,27 @@ export function HomeAiHero({
                   {chip}
                 </button>
               ))}
+            </div>
+
+            <div className="mt-4 flex max-w-3xl flex-wrap gap-2">
+              <Link
+                href="/add/"
+                className="rounded-full bg-[var(--ds-brand,#1b4dff)] px-4 py-2 text-xs font-semibold text-white"
+              >
+                Parduoti
+              </Link>
+              <Link
+                href="/duk/"
+                className="rounded-full border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] px-4 py-2 text-xs font-semibold text-[var(--ds-text-secondary)]"
+              >
+                Kaip tai veikia
+              </Link>
+              <Link
+                href="/sandoriai/"
+                className="rounded-full border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] px-4 py-2 text-xs font-semibold text-[var(--ds-text-secondary)]"
+              >
+                Sandorio eiga
+              </Link>
             </div>
           </div>
         )}

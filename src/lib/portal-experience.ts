@@ -24,7 +24,7 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
     color: "#1167b1",
     bg: "#ffffff",
     border: "#dde5ef",
-    quickFilters: ["Foto paieška", "Rinkos kainos", "Saugus pirkimas"],
+    quickFilters: ["Foto paieška", "Kainos rėžis", "Sandorio eiga"],
   },
   autoplius: {
     theme: "autoplius",

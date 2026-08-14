@@ -57,7 +57,7 @@ export function EscrowActionBlock({
             ? "Siunta išsiųsta"
             : escrow?.status === "delivered"
               ? "Siunta pristatyta"
-              : "Saugus pirkimas";
+              : "Sandorio eiga";
 
   return (
     <>

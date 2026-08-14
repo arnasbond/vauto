@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Building2,
   Clock,
@@ -8,7 +8,6 @@ import {
   LogOut,
   Pencil,
   ShoppingBag,
-  Star,
   X,
 } from "lucide-react";
 import type { UserProfile } from "@/lib/types";
@@ -20,39 +19,11 @@ import {
   splitUserName,
 } from "@/lib/profile-display";
 import { blockNativeClickThrough } from "@/lib/native-click-guard";
-import {
-  computeSellerRating,
-  isVerifiedTrustedSeller,
-} from "@/lib/reviews";
-import { cn } from "@/lib/cn";
+import { VerifiedReputationBadge } from "@/components/reputation/VerifiedReputationBadge";
 
 interface ProfileHeaderProps {
   user: UserProfile;
   onLogout: () => void;
-}
-
-function StarRow({ avg, count }: { avg: number; count: number }) {
-  const filled = count > 0 ? Math.round(avg) : 0;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <div className="flex items-center gap-0.5" aria-hidden>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Star
-            key={i}
-            className={cn(
-              "h-3.5 w-3.5",
-              i < filled
-                ? "fill-amber-400 text-amber-400"
-                : "text-[var(--ds-border-strong)]"
-            )}
-          />
-        ))}
-      </div>
-      <span className="text-xs text-[var(--ds-text-muted)]">
-        {count > 0 ? `${avg} · ${count} atsiliep.` : "Dar nėra atsiliepimų"}
-      </span>
-    </div>
-  );
 }
 
 /**
@@ -60,19 +31,9 @@ function StarRow({ avg, count }: { avg: number; count: number }) {
  * Tik UI; edit / logout handleriai nepakeisti.
  */
 export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
-  const { updateUser, showToast, reviews } = useVauto();
+  const { updateUser, showToast } = useVauto();
   const isPro = user.role === "pro";
   const publicNickname = displayPublicNickname(user);
-  const { avg, count } = useMemo(
-    () => computeSellerRating(reviews, user.id),
-    [reviews, user.id]
-  );
-  const verified = isVerifiedTrustedSeller(
-    user.id,
-    reviews,
-    user.authProvider,
-    user
-  );
   const responseLabel =
     typeof user.averageResponseMinutes === "number" &&
     Number.isFinite(user.averageResponseMinutes)
@@ -161,9 +122,7 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
               <Badge tone={isPro ? "premium" : "brand"}>
                 {isPro ? "Pro" : "Privatus"}
               </Badge>
-              {verified ? (
-                <Badge tone="success">Patvirtintas pardavėjas</Badge>
-              ) : user.phone || user.authProvider ? (
+              {user.phone || user.authProvider ? (
                 <Badge tone="info">Paskyra patvirtinta</Badge>
               ) : null}
             </div>
@@ -180,7 +139,7 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
             ) : null}
 
             <div className="mt-3">
-              <StarRow avg={avg} count={count} />
+              <VerifiedReputationBadge userId={user.id} />
             </div>
 
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-[var(--ds-text-secondary)]">

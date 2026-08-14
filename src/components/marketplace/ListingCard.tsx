@@ -9,6 +9,7 @@ import {
   MOCK_CATEGORY_LABELS,
 } from "@/data/mockListings";
 import { ListingImage } from "@/components/listing/ListingImage";
+import { VerifiedReputationBadge } from "@/components/reputation/VerifiedReputationBadge";
 import { Badge, IconButton } from "@/design-system";
 import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
@@ -169,6 +170,11 @@ export function ListingCard({
               Omniva
             </p>
           ) : null}
+          {listing.sellerId ? (
+            <div className="mt-1">
+              <VerifiedReputationBadge userId={listing.sellerId} compact />
+            </div>
+          ) : null}
         </div>
         {heart ? <div className="shrink-0 self-start">{heart}</div> : null}
       </article>
@@ -244,6 +250,11 @@ export function ListingCard({
           >
             {aiPrice.label}
           </p>
+        ) : null}
+        {listing.sellerId ? (
+          <div className="px-0 pt-1">
+            <VerifiedReputationBadge userId={listing.sellerId} compact />
+          </div>
         ) : null}
       </Link>
     </article>

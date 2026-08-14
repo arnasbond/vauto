@@ -26,23 +26,23 @@ const CONSUMER_PROPS: ValueProp[] = [
   {
     icon: Camera,
     tone: "brand",
-    title: "Vision AI + pokalbio asistentas",
+    title: "Skelbimas iš nuotraukos ar sakinio",
     description:
-      "Įkelkite nuotrauką ar parašykite — AI sudėlioja skelbimą pokalbyje, be anketų.",
+      "VAUTO paruošia juodraštį pokalbyje. Publikuojate tik jūs — AI nesiunčia skelbimo už jus.",
   },
   {
     icon: Sparkles,
     tone: "ai",
-    title: "AI kainos vertintojas",
+    title: "Kainos rėžis ir palyginimas",
     description:
-      "Prieš skelbiant matote rinkos kainos rėžį — padeda nustatyti teisingą kainą.",
+      "VAUTO Score ir kainos rėžis yra analitinė rekomendacija, ne garantuota rinkos kaina.",
   },
   {
     icon: Package,
     tone: "success",
-    title: "Omniva paštomatai",
+    title: "Sandorio eiga, ne tik skelbimas",
     description:
-      "Pirkimas ir siuntimas vienu paspaudimu — paštomatas, lipdukas ir saugus užsakymas.",
+      "Pasiūlymas, mokėjimas, Omniva sekimas ir patvirtintas atsiliepimas — būsenas tvirtina serveris.",
   },
 ];
 
@@ -50,23 +50,23 @@ const BUSINESS_PROPS: ValueProp[] = [
   {
     icon: BarChart3,
     tone: "brand",
-    title: "B2B analitikos skydelis",
+    title: "Kabineto statistika",
     description:
-      "Realaus laiko ROI: peržiūros, kontaktai, spend vs. contacts — visa tai kabinete.",
+      "Peržiūros ir kontaktai verslo kabinete. Tai pagalba palyginimui, ne garantuotas pardavimas.",
   },
   {
     icon: Share2,
     tone: "ai",
-    title: "9:16 Social Engine",
+    title: "Dalijimosi vizualai",
     description:
-      "Automatiniai Stories / Reels vizualai — dalinkitės skelbimais Instagram ir TikTok.",
+      "9:16 formato vaizdai, kad galėtumėte patys dalintis skelbimu. Publikaciją ir dalijimąsi tvirtinate jūs.",
   },
   {
     icon: Sparkles,
     tone: "success",
-    title: "Bulk įkėlimas + aukštesnis reitingas",
+    title: "Masinis katalogo įkėlimas",
     description:
-      "Masinis katalogo įkėlimas ir b2bTrustBoost — Pro su logistika kyla paieškoje.",
+      "Pro paskyra gali kelti kelis skelbimus. Matomumas kyla iš patvirtintų atsiliepimų ir logistikos, ne iš slaptų reitingo kodų.",
   },
 ];
 
@@ -138,11 +138,11 @@ export function HomeAiValueBand({ className }: { className?: string }) {
             id="home-ai-value-heading"
             className="font-[family-name:var(--font-outfit)] text-2xl font-bold tracking-tight text-[var(--ds-text-primary)] sm:text-3xl"
           >
-            Kodėl VAUTO AI
+            Kodėl ne tik skelbimų lenta
           </h2>
           <p className="mt-2 text-sm text-[var(--ds-text-muted)] sm:text-base">
-            Trys stulpai: lengvas skelbimas pokalbiu, teisinga rinkos kaina ir
-            Omniva siuntimas.
+            VAUTO veda nuo juodraščio iki sandorio eigos. AI padeda — žmogus
+            sprendžia.
           </p>
         </div>
         <HomeValuePropCards variant="consumer" className="mt-8" />
@@ -156,11 +156,11 @@ export function HomeAiValueBand({ className }: { className?: string }) {
             </span>
             <div>
               <p className="text-sm font-bold text-[var(--ds-text-primary)]">
-                Verslui: analitika, Social Engine ir bulk įkėlimas
+                Verslui: statistika, dalijimosi vizualai ir masinis įkėlimas
               </p>
               <p className="mt-0.5 text-xs leading-relaxed text-[var(--ds-text-muted)] sm:text-sm">
-                ROI skydelis, 9:16 Stories vizualai, masinis katalogas ir
-                aukštesnis reitingas paieškoje — viskas Pro kabinete.
+                Kabineto peržiūros, 9:16 formato vaizdai ir masinis katalogas —
+                Pro kabinete. AI padeda, žmogus sprendžia.
               </p>
             </div>
           </div>

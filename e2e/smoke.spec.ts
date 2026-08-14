@@ -23,7 +23,7 @@ test.describe("VAUTO smoke", () => {
   test("home page loads with listings", async ({ page }) => {
     await waitForHomeReady(page);
     await expect(
-      page.getByRole("heading", { name: /Parduok greičiau/i })
+      page.getByRole("heading", { name: /Žmogus sprendžia/i })
     ).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(/Naujausi skelbimai/i).first()).toBeVisible({
       timeout: 10_000,

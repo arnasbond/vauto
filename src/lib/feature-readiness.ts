@@ -67,10 +67,10 @@ export function deriveFeatureClaims(
     },
     {
       id: "negotiator",
-      label: "AI derybininkas 24/7",
+      label: "Derybų asistentas",
       state: !live ? "demo" : gemini ? "beta" : "disabled",
       hint: gemini
-        ? "Veikia su pardavėjo patvirtinimu ir min. kaina."
+        ? "Siūlo atsakymus; sandorį tvirtina pardavėjas. Neveikia 24/7 kaip autonominis agentas."
         : "Reikia Gemini AI serveryje.",
     },
     {

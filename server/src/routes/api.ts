@@ -12,7 +12,7 @@ import { optimizeListingImage } from "../ai/image-processor.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import { demoWalletTopUpAllowed } from "../demo-guards.js";
 import { requireOpsSecret } from "../middleware/ops-secret.js";
-import { pool } from "../db.js";
+import { pool, runInTransaction } from "../db.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { fetchListingsFeed } from "../controllers/listing-controller.js";
 import {
@@ -55,6 +55,8 @@ import {
   promoteListingWallet,
   renewListing,
   restoreListing,
+  runListingUpdateSideEffects,
+  runListingWriteSideEffects,
   setAdminAgentContext,
   setBannedUserIds,
   setSavedIds,
@@ -100,6 +102,10 @@ import {
   notifySellerListingRejected,
 } from "../push/listing-moderation-notify.js";
 import { scheduleWishlistMatchNotifications, notifyIncomingChatMessage } from "../notifications/notifications-service.js";
+import {
+  kickAiWatchOutboxWorker,
+  scheduleAiWatchForListingDurable,
+} from "../ai-watch/listing-hooks.js";
 import {
   notifyAdminsNewReport,
   notifyAdminsUserFollowUp,
@@ -969,7 +975,18 @@ apiRouter.post(
         return;
       }
     }
-    await insertListing(listing);
+    const enqueueWatch = !listing.requiresReview;
+    await runInTransaction(async (client) => {
+      await insertListing(listing, { client, skipSideEffects: true });
+      if (enqueueWatch) {
+        await scheduleAiWatchForListingDurable(listing, "listing_created", {
+          client,
+          kickWorker: false,
+        });
+      }
+    });
+    runListingWriteSideEffects(listing);
+    if (enqueueWatch) kickAiWatchOutboxWorker();
     logConductorPublishLineage(listing);
     scheduleListingAiModeration(listing);
     if (listing.requiresReview) {
@@ -1066,8 +1083,12 @@ apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) =>
       return;
     }
     let existingForReview: Awaited<ReturnType<typeof getListingForEmbedding>> = null;
+    existingForReview = await getListingForEmbedding(req.params.id);
+    const previousPrice =
+      existingForReview && existingForReview.sellerId === sellerId
+        ? Number(existingForReview.price)
+        : null;
     if (patchValue.attributes !== undefined) {
-      existingForReview = await getListingForEmbedding(req.params.id);
       if (existingForReview && existingForReview.sellerId === sellerId) {
         const mergedAttributes = sanitizeListingAttributesForPersistence({
           ...existingForReview.attributes,
@@ -1088,12 +1109,53 @@ apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) =>
       }
     }
 
-    const listing = await updateListing(
-      req.params.id,
-      sellerId,
-      patchValue
+    const projectedRequiresReview = Boolean(
+      patchValue.requiresReview ?? existingForReview?.requiresReview
     );
+    const projectedBanned = Boolean(
+      patchValue.banned ?? existingForReview?.banned
+    );
+
+    let watchEvent:
+      | { type: "price_changed" | "listing_updated"; previousPrice: number | null }
+      | null = null;
+    if (!projectedRequiresReview && !projectedBanned) {
+      const priceChanged =
+        patchValue.price !== undefined &&
+        previousPrice != null &&
+        Number(patchValue.price) !== previousPrice;
+      if (priceChanged) {
+        watchEvent = { type: "price_changed", previousPrice };
+      } else if (
+        patchValue.title !== undefined ||
+        patchValue.description !== undefined ||
+        patchValue.status !== undefined ||
+        patchValue.attributes !== undefined
+      ) {
+        watchEvent = { type: "listing_updated", previousPrice };
+      }
+    }
+
+    const listing = await runInTransaction(async (client) => {
+      const updated = await updateListing(
+        req.params.id,
+        sellerId,
+        patchValue,
+        { client, skipSideEffects: true }
+      );
+      if (!updated) return null;
+      if (watchEvent) {
+        await scheduleAiWatchForListingDurable(updated, watchEvent.type, {
+          previousPrice: watchEvent.previousPrice,
+          client,
+          kickWorker: false,
+        });
+      }
+      return updated;
+    });
     if (!listing) return res.status(404).json({ error: "Not found" });
+    runListingUpdateSideEffects(req.params.id, patchValue, listing);
+    if (watchEvent) kickAiWatchOutboxWorker();
     if (patchValue.attributes) {
       logConductorPublishLineage(listing);
     }

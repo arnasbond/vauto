@@ -521,7 +521,7 @@ function summarizeMyListingsForGreeting(
 ): string {
   const active = myListings.filter((l) => l.status !== "sold");
   if (!myListings.length) {
-    return "Padėsiu paruošti skelbimą, patarti dėl rinkos kainos ar Omniva paštomato — nuo ko pradedam?";
+    return "Padėsiu paruošti skelbimą, pasiūlyti kainos rėžį (rekomendacija) ar Omniva paštomatą — nuo ko pradedam?";
   }
   if (active.length === 1) {
     const l = active[0]!;
@@ -546,7 +546,7 @@ export function buildPersonalizedAgentGreeting(
     /^vartotojas$/i.test(raw) ||
     /^mobilus$/i.test(firstToken);
   if (isGuest) {
-    return "Labas! Aš tavo VAUTO asistentas — padėsiu rasti prekę ar paruošti skelbimą, patarti dėl rinkos kainos ir Omniva paštomato siuntimo. Nuo ko pradedam?";
+    return "Labas! Aš tavo VAUTO asistentas — padėsiu rasti prekę ar paruošti skelbimą, pasiūlyti kainos rėžį ir Omniva paštomato siuntimą. AI padeda, jūs sprendžiate. Nuo ko pradedam?";
   }
   const firstName = firstToken;
   const tail = summarizeMyListingsForGreeting(myListings, firstName);

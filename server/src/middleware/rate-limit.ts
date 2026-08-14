@@ -14,6 +14,8 @@ const DEFAULT_AUTH_LIMIT = 60;
 const DEFAULT_AI_LIMIT = 20;
 const DEFAULT_ACTION_LIMIT = 120;
 const DEFAULT_SEARCH_LIMIT = 40;
+/** Negotiation Copilot — per user/IP, cheaper than full AI chat. */
+const DEFAULT_COPILOT_LIMIT = 30;
 /** Unverified IP: max 5 listing publishes (draft→live) per hour. */
 const DEFAULT_LISTING_PUBLISH_PER_HOUR = 5;
 
@@ -31,6 +33,9 @@ const ACTION_REQUESTS_PER_WINDOW = Number(
 );
 const SEARCH_REQUESTS_PER_WINDOW = Number(
   process.env.SEARCH_RATE_LIMIT_PER_MIN ?? DEFAULT_SEARCH_LIMIT
+);
+const COPILOT_REQUESTS_PER_WINDOW = Number(
+  process.env.COPILOT_RATE_LIMIT_PER_MIN ?? DEFAULT_COPILOT_LIMIT
 );
 const LISTING_PUBLISH_PER_HOUR = Number(
   process.env.LISTING_PUBLISH_RATE_LIMIT_PER_HOUR ??
@@ -52,6 +57,7 @@ function shouldSkipGeneralRateLimit(path: string, method: string): boolean {
   if (path === "/api/version") return true;
   if (path.startsWith("/api/proxy")) return true;
   if (path.startsWith("/api/billing/webhook")) return true;
+  if (path.startsWith("/api/webhooks/stripe")) return true;
   if (path.startsWith("/api/auth")) return true;
   if (path.startsWith("/api/ai")) return true;
   if (path.startsWith("/api/vauto-server")) return true;
@@ -119,6 +125,23 @@ export const searchRateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => rateLimitKey(req as AuthedRequest),
   handler: rateLimitHandler("search_rate_limit_exceeded", RATE_LIMIT_BUSY_REPLY),
+});
+
+/** Negotiation Copilot — per-user + per-transaction key. */
+export const negotiationCopilotRateLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  max: COPILOT_REQUESTS_PER_WINDOW,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const r = req as AuthedRequest;
+    const tx = String(r.params?.id ?? "none");
+    return `copilot-${rateLimitKey(r)}-${tx}`;
+  },
+  handler: rateLimitHandler(
+    "copilot_rate_limit_exceeded",
+    RATE_LIMIT_BUSY_REPLY
+  ),
 });
 
 /**

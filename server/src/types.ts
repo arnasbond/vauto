@@ -8,6 +8,8 @@ export interface ApiUser {
   city: string;
   avatar: string;
   email?: string;
+  /** Real account creation time (ISO). Absent/unknown → do not invent age. */
+  createdAt?: string | null;
   warned?: boolean;
   walletBalance?: number;
   role?: string;

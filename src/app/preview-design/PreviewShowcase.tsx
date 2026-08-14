@@ -265,8 +265,8 @@ function HomeTab() {
             Parduok ar rask viską — su Vision AI ir pokalbiu
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-[var(--vauto-muted)] sm:text-lg">
-            AI asistentas paruošia skelbimą, kainos vertintojas parenka rinkos kainą,
-            Omniva — siuntimą vienu paspaudimu.
+            AI asistentas paruošia skelbimo juodraštį. Kainos rėžis — rekomendacija,
+            ne garantuota rinkos kaina. Omniva — siuntos eiga sandorio kambaryje.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-stretch">
             <input
@@ -593,7 +593,7 @@ function AiPrepublishTab() {
               </li>
               <li className="flex gap-2">
                 <span className="text-[var(--vauto-ai)]">●</span>
-                Siūlo rinkos kainos intervalą
+                Siūlo kainos rėžį (rekomendacija, ne garantija)
               </li>
             </ul>
             <p className="mt-5 rounded-xl bg-[var(--vauto-ai-soft)] px-3 py-2.5 text-xs leading-relaxed text-[#8A4B12]">

@@ -1,4 +1,4 @@
-import { pool, query } from "./db.js";
+import { pool, query, type DbClient, clientQuery } from "./db.js";
 import {
   getDemoApiListings,
   mergeDbListingsWithDemoCatalog,
@@ -203,6 +203,7 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     vat_code?: string | null;
     service_base_city?: string | null;
     business_hours?: unknown;
+    created_at?: Date | string | null;
   };
 
   const mapRow = (r: UserRow): ApiUser => ({
@@ -214,6 +215,12 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     phone: r.phone,
     city: r.city,
     email: r.email ?? undefined,
+    createdAt:
+      r.created_at == null
+        ? null
+        : r.created_at instanceof Date
+          ? r.created_at.toISOString()
+          : String(r.created_at),
     warned: r.warned,
     walletBalance: Number(r.wallet_balance),
     role: r.role,
@@ -304,7 +311,8 @@ export async function getUser(id: string): Promise<ApiUser | null> {
               referred_by_user_id,
               profile_type,
               age_group, gender, hobbies,
-              company_name, company_code, vat_code, service_base_city, business_hours
+              company_name, company_code, vat_code, service_base_city, business_hours,
+              created_at
        FROM users WHERE id = $1`,
       [id]
     );
@@ -369,8 +377,8 @@ export async function ensureUser(id: string): Promise<void> {
         ? "VAUTO Admin AI"
         : "Vartotojas";
   await query(
-    `INSERT INTO users (id, name, phone, city)
-     VALUES ($1, $2, '+370', 'Lietuva')
+    `INSERT INTO users (id, name, phone, city, created_at)
+     VALUES ($1, $2, '+370', 'Lietuva', NOW())
      ON CONFLICT (id) DO NOTHING`,
     [safeId, name]
   );
@@ -458,9 +466,9 @@ export async function upsertUser(user: ApiUser): Promise<void> {
                           wallet_balance, role, business_type, sold_count, auth_provider, profile_type,
                           age_group, gender, hobbies,
                           company_name, company_code, vat_code, service_base_city, business_hours,
-                          first_name, last_name)
+                          first_name, last_name, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-               $17, $18, $19, $20, $21, $22, $23)
+               $17, $18, $19, $20, $21, $22, $23, NOW())
        ON CONFLICT (id) DO UPDATE SET
          name = CASE
            WHEN EXCLUDED.name IS NULL OR btrim(EXCLUDED.name) = '' THEN users.name
@@ -965,7 +973,10 @@ function stampListingB2bAttributes(
   return next;
 }
 
-export async function insertListing(listing: ApiListing): Promise<void> {
+export async function insertListing(
+  listing: ApiListing,
+  opts?: { client?: DbClient; skipSideEffects?: boolean }
+): Promise<void> {
   await ensureUser(listing.sellerId);
   const seller = await getUser(listing.sellerId);
   const stampedAttributes = stampListingB2bAttributes(
@@ -979,8 +990,7 @@ export async function insertListing(listing: ApiListing): Promise<void> {
   );
   const cover = gallery[0] ?? listing.image ?? "";
   if (gallery.length) stampedAttributes.galleryUrls = gallery;
-  await query(
-    `INSERT INTO listings (
+  const sql = `INSERT INTO listings (
       id, seller_id, title, price, price_label, location, distance_km,
       latitude, longitude, slug, image, images, category, tags, contact, has_video,
       created_at, expires_at, description, attributes, status, banned,
@@ -1012,8 +1022,8 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       requires_review = EXCLUDED.requires_review,
       image_alt = EXCLUDED.image_alt,
       image_title = EXCLUDED.image_title,
-      allow_pastomatas = EXCLUDED.allow_pastomatas`,
-    [
+      allow_pastomatas = EXCLUDED.allow_pastomatas`;
+  const params = [
       listing.id,
       listing.sellerId,
       listing.title,
@@ -1046,9 +1056,20 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       listing.imageAlt ?? null,
       listing.imageTitle ?? null,
       listing.allowPastomatas ?? true,
-    ]
-  );
+    ];
+  if (opts?.client) {
+    await clientQuery(opts.client, sql, params);
+  } else {
+    await query(sql, params);
+  }
 
+  if (!opts?.skipSideEffects && !opts?.client) {
+    runListingWriteSideEffects(listing);
+  }
+}
+
+/** Post-commit embedding / OG side effects (safe outside TX). */
+export function runListingWriteSideEffects(listing: ApiListing): void {
   void import("./ai/listing-embedding.js")
     .then((m) => m.refreshListingEmbedding(listing.id))
     .catch(() => {});
@@ -1080,21 +1101,30 @@ export async function findListingByClientDraftId(
 export async function updateListing(
   id: string,
   sellerId: string,
-  patch: Partial<ApiListing>
+  patch: Partial<ApiListing>,
+  opts?: { client?: DbClient; skipSideEffects?: boolean }
 ): Promise<ApiListing | null> {
-  const rows = await query<{ seller_id: string }>(
+  const run = async <T extends import("pg").QueryResultRow>(
+    text: string,
+    params?: unknown[]
+  ): Promise<T[]> =>
+    opts?.client
+      ? clientQuery<T>(opts.client, text, params)
+      : query<T>(text, params);
+
+  const rows = await run<{ seller_id: string }>(
     "SELECT seller_id FROM listings WHERE id = $1",
     [id]
   );
   if (!rows[0] || rows[0].seller_id !== sellerId) return null;
 
   if (patch.status === "sold") {
-    const prev = await query<{ status: string | null }>(
+    const prev = await run<{ status: string | null }>(
       "SELECT status FROM listings WHERE id = $1",
       [id]
     );
     if (prev[0]?.status !== "sold") {
-      await query(
+      await run(
         `UPDATE users SET sold_count = sold_count + 1, updated_at = now() WHERE id = $1`,
         [sellerId]
       );
@@ -1152,12 +1182,28 @@ export async function updateListing(
   if (patch.allowPastomatas !== undefined) set("allow_pastomatas", patch.allowPastomatas);
 
   if (fields.length === 0) {
-    return getListingForEmbedding(id);
+    return getListingForEmbedding(id, opts?.client);
   }
 
   values.push(id);
-  await query(`UPDATE listings SET ${fields.join(", ")} WHERE id = $${i}`, values);
+  await run(`UPDATE listings SET ${fields.join(", ")} WHERE id = $${i}`, values);
 
+  // Return by id (not public feed filter) so review-flag patches still resolve.
+  const updated = await getListingForEmbedding(id, opts?.client);
+
+  if (!opts?.skipSideEffects && !opts?.client) {
+    runListingUpdateSideEffects(id, patch, updated);
+  }
+
+  return updated;
+}
+
+/** Post-commit embedding / OG side effects after updateListing in a TX. */
+export function runListingUpdateSideEffects(
+  id: string,
+  patch: Partial<ApiListing>,
+  updated: ApiListing | null
+): void {
   const needsEmbed =
     patch.title !== undefined ||
     patch.description !== undefined ||
@@ -1177,14 +1223,11 @@ export async function updateListing(
       .catch(() => {});
   }
 
-  // Return by id (not public feed filter) so review-flag patches still resolve.
-  const updated = await getListingForEmbedding(id);
   if (updated) {
     void import("./routes/og.js")
       .then((m) => m.bustListingOgCache(updated))
       .catch(() => {});
   }
-  return updated;
 }
 
 /** Admin-only patch — does not require seller_id match. */
@@ -2867,9 +2910,16 @@ export async function markAllUserNotificationsRead(userId: string): Promise<numb
 }
 
 export async function getListingForEmbedding(
-  id: string
+  id: string,
+  client?: DbClient
 ): Promise<ApiListing | null> {
-  const rows = await query<ListingRow>(`${LISTING_SELECT} WHERE id = $1`, [id]);
+  const rows = client
+    ? await clientQuery<ListingRow>(
+        client,
+        `${LISTING_SELECT} WHERE id = $1`,
+        [id]
+      )
+    : await query<ListingRow>(`${LISTING_SELECT} WHERE id = $1`, [id]);
   return rows[0] ? mapListingRow(rows[0]) : null;
 }
 

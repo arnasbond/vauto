@@ -93,8 +93,8 @@ export function ProfileTypePicker({ onComplete, className }: ProfileTypePickerPr
               Turiu verslą ar teikiu paslaugas
             </span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-              Verslo kabinetas su ROI analitika, 9:16 Social Engine, bulk įkėlimu ir
-              aukštesniu reitingu paieškoje.
+              Verslo kabinetas su statistika, dalijimosi vizualais ir masiniu
+              katalogo įkėlimu.
             </span>
           </span>
           {loading === "business" && (

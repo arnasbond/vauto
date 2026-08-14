@@ -17,7 +17,7 @@ export function ProfileProCTA() {
           VAUTO Verslui
         </span>
         <span className="block text-xs text-[var(--vauto-text-muted)]">
-          ROI analitika, 9:16 Social Engine ir bulk įkėlimas
+          Kabineto statistika, dalijimosi vizualai ir masinis įkėlimas
         </span>
       </span>
       <ChevronRight className="h-5 w-5 shrink-0 text-[var(--vauto-text-muted)]" />

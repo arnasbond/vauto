@@ -37,6 +37,10 @@ export function LegalDocumentShell({
               Privatumas
             </Link>
             {" · "}
+            <Link href="/duk/" className="underline">
+              DUK
+            </Link>
+            {" · "}
             <Link href="/taisykles/" className="underline">
               Taisyklės
             </Link>

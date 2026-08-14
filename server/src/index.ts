@@ -10,8 +10,8 @@ import { apiRouter } from "./routes/api.js";
 import { aiRouter } from "./routes/ai.js";
 import { vautoServerRouter } from "./routes/vauto-server.js";
 import { vautoAgentRouter } from "./routes/vauto-agent.js";
-import { billingRouter, handleStripeWebhook } from "./routes/billing.js";
-import { escrowBillingRouter } from "./routes/escrow-billing.js";
+import { handleStripeWebhook } from "./routes/billing.js";
+import { handleVautoStripeWebhook } from "./routes/webhooks.js";
 import { paymentMethodsRouter } from "./routes/payment-methods.js";
 import { growthRouter } from "./routes/growth.js";
 import { shippingRouter } from "./routes/shipping.js";
@@ -19,6 +19,18 @@ import { authRouter } from "./routes/auth.js";
 import { pushRouter } from "./routes/push.js";
 import { searchRouter } from "./routes/search.js";
 import { ogRouter } from "./routes/og.js";
+import { stage10Router } from "./routes/stage10.js";
+import { offersRouter } from "./routes/offers.js";
+import { transactionChatRouter } from "./routes/transaction-chat.js";
+import { negotiationCopilotRouter } from "./routes/negotiation-copilot.js";
+import { dealRoomRouter } from "./routes/deal-room.js";
+import { paymentIntentRouter } from "./routes/payment-intent.js";
+import { fundsTransferRouter } from "./routes/funds-transfer.js";
+import { reconciliationRouter } from "./routes/reconciliation.js";
+import { deliveryRouter } from "./routes/delivery.js";
+import { disputeRouter } from "./routes/disputes.js";
+import { reputationRouter } from "./routes/reputation.js";
+import { transactionsRouter } from "./routes/transactions.js";
 import { optionalAuth, requireAuth } from "./middleware/auth.js";
 import { aiRateLimiter, actionRateLimiter, apiRateLimiter, authRateLimiter, searchRateLimiter } from "./middleware/rate-limit.js";
 import { assertProductionEnv } from "./env-check.js";
@@ -78,6 +90,16 @@ app.post(
 );
 
 /**
+ * Stage 11F.3 — VAUTO Stripe PaymentIntent webhooks.
+ * MUST stay before global express.json() so signature verification sees raw bytes.
+ */
+app.post(
+  "/api/webhooks/stripe",
+  express.raw({ type: "application/json" }),
+  handleVautoStripeWebhook
+);
+
+/**
  * OG Edge — bot-facing HTML for social crawlers (FB/TG/WA/Viber).
  * Mounted outside /api so Vercel can rewrite www.vauto.lt/listing/* UA matches here.
  * Must be registered before the SPA catch-all redirect below.
@@ -103,6 +125,7 @@ const defaultUrlencoded = express.urlencoded({
 function needsLargeJsonBody(path: string): boolean {
   return (
     path.startsWith("/api/ai") ||
+    path.startsWith("/api/stage10") ||
     path.startsWith("/api/vauto-agent") ||
     path.startsWith("/api/vauto-server") ||
     path.startsWith("/api/search/vision")
@@ -131,12 +154,25 @@ app.use("/api", apiRateLimiter);
 app.use("/api/auth", authRateLimiter, authRouter);
 app.use("/api/push", pushRouter);
 app.use("/api", apiRouter);
+app.use("/api", transactionsRouter);
+app.use("/api", offersRouter);
+app.use("/api", transactionChatRouter);
+app.use("/api", negotiationCopilotRouter);
+app.use("/api", dealRoomRouter);
+app.use("/api", paymentIntentRouter);
+app.use("/api", fundsTransferRouter);
+app.use("/api", reconciliationRouter);
+app.use("/api", deliveryRouter);
+app.use("/api", disputeRouter);
+app.use("/api", reputationRouter);
 app.use("/api/ai", aiRateLimiter, aiRouter);
+app.use("/api/stage10", aiRateLimiter, stage10Router);
 app.use("/api/vauto-server", aiRateLimiter, requireAuth, vautoServerRouter);
 /** Stage 0 cost abuse: agent requires JWT (guest text spend closed). */
 app.use("/api/vauto-agent", aiRateLimiter, requireAuth, vautoAgentRouter);
-app.use("/api/billing", billingRouter);
-app.use("/api/escrow-billing", escrowBillingRouter);
+/** Stage 11F.6 — legacy /api/billing + /api/escrow-billing routers REMOVED (C-01).
+ *  Deal payments MUST use paymentIntentRouter / fundsTransferRouter / webhooks / reconciliation only.
+ *  Subscription billing webhook remains at POST /api/billing/webhook (raw) above. */
 app.use("/api/payment-methods", paymentMethodsRouter);
 app.use("/api/growth", growthRouter);
 app.use("/api/shipping", shippingRouter);
@@ -240,6 +276,32 @@ app.listen(port, async () => {
 
   try {
     await runMigrations();
+    const { startAiWatchOutboxWorker } = await import("./ai-watch/outbox.js");
+    startAiWatchOutboxWorker(5000);
+    const { startScheduledReconciliationWorker } = await import(
+      "./payments/reconciliation/scheduled-worker.js"
+    );
+    startScheduledReconciliationWorker();
+    // 11G.4 — durable seller release worker (explicit db + releasePort wiring).
+    const { createPoolTxQueryable } = await import("./transaction/index.js");
+    const { createFundsReleasePort } = await import(
+      "./delivery/funds-release-port.js"
+    );
+    const { startScheduledSellerReleaseWorker } = await import(
+      "./delivery/seller-release-jobs.js"
+    );
+    const sellerReleaseDb = createPoolTxQueryable() as unknown as import("./transaction/index.js").TxQueryable;
+    startScheduledSellerReleaseWorker({
+      db: sellerReleaseDb,
+      releasePort: createFundsReleasePort(sellerReleaseDb),
+    });
+    // 11H.2 — durable dispute financial finality worker.
+    const { createDisputeFundsPort, startScheduledDisputeFinancialWorker } =
+      await import("./disputes/index.js");
+    startScheduledDisputeFinancialWorker({
+      db: sellerReleaseDb,
+      fundsPort: createDisputeFundsPort(sellerReleaseDb),
+    });
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
     console.error(

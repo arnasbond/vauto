@@ -296,7 +296,7 @@ function appendSeedAndClose(
   const loc = String(opts?.location ?? "").trim();
   if (loc) {
     sentences.push(
-      `Galima apžiūra / atsiėmimas: ${loc}. Susisiekite ir sutarsime patogų laiką — greiti ir aiškūs atsakymai garantuoti.`
+      `Galima apžiūra / atsiėmimas: ${loc}. Susisiekite ir sutarsime patogų laiką.`
     );
   } else {
     sentences.push(

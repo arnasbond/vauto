@@ -189,7 +189,7 @@ export function ProfileSettingsMenu({
           <SettingsRow
             icon={<Building2 className="h-4 w-4 text-[var(--ds-brand)]" />}
             label="VAUTO Verslui"
-            hint="Analitika, Social Engine, bulk įkėlimas"
+            hint="Statistika, dalijimosi vizualai, masinis įkėlimas"
             href="/verslui/"
           />
         ) : null}

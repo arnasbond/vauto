@@ -2,6 +2,8 @@ import Link from "next/link";
 
 const FOOTER_LINKS = [
   { href: "/apie/", label: "Apie VAUTO" },
+  { href: "/duk/", label: "DUK" },
+  { href: "/sandoriai/", label: "Sandoriai" },
   { href: "/install/", label: "Įdiegti" },
   { href: "/taisykles/", label: "Taisyklės" },
   { href: "/privatumas/", label: "Privatumas" },

@@ -62,7 +62,7 @@ export function buildAiSellerListingSeed(
  * First API call must wait for real user text or photo upload.
  */
 export const STATIC_SELLER_LISTING_WELCOME =
-  "Jūsų kontaktai jau paruošti. Įkelkite nuotraukas ar parašykite, ką parduodate — padėsiu su antrašte, rinkos kaina ir Omniva paštomatu!";
+  "Jūsų kontaktai jau paruošti. Įkelkite nuotraukas ar parašykite, ką parduodate — padėsiu su antrašte, kainos rėžiu (rekomendacija) ir Omniva paštomatu. Publikuojate jūs.";
 
 export const STATIC_FASHION_LISTING_WELCOME =
   "Jūsų kontaktai jau paruošti. Įkelkite drabužių nuotraukas ar parašykite, ką parduodate — padėsiu su aprašymu, kaina ir paštomato siuntimu!";

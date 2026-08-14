@@ -364,6 +364,15 @@ function ChatThreadContent({
         ) ? (
           <EscrowActionBlock chat={chat} amount={listing?.price ?? 150} />
         ) : null}
+        {listing?.id ? (
+          <Link
+            href={`/sandoriai/?listingId=${encodeURIComponent(listing.id)}`}
+            className="mx-2 mb-2 inline-flex items-center justify-center rounded-2xl border border-[var(--ds-brand)]/30 bg-[var(--ds-brand-soft,#eef2ff)] px-4 py-2.5 text-sm font-semibold text-[var(--ds-brand)]"
+            data-open-deal-room
+          >
+            Atidaryti sandorio kambarį
+          </Link>
+        ) : null}
         <div ref={messagesEndRef} />
       </div>
 

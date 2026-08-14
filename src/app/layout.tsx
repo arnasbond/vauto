@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
   description:
-    "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
+    "Parduokite ir raskite prekes bei paslaugas visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija, ne garantija.",
   manifest: "/manifest.json",
   alternates: {
     canonical: "/",
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     siteName: "VAUTO",
     title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
     description:
-      "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
+      "Parduokite ir raskite prekes bei paslaugas visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija, ne garantija.",
     images: [
       {
         url: "/icon-512.png",
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
     description:
-      "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
+      "Parduokite ir raskite prekes bei paslaugas visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija, ne garantija.",
     images: ["/icon-512.png"],
   },
   other: {
