@@ -1,16 +1,60 @@
 /**
  * Prompt-injection / jailbreak detection — shared by server Safety Shield,
  * Vision extract prompts, and optional client Gemini paths.
+ * Hardened in Etapas 10I Red Team (extra tag / spaced / extraction patterns).
  */
 
 /** Attack phrases (EN + LT) that must never reach model user/context slots. */
 export const PROMPT_INJECTION_RE =
-  /\b(ignore\s+(all\s+)?(previous\s+|prior\s+)?(rules|instructions|prompts?)|forget\s+(your\s+)?(rules|instructions)|system\s*(prompt|override)|jail\s*break|dan\s*mode|developer\s*mode|you\s+are\s+now\s+(a|an|my)|pretend\s+you\s+are|bypass\s+(your\s+)?(safety|rules|filters|restrictions)?|override\s+(your\s+)?(rules|instructions|system)|do\s+anything\s+now|ignore\s+rules|disregard\s+(all\s+)?(previous|prior|above)|reveal\s+(your\s+)?(system|hidden)\s+prompt|ignoruo(?:k|ti|kite)\s+(?:(?:ankstes\w*|visas?\w*|savo)\s+)?(?:instrukcij\w*|taisyk\w*|prompt\w*)|pamirš(?:k|kite)\s+(?:savo\s+)?(?:instrukcij\w*|taisyk\w*)|apeik\s+(?:saugum\w*|taisyk\w*|filtr\w*)|apeiti\s+(?:saugum\w*|taisyk\w*)|sistemos\s+perrašym\w*|system\s+override)\b/i;
+  /\b(ignore\s+(all\s+)?(previous\s+|prior\s+)?(rules|instructions|prompts?)|forget\s+(your\s+)?(rules|instructions)|system\s*(prompt|override)|jail\s*break|dan\s*mode|developer\s*mode|you\s+are\s+now\s+(a|an|my)|pretend\s+you\s+are|bypass\s+(your\s+)?(safety|rules|filters|restrictions)?|override\s+(your\s+)?(rules|instructions|system)|do\s+anything\s+now|ignore\s+rules|disregard\s+(all\s+)?(previous|prior|above)|reveal\s+(your\s+)?(system|hidden)\s+prompt|show\s+(me\s+)?(the\s+)?system\s+prompt|print\s+(your\s+)?instructions|ignoruo(?:k|ti|kite)\s+(?:(?:ankstes\w*|visas?\w*|savo)\s+)?(?:instrukcij\w*|taisyk\w*|prompt\w*)|ignorok\s+(?:(?:ankstes\w*|visas?\w*|savo)\s+)?(?:instrukcij\w*|taisyk\w*|prompt\w*)|pamirš(?:k|kite)\s+(?:savo\s+)?(?:instrukcij\w*|taisyk\w*)|apeik\s+(?:saugum\w*|taisyk\w*|filtr\w*)|apeiti\s+(?:saugum\w*|taisyk\w*)|sistemos\s+perrašym\w*|system\s+override)\b/i;
+
+/** Fake role / XML instruction tags often used for indirect injection. */
+const FAKE_ROLE_TAG_RE =
+  /<\s*\/?\s*(system|assistant|developer|tool|instructions?)\b[^>]*>/i;
+
+/** Leading SYSTEM:/ASSISTANT: role-play injection. */
+const ROLE_PREFIX_RE =
+  /(?:^|[\n\r])\s*(SYSTEM|ASSISTANT|DEVELOPER|INSTRUCTION)\s*:/i;
+
+/** Spaced / dotted obfuscation of "ignore previous instructions". */
+const SPACED_INJECTION_RE =
+  /i\s*g\s*n\s*o\s*r\s*e[\s._-]*(p\s*r\s*e\s*v\s*i\s*o\s*u\s*s|a\s*l\s*l)[\s._-]*(i\s*n\s*s\s*t\s*r\s*u\s*c\s*t\s*i\s*o\s*n\s*s?|r\s*u\s*l\s*e\s*s?)/i;
+
+function decodeHomoglyphLite(text: string): string {
+  return String(text ?? "")
+    .normalize("NFKC")
+    .replace(/[Іі]/g, "i")
+    .replace(/[ΑАа]/g, "a")
+    .replace(/[ΟОо]/g, "o")
+    .replace(/[Ее]/g, "e");
+}
 
 export function detectPromptInjection(text: string): boolean {
   const t = String(text ?? "").trim();
   if (!t) return false;
-  return PROMPT_INJECTION_RE.test(t);
+  if (PROMPT_INJECTION_RE.test(t)) return true;
+  if (FAKE_ROLE_TAG_RE.test(t)) return true;
+  if (ROLE_PREFIX_RE.test(t) || /^\s*SYSTEM\s*:/i.test(t)) return true;
+  if (SPACED_INJECTION_RE.test(t)) return true;
+  const decoded = decodeHomoglyphLite(t);
+  if (decoded !== t && PROMPT_INJECTION_RE.test(decoded)) return true;
+  // Base64-ish payload carrying ignore instruction (short heuristic)
+  const b64 = t.match(/[A-Za-z0-9+/]{40,}={0,2}/g) ?? [];
+  for (const chunk of b64.slice(0, 3)) {
+    try {
+      const decodedB64 = Buffer.from(chunk, "base64").toString("utf8");
+      if (
+        PROMPT_INJECTION_RE.test(decodedB64) ||
+        FAKE_ROLE_TAG_RE.test(decodedB64) ||
+        ROLE_PREFIX_RE.test(decodedB64)
+      ) {
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return false;
 }
 
 /** Strip jailbreak spans so residual listing facts can still be used. */
@@ -20,6 +64,8 @@ export function scrubPromptInjection(text: string): string {
   const scrubRe = new RegExp(PROMPT_INJECTION_RE.source, "gi");
   return raw
     .replace(scrubRe, " ")
+    .replace(FAKE_ROLE_TAG_RE, " ")
+    .replace(SPACED_INJECTION_RE, " ")
     .replace(/\s{2,}/g, " ")
     .trim();
 }
@@ -65,4 +111,12 @@ export function wrapUntrustedXml(
   if (text.length > maxChars) text = `${text.slice(0, maxChars)}…`;
   if (!text) return `<${safeTag}></${safeTag}>`;
   return `<${safeTag}>\n${text}\n</${safeTag}>`;
+}
+
+/**
+ * Untrusted content (OCR / description / watch notes) must never become a command.
+ * Returns true only when injection is detected (caller must refuse execution).
+ */
+export function untrustedContentIsCommand(text: string): boolean {
+  return detectPromptInjection(text);
 }
