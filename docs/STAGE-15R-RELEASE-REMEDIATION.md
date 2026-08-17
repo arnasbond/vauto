@@ -137,6 +137,8 @@ Only green GitHub CI allows a later **repeat of Stage 15**. This packet does **n
 
 Catalog audit on GitHub (hidden by 11F.5 fail-fast on `439cd102`) still required `e2e/smoke.spec.ts` to contain the pre-12A headline `Parduok ir rask greičiau`. Certified Stage 12 smoke asserts `Žmogus sprendžia`. The audit needle was aligned to that frozen copy. UI was not redesigned.
 
+`e2e/ai-assistant-restore.spec.ts` still required the fashion-only welcome `Jūsų kontaktai jau paruošti`. Certified default seller welcome is `Pasirinkite kategoriją…` (`STATIC_SELLER_LISTING_WELCOME`). Locator aligned to that frozen copy. Seller flow was not redesigned.
+
 ---
 
 ## Explicit non-goals

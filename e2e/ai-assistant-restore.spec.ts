@@ -35,7 +35,7 @@ test.describe("AI assistant restoration", () => {
     await openSellerSession(page);
 
     const welcome = page.getByText(
-      /Jūsų kontaktai jau paruošti/i
+      /Pasirinkite kategoriją|kontaktai jau paruošti/i
     );
     await expect(welcome.first()).toBeVisible({ timeout: 8_000 });
     const welcomeMs = Date.now() - t0;
@@ -89,7 +89,7 @@ test.describe("AI assistant restoration", () => {
     await dismissTransientOverlays(page).catch(() => undefined);
 
     const welcome = page.getByText(
-      /Jūsų kontaktai jau paruošti/i
+      /Pasirinkite kategoriją|kontaktai jau paruošti/i
     );
     // Static e2e may hit auth revalidation toast — /add is the same seller entry.
     if (!(await welcome.first().isVisible({ timeout: 4_000 }).catch(() => false))) {
