@@ -135,6 +135,8 @@ Must be **green** on the new SHA (same workflow as failed run `32035682002`). Ru
 
 Only green GitHub CI allows a later **repeat of Stage 15**. This packet does **not** start that repeat.
 
+Catalog audit on GitHub (hidden by 11F.5 fail-fast on `439cd102`) still required `e2e/smoke.spec.ts` to contain the pre-12A headline `Parduok ir rask greičiau`. Certified Stage 12 smoke asserts `Žmogus sprendžia`. The audit needle was aligned to that frozen copy. UI was not redesigned.
+
 ---
 
 ## Explicit non-goals
