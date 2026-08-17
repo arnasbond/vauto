@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS listings (
   image TEXT,
   images JSONB DEFAULT '[]'::jsonb,
   attributes JSONB DEFAULT '{}'::jsonb,
+  category TEXT,
+  tags JSONB DEFAULT '[]'::jsonb,
   status TEXT DEFAULT 'active'
 );
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_id TEXT;
@@ -51,6 +53,7 @@ ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_id TEXT;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS location TEXT;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS image TEXT;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb;
 `;
 
 function adaptPglite(db: PGlite): TxQueryable {

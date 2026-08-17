@@ -29,7 +29,7 @@
     "test:stripe-payment-intent": "tsx --test src/payments/stripe/__tests__/stripe-payment-intent.test.ts",
     "test:stripe-webhooks": "tsx --test src/payments/stripe/__tests__/stripe-webhooks.test.ts",
     "test:funds-transfer": "tsx --test src/payments/transfer/__tests__/funds-transfer.test.ts",
-    "test:financial-reconciliation": "tsx --test src/payments/__tests__/financial-reconciliation.test.ts src/payments/__tests__/red-team-financial.test.ts src/payments/__tests__/real-postgres-financial.test.ts",
+    "test:financial-reconciliation": "tsx --test --test-concurrency=1 src/payments/__tests__/financial-reconciliation.test.ts src/payments/__tests__/red-team-financial.test.ts src/payments/__tests__/real-postgres-financial.test.ts",
     "test:delivery-shipping": "tsx --test src/delivery/__tests__/delivery-shipping.test.ts",
     "test:dispute-resolution": "tsx --test src/disputes/__tests__/dispute-resolution.test.ts",
     "test:reputation-engine": "tsx --test src/reputation/__tests__/reputation-engine.test.ts",

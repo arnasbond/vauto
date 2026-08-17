@@ -78,6 +78,21 @@ const RELEASE_TX_STATUSES = new Set(["DELIVERED", "COMPLETED"]);
 const ALLOWED_REFUND = new Set<string>(REFUND_AUTHORITIES);
 
 /**
+ * PostgreSQL aborts the whole TX after a failed statement (42P01 → 25P02).
+ * Never probe optional relations with try/catch inside an open transaction.
+ */
+async function publicRelationExists(
+  db: TxQueryable,
+  relation: string
+): Promise<boolean> {
+  const r = await db.query<{ t: string | null }>(
+    `SELECT to_regclass($1)::text AS t`,
+    [`public.${relation}`]
+  );
+  return Boolean(r.rows[0]?.t);
+}
+
+/**
  * H-01/11H.3 soft gate (kept for diagnostics). Prefer atomic TRANSFER_EXECUTING lock.
  * Blocks DISPUTED / TRANSFER_BLOCKED unless arbitration already DECIDED_SELLER_PAYOUT.
  */
@@ -99,7 +114,7 @@ async function assertReleaseNotFrozenPreCall(
 
   if (txn.status === "DISPUTED") {
     let decidedSeller = false;
-    try {
+    if (await publicRelationExists(db, "vauto_disputes")) {
       const d = await db.query<{ status: string }>(
         `SELECT status FROM vauto_disputes WHERE transaction_id = $1 LIMIT 1`,
         [transactionId]
@@ -107,8 +122,6 @@ async function assertReleaseNotFrozenPreCall(
       const s = d.rows[0]?.status;
       decidedSeller =
         s === "DECIDED_SELLER_PAYOUT" || s === "RESOLVED_SELLER_PAYOUT";
-    } catch {
-      decidedSeller = false;
     }
     if (!decidedSeller) {
       throw new FundsTransferStateError(
@@ -157,16 +170,15 @@ async function isAuthorizedDisputeSellerPayout(
   tx: TxQueryable,
   transactionId: string
 ): Promise<boolean> {
-  try {
-    const d = await tx.query<{ status: string }>(
-      `SELECT status FROM vauto_disputes WHERE transaction_id = $1 LIMIT 1`,
-      [transactionId]
-    );
-    const s = d.rows[0]?.status;
-    return s === "DECIDED_SELLER_PAYOUT" || s === "RESOLVED_SELLER_PAYOUT";
-  } catch {
+  if (!(await publicRelationExists(tx, "vauto_disputes"))) {
     return false;
   }
+  const d = await tx.query<{ status: string }>(
+    `SELECT status FROM vauto_disputes WHERE transaction_id = $1 LIMIT 1`,
+    [transactionId]
+  );
+  const s = d.rows[0]?.status;
+  return s === "DECIDED_SELLER_PAYOUT" || s === "RESOLVED_SELLER_PAYOUT";
 }
 
 function assertRefundAuthority(authority: unknown): RefundAuthority {

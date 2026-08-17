@@ -40,6 +40,7 @@ import {
 import { createTestFundsTransferService } from "../transfer/index.js";
 import type { ProviderLookup, ProviderMirror } from "../reconciliation/index.js";
 import { createFakeStripeProviderLookup } from "../reconciliation/stripe-provider-lookup.js";
+import { DISPUTE_MIGRATION_SQL } from "../../disputes/index.js";
 
 export const TEST_WHSEC = "whsec_test_vauto_11f5_recon";
 export const TEST_URL = process.env.TEST_DATABASE_URL?.trim() || "";
@@ -56,12 +57,14 @@ CREATE TABLE IF NOT EXISTS listings (
   images JSONB DEFAULT '[]'::jsonb,
   attributes JSONB DEFAULT '{}'::jsonb,
   category TEXT,
+  tags JSONB DEFAULT '[]'::jsonb,
   status TEXT DEFAULT 'active'
 );
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_id TEXT;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS location TEXT;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS image TEXT;
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT '[]'::jsonb;
 `;
 
 export function adaptPglite(db: PGlite): TxQueryable {
@@ -94,20 +97,33 @@ export type FinancialDbHandle = {
   close: () => Promise<void>;
 };
 
-async function applyMigrationSql(
+/** Shared TEST DB: serialize DDL across parallel 11F.5 files (avoids 40P01). */
+const FINANCIAL_DDL_LOCK = 0x11f50001;
+
+async function applyBootSql(
   handle: { pool: pg.Pool | null; pglite: PGlite | null },
-  sql: string
+  statements: string[]
 ): Promise<void> {
   if (handle.pool) {
     const client = await handle.pool.connect();
     try {
-      await client.query(sql);
+      await client.query("SELECT pg_advisory_lock($1)", [FINANCIAL_DDL_LOCK]);
+      for (const sql of statements) {
+        await client.query(sql);
+      }
     } finally {
+      try {
+        await client.query("SELECT pg_advisory_unlock($1)", [FINANCIAL_DDL_LOCK]);
+      } catch {
+        /* session may already be idle */
+      }
       client.release();
     }
     return;
   }
-  await handle.pglite!.exec(sql);
+  for (const sql of statements) {
+    await handle.pglite!.exec(sql);
+  }
 }
 
 export async function bootFinancialDb(): Promise<FinancialDbHandle> {
@@ -137,17 +153,20 @@ export async function bootFinancialDb(): Promise<FinancialDbHandle> {
   }
 
   const handle = { pool, pglite };
-  await applyMigrationSql(handle, TRANSACTION_MIGRATION_SQL);
-  await applyMigrationSql(handle, OFFERS_MIGRATION_SQL);
-  await applyMigrationSql(handle, TRANSACTION_CHAT_MIGRATION_SQL);
-  await applyMigrationSql(handle, DEAL_ROOM_MIGRATION_SQL);
-  await applyMigrationSql(handle, PAYMENT_LEDGER_MIGRATION_SQL);
-  await applyMigrationSql(handle, STRIPE_PI_MIGRATION_SQL);
-  await applyMigrationSql(handle, STRIPE_WEBHOOKS_MIGRATION_SQL);
-  await applyMigrationSql(handle, FUNDS_TRANSFER_MIGRATION_SQL);
-  await applyMigrationSql(handle, REFUND_PENDING_MIGRATION_SQL);
-  await applyMigrationSql(handle, IN_FLIGHT_TRANSFER_LOCK_MIGRATION_SQL);
-  await applyMigrationSql(handle, LISTINGS_STUB);
+  await applyBootSql(handle, [
+    TRANSACTION_MIGRATION_SQL,
+    OFFERS_MIGRATION_SQL,
+    TRANSACTION_CHAT_MIGRATION_SQL,
+    DEAL_ROOM_MIGRATION_SQL,
+    PAYMENT_LEDGER_MIGRATION_SQL,
+    STRIPE_PI_MIGRATION_SQL,
+    STRIPE_WEBHOOKS_MIGRATION_SQL,
+    FUNDS_TRANSFER_MIGRATION_SQL,
+    REFUND_PENDING_MIGRATION_SQL,
+    IN_FLIGHT_TRANSFER_LOCK_MIGRATION_SQL,
+    DISPUTE_MIGRATION_SQL,
+    LISTINGS_STUB,
+  ]);
 
   return {
     q,

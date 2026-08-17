@@ -1,26 +1,73 @@
 name: Android APK Build & Release
 
+# Must not run on raw master push. Must not commit to master.
+# APK publish only after CI on master concluded success (same gate as Render/Vercel).
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [master]
   workflow_dispatch:
+    inputs:
+      git_ref:
+        description: "Commit SHA on master to build (default: current master tip)"
+        required: false
+        default: ""
 
 permissions:
   contents: write
 
 concurrency:
-  group: android-build-${{ github.ref }}
+  group: android-build-master
   cancel-in-progress: true
 
 jobs:
   build-and-release:
-    if: ${{ github.event_name == 'workflow_dispatch' || !contains(github.event.head_commit.message || '', '[skip ci]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
-
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'master') ||
+      github.event_name == 'workflow_dispatch'
     steps:
+      - name: Resolve build SHA
+        id: sha
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            SHA="${{ github.event.workflow_run.head_sha }}"
+          elif [ -n "${{ github.event.inputs.git_ref }}" ]; then
+            SHA="${{ github.event.inputs.git_ref }}"
+          else
+            SHA=$(gh api "repos/${{ github.repository }}/commits/master" --jq .sha)
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          echo "Build SHA=$SHA"
+
+      - name: Require green CI for manual dispatch
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.sha.outputs.sha }}"
+          CONCLUSION=$(gh api \
+            "repos/${{ github.repository }}/actions/runs?head_sha=${SHA}&status=completed&per_page=30" \
+            --jq '[.workflow_runs[] | select(.name=="CI" and .head_branch=="master")] | .[0].conclusion // empty')
+          echo "CI conclusion for $SHA = '${CONCLUSION}'"
+          if [ "$CONCLUSION" != "success" ]; then
+            echo "Android APK blocked: CI is not green for $SHA"
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.sha.outputs.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -90,17 +137,6 @@ jobs:
           SIZE=$(stat -c%s vauto.apk)
           echo "size=$SIZE" >> "$GITHUB_OUTPUT"
           echo "size_mb=$(awk "BEGIN {printf \"%.1f\", $SIZE/1024/1024}")" >> "$GITHUB_OUTPUT"
-          SIZE="$SIZE" VERSION="${{ steps.appver.outputs.version }}" CODE="${{ steps.appver.outputs.code }}" node -e "
-            const fs=require('fs');
-            const p='public/version-config.json';
-            const j=JSON.parse(fs.readFileSync(p,'utf8'));
-            j.apkSizeBytes=Number(process.env.SIZE);
-            j.latestVersion=process.env.VERSION;
-            j.versionCode=Number(process.env.CODE);
-            j.downloadUrl='https://www.vauto.lt/download/vauto.apk';
-            fs.writeFileSync(p, JSON.stringify(j,null,2)+'\n');
-            console.log('version-config', j.latestVersion, j.versionCode, j.apkSizeBytes);
-          "
           ls -lh vauto.apk
 
       - name: Delete previous android-latest release
@@ -133,23 +169,11 @@ jobs:
 
             Programėlėje nauja versija matoma per `GET /api/version`.
 
-            _Sugeneruota automatiškai po push į `master`._
+            _Sugeneruota tik po green CI. Šis workflow nekeičia git master._
           files: |
             vauto.apk
             vauto-debug.apk
           make_latest: true
-
-      - name: Commit updated version-config size
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add public/version-config.json
-          if git diff --staged --quiet; then
-            echo "version-config unchanged"
-            exit 0
-          fi
-          git commit -m "chore: sync APK size in version-config [skip ci]"
-          git push
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
