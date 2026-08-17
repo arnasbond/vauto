@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "build": "node ../scripts/sync-marketplace-domain.mjs && tsc",
+    "build": "node ./scripts/run-marketplace-domain-sync.mjs && tsc",
     "test:ai-foundation": "tsx --test src/ai/foundation/*.test.ts",
     "test:ai-intent": "tsx --test src/ai/intent/__tests__/*.test.ts",
     "test:ai-search": "tsx --test src/ai/search/__tests__/*.test.ts",

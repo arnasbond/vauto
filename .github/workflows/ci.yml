@@ -56,6 +56,13 @@ jobs:
       - name: Build server
         run: npm run server:build
 
+      - name: API Docker image (Render Dockerfile + ./server context)
+        run: |
+          set -euo pipefail
+          docker build -f server/Dockerfile -t vauto-api:ci ./server
+          docker run --rm --entrypoint sh vauto-api:ci -c \
+            'set -e; test -f /app/dist/index.js; test -d /app/migrations; test -f /app/dist/shared/marketplace-domain/index.js; ls -la /app/dist /app/migrations | head -n 80'
+
       - name: Server validation smoke
         run: node scripts/validation-smoke.mjs
 

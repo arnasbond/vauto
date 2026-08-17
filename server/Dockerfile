@@ -1,9 +1,12 @@
+# Render: dockerfilePath=./server/Dockerfile, dockerContext=./server (see render.yaml).
+# Do not COPY files from repo root — they are outside this context.
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src
+COPY scripts/run-marketplace-domain-sync.mjs ./scripts/run-marketplace-domain-sync.mjs
 RUN npm run build
 
 FROM node:22-bookworm-slim
