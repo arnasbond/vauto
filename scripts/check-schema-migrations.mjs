@@ -55,18 +55,49 @@ const client = new Client({
 });
 await client.connect();
 try {
-  const { rows } = await client.query(
-    "SELECT filename, applied_at FROM schema_migrations ORDER BY filename"
-  );
-  const applied = rows.map((r) => r.filename);
-  const pending = expected.filter((f) => !applied.includes(f));
+  const exists = await client.query(`
+    SELECT 1 AS present
+    FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = 'schema_migrations'
+    LIMIT 1
+  `);
+  if (!exists.rows.length) {
+    console.log("STATE=not_initialized");
+    console.log("EXPECTED_COUNT=" + expected.length);
+    console.log("APPLIED_COUNT=0");
+    console.log("LATEST_APPLIED=");
+    console.log("PENDING_COUNT=" + expected.length);
+    console.log("APPLIED=");
+    console.log("PENDING=" + expected.join(","));
+    console.log("UP_TO_DATE=no");
+    process.exitCode = 2;
+  } else {
+    const { rows } = await client.query(
+      "SELECT filename, applied_at FROM schema_migrations ORDER BY filename"
+    );
+    const applied = rows.map((r) => r.filename);
+    const pending = expected.filter((f) => !applied.includes(f));
+    console.log("STATE=" + (pending.length === 0 ? "current" : "pending"));
+    console.log("EXPECTED_COUNT=" + expected.length);
+    console.log("APPLIED_COUNT=" + applied.length);
+    console.log("LATEST_APPLIED=" + (applied.at(-1) || ""));
+    console.log("PENDING_COUNT=" + pending.length);
+    console.log("APPLIED=" + applied.join(","));
+    console.log("PENDING=" + pending.join(","));
+    console.log("UP_TO_DATE=" + (pending.length === 0 ? "yes" : "no"));
+    if (pending.length) process.exitCode = 3;
+  }
+} catch (e) {
+  console.log("STATE=unavailable");
   console.log("EXPECTED_COUNT=" + expected.length);
-  console.log("APPLIED_COUNT=" + applied.length);
-  console.log("LATEST_APPLIED=" + (applied.at(-1) || ""));
-  console.log("PENDING_COUNT=" + pending.length);
-  console.log("APPLIED=" + applied.join(","));
-  console.log("PENDING=" + pending.join(","));
-  console.log("UP_TO_DATE=" + (pending.length === 0 ? "yes" : "no"));
+  console.log("APPLIED_COUNT=0");
+  console.log("LATEST_APPLIED=");
+  console.log("PENDING_COUNT=0");
+  console.log("APPLIED=");
+  console.log("PENDING=");
+  console.log("UP_TO_DATE=no");
+  console.error(e instanceof Error ? e.message : String(e));
+  process.exitCode = 4;
 } finally {
   await client.end();
 }

@@ -19,7 +19,7 @@
     "test:ai-red-team": "tsx --test src/ai/__tests__/full-red-team.test.ts",
     "test:stage10-integration": "tsx --test src/ai/__tests__/stage10-integration.test.ts",
     "test:stage10-http-integration": "tsx --test src/ai/__tests__/stage10-http-integration.test.ts",
-    "test:stage16-security": "tsx --test src/middleware/__tests__/security-headers.test.ts src/lib/__tests__/admin-allowlist.test.ts src/auth/__tests__/tokens.test.ts src/migrate/__tests__/migrations-chain.test.ts src/routes/__tests__/stage16-http-authz.test.ts",
+    "test:stage16-security": "tsx --test src/middleware/__tests__/security-headers.test.ts src/lib/__tests__/admin-allowlist.test.ts src/auth/__tests__/tokens.test.ts src/migrate/__tests__/migrations-chain.test.ts src/migrate/__tests__/migration-status-readonly.test.ts src/routes/__tests__/health-schema.test.ts src/routes/__tests__/stage16-http-authz.test.ts",
     "test:transaction-state-machine": "tsx --test src/transaction/__tests__/state-machine.test.ts src/transaction/__tests__/transaction-integration.test.ts",
     "test:structured-offers": "tsx --test src/transaction/offers/__tests__/*.test.ts",
     "test:transaction-chat": "tsx --test src/transaction-chat/__tests__/*.test.ts",

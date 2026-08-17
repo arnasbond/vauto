@@ -5,6 +5,7 @@ import { pool } from "./db.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+/** DDL for runMigrations() only. Observability must never call this. */
 async function ensureMigrationsTable(): Promise<void> {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -69,7 +70,15 @@ export async function runMigrations(): Promise<{ applied: string[] }> {
   return { applied };
 }
 
+export type MigrationSchemaState =
+  | "current"
+  | "pending"
+  | "not_initialized"
+  | "unavailable";
+
 export type MigrationStatus = {
+  /** Observability state — never implied by HTTP 200 alone. */
+  state: MigrationSchemaState;
   upToDate: boolean;
   expectedCount: number;
   appliedCount: number;
@@ -77,27 +86,111 @@ export type MigrationStatus = {
   pending: string[];
 };
 
-/**
- * READ-ONLY schema_migrations vs on-disk files. Does not apply SQL.
- * Used by /api/health and scripts/check-schema-migrations.mjs.
- */
-export async function getMigrationStatus(): Promise<MigrationStatus> {
+export type SqlQueryable = {
+  query: (
+    text: string,
+    params?: unknown[]
+  ) => Promise<{ rows: Array<Record<string, unknown>> }>;
+};
+
+const WRITE_SQL =
+  /\b(create|alter|drop|insert|update|delete|truncate|grant|revoke|vacuum|reindex|copy)\b/i;
+
+export function listExpectedMigrationFiles(): string[] {
   const dir = join(__dirname, "../migrations");
-  const expected = readdirSync(dir)
+  return readdirSync(dir)
     .filter((f) => f.endsWith(".sql"))
     .sort();
-  await ensureMigrationsTable();
-  const { rows } = await pool.query<{ filename: string }>(
-    "SELECT filename FROM schema_migrations ORDER BY filename"
-  );
-  const applied = new Set(rows.map((r) => r.filename));
-  const pending = expected.filter((f) => !applied.has(f));
-  const latestApplied = rows.length ? rows[rows.length - 1].filename : null;
+}
+
+function assertReadOnlySql(text: string): void {
+  if (WRITE_SQL.test(text)) {
+    throw new Error(`getMigrationStatus refused non-read-only SQL: ${text}`);
+  }
+}
+
+function unavailableStatus(expectedCount: number): MigrationStatus {
   return {
-    upToDate: pending.length === 0 && expected.length > 0,
-    expectedCount: expected.length,
-    appliedCount: rows.length,
-    latestApplied,
-    pending,
+    state: "unavailable",
+    upToDate: false,
+    expectedCount,
+    appliedCount: 0,
+    latestApplied: null,
+    pending: [],
+  };
+}
+
+/**
+ * READ-ONLY schema_migrations vs on-disk files.
+ * SELECT / information_schema only — never CREATE/ALTER/DROP/DML.
+ * Missing table → not_initialized. Introspection failure → unavailable.
+ * Used by /api/health. Must not create DB objects.
+ */
+export async function getMigrationStatus(
+  db: SqlQueryable = pool
+): Promise<MigrationStatus> {
+  const expected = listExpectedMigrationFiles();
+  try {
+    const existsSql = `
+      SELECT 1 AS present
+      FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'schema_migrations'
+      LIMIT 1
+    `;
+    assertReadOnlySql(existsSql);
+    const exists = await db.query(existsSql);
+    if (!exists.rows.length) {
+      return {
+        state: "not_initialized",
+        upToDate: false,
+        expectedCount: expected.length,
+        appliedCount: 0,
+        latestApplied: null,
+        pending: expected,
+      };
+    }
+
+    const appliedSql =
+      "SELECT filename FROM schema_migrations ORDER BY filename";
+    assertReadOnlySql(appliedSql);
+    const { rows } = await db.query(appliedSql);
+    const appliedNames = rows.map((r) => String(r.filename ?? ""));
+    const applied = new Set(appliedNames);
+    const pending = expected.filter((f) => !applied.has(f));
+    const latestApplied = appliedNames.length
+      ? appliedNames[appliedNames.length - 1]
+      : null;
+    const upToDate = pending.length === 0 && expected.length > 0;
+    return {
+      state: upToDate ? "current" : "pending",
+      upToDate,
+      expectedCount: expected.length,
+      appliedCount: appliedNames.length,
+      latestApplied,
+      pending,
+    };
+  } catch {
+    return unavailableStatus(expected.length);
+  }
+}
+
+/** Public /api/health.schema shape — explicit state, never release-ready by omission. */
+export function toPublicSchemaStatus(status: MigrationStatus): {
+  state: MigrationSchemaState;
+  upToDate: boolean;
+  expectedCount: number;
+  appliedCount: number;
+  latestApplied: string | null;
+  pendingCount: number;
+  pending: string[];
+} {
+  return {
+    state: status.state,
+    upToDate: status.upToDate === true && status.state === "current",
+    expectedCount: status.expectedCount,
+    appliedCount: status.appliedCount,
+    latestApplied: status.latestApplied,
+    pendingCount: status.pending.length,
+    pending: status.pending.slice(0, 32),
   };
 }
