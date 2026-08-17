@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import { expect, type Page, type Route } from "@playwright/test";
 import path from "node:path";
 import {
   acceptGdprConsentIfPrompted,
@@ -79,6 +79,23 @@ export async function seedSellerWithOwnedListing(
   await forceOfflineCatalog(page);
   await seedDemoUser(page);
   await seedOwnedListings(page, [listing], E2E_SELLER_ID);
+}
+
+/**
+ * Certified Stage 14 Mano skelbimai card has no "Peržiūrėti skelbimą" /
+ * "Iškelti" text. Cover image link (alt = title) opens listing detail;
+ * owner chrome is "Savininko režimas".
+ */
+export async function openOwnedListingFromDashboard(
+  page: Page,
+  listing: { title: string }
+) {
+  const cover = page.getByRole("link", { name: listing.title }).first();
+  await expect(cover).toBeVisible({ timeout: 20_000 });
+  await cover.click();
+  await expect(
+    page.getByRole("region", { name: /Savininko režimas/i })
+  ).toBeVisible({ timeout: 20_000 });
 }
 
 export async function seedBuyerSession(page: Page) {

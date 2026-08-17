@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import { buildOwnedListing, E2E_COVER, E2E_GALLERY_2 } from "./helpers/fixtures";
 import {
   acceptGdprConsentIfPrompted,
+  openOwnedListingFromDashboard,
   seedSellerWithOwnedListing,
 } from "./helpers/seed";
 
@@ -107,10 +108,7 @@ test.describe("Enterprise — Vision formos realios reikšmės", () => {
       timeout: 20_000,
     });
 
-    await page.getByRole("link", { name: /Peržiūrėti skelbimą/i }).click();
-    await expect(page.getByText(/Savininko Valdymas/i)).toBeVisible({
-      timeout: 20_000,
-    });
+    await openOwnedListingFromDashboard(page, listing);
     await expect(page.getByText(listing.title).first()).toContainText("Citroën");
     await expect(page.getByText(/1990\s*€/).first()).toContainText("1990");
 

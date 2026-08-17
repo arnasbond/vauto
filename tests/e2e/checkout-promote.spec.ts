@@ -3,6 +3,7 @@ import { buildOwnedListing } from "./helpers/fixtures";
 import {
   acceptGdprConsentIfPrompted,
   installBillingConfirmMock,
+  openOwnedListingFromDashboard,
   seedSellerWithOwnedListing,
 } from "./helpers/seed";
 
@@ -22,7 +23,8 @@ test.describe("Enterprise — checkout / paryškinimas", () => {
       timeout: 20_000,
     });
 
-    await page.getByRole("button", { name: /Iškelti/i }).first().click();
+    await openOwnedListingFromDashboard(page, listing);
+    await page.getByRole("button", { name: /^Iškelti skelbimą$/i }).click();
     await expect(page.getByRole("heading", { name: /Iškelti skelbimą/i })).toBeVisible({
       timeout: 10_000,
     });

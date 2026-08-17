@@ -3,6 +3,7 @@ import { buildOwnedListing, E2E_COVER } from "./helpers/fixtures";
 import {
   acceptGdprConsentIfPrompted,
   installListingPatchCapture,
+  openOwnedListingFromDashboard,
   seedSellerWithOwnedListing,
 } from "./helpers/seed";
 
@@ -100,7 +101,7 @@ test.describe("Enterprise — skelbimų ciklas", () => {
     expect(images[0]).toBe(E2E_COVER);
   });
 
-  test("Savininko Valdymas → Redaguoti detail: title input not empty", async ({
+  test("Savininko režimas → Redaguoti detail: title input not empty", async ({
     page,
   }) => {
     const listing = buildOwnedListing({
@@ -117,10 +118,7 @@ test.describe("Enterprise — skelbimų ciklas", () => {
       timeout: 20_000,
     });
 
-    await page.getByRole("link", { name: /Peržiūrėti skelbimą/i }).click();
-    await expect(page.getByText(/Savininko Valdymas/i)).toBeVisible({
-      timeout: 20_000,
-    });
+    await openOwnedListingFromDashboard(page, listing);
     await page.getByRole("button", { name: /^Redaguoti$/i }).click();
 
     const dialog = page.getByRole("dialog", { name: /Redaguoti skelbimą/i });
