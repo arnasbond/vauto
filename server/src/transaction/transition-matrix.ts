@@ -206,6 +206,14 @@ export const TRANSITION_MATRIX: Readonly<
       requiredReasons: ["DISPUTE_RESOLVED_SELLER_PAYOUT"],
     },
   ],
+  // 11J fulfillment-specific states — no inbound from the carrier happy path.
+  SERVICE_SCHEDULED: [],
+  SERVICE_PERFORMED: [],
+  CUSTOMER_CONFIRMED: [],
+  CONTACT_ACCEPTED: [],
+  INTERACTION_CLAIMED: [],
+  INTERACTION_CONFIRMED: [],
+  INTERACTION_COMPLETED: [],
 };
 
 export function listAllowedTargets(

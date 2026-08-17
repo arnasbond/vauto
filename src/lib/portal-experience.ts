@@ -19,7 +19,7 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
     portalName: "VAUTO",
     headline: "Viskas vienoje paieškoje",
     description:
-      "Vienas srautas daiktams, automobiliams, NT, drabužiams ir paslaugoms.",
+      "Vienas srautas transportui, NT, elektronikai, paslaugoms, darbui ir namų prekėms.",
     primaryCta: "Pradėti paiešką",
     color: "#1167b1",
     bg: "#ffffff",
@@ -28,11 +28,11 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
   },
   autoplius: {
     theme: "autoplius",
-    portalName: "Automobiliai",
+    portalName: "Transportas",
     headline: "Auto skelbimo režimas",
     description:
       "Techniniai laukai, VIN / numerio autofill, TA ir rinkos kainos signalai.",
-    primaryCta: "Ieškoti auto",
+      primaryCta: "Ieškoti transporto",
     color: "#1a56db",
     bg: "#e8f0fe",
     border: "#c5d9f7",
@@ -136,7 +136,7 @@ export function allPortalExperiences(): PortalExperience[] {
 export function portalShortLabel(theme: ChameleonThemeId): string {
   switch (theme) {
     case "autoplius":
-      return "Auto";
+      return "Transportas";
     case "wardrobe":
       return "Apranga";
     case "aruodas":

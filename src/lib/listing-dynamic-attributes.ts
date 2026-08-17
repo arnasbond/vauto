@@ -66,6 +66,7 @@ const EXTRA_INTERNAL_KEYS = new Set([
   "estimatedSize",
   "omnivaLockerBlockReason",
   "omnivaBoxSize",
+  "_canonicalVertical",
   "locationEditedByUser",
   "specSource",
   "specConfidence",
@@ -331,7 +332,7 @@ export function getDynamicListingDetailRows(
 }
 
 const CATEGORY_AI_TAGS: Partial<Record<ListingCategory, string>> = {
-  vehicles: "Automobiliai",
+  vehicles: "Transportas",
   transport: "Transportas",
   electronics: "Elektronika",
   clothing: "Apranga",

@@ -11,14 +11,14 @@ import { LITHUANIA_MOCK_CATALOG } from "@/data/lithuania-mock-catalog";
 
 /** VAUTO kategorijų etiketės UI (Auto, Elektronika, Namai, …) */
 export const MOCK_CATEGORY_LABELS: Record<ListingCategory, string> = {
-  vehicles: "Auto",
   transport: "Transportas",
-  electronics: "Elektronika",
-  home: "Namai",
-  clothing: "Drabužiai",
-  services: "Paslaugos",
   real_estate: "NT",
+  electronics: "Elektronika",
+  services: "Paslaugos",
   jobs: "Darbas",
+  home: "Namai",
+  vehicles: "Lengvieji",
+  clothing: "Drabužiai",
   tools: "Įrankiai",
   rental: "Nuoma",
   other: "Kita",

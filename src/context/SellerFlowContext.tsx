@@ -1599,7 +1599,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     categoryMismatchRollbackRef.current = null;
     categoryMismatchPendingRef.current = null;
     photoReplaceSnapshotRef.current = null;
-    showToast("Atstatytas automobilių skelbimo juodraštis.", "info");
+    showToast("Atstatytas skelbimo juodraštis.", "info");
     return true;
   }, [showToast]);
 

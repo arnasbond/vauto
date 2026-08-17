@@ -44,7 +44,7 @@ const LT_LABELS: Record<ReasonCode, string> = {
   DEMAND_SPAM_FILTERED: "Paklausos triukšmas filtruotas",
   ESCROW_AVAILABLE: "Escrow prieinamas",
   OMNIVA_AVAILABLE: "Omniva pristatymas prieinamas",
-  BUYER_PROTECTION_AVAILABLE: "Pirkėjo apsauga prieinama",
+  BUYER_PROTECTION_AVAILABLE: "Platformos sandorio eiga prieinama",
   LIMITED_PROTECTION_OPTIONS: "Ribotos apsaugos parinktys",
   NO_PROTECTION_OPTIONS: "Apsaugos parinkčių nėra",
   TRANSACTION_SIGNALS_MISSING: "Sandorio apsaugos signalų trūksta",

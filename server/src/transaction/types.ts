@@ -19,6 +19,13 @@ export const TRANSACTION_STATUSES = [
   "CANCELLED",
   "EXPIRED",
   "DISPUTED",
+  "SERVICE_SCHEDULED",
+  "SERVICE_PERFORMED",
+  "CUSTOMER_CONFIRMED",
+  "CONTACT_ACCEPTED",
+  "INTERACTION_CLAIMED",
+  "INTERACTION_CONFIRMED",
+  "INTERACTION_COMPLETED",
 ] as const;
 
 export type TransactionStatus = (typeof TRANSACTION_STATUSES)[number];
@@ -70,9 +77,59 @@ export const REASON_CODES = [
   "DISPUTE_RESOLVED_SELLER_PAYOUT",
   "REFUND_APPROVED",
   "SYSTEM_TRANSITION",
+  "SERVICE_SCHEDULED",
+  "SERVICE_PERFORMED",
+  "CUSTOMER_CONFIRMED",
+  "CONTACT_ACCEPTED",
+  "INTERACTION_CLAIMED",
+  "INTERACTION_CONFIRMED",
+  "INTERACTION_COMPLETED",
 ] as const;
 
+export const VERTICALS = [
+  "GOODS",
+  "SERVICES",
+  "REAL_ESTATE",
+  "JOBS",
+] as const;
+export type Vertical = (typeof VERTICALS)[number];
+
+export const FULFILLMENT_TYPES = [
+  "CARRIER_DELIVERY",
+  "LOCAL_HANDOFF",
+  "SERVICE_IN_PERSON",
+  "SERVICE_REMOTE",
+  "DIRECT_CONTACT",
+] as const;
+export type FulfillmentType = (typeof FULFILLMENT_TYPES)[number];
+
+export const PAYMENT_MODES = [
+  "FULL_ESCROW",
+  "DEPOSIT_ESCROW",
+  "PLATFORM_FEE_ONLY",
+  "OFF_PLATFORM",
+] as const;
+export type PaymentMode = (typeof PAYMENT_MODES)[number];
+
+export const VERIFICATION_POLICIES = [
+  "PLATFORM_TRANSACTION",
+  "MUTUAL_COMPLETION",
+  "APPOINTMENT_VERIFIED",
+  "NO_VERIFIED_REVIEW",
+] as const;
+export type VerificationPolicy = (typeof VERIFICATION_POLICIES)[number];
+
 export type ReasonCode = (typeof REASON_CODES)[number];
+
+/** 11A–11I default composition: goods + Omniva carrier + full escrow. */
+export const LEGACY_TRANSACTION_POLICY = {
+  vertical: "GOODS" as const satisfies Vertical,
+  fulfillmentType: "CARRIER_DELIVERY" as const satisfies FulfillmentType,
+  paymentMode: "FULL_ESCROW" as const satisfies PaymentMode,
+  verificationPolicy: "PLATFORM_TRANSACTION" as const satisfies VerificationPolicy,
+  contractValueCents: null as number | null,
+  platformManagedAmountCents: 0,
+};
 
 export type VautoTransaction = {
   id: string;
@@ -87,6 +144,15 @@ export type VautoTransaction = {
   stateMachineVersion: typeof TRANSACTION_STATE_MACHINE_VERSION;
   createdAt: string;
   updatedAt: string;
+  /** Stage 11J — defaults keep 11A–11I goods + carrier + full escrow. */
+  vertical: Vertical;
+  fulfillmentType: FulfillmentType;
+  paymentMode: PaymentMode;
+  verificationPolicy: VerificationPolicy;
+  contractValueCents: number | null;
+  platformManagedAmountCents: number;
+  /** Party who first claimed DIRECT_CONTACT interaction (11J.1 dual verification). */
+  interactionClaimedBy?: string | null;
 };
 
 export type TransitionCommand = {
@@ -174,10 +240,36 @@ export class TransactionNotFoundError extends Error {
 
 export class IdempotencyConflictError extends Error {
   readonly code = "IDEMPOTENCY_CONFLICT" as const;
+  readonly httpStatus = 409;
   constructor(public readonly idempotencyKey: string) {
     super(
-      `Idempotency key reused with different transition payload: ${idempotencyKey}`
+      `Idempotency key reused with a different payload: ${idempotencyKey}`
     );
     this.name = "IdempotencyConflictError";
+  }
+}
+
+/** Fail-closed policy composition (vertical × fulfillment × payment × verification). HTTP 400. */
+export class InvalidPolicyCompositionError extends Error {
+  readonly code = "INVALID_POLICY_COMPOSITION" as const;
+  readonly httpStatus = 400;
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidPolicyCompositionError";
+  }
+}
+
+/** Policy denied an actor (e.g. provider self-completing a service). HTTP 403. */
+export class PolicyForbiddenError extends InvalidTransitionError {
+  readonly policyCode = "POLICY_FORBIDDEN" as const;
+  readonly httpStatus = 403;
+  constructor(
+    from: TransactionStatus,
+    to: TransactionStatus,
+    actorType: ActorType,
+    message?: string
+  ) {
+    super(from, to, actorType, message ?? "Policy forbids this transition");
+    this.name = "PolicyForbiddenError";
   }
 }

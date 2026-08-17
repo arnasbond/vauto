@@ -42,7 +42,7 @@ const CONSUMER_PROPS: ValueProp[] = [
     tone: "success",
     title: "Sandorio eiga, ne tik skelbimas",
     description:
-      "Pasiūlymas, mokėjimas, Omniva sekimas ir patvirtintas atsiliepimas — būsenas tvirtina serveris.",
+      "Platformos saugumo mechanizmai, jų ribos ir sąlygos: mokėjimas laikomas iki gavimo. Būsenas tvirtina serveris — objektą ir susitarimą tvirtinate jūs.",
   },
 ];
 

@@ -32,6 +32,10 @@ import {
   type WebhookHandleResult,
 } from "./types.js";
 import { STRIPE_WEBHOOKS_VERSION } from "./version.js";
+import {
+  applyTrustedProviderProvenanceInTx,
+  mintTrustedProviderProvenanceFromVerifiedStripeEvent,
+} from "./trusted-provider-provenance.js";
 
 const ALLOWED = new Set<string>(STRIPE_WEBHOOK_ALLOWLIST);
 
@@ -84,8 +88,8 @@ export class StripeWebhookProcessor {
     return this.handleVerifiedEvent(event, input.rawBody);
   }
 
-  /** Test entry after signature already verified. */
-  async handleVerifiedEvent(
+  /** After constructEvent. Not part of the public HTTP/application API. */
+  private async handleVerifiedEvent(
     event: VerifiedStripeEvent,
     rawBody: Buffer
   ): Promise<WebhookHandleResult> {
@@ -314,6 +318,12 @@ export class StripeWebhookProcessor {
         intent.status === "RELEASED_TO_SELLER" ||
         intent.status === "REFUNDED"
       ) {
+        await this.attachObligationProvenance(tx, event, {
+          transactionId: intent.transactionId,
+          amountCents: intent.amountCents,
+          currency: parsed.currency,
+          stripePaymentIntentId: parsed.id,
+        });
         return "noop_monotonic";
       }
       if (intent.status === "FAILED") {
@@ -373,10 +383,49 @@ export class StripeWebhookProcessor {
         });
       }
 
+      await this.attachObligationProvenance(tx, event, {
+        transactionId: current.transactionId,
+        amountCents: current.amountCents,
+        currency: parsed.currency,
+        stripePaymentIntentId: parsed.id,
+      });
+
       return "processed";
     }
 
     return "noop_monotonic";
+  }
+
+  /**
+   * 11J.4 — bind signature-verified payment_intent.succeeded to obligation provenance.
+   * Event id / PI id come from the constructEvent payload, bound to the local PI row.
+   * No-op when the obligations table is absent (11A–11I) or no matching row.
+   */
+  private async attachObligationProvenance(
+    tx: TxQueryable,
+    event: Stripe.Event,
+    local: {
+      transactionId: string;
+      amountCents: number;
+      currency: string;
+      stripePaymentIntentId: string;
+    }
+  ): Promise<void> {
+    const exists = await tx.query<{ exists: boolean | string | number }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.tables
+         WHERE table_name = 'vauto_financial_obligations'
+       ) AS exists`
+    );
+    const flag = exists.rows[0]?.exists;
+    if (!(flag === true || flag === "t" || flag === 1 || flag === "true")) {
+      return;
+    }
+    const trusted = mintTrustedProviderProvenanceFromVerifiedStripeEvent(
+      event,
+      local
+    );
+    await applyTrustedProviderProvenanceInTx(tx, trusted);
   }
 
   private async applyRefundFinalityEvent(

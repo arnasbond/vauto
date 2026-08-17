@@ -6,6 +6,8 @@ import { Building2, Sparkles, Tag } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { MarketplaceFilterBar } from "@/components/marketplace/MarketplaceFilterBar";
+import { MARKETPLACE_VERTICALS } from "@/lib/marketplace-verticals";
+import { useCanonicalFacetQuery } from "@/hooks/useCanonicalFacetUrl";
 import { cn } from "@/lib/cn";
 
 interface DesktopHomeLayoutProps {
@@ -13,15 +15,6 @@ interface DesktopHomeLayoutProps {
   /** Optional hero / search strip above the grid */
   header?: ReactNode;
 }
-
-const QUICK_CATEGORIES = [
-  "Automobiliai",
-  "Būstas",
-  "Darbas",
-  "Paslaugos",
-  "Drabužiai",
-  "Technika",
-] as const;
 
 /**
  * Desktop marketplace scaffold — sidebar filters + wide content.
@@ -31,18 +24,19 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
   const { rankedListings } = useVauto();
   const {
     searchQuery,
-    setSearchQuery,
     marketplaceFilters,
     setMarketplaceFilters,
     viewMode,
     setViewMode,
   } = useVautoSearch();
+  const { query, setVertical } = useCanonicalFacetQuery();
 
   return (
     <div className="flex gap-8">
       <aside
         className="hidden w-[var(--anonser-sidebar-width)] shrink-0 md:block"
         aria-label="Filtrai ir B2B"
+        data-facet-desktop-sidebar
       >
         <div className="sticky top-[calc(var(--anonser-header-height)+1.5rem)] space-y-5">
           <section className="rounded-xl border border-[var(--anonser-border)] bg-[var(--anonser-card)] p-4 shadow-sm">
@@ -51,19 +45,21 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
               Kategorijos
             </h2>
             <ul className="space-y-1">
-              {QUICK_CATEGORIES.map((cat) => (
-                <li key={cat}>
+              {MARKETPLACE_VERTICALS.map((vertical) => (
+                <li key={vertical.id}>
                   <button
                     type="button"
-                    onClick={() => setSearchQuery(cat)}
+                    data-vertical-id={vertical.id}
+                    data-canonical-vertical={vertical.canonicalId}
+                    onClick={() => setVertical(vertical.canonicalId)}
                     className={cn(
                       "w-full rounded-lg px-3 py-2 text-left text-sm transition",
-                      searchQuery.toLowerCase().includes(cat.toLowerCase())
+                      query.verticalId === vertical.canonicalId
                         ? "bg-[var(--anonser-primary-soft)] font-medium text-[var(--anonser-primary)]"
                         : "text-[var(--anonser-text-muted)] hover:bg-[var(--anonser-surface-muted)]"
                     )}
                   >
-                    {cat}
+                    {vertical.label}
                   </button>
                 </li>
               ))}
@@ -81,6 +77,7 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
               onFiltersChange={setMarketplaceFilters}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
+              surface="desktop"
             />
           </section>
 

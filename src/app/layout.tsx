@@ -28,9 +28,9 @@ const outfit = Outfit({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
+  title: "VAUTO — AI skelbimai: NT, transportas, darbas ir paslaugos",
   description:
-    "Parduokite ir raskite prekes bei paslaugas visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija, ne garantija.",
+    "Parduokite ir raskite NT, techniką, paslaugas, darbą ir transportą visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija.",
   manifest: "/manifest.json",
   alternates: {
     canonical: "/",
@@ -40,9 +40,9 @@ export const metadata: Metadata = {
     locale: "lt_LT",
     url: "/",
     siteName: "VAUTO",
-    title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
+    title: "VAUTO — AI skelbimai: NT, transportas, darbas ir paslaugos",
     description:
-      "Parduokite ir raskite prekes bei paslaugas visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija, ne garantija.",
+      "Parduokite ir raskite NT, techniką, paslaugas, darbą ir transportą visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija.",
     images: [
       {
         url: "/icon-512.png",
@@ -54,9 +54,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
+    title: "VAUTO — AI skelbimai: NT, transportas, darbas ir paslaugos",
     description:
-      "Parduokite ir raskite prekes bei paslaugas visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija, ne garantija.",
+      "Parduokite ir raskite NT, techniką, paslaugas, darbą ir transportą visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija.",
     images: ["/icon-512.png"],
   },
   other: {

@@ -302,8 +302,10 @@ async function main() {
     "utf8"
   );
   check(
-    /STATIC_SELLER_LISTING_WELCOME/.test(agentCtx) &&
-      !/sendAgentMessage\(\s*aiSellerListingGreeting/.test(agentCtx),
+    /sellerListingWelcome/.test(agentCtx) &&
+      /setMessages\(/.test(agentCtx) &&
+      !/sendAgentMessage\(\s*aiSellerListingGreeting/.test(agentCtx) &&
+      !/sendAgentMessage\(\s*sellerListingWelcome/.test(agentCtx),
     "openAiSellerListingChat uses static welcome (no LLM greeting call)"
   );
 

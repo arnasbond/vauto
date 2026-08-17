@@ -21,5 +21,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "shared/**/*.ts"],
-  "exclude": ["node_modules", "server", "api", "canvases", "e2e", "playwright-report", "playwright-report-prod-real"]
+  "exclude": ["node_modules", "server", "api", "canvases", "e2e", "playwright-report", "playwright-report-prod-real", "shared/**/*.test.ts"]
 }

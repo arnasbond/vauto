@@ -5,6 +5,7 @@
  */
 
 import { randomUUID } from "node:crypto";
+import assert from "node:assert/strict";
 import pg from "pg";
 import { PGlite } from "@electric-sql/pglite";
 import {
@@ -47,23 +48,39 @@ export const USE_REAL_PG = Boolean(TEST_URL);
 const LISTINGS_STUB = `
 CREATE TABLE IF NOT EXISTS listings (
   id TEXT PRIMARY KEY,
+  seller_id TEXT,
   title TEXT NOT NULL,
   price NUMERIC(12,2),
+  location TEXT,
   image TEXT,
   images JSONB DEFAULT '[]'::jsonb,
   attributes JSONB DEFAULT '{}'::jsonb,
+  category TEXT,
   status TEXT DEFAULT 'active'
 );
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_id TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS image TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS category TEXT;
 `;
 
 export function adaptPglite(db: PGlite): TxQueryable {
   return {
     async query(text, params = []) {
-      const res = await db.query(text, params as never[]);
-      return {
-        rows: (res.rows ?? []) as never[],
-        rowCount: res.affectedRows ?? null,
-      };
+      try {
+        const res = await db.query(text, params as never[]);
+        return {
+          rows: (res.rows ?? []) as never[],
+          rowCount: res.affectedRows ?? null,
+        };
+      } catch (e) {
+        try {
+          await db.exec("ROLLBACK");
+        } catch {
+          /* session already idle */
+        }
+        throw e;
+      }
     },
   };
 }
@@ -148,6 +165,21 @@ export async function bootFinancialDb(): Promise<FinancialDbHandle> {
 let seq = 0;
 export const key = (p: string) => `${p}-idem-${++seq}-${Date.now()}`;
 
+/**
+ * Real PostgreSQL CAS losers throw 409; winners and idempotent replays fulfill.
+ * Exactly-once money is proven by ledger row count, not by Promise.all succeeding.
+ */
+export async function collectConcurrentSuccesses<T>(
+  jobs: Promise<T>[]
+): Promise<Awaited<T>[]> {
+  const settled = await Promise.allSettled(jobs);
+  const ok = settled.filter(
+    (s): s is PromiseFulfilledResult<Awaited<T>> => s.status === "fulfilled"
+  );
+  assert.ok(ok.length >= 1, "expected at least one concurrent winner");
+  return ok.map((s) => s.value);
+}
+
 /** M-02 — filter transfers/refunds by transactionId + paymentIntentId / stripe PI. */
 export function providerLookupFromFake(
   fake: FakeStripeAdapter
@@ -162,16 +194,28 @@ export async function setupHeldDelivered(
   tag: string,
   offerCents = 100000
 ) {
-  await q.query(
-    `INSERT INTO listings (id, title, price, image, attributes, status)
-     VALUES ($1,'T',100,'https://img.example/a.jpg','{}'::jsonb,'active')
-     ON CONFLICT (id) DO NOTHING`,
-    [`L-${tag}`]
-  );
   const buyerId = `buyer-${tag}`;
   const sellerId = `seller-${tag}`;
+  const listingId = `L-${tag}-${randomUUID().slice(0, 8)}`;
+  const usersTbl = await q.query<{ t: string | null }>(
+    `SELECT to_regclass('public.users')::text AS t`
+  );
+  if (usersTbl.rows[0]?.t) {
+    await q.query(
+      `INSERT INTO users (id, name, phone, city)
+       VALUES ($1,'11F seller','+37060000000','Vilnius')
+       ON CONFLICT (id) DO NOTHING`,
+      [sellerId]
+    );
+  }
+  await q.query(
+    `INSERT INTO listings (id, seller_id, title, price, location, image, attributes, status, category)
+     VALUES ($1,$2,'T',100,'LT','https://img.example/a.jpg','{}'::jsonb,'active','electronics')
+     ON CONFLICT (id) DO NOTHING`,
+    [listingId, sellerId]
+  );
   const tx = await txRepo.create({
-    listingId: `L-${tag}`,
+    listingId,
     buyerId,
     sellerId,
     currentPrice: 100,

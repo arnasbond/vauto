@@ -53,7 +53,7 @@ export function buildAssistantPrompt(
     .join(", ");
 
   const intros: Record<AdaptiveCategoryKey, string> = {
-    vehicles: "Automobilis — papildykite techninę informaciją:",
+    vehicles: "Transportas — papildykite techninę informaciją:",
     transport: "Transportas — papildykite tipą ir būklę:",
     clothing: "Drabužis — nurodykite dydį ir prekės ženklą:",
     services: "Paslauga — nurodykite patirtį ir darbų sąrašą:",

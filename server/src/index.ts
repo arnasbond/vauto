@@ -31,6 +31,7 @@ import { deliveryRouter } from "./routes/delivery.js";
 import { disputeRouter } from "./routes/disputes.js";
 import { reputationRouter } from "./routes/reputation.js";
 import { transactionsRouter } from "./routes/transactions.js";
+import { universalDealRoomRouter } from "./routes/universal-deal-room.js";
 import { optionalAuth, requireAuth } from "./middleware/auth.js";
 import { aiRateLimiter, actionRateLimiter, apiRateLimiter, authRateLimiter, searchRateLimiter } from "./middleware/rate-limit.js";
 import { assertProductionEnv } from "./env-check.js";
@@ -159,6 +160,7 @@ app.use("/api", offersRouter);
 app.use("/api", transactionChatRouter);
 app.use("/api", negotiationCopilotRouter);
 app.use("/api", dealRoomRouter);
+app.use("/api", universalDealRoomRouter);
 app.use("/api", paymentIntentRouter);
 app.use("/api", fundsTransferRouter);
 app.use("/api", reconciliationRouter);
@@ -305,7 +307,7 @@ app.listen(port, async () => {
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
     console.error(
-      `[migrate] Failed — server stays up; payment gates fail-open until schema catches up: ${detail}`
+      `[migrate] Failed — HTTP stays up for health checks; money/state routes remain fail-closed (no success without schema): ${detail}`
     );
   }
 

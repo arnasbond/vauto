@@ -103,7 +103,11 @@
     "validate:fast-search": "node scripts/validate-fast-search.mjs",
     "test:m3-b2b": "node scripts/test-m3-b2b-analytics.mjs",
     "test:payment-sale": "npm run server:build && node scripts/test-payment-sale-e2e.mjs",
-    "test:payment-sale:local": "npm run server:build && node scripts/test-payment-sale-e2e.mjs --local"
+    "test:payment-sale:local": "npm run server:build && node scripts/test-payment-sale-e2e.mjs --local",
+    "test:category-domain": "npm run test:category-domain --prefix server",
+    "test:faceted-search": "npm run test:faceted-search --prefix server",
+    "test:deal-room-13c": "npm run test:deal-room-13c --prefix server",
+    "test:deal-room-13c-pg": "npm run test:deal-room-13c-pg --prefix server"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",

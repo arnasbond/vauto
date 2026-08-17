@@ -18,23 +18,29 @@ import {
   apiCreateOffer,
   apiCreatePaymentIntent,
   apiCreateStripeIntent,
+  apiCounterOffer,
   apiGetDealRoom,
   apiGetDispute,
   apiGetTracking,
+  apiGetUniversalDeal,
   apiListMyTransactions,
   apiListTransactionReviews,
   apiOpenDispute,
+  apiRejectOffer,
   apiStartListingDeal,
   apiSyncCarrier,
   type DealRoomPayload,
   type DeliveryPayload,
   type DisputePayload,
   type ReviewRow,
+  type UniversalDealPayload,
 } from "@/lib/api/deal-room";
+import { UniversalDealRoomPanel } from "@/components/deal-room/UniversalDealRoomPanel";
 import {
   dealStatusHint,
   dealStatusLabel,
   formatCentsEur,
+  carrierStatusHint,
 } from "@/lib/deal-status";
 
 const DISPUTE_REASONS = [
@@ -122,6 +128,7 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [room, setRoom] = useState<DealRoomPayload | null>(null);
+  const [universal, setUniversal] = useState<UniversalDealPayload | null>(null);
   const [tracking, setTracking] = useState<DeliveryPayload["delivery"] | null>(null);
   const [dispute, setDispute] = useState<DisputePayload["dispute"] | null>(null);
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
@@ -147,6 +154,8 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
       return;
     }
     setRoom(roomRes.data);
+    const uni = await apiGetUniversalDeal(transactionId);
+    setUniversal(uni.ok ? uni.data : null);
     setError(null);
     const [tr, ds, rv] = await Promise.all([
       apiGetTracking(transactionId),
@@ -206,11 +215,21 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
   const canConfirm = role === "BUYER" && state === "SHIPPED";
   const canDispute = (state === "SHIPPED" || state === "DELIVERED") && !dispute;
   const canReview = state === "COMPLETED";
-  const canPay = role === "BUYER" && (state === "AGREED" || state === "PAYMENT_PENDING");
-  const canLabel = role === "SELLER" && state === "PAID";
+  const canPay =
+    role === "BUYER" &&
+    (state === "AGREED" || state === "PAYMENT_PENDING") &&
+    (universal ? universal.capabilities.supportsPlatformPayment : true);
+  const canLabel =
+    role === "SELLER" &&
+    state === "PAID" &&
+    (universal ? universal.capabilities.supportsShipping : true);
+  const canOffer = universal
+    ? universal.viewerDealActions.includes("OFFER")
+    : Boolean(room?.allowedActions.includes("CREATE_OFFER"));
+  const canAccept = universal
+    ? universal.viewerDealActions.includes("ACCEPT") && Boolean(universal.activeOffer)
+    : Boolean(room?.allowedActions.includes("ACCEPT_OFFER") && room?.activeOffer);
   const canComplete = state === "DELIVERED";
-  const canOffer = Boolean(room?.allowedActions.includes("CREATE_OFFER"));
-  const canAccept = Boolean(room?.allowedActions.includes("ACCEPT_OFFER") && room?.activeOffer);
 
   async function run(fn: () => Promise<void>) {
     setBusy(true);
@@ -251,6 +270,13 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
         <p className="mt-1 text-sm text-[var(--ds-text-muted)]">
           Suma: {formatCentsEur(amount)} · Būseną nustato tik serveris
         </p>
+        <p
+          className="mt-2 text-xs leading-relaxed text-[var(--ds-text-muted)]"
+          data-escrow-hint
+        >
+          Mokėjimas laikomas VAUTO eigoje, kol patvirtinate gavimą arba
+          sprendžiamas ginčas. Tai nėra visų rizikų draudimas.
+        </p>
         <div className="mt-2 flex flex-wrap gap-3 text-xs">
           <span>
             Pardavėjas: {room.seller.displayName}{" "}
@@ -261,6 +287,12 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
             <VerifiedReputationBadge userId={room.buyer.userId} compact />
           </span>
         </div>
+        <p
+          className="mt-2 text-xs leading-relaxed text-[var(--ds-text-muted)]"
+          data-verified-review-hint
+        >
+          Patvirtintas atsiliepimas po sandorio — ne vieši komentarai be pirkimo.
+        </p>
         <p className="mt-3 text-sm font-semibold">{dealStatusLabel(state)}</p>
         <p className="mt-1 text-xs leading-relaxed text-[var(--ds-text-muted)]">
           {dealStatusHint(state, role)}
@@ -293,6 +325,35 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
         </p>
       ) : null}
 
+      {universal ? (
+        <UniversalDealRoomPanel
+          room={universal}
+          busy={busy}
+          onCounter={(amountCents) =>
+            run(async () => {
+              if (!universal.activeOffer) return;
+              const res = await apiCounterOffer(universal.activeOffer.id, {
+                amountCents,
+                expectedVersion: universal.activeOffer.version,
+              });
+              if (!res.ok) setError(res.error.message);
+              else setNotice("Priešpasiūlymas pateiktas.");
+            })
+          }
+          onReject={() =>
+            run(async () => {
+              if (!universal.activeOffer) return;
+              const res = await apiRejectOffer(
+                universal.activeOffer.id,
+                universal.activeOffer.version
+              );
+              if (!res.ok) setError(res.error.message);
+              else setNotice("Pasiūlymas atmestas.");
+            })
+          }
+        />
+      ) : null}
+
       {canOffer ? (
         <Card>
           <h2 className="text-sm font-bold">Pasiūlymas</h2>
@@ -311,7 +372,7 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
             placeholder={String(room.listing.askingPriceCents ?? "")}
           />
           <Button
-            className="mt-3"
+            className="mt-3 min-h-12 w-full sm:w-auto"
             disabled={busy}
             data-submit-offer
             onClick={() =>
@@ -358,8 +419,9 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
         <Card>
           <h2 className="text-sm font-bold">Mokėjimas</h2>
           <p className="mt-1 text-xs text-[var(--ds-text-muted)]">
-            Sumą ir valiutą paima serveris iš sutarties. Naršyklė negali pažymėti sandorio
-            kaip apmokėto — tai padaro Stripe webhook.
+            Sumą ir valiutą paima serveris iš sutarties. Lėšos laikomos, kol
+            patvirtinate gavimą arba sprendžiamas ginčas. Naršyklė negali
+            pažymėti sandorio kaip apmokėto — tai padaro Stripe webhook.
           </p>
           <Button
             className="mt-3"
@@ -438,6 +500,12 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
         <Card data-omniva-tracking>
           <h2 className="text-sm font-bold">Omniva sekimas</h2>
           <p className="mt-2 font-mono text-sm">{tracking.trackingCode}</p>
+          <p
+            className="mt-1 text-xs text-[var(--ds-text-muted)]"
+            data-omniva-hint
+          >
+            {carrierStatusHint(tracking.status)}
+          </p>
           <p className="mt-1 text-xs text-[var(--ds-text-muted)]">
             Statusas: {tracking.status}
             {tracking.terminalId ? ` · Terminalas: ${tracking.terminalId}` : ""}

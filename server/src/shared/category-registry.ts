@@ -20,7 +20,7 @@ export const LISTING_CATEGORY_IDS = [
 export type RegistryListingCategory = (typeof LISTING_CATEGORY_IDS)[number];
 
 export const LISTING_CATEGORY_LABELS: Record<RegistryListingCategory, string> = {
-  vehicles: "Automobiliai",
+  vehicles: "Transportas",
   transport: "Transportas",
   real_estate: "Nekilnojamas turtas",
   clothing: "Mada ir apranga",

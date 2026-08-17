@@ -106,7 +106,12 @@ export function ListingCard({
         </Badge>
       ) : null}
       {aiPrice ? (
-        <Badge tone={aiPrice.tone} className="text-[10px]">
+        <Badge
+          tone={aiPrice.tone}
+          className="text-[10px]"
+          data-ai-price-signal={aiPrice.label}
+          title="Analitinis kainos signalas — ne garantija ir ne pirkimo rekomendacija"
+        >
           {aiPrice.label}
         </Badge>
       ) : null}
@@ -117,6 +122,8 @@ export function ListingCard({
     return (
       <article
         data-listing-card="list"
+        data-listing-id={listing.id}
+        data-listing-category={listing.category}
         className={cn(
           "group flex gap-3 rounded-[var(--ds-radius-card)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] p-2.5",
           "transition-[transform,box-shadow,border-color] duration-[180ms] ease-[var(--ds-ease)]",
@@ -184,6 +191,8 @@ export function ListingCard({
   return (
     <article
       data-listing-card="grid"
+      data-listing-id={listing.id}
+      data-listing-category={listing.category}
       className={cn(
         "group overflow-hidden rounded-[var(--ds-radius-card)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)]",
         "transition-[transform,box-shadow,border-color] duration-[180ms] ease-[var(--ds-ease)]",

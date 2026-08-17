@@ -8,8 +8,8 @@ export default function TaisyklesPage() {
         <p>
           VAUTO (toliau — Platforma) yra nacionalinė skelbimų ekosistema, veikianti visoje
           Lietuvos Respublikoje. Naudodamiesi Platforma sutinkate su šiomis sąlygomis.
-          Platforma apjungia automobilių, nekilnojamojo turto, drabužių, darbo skelbimų ir
-          paslaugų skelbimus vienoje vietoje.
+          Platforma apjungia transporto, nekilnojamojo turto, darbo, paslaugų,
+          elektronikos ir prekių skelbimus vienoje vietoje.
         </p>
       </section>
       <section>

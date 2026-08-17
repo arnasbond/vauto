@@ -8,7 +8,7 @@ export const SMART_ONBOARDING_SLIDES = [
   {
     icon: Sparkles,
     title: "Sveiki atvykę į VAUTO",
-    body: "Čia automobilių, nekilnojamojo turto, paslaugų, mados ir įvairūs kiti skelbimai gyvena vienoje išmanioje vietoje. Nesvarbu, ar parduodi, ar ieškai – viską padarysime kartu, be jokio streso.",
+    body: "Čia transportas, nekilnojamasis turtas, darbas, paslaugos, elektronika ir prekės gyvena vienoje išmanioje vietoje. Nesvarbu, ar parduodi, ar ieškai – viską padarysime kartu, be jokio streso.",
   },
   {
     icon: Link2,
@@ -23,7 +23,7 @@ export const SMART_ONBOARDING_SLIDES = [
   {
     icon: Camera,
     title: "Nufotografuok – o kita palik mums",
-    body: "Įkelk daikto, automobilio ar drabužio nuotrauką, ir AI pats atpažins, ką matai, parašys aprašymą bei pasiūlys kainą. Jokių ilgų formų – tik viena nuotrauka.",
+    body: "Įkelk objekto ar prekės nuotrauką, arba aprašyk laisvai — AI atpažins kategoriją, paruoš aprašymą ir pasiūlys kainos rėžį. Pirmas žingsnis — kategorija arba laisvas tekstas.",
   },
   {
     icon: ShieldCheck,

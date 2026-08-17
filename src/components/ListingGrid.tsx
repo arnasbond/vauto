@@ -30,7 +30,7 @@ function emptyMessage(theme: ChameleonThemeId): string {
     case "cvbankas":
       return "Darbo skelbimų nerasta. Pabandykite kitą raktinį žodį ar miestą.";
     case "autoplius":
-      return "Automobilių nerasta. Pabandykite kitą markę ar miestą.";
+      return "Transporto skelbimų nerasta. Pabandykite kitą frazę ar miestą.";
     case "aruodas":
       return "NT skelbimų nerasta. Pabandykite kitą tipą ar miestą.";
     case "wardrobe":
@@ -146,6 +146,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
           onFiltersChange={setMarketplaceFilters}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
+          surface="mobile"
         />
       </div>
 

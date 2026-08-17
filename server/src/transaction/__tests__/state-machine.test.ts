@@ -12,6 +12,7 @@ import {
   TRANSACTION_STATUSES,
   TRANSITION_MATRIX,
   TRANSACTION_STATE_MACHINE_VERSION,
+  LEGACY_TRANSACTION_POLICY,
   TransitionCommandSchema,
   VautoTransactionSchema,
   applyTransitionPure,
@@ -42,6 +43,7 @@ function baseTx(status: TransactionStatus, version = 0): VautoTransaction {
     stateMachineVersion: TRANSACTION_STATE_MACHINE_VERSION,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    ...LEGACY_TRANSACTION_POLICY,
   };
 }
 

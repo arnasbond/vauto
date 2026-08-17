@@ -26,6 +26,7 @@ import {
   setupHeldDelivered,
   providerLookupFromFake,
   key,
+  collectConcurrentSuccesses,
 } from "./financial-harness.js";
 import {
   generateTestStripeSignatureHeader,
@@ -107,7 +108,7 @@ describe("11F.5 Red Team Financial Stress", () => {
         `crel-${i}`,
         86000 + i
       );
-      const out = await Promise.all(
+      const out = await collectConcurrentSuccesses(
         Array.from({ length: 20 }, (_, j) =>
           ctx.funds.releaseToSeller({
             transactionId: ctx.txId,
@@ -135,7 +136,7 @@ describe("11F.5 Red Team Financial Stress", () => {
         `cref-${i}`,
         87000 + i
       );
-      const out = await Promise.all(
+      const out = await collectConcurrentSuccesses(
         Array.from({ length: 20 }, (_, j) =>
           ctx.funds.refundToBuyer({
             authority: "SYSTEM",

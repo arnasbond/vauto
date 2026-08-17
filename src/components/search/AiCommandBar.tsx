@@ -65,6 +65,14 @@ import { isSpeechRecognitionSupported } from "@/lib/wake-word-engine";
 
 const GEMINI_BLUE = "var(--vauto-primary)";
 
+const EMPTY_SEARCH_HINT_ID = "vauto-search-empty-hint";
+const EMPTY_SEARCH_HINT =
+  "Įveskite, ko ieškote, arba pasirinkite vieną iš pavyzdžių.";
+
+function isBlankMarketplaceQuery(raw: string): boolean {
+  return !stripLegacyCategorySuffixes(sanitizeSearchQuery(raw, "final"));
+}
+
 export type AiCommandBarPlacement = "hero" | "top" | "inline" | "wizard" | "chat";
 
 export interface AiCommandBarProps {
@@ -138,9 +146,24 @@ export function AiCommandBar({
   const [isPickingChatMedia, setIsPickingChatMedia] = useState(false);
   const [photoSourceSheetOpen, setPhotoSourceSheetOpen] = useState(false);
   const [voiceListening, setVoiceListening] = useState(false);
+  const [emptySearchHint, setEmptySearchHint] = useState(false);
   const photoSourceModeRef = useRef<"attach" | "search">("attach");
   const inputRef = useRef<HTMLInputElement>(null);
   const prevAssistantRef = useRef("");
+
+  const showEmptySearchHint = useCallback(() => {
+    setEmptySearchHint(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, []);
+
+  const clearEmptySearchHint = useCallback(() => {
+    setEmptySearchHint(false);
+  }, []);
+
+  const updateDraftQuery = useCallback((value: string) => {
+    setDraftQuery(value);
+    setEmptySearchHint(false);
+  }, []);
 
   const forceBlankSearchInput = useCallback(() => {
     setSearchQuery("");
@@ -185,7 +208,10 @@ export function AiCommandBar({
       setVoiceListening(true);
       rec.onresult = (ev) => {
         const text = ev.results?.[0]?.[0]?.transcript?.trim();
-        if (text) setDraftQuery(text);
+        if (text) {
+          setDraftQuery(text);
+          setEmptySearchHint(false);
+        }
         setVoiceListening(false);
         requestAnimationFrame(() => inputRef.current?.focus());
       };
@@ -242,7 +268,11 @@ export function AiCommandBar({
   const commitSearch = useCallback(
     async (raw: string) => {
       const q = stripLegacyCategorySuffixes(sanitizeSearchQuery(raw, "final"));
-      if (!q) return;
+      if (!q) {
+        showEmptySearchHint();
+        return;
+      }
+      clearEmptySearchHint();
 
       trackEvent("search_submit", {
         query: q,
@@ -332,6 +362,8 @@ export function AiCommandBar({
       wardrobeSearchOnly,
       listings,
       openWithGreeting,
+      showEmptySearchHint,
+      clearEmptySearchHint,
     ]
   );
 
@@ -348,6 +380,7 @@ export function AiCommandBar({
     if (!draftSeed?.trim() || draftSeed === lastDraftSeedRef.current) return;
     lastDraftSeedRef.current = draftSeed;
     setDraftQuery(draftSeed);
+    setEmptySearchHint(false);
     onDraftSeedConsumed?.();
     requestAnimationFrame(() => inputRef.current?.focus());
   }, [draftSeed, onDraftSeedConsumed]);
@@ -462,6 +495,11 @@ export function AiCommandBar({
         }
         return;
       }
+      if (isBlankMarketplaceQuery(draftQuery)) {
+        showEmptySearchHint();
+        return;
+      }
+      clearEmptySearchHint();
       void commitSearch(draftQuery);
       inputRef.current?.blur();
     },
@@ -478,6 +516,8 @@ export function AiCommandBar({
       isChatBar,
       composerAttachments,
       showToast,
+      showEmptySearchHint,
+      clearEmptySearchHint,
     ]
   );
 
@@ -649,7 +689,7 @@ export function AiCommandBar({
   const wizardPlaceholder =
     flowPlaceholder ??
     (sellerVisionRecoveryActive
-      ? "Pvz. „Parduodu Citroen DS5, numeris NOG675“…"
+      ? "Įveskite objekto / prekės pavadinimą arba lokaciją…"
       : phase === "listing_processing"
       ? "Agentas apdoroja — galite rašyti patikslinimus…"
       : skin.variant === "spinta"
@@ -827,6 +867,7 @@ export function AiCommandBar({
 
   return (
     <>
+      <div className="w-full min-w-0">
       <form
         className={cn(
           "border shadow-sm transition-colors",
@@ -837,6 +878,7 @@ export function AiCommandBar({
             ? "home-ai-hero-search home-ai-copilot-bar ds-ai-glow rounded-full py-2 pl-4 pr-2 shadow-md sm:pl-5 sm:pr-2"
             : !isChatBar && "vauto-surface-panel rounded-xl py-1.5 pl-3.5 pr-2",
           zeroUiActive && "zero-ui-search-active",
+          emptySearchHint && !isChatBar && "border-[var(--ds-ai,#6366f1)]/45",
           className
         )}
         style={{
@@ -901,7 +943,7 @@ export function AiCommandBar({
           name={isChatBar ? undefined : "q"}
           role={isChatBar ? undefined : "searchbox"}
           value={draftQuery}
-          onChange={(e) => setDraftQuery(e.target.value)}
+          onChange={(e) => updateDraftQuery(e.target.value)}
           placeholder={inputPlaceholder}
           enterKeyHint={isChatBar ? "send" : "search"}
           className={cn(
@@ -913,6 +955,10 @@ export function AiCommandBar({
           disabled={isChatBar ? listingComposerLocked : searchComposerLocked}
           readOnly={isChatBar && confirmationLocked}
           autoComplete="off"
+          aria-invalid={!isChatBar && emptySearchHint ? true : undefined}
+          aria-describedby={
+            !isChatBar && emptySearchHint ? EMPTY_SEARCH_HINT_ID : undefined
+          }
         />
 
         <div
@@ -925,7 +971,7 @@ export function AiCommandBar({
           type="submit"
           disabled={
             (isChatBar ? listingComposerLocked : searchComposerLocked) ||
-            (isChatBar ? !canSendChat : !draftQuery.trim())
+            (isChatBar ? !canSendChat : false)
           }
           className={cn(
             "flex shrink-0 items-center justify-center gap-1 rounded-xl font-semibold text-white transition disabled:opacity-40",
@@ -1002,6 +1048,16 @@ export function AiCommandBar({
         </div>
         </div>
       </form>
+      {!isChatBar && emptySearchHint ? (
+        <p
+          id={EMPTY_SEARCH_HINT_ID}
+          data-search-empty-hint
+          className="mt-1.5 max-w-full px-1 text-[13px] leading-snug text-[var(--ds-text-secondary,var(--vauto-muted))] [overflow-wrap:anywhere]"
+        >
+          {EMPTY_SEARCH_HINT}
+        </p>
+      ) : null}
+      </div>
 
       {!isTopBar && !isChatBar && (
         <>

@@ -15,7 +15,7 @@ export default function PrivatumasPage() {
         <h2 className="text-base font-semibold text-[var(--vauto-text)]">2. Kokius duomenis renkame</h2>
         <ul className="list-disc space-y-1 pl-5">
           <li>Paskyros duomenys: vardas, telefonas, el. paštas, miestas</li>
-          <li>Skelbimų duomenys: automobilių, NT, drabužių, darbo ir paslaugų atributai</li>
+          <li>Skelbimų duomenys: transporto, NT, elektronikos, darbo, paslaugų ir prekių atributai</li>
           <li>B2B duomenys: įmonės pavadinimas, įmonės kodas, PVM kodas</li>
           <li>CV ir darbo paraiškų duomenys (darbdavių inbox)</li>
           <li>Mokėjimų istorija ir PVM sąskaitos-faktūros</li>

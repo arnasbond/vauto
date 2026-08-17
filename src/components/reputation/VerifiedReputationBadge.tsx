@@ -77,8 +77,14 @@ export function VerifiedReputationBadge({
       <span
         className={cn("text-[11px] text-[var(--ds-text-muted)]", className)}
         data-reputation-empty="1"
+        data-verified-review-hint={compact ? undefined : "1"}
       >
         Dar nėra patvirtintų atsiliepimų
+        {compact ? null : (
+          <span className="block font-normal">
+            Patvirtintas atsiliepimas po sandorio
+          </span>
+        )}
       </span>
     );
   }
@@ -98,7 +104,8 @@ export function VerifiedReputationBadge({
         className
       )}
       data-reputation-badge
-      title="Vidurkis iš patvirtintų atsiliepimų po užbaigtų sandorių"
+      data-verified-review-hint={compact ? undefined : "1"}
+      title="Patvirtintas atsiliepimas po sandorio"
     >
       <Star className="h-3 w-3 fill-amber-400 text-amber-400" aria-hidden />
       {compact ? (
@@ -108,6 +115,9 @@ export function VerifiedReputationBadge({
       ) : (
         <span>
           {avgLabel} · {state.count} {noun}
+          <span className="ml-1 font-normal text-[var(--ds-text-muted)]">
+            · Patvirtintas atsiliepimas po sandorio
+          </span>
         </span>
       )}
     </span>

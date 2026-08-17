@@ -10,10 +10,12 @@ export {
 export {
   REVIEW_RATINGS,
   REVIEW_ELIGIBLE_TX_STATUS,
+  REVIEW_VERIFICATION_LEVELS,
   ReputationForbiddenError,
   ReputationConflictError,
   ReputationNotFoundError,
   type ReviewRating,
+  type ReviewVerificationLevel,
   type VautoReview,
   type ReviewSubmitResult,
   type UserReputation,

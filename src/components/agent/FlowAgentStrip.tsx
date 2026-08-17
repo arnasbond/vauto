@@ -86,7 +86,7 @@ export function FlowAgentStrip({
     category === "clothing"
       ? "Spintos vedlio metu"
       : category === "vehicles"
-        ? "Automobilio skelbimo vedlio metu"
+        ? "Transporto skelbimo vedlio metu"
         : "Skelbimo vedlio metu";
 
   return (

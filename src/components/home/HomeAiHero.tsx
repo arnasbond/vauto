@@ -2,11 +2,15 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
+import { Handshake, Search, ShieldCheck } from "lucide-react";
 import { Badge } from "@/design-system";
 import { AiCommandBar } from "@/components/search/AiCommandBar";
 import { AgentChatStrip } from "@/components/home/AgentChatStrip";
+import { HomeCategoryGrid } from "@/components/home/HomeCategoryGrid";
 import { useShellChrome } from "@/hooks/useShellChrome";
 import { useVautoAgent } from "@/context/VautoAgentContext";
+import { useCanonicalFacetQuery } from "@/hooks/useCanonicalFacetUrl";
+import { resolveVerticalId } from "@vauto/shared/marketplace-domain";
 import { isEmbeddedAgentChatVisible } from "@/lib/agent-chat-layout";
 import { cn } from "@/lib/cn";
 
@@ -17,9 +21,31 @@ interface HomeAiHeroProps {
 }
 
 const EXAMPLE_CHIPS = [
-  "Parduodu 2018 m. Citroën C4, 120 tūkst. km…",
-  "iPhone 15 Pro, 256GB, kaip naujas…",
-  "Dviejų kambarių butas Kaune, su balkonu…",
+  "2 kambarių butas Vilniaus centre iki 120 000 €",
+  "Ekskavatoriaus nuoma Kaune savaitgaliui",
+  "MacBook Pro M3 Max naudotas, puikios būklės",
+  "Ekonomiškas dyzelinis universalas iki 7 000 €",
+] as const;
+
+const HOW_IT_WORKS = [
+  {
+    n: "1",
+    title: "Rask / Paruošk",
+    text: "Pasakote, ko ieškote, arba nufotografuojate. AI atrenka arba paruošia juodraštį.",
+    icon: Search,
+  },
+  {
+    n: "2",
+    title: "Susitark",
+    text: "Palyginate, deratės ir pateikiate pasiūlymą. Sandorį tvirtinate jūs.",
+    icon: Handshake,
+  },
+  {
+    n: "3",
+    title: "Sandorio eiga",
+    text: "Platformos saugumo mechanizmai, jų ribos ir sąlygos: lėšos laikomos iki gavimo. Būklę ir susitarimą tvirtinate jūs.",
+    icon: ShieldCheck,
+  },
 ] as const;
 
 export function HomeAiHero({
@@ -29,6 +55,7 @@ export function HomeAiHero({
 }: HomeAiHeroProps) {
   const shell = useShellChrome();
   const { messages, busy, open } = useVautoAgent();
+  const { setVertical } = useCanonicalFacetQuery();
   const chatActive = open || isEmbeddedAgentChatVisible(messages, busy);
   const [draftSeed, setDraftSeed] = useState<string | null>(null);
   const [activeChip, setActiveChip] = useState<string | null>(null);
@@ -44,6 +71,17 @@ export function HomeAiHero({
   const handleChip = useCallback((text: string) => {
     setActiveChip(text);
     setDraftSeed(text);
+  }, []);
+
+  const startBuyerFunnel = useCallback(() => {
+    const box = document.querySelector<HTMLElement>(
+      '[aria-label="Skelbimų paieška"] [role="searchbox"], [aria-label="Skelbimų paieška"] input'
+    );
+    box?.focus();
+    document.getElementById("listing-results")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   }, []);
 
   if (compact) {
@@ -113,7 +151,10 @@ export function HomeAiHero({
               </span>
             </div>
 
-            <h1 className="max-w-3xl font-[family-name:var(--font-outfit)] text-[clamp(1.85rem,4.5vw,3.15rem)] font-extrabold leading-[1.08] tracking-[-0.03em] text-[var(--ds-text-primary,var(--vauto-ink))]">
+            <h1
+              data-home-h1
+              className="max-w-3xl font-[family-name:var(--font-outfit)] text-[clamp(1.7rem,4.2vw,3.15rem)] font-extrabold leading-[1.08] tracking-[-0.03em] text-[var(--ds-text-primary,var(--vauto-ink))]"
+            >
               <span className="block text-[var(--ds-brand,var(--vauto-primary))]">
                 VAUTO
               </span>
@@ -128,14 +169,63 @@ export function HomeAiHero({
               </span>
             </h1>
 
-            <p className="mt-3 max-w-2xl text-[length:var(--ds-text-body-lg-size,1.125rem)] leading-relaxed text-[var(--ds-text-secondary,var(--vauto-muted))]">
-              Parduodate: parodote arba papasakojate — VAUTO paruošia — jūs
-              patvirtinate. Perkate: pasakote, ko ieškote — VAUTO atrenka —
-              palyginate ir pasirenkate. Sandoris: susitariate — VAUTO padeda
-              aiškiai pereiti eigą. Tai ne paprasta skelbimų lenta.
+            <p
+              data-home-subtitle
+              className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--ds-text-secondary,var(--vauto-muted))] sm:text-[length:var(--ds-text-body-lg-size,1.125rem)]"
+            >
+              Išmanus pirkimas ir pardavimas: nuo NT ir technikos iki paslaugų
+              bei transporto. AI paruošia paiešką ar juodraštį — jūs tvirtinate
+              kainą, mokėjimą ir gavimą.
             </p>
 
-            <div className="home-ai-copilot-shell relative mt-6 w-full max-w-3xl">
+            <div
+              className="mt-4 flex max-w-3xl flex-col gap-2 sm:flex-row sm:flex-wrap"
+              data-home-primary-ctas
+            >
+              <button
+                type="button"
+                data-buyer-cta
+                onClick={startBuyerFunnel}
+                className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-[var(--ds-brand,#1b4dff)] px-5 py-2.5 text-sm font-bold text-white shadow-[var(--ds-shadow-sm)]"
+              >
+                Ieškoti skelbimų
+              </button>
+              <Link
+                href="/add/"
+                data-seller-cta
+                className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] px-5 py-2.5 text-sm font-bold text-[var(--ds-text-primary)]"
+              >
+                Parduoti su AI
+              </Link>
+            </div>
+
+            <ol
+              className="mt-4 grid max-w-3xl grid-cols-3 gap-1.5 sm:gap-2"
+              data-home-how-it-works
+              aria-label="Kaip tai veikia"
+            >
+              {HOW_IT_WORKS.map((step) => {
+                const Icon = step.icon;
+                return (
+                  <li
+                    key={step.n}
+                    className="rounded-2xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)]/90 px-3 py-2.5"
+                  >
+                    <p className="flex flex-col items-start gap-0.5 text-[10px] font-bold uppercase leading-tight tracking-wide text-[var(--ds-brand)] sm:flex-row sm:items-center sm:gap-1.5 sm:text-[11px]">
+                      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      <span>
+                        {step.n}. {step.title}
+                      </span>
+                    </p>
+                    <p className="mt-1 hidden text-[11px] leading-snug text-[var(--ds-text-muted)] sm:block sm:text-xs">
+                      {step.text}
+                    </p>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <div className="home-ai-copilot-shell relative mt-5 w-full max-w-3xl">
               <div
                 className="pointer-events-none absolute -inset-3 rounded-[2rem] opacity-70 blur-xl transition-opacity duration-[var(--ds-duration-normal,180ms)]"
                 style={{
@@ -158,6 +248,7 @@ export function HomeAiHero({
               className="mt-3.5 flex max-w-3xl flex-wrap gap-2"
               role="group"
               aria-label="Pavyzdžio frazės"
+              data-search-examples
             >
               {EXAMPLE_CHIPS.map((chip) => (
                 <button
@@ -177,28 +268,17 @@ export function HomeAiHero({
                   {chip}
                 </button>
               ))}
-            </div>
+              </div>
 
-            <div className="mt-4 flex max-w-3xl flex-wrap gap-2">
-              <Link
-                href="/add/"
-                className="rounded-full bg-[var(--ds-brand,#1b4dff)] px-4 py-2 text-xs font-semibold text-white"
-              >
-                Parduoti
-              </Link>
-              <Link
-                href="/duk/"
-                className="rounded-full border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] px-4 py-2 text-xs font-semibold text-[var(--ds-text-secondary)]"
-              >
-                Kaip tai veikia
-              </Link>
-              <Link
-                href="/sandoriai/"
-                className="rounded-full border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] px-4 py-2 text-xs font-semibold text-[var(--ds-text-secondary)]"
-              >
-                Sandorio eiga
-              </Link>
-            </div>
+            <HomeCategoryGrid
+              onSelect={(query, _label, slug) => {
+                handleChip(query);
+                const verticalId = resolveVerticalId(slug);
+                if (verticalId) setVertical(verticalId);
+              }}
+            />
+
+            <p className="sr-only">Kaip tai veikia</p>
           </div>
         )}
 

@@ -123,7 +123,7 @@ export function tryHandleAgentQuickReply(
       return {
         handled: true,
         reply:
-          "Gerai — atstatiau ankstesnį skelbimo juodraštį. Galite įkelti tinkamą automobilio nuotrauką.",
+          "Gerai — atstatiau ankstesnį skelbimo juodraštį. Galite įkelti tinkamą objekto nuotrauką.",
       };
     }
     return {
@@ -465,7 +465,7 @@ export function tryHandleAgentQuickReply(
   if (matchesChip(trimmed, [/pataisyti kategorij/i])) {
     return {
       handled: true,
-      reply: "Kokia kategorija? Parašykite, pvz. Automobiliai, Būstas, Drabužiai.",
+      reply: "Kokia kategorija? Parašykite, pvz. Transportas, Nekilnojamasis turtas, Elektronika, Paslaugos.",
       quickReplies: ["Viskas tinka", "Pataisyti kainą"],
     };
   }

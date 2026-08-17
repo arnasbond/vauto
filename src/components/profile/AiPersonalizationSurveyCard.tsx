@@ -139,7 +139,7 @@ export function AiPersonalizationSurveyCard(props: {
           <input
             value={hobbiesRaw}
             onChange={(e) => setHobbiesRaw(e.target.value)}
-            placeholder="Pvz. automobiliai, mada, sodas…"
+            placeholder="Pvz. NT, elektronika, paslaugos, sodas…"
             className={SELECT_CLASS}
           />
         </label>

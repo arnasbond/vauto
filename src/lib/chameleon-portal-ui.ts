@@ -61,7 +61,7 @@ export const PORTAL_UI: Record<ChameleonThemeId, PortalUiTokens> = {
     progress: "#1167b1",
     fontClass: "font-sans",
     portalName: "autoplius",
-    tagline: "Automobilių skelbimai Lietuvoje",
+    tagline: "Transporto skelbimai Lietuvoje",
   },
   wardrobe: {
     accent: "#09b1a8",

@@ -50,11 +50,20 @@ const TEST_WHSEC = "whsec_test_vauto_11f4_funds";
 function adaptPglite(db: PGlite): TxQueryable {
   return {
     async query(text, params = []) {
-      const res = await db.query(text, params as never[]);
-      return {
-        rows: (res.rows ?? []) as never[],
-        rowCount: res.affectedRows ?? null,
-      };
+      try {
+        const res = await db.query(text, params as never[]);
+        return {
+          rows: (res.rows ?? []) as never[],
+          rowCount: res.affectedRows ?? null,
+        };
+      } catch (e) {
+        try {
+          await db.exec("ROLLBACK");
+        } catch {
+          /* session already idle */
+        }
+        throw e;
+      }
     },
   };
 }
@@ -62,13 +71,20 @@ function adaptPglite(db: PGlite): TxQueryable {
 const LISTINGS_STUB = `
 CREATE TABLE IF NOT EXISTS listings (
   id TEXT PRIMARY KEY,
+  seller_id TEXT,
   title TEXT NOT NULL,
   price NUMERIC(12,2),
+  location TEXT,
   image TEXT,
   images JSONB DEFAULT '[]'::jsonb,
   attributes JSONB DEFAULT '{}'::jsonb,
+  category TEXT,
   status TEXT DEFAULT 'active'
 );
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_id TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS image TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS category TEXT;
 `;
 
 describe("11F.4 Funds Transfer & Refund", () => {
@@ -103,8 +119,8 @@ describe("11F.4 Funds Transfer & Refund", () => {
 
   async function seedListing(id: string) {
     await q.query(
-      `INSERT INTO listings (id, title, price, image, attributes, status)
-       VALUES ($1,'T',100,'https://img.example/a.jpg','{}'::jsonb,'active')
+      `INSERT INTO listings (id, seller_id, title, price, location, image, attributes, status, category)
+       VALUES ($1,'seller-stub','T',100,'LT','https://img.example/a.jpg','{}'::jsonb,'active','electronics')
        ON CONFLICT (id) DO NOTHING`,
       [id]
     );

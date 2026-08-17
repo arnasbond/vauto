@@ -227,7 +227,7 @@ export interface UserProfile {
   wardrobePowerUntil?: string;
   /** Server-side referral code (VAUTO-XXXXX) */
   referralCode?: string;
-  /** Nemokamos pirkėjo apsaugos kreditai */
+  /** Nemokami platformos paslaugos kreditai */
   freeProtectionCredits?: number;
   /** Nemokami TOP skelbimo iškėlimai (už atsiliepimą ir pan.) */
   freeTopBoostCredits?: number;
@@ -422,11 +422,11 @@ export interface EscrowTransaction {
   courierProvider?: string;
   createdAt: string;
   updatedAt: string;
-  /** VAUTO Spinta — 3% AI saugumo garantija per Derybų dvynį */
+  /** VAUTO Spinta — 3% AI derybų paslaugos mokestis per Derybų dvynį */
   negotiationTwinFeeApplied?: boolean;
   buyerServiceFeeEur?: number;
   buyerTotalEur?: number;
-  /** 5% pirkėjo apsaugos mokestis (platform fee) */
+  /** 5% platformos paslaugos mokestis */
   buyerProtectionFee?: number;
   buyerTotal?: number;
   stripePaymentIntentId?: string;

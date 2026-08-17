@@ -1,12 +1,19 @@
-import type { AiExtractedListing, UserProfile } from "@/lib/types";
+import type { AiExtractedListing, ListingCategory, UserProfile } from "@/lib/types";
 import { createManualFallbackDraft } from "@/lib/ai-safeguards";
 import { applyProfileToListingDraft } from "@/lib/profile-listing-sync";
 import { transitionListingFlow } from "@/lib/listing-conversational-flow";
 import { isUnresolvedListingLocation } from "@/lib/geocoding";
 import { normalizeKnownListingCity } from "@/lib/city-resolve";
+import {
+  CANONICAL_VERTICAL_ATTR_KEY,
+  buildCanonicalListingFlowContext,
+  buildCanonicalSellerWelcome,
+  type VerticalId,
+} from "@vauto/shared/marketplace-domain";
 
 export type StartAiSellerListingOptions = {
   fashion?: boolean;
+  verticalId?: VerticalId | null;
 };
 
 function seedLocationFromProfile(city?: string | null): string {
@@ -17,26 +24,53 @@ function seedLocationFromProfile(city?: string | null): string {
   return raw;
 }
 
+function asListingCategory(value: string): ListingCategory {
+  return value as ListingCategory;
+}
+
 /** Seed a lean listing draft for the 4-step AI seller chat (no /add shell). */
 export function buildAiSellerListingSeed(
   user: UserProfile,
   options: StartAiSellerListingOptions = {}
 ): AiExtractedListing {
   const fashion = Boolean(options.fashion);
+  const flow =
+    !fashion && options.verticalId
+      ? buildCanonicalListingFlowContext(options.verticalId)
+      : null;
   const location = seedLocationFromProfile(user.city);
+  const category: ListingCategory = fashion
+    ? "clothing"
+    : flow
+      ? asListingCategory(flow.listingCategory)
+      : "other";
   const base = createManualFallbackDraft({
     location,
     contact: user.phone || "",
+    category,
+    title: fashion
+      ? "Drabužių skelbimas"
+      : flow
+        ? `${flow.label} — naujas skelbimas`
+        : "Naujas skelbimas",
   });
   const seeded = applyProfileToListingDraft(
     {
       ...base,
-      title: fashion ? "Drabužių skelbimas" : "Naujas skelbimas",
-      description: "",
-      category: fashion ? "clothing" : base.category,
+      title: fashion
+        ? "Drabužių skelbimas"
+        : flow
+          ? `${flow.label} — naujas skelbimas`
+          : "Naujas skelbimas",
+      description: flow
+        ? `Kategorija: ${flow.label}. Aprašykite objektą pokalbyje — AI padeda, jūs tvirtinate.`
+        : "",
+      category,
       listingFlowState: "DRAFTING_TEXT",
       orderedImageUrls: [],
-      attributes: {},
+      attributes: flow
+        ? { [CANONICAL_VERTICAL_ATTR_KEY]: flow.verticalId }
+        : {},
       location,
     },
     user,
@@ -50,10 +84,13 @@ export function buildAiSellerListingSeed(
     ...seeded,
     location:
       !seededLoc || isUnresolvedListingLocation(seededLoc) ? location : seededLoc,
-    category: fashion ? "clothing" : seeded.category,
+    category,
     listingFlowState: nextState,
     orderedImageUrls: [],
-    attributes: {},
+    attributes: {
+      ...(seeded.attributes ?? {}),
+      ...(flow ? { [CANONICAL_VERTICAL_ATTR_KEY]: flow.verticalId } : {}),
+    },
   };
 }
 
@@ -62,12 +99,18 @@ export function buildAiSellerListingSeed(
  * First API call must wait for real user text or photo upload.
  */
 export const STATIC_SELLER_LISTING_WELCOME =
-  "Jūsų kontaktai jau paruošti. Įkelkite nuotraukas ar parašykite, ką parduodate — padėsiu su antrašte, kainos rėžiu (rekomendacija) ir Omniva paštomatu. Publikuojate jūs.";
+  "Pasirinkite kategoriją arba aprašykite objektą / prekę laisvai. Nuotrauka nebūtina pirmam žingsniui — padėsiu su antrašte, kaina ir lokacija. Publikuojate jūs.";
 
 export const STATIC_FASHION_LISTING_WELCOME =
   "Jūsų kontaktai jau paruošti. Įkelkite drabužių nuotraukas ar parašykite, ką parduodate — padėsiu su aprašymu, kaina ir paštomato siuntimu!";
 
-/** @deprecated Use STATIC_*_WELCOME for client render — do not sendAgentMessage this. */
+export function sellerListingWelcome(options: StartAiSellerListingOptions = {}): string {
+  if (options.fashion) return STATIC_FASHION_LISTING_WELCOME;
+  if (options.verticalId) return buildCanonicalSellerWelcome(options.verticalId);
+  return STATIC_SELLER_LISTING_WELCOME;
+}
+
+/** @deprecated Use STATIC_*_WELCOME / sellerListingWelcome for client render — do not sendAgentMessage this. */
 export function aiSellerListingGreeting(fashion = false): string {
   return fashion ? STATIC_FASHION_LISTING_WELCOME : STATIC_SELLER_LISTING_WELCOME;
 }

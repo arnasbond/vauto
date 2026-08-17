@@ -26,6 +26,8 @@ import {
   createPoolTxQueryable,
 } from "../transaction/index.js";
 import { ZodError } from "zod";
+import { createUniversalDealRoomService } from "../marketplace/universal-deal-room-service.js";
+import { mapUniversalDealError } from "../marketplace/universal-deal-http.js";
 
 export const offersRouter = Router();
 
@@ -68,14 +70,15 @@ offersRouter.post(
   async (req: AuthedRequest, res) => {
     try {
       const body = CreateOfferBodySchema.parse(req.body);
-      const engine = createOfferEngine(createPoolTxQueryable());
-      const result = await engine.create({
+      const claimed = req.body as { verticalId?: unknown; vertical?: unknown };
+      const svc = createUniversalDealRoomService(createPoolTxQueryable());
+      const result = await svc.createOffer({
         transactionId: req.params.id,
         actorUserId: req.authUserId!,
         amountCents: body.amountCents,
         currency: body.currency,
-        expiresAt: body.expiresAt,
         idempotencyKey: body.idempotencyKey,
+        clientVertical: claimed.verticalId ?? claimed.vertical,
       });
       res.status(result.idempotentReplay ? 200 : 201).json({
         offer: result.offer,
@@ -88,7 +91,7 @@ offersRouter.post(
         offersVersion: STRUCTURED_OFFERS_VERSION,
       });
     } catch (e) {
-      if (mapError(res, e)) return;
+      if (mapUniversalDealError(res, e) || mapError(res, e)) return;
       sendInternalError(res, e);
     }
   }
@@ -103,7 +106,7 @@ offersRouter.get(
       const offers = await engine.list(req.params.id, req.authUserId!);
       res.json({ offers, offersVersion: STRUCTURED_OFFERS_VERSION });
     } catch (e) {
-      if (mapError(res, e)) return;
+      if (mapUniversalDealError(res, e) || mapError(res, e)) return;
       sendInternalError(res, e);
     }
   }
@@ -115,12 +118,14 @@ offersRouter.post(
   async (req: AuthedRequest, res) => {
     try {
       const body = OfferActionBodySchema.parse(req.body);
-      const engine = createOfferEngine(createPoolTxQueryable());
-      const result = await engine.accept({
+      const claimed = req.body as { verticalId?: unknown; vertical?: unknown };
+      const svc = createUniversalDealRoomService(createPoolTxQueryable());
+      const result = await svc.acceptOffer({
         offerId: req.params.id,
         actorUserId: req.authUserId!,
         idempotencyKey: body.idempotencyKey,
         expectedVersion: body.expectedVersion,
+        clientVertical: claimed.verticalId ?? claimed.vertical,
       });
       res.json({
         offer: result.offer,
@@ -133,7 +138,7 @@ offersRouter.post(
         offersVersion: STRUCTURED_OFFERS_VERSION,
       });
     } catch (e) {
-      if (mapError(res, e)) return;
+      if (mapUniversalDealError(res, e) || mapError(res, e)) return;
       sendInternalError(res, e);
     }
   }
@@ -145,12 +150,14 @@ offersRouter.post(
   async (req: AuthedRequest, res) => {
     try {
       const body = OfferActionBodySchema.parse(req.body);
-      const engine = createOfferEngine(createPoolTxQueryable());
-      const result = await engine.reject({
+      const claimed = req.body as { verticalId?: unknown; vertical?: unknown };
+      const svc = createUniversalDealRoomService(createPoolTxQueryable());
+      const result = await svc.rejectOffer({
         offerId: req.params.id,
         actorUserId: req.authUserId!,
         idempotencyKey: body.idempotencyKey,
         expectedVersion: body.expectedVersion,
+        clientVertical: claimed.verticalId ?? claimed.vertical,
       });
       res.json({
         offer: result.offer,
@@ -163,7 +170,7 @@ offersRouter.post(
         offersVersion: STRUCTURED_OFFERS_VERSION,
       });
     } catch (e) {
-      if (mapError(res, e)) return;
+      if (mapUniversalDealError(res, e) || mapError(res, e)) return;
       sendInternalError(res, e);
     }
   }
@@ -175,15 +182,16 @@ offersRouter.post(
   async (req: AuthedRequest, res) => {
     try {
       const body = CounterOfferBodySchema.parse(req.body);
-      const engine = createOfferEngine(createPoolTxQueryable());
-      const result = await engine.counter({
+      const claimed = req.body as { verticalId?: unknown; vertical?: unknown };
+      const svc = createUniversalDealRoomService(createPoolTxQueryable());
+      const result = await svc.counterOffer({
         offerId: req.params.id,
         actorUserId: req.authUserId!,
         amountCents: body.amountCents,
         currency: body.currency,
-        expiresAt: body.expiresAt,
         idempotencyKey: body.idempotencyKey,
         expectedVersion: body.expectedVersion,
+        clientVertical: claimed.verticalId ?? claimed.vertical,
       });
       res.status(result.idempotentReplay ? 200 : 201).json({
         offer: result.offer,
@@ -196,7 +204,7 @@ offersRouter.post(
         offersVersion: STRUCTURED_OFFERS_VERSION,
       });
     } catch (e) {
-      if (mapError(res, e)) return;
+      if (mapUniversalDealError(res, e) || mapError(res, e)) return;
       sendInternalError(res, e);
     }
   }
@@ -208,12 +216,14 @@ offersRouter.post(
   async (req: AuthedRequest, res) => {
     try {
       const body = OfferActionBodySchema.parse(req.body);
-      const engine = createOfferEngine(createPoolTxQueryable());
-      const result = await engine.withdraw({
+      const claimed = req.body as { verticalId?: unknown; vertical?: unknown };
+      const svc = createUniversalDealRoomService(createPoolTxQueryable());
+      const result = await svc.withdrawOffer({
         offerId: req.params.id,
         actorUserId: req.authUserId!,
         idempotencyKey: body.idempotencyKey,
         expectedVersion: body.expectedVersion,
+        clientVertical: claimed.verticalId ?? claimed.vertical,
       });
       res.json({
         offer: result.offer,
@@ -226,7 +236,7 @@ offersRouter.post(
         offersVersion: STRUCTURED_OFFERS_VERSION,
       });
     } catch (e) {
-      if (mapError(res, e)) return;
+      if (mapUniversalDealError(res, e) || mapError(res, e)) return;
       sendInternalError(res, e);
     }
   }

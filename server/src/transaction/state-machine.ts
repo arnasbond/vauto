@@ -4,8 +4,11 @@
 
 import { createHash } from "node:crypto";
 import { findTransitionEdge, isTerminalStatus } from "./transition-matrix.js";
+import { resolveFulfillmentPolicy, policyContextFromTx } from "./policies/index.js";
+import type { PolicyContext } from "./policies/index.js";
 import {
   InvalidTransitionError,
+  PolicyForbiddenError,
   type ActorType,
   type ReasonCode,
   type TransactionStatus,
@@ -22,13 +25,14 @@ export type ValidatedTransition = {
 
 /**
  * Assert that (from → to) is allowed for actor + reason.
- * Throws InvalidTransitionError on any illegal jump.
+ * Optional policy context selects the fulfillment matrix (default: carrier / 11A).
  */
 export function assertTransitionAllowed(
   from: TransactionStatus,
   to: TransactionStatus,
   actorType: ActorType,
-  reasonCode: ReasonCode
+  reasonCode: ReasonCode,
+  policy?: PolicyContext | null
 ): ValidatedTransition {
   if (from === to) {
     throw new InvalidTransitionError(
@@ -38,7 +42,10 @@ export function assertTransitionAllowed(
       "Self-transitions are not allowed"
     );
   }
-  if (isTerminalStatus(from)) {
+  const fulfillment = resolveFulfillmentPolicy(
+    policy?.fulfillmentType ?? "CARRIER_DELIVERY"
+  );
+  if (isTerminalStatus(from) && fulfillment.id === "CARRIER_DELIVERY") {
     throw new InvalidTransitionError(
       from,
       to,
@@ -46,7 +53,18 @@ export function assertTransitionAllowed(
       `Terminal status ${from} has no outbound transitions`
     );
   }
-  const edge = findTransitionEdge(from, to, actorType);
+  if (fulfillment.forbidsUnauthenticatedCompletion(from, to, actorType)) {
+    throw new PolicyForbiddenError(
+      from,
+      to,
+      actorType,
+      "Counterparty confirmation is required before COMPLETED"
+    );
+  }
+  const edge =
+    fulfillment.id === "CARRIER_DELIVERY"
+      ? findTransitionEdge(from, to, actorType)
+      : fulfillment.findEdge(from, to, actorType);
   if (!edge) {
     throw new InvalidTransitionError(from, to, actorType);
   }
@@ -68,7 +86,13 @@ export function applyTransitionPure(
   actorType: ActorType,
   reasonCode: ReasonCode
 ): VautoTransaction {
-  assertTransitionAllowed(tx.status, to, actorType, reasonCode);
+  assertTransitionAllowed(
+    tx.status,
+    to,
+    actorType,
+    reasonCode,
+    policyContextFromTx(tx)
+  );
   const now = new Date().toISOString();
   return {
     ...tx,

@@ -36,13 +36,21 @@ const USE_REAL_PG = Boolean(TEST_URL);
 const LISTINGS_STUB = `
 CREATE TABLE IF NOT EXISTS listings (
   id TEXT PRIMARY KEY,
+  seller_id TEXT,
   title TEXT NOT NULL,
   price NUMERIC(12,2),
+  location TEXT,
   image TEXT,
   images JSONB DEFAULT '[]'::jsonb,
   attributes JSONB DEFAULT '{}'::jsonb,
   status TEXT DEFAULT 'active'
 );
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_id TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_id TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS image TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS category TEXT;
 `;
 
 function adaptPglite(db: PGlite): TxQueryable {
@@ -120,12 +128,28 @@ describe("11E.2 Real PostgreSQL pg.Pool gate", () => {
     await pglite?.close();
   });
 
-  async function seedListing(id: string, title: string) {
+  async function seedListing(id: string, title: string, sellerId = `seller-${id}`) {
+    const usersTbl = await q.query<{ t: string | null }>(
+      `SELECT to_regclass('public.users')::text AS t`
+    );
+    if (usersTbl.rows[0]?.t) {
+      await q.query(
+        `INSERT INTO users (id, name, phone, city)
+         VALUES ($1,'11E2 seller','+37060000000','Vilnius')
+         ON CONFLICT (id) DO NOTHING`,
+        [sellerId]
+      );
+    }
     await q.query(
-      `INSERT INTO listings (id, title, price, image, attributes)
-       VALUES ($1,$2,999,'https://img.example/pg.jpg','{"gate":"11e2"}'::jsonb)
-       ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title`,
-      [id, title]
+      `INSERT INTO listings (id, seller_id, title, price, location, image, attributes, status, category)
+       VALUES ($1,$2,$3,999,'LT','https://img.example/pg.jpg','{"gate":"11e2"}'::jsonb,'active','electronics')
+       ON CONFLICT (id) DO UPDATE SET
+         title = EXCLUDED.title,
+         seller_id = EXCLUDED.seller_id,
+         location = EXCLUDED.location,
+         image = EXCLUDED.image,
+         category = EXCLUDED.category`,
+      [id, sellerId, title]
     );
   }
 
@@ -139,8 +163,8 @@ describe("11E.2 Real PostgreSQL pg.Pool gate", () => {
 
   it("MULTI-BUYER concurrent accept: exactly 1 AGREED + snapshot", async () => {
     const listingId = `L-pool-race-${Date.now()}-${seq}`;
-    await seedListing(listingId, "Race listing");
     const sellerId = `seller-race-${seq}`;
+    await seedListing(listingId, "Race listing", sellerId);
     const txA = await txRepo.create({
       listingId,
       buyerId: `buyer-A-${seq}`,
@@ -230,9 +254,9 @@ describe("11E.2 Real PostgreSQL pg.Pool gate", () => {
 
   it("FAIL-CLOSED snapshot error rolls back entire accept TX", async () => {
     const listingId = `L-fail-snap-${Date.now()}-${seq}`;
-    await seedListing(listingId, "Will delete");
     const buyerId = `buyer-fs-${seq}`;
     const sellerId = `seller-fs-${seq}`;
+    await seedListing(listingId, "Will delete", sellerId);
     const tx = await txRepo.create({
       listingId,
       buyerId,
@@ -286,9 +310,9 @@ describe("11E.2 Real PostgreSQL pg.Pool gate", () => {
 
   it("AUDIT IMMUTABILITY: UPDATE/DELETE raise append-only exception", async () => {
     const listingId = `L-audit-${Date.now()}-${seq}`;
-    await seedListing(listingId, "Audit listing");
     const buyerId = `buyer-au-${seq}`;
     const sellerId = `seller-au-${seq}`;
+    await seedListing(listingId, "Audit listing", sellerId);
     const tx = await txRepo.create({
       listingId,
       buyerId,
@@ -333,9 +357,9 @@ describe("11E.2 Real PostgreSQL pg.Pool gate", () => {
 
   it("AMOUNT CENTS financial authority: snapshot + accepted offer INT", async () => {
     const listingId = `L-cents-${Date.now()}-${seq}`;
-    await seedListing(listingId, "Cents listing");
     const buyerId = `buyer-cents-${seq}`;
     const sellerId = `seller-cents-${seq}`;
+    await seedListing(listingId, "Cents listing", sellerId);
     const amountCents = 199999;
     const tx = await txRepo.create({
       listingId,

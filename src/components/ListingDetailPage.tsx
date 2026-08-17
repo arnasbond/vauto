@@ -378,9 +378,18 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         ) : null}
         <Badge tone="info" className="gap-1">
           <ShieldCheck className="mr-1 inline h-3 w-3" aria-hidden />
-          Pirkėjo apsauga
+          Sandorio eiga per platformą
         </Badge>
       </div>
+      {offersOmnivaShipping ? (
+        <p
+          className="mt-2 text-xs leading-relaxed text-[var(--ds-text-muted,var(--vauto-subtle))] lg:hidden"
+          data-omniva-hint
+        >
+          Siuntos būseną atnaujina Omniva. Sandorio „Išsiųsta“ — po vežėjo
+          skenavimo. Lėšos laikomos, kol patvirtinate gavimą.
+        </p>
+      ) : null}
     </div>
   );
 
@@ -642,7 +651,8 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               type="button"
               onClick={handleStartDeal}
               className={iconActionClass}
-              aria-label="Pradėti saugų sandorį"
+              aria-label="Pradėti sandorio eigą"
+              title="Pradėti sandorio eigą"
               data-start-deal-cta="1"
             >
               <Handshake className="h-5 w-5" aria-hidden />

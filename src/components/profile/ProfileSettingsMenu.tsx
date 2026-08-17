@@ -109,7 +109,7 @@ export function ProfileSettingsMenu({
         <SettingsRow
           icon={<Sparkles className="h-4 w-4 text-[var(--ds-brand)]" />}
           label="AI asistentas"
-          hint="Dydžiai, automobilis, pomėgiai"
+          hint="Dydžiai, pomėgiai, paieškos"
           href="/profile/?tab=ai"
         />
       </SettingsCardSection>
@@ -129,8 +129,8 @@ export function ProfileSettingsMenu({
           label="Pakviesk draugą"
           hint={
             credits > 0
-              ? `Turite ${credits} apsaugos kreditą`
-              : "Gauk nemokamą pirkėjo apsaugą"
+              ? `Turite ${credits} platformos paslaugos kreditą`
+              : "Gauk nemokamą platformos paslaugos kreditą"
           }
           onClick={() => void handleReferral()}
         />

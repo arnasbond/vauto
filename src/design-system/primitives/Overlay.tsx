@@ -138,14 +138,45 @@ export function Modal({
   className,
 }: ModalProps) {
   const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
+    const root = dialogRef.current;
+    const previous = document.activeElement as HTMLElement | null;
+    const focusables = () => {
+      if (!root) return [] as HTMLElement[];
+      return [
+        ...root.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        ),
+      ].filter((el) => !el.hasAttribute("disabled") && el.tabIndex !== -1);
+    };
+    const list = focusables();
+    (list[0] ?? root)?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const items = focusables();
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      previous?.focus();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
@@ -159,9 +190,11 @@ export function Modal({
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
         className={cn(
           "w-full max-w-md rounded-[var(--ds-radius-panel)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-elevated)] p-5 shadow-[var(--ds-shadow-lg)]",
           className

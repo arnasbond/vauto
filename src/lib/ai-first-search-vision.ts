@@ -82,4 +82,4 @@ export function buildNoResultsRefinementMessage(
 }
 
 export const AI_FIRST_SEARCH_PLACEHOLDER =
-  "Parašykite ar įkelkite — AI paruoš skelbimą ar paiešką…";
+  "Pvz. 2 kambarių butas iki 120 000 € — arba nufotografuokite, ką parduodate";

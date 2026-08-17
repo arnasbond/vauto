@@ -13,8 +13,8 @@ import {
 import { ReviewRepository } from "./review-repository.js";
 import { SubmitReviewBodySchema } from "./schema.js";
 import { REPUTATION_ENGINE_VERSION } from "./version.js";
+import { resolveReviewEligibilityPolicy } from "../transaction/policies/index.js";
 import {
-  REVIEW_ELIGIBLE_TX_STATUS,
   ReputationConflictError,
   ReputationForbiddenError,
   ReputationNotFoundError,
@@ -35,6 +35,61 @@ function isUniqueViolation(e: unknown): boolean {
   const err = e as { code?: string; message?: string };
   if (err.code === "23505") return true;
   return /uq_vauto_reviews_txn_reviewer|unique/i.test(String(err.message ?? ""));
+}
+
+async function tableExists(db: TxQueryable, tableName: string): Promise<boolean> {
+  const res = await db.query<{ exists: boolean | string | number }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.tables
+       WHERE table_name = $1
+     ) AS exists`,
+    [tableName]
+  );
+  const v = res.rows[0]?.exists;
+  return v === true || v === "t" || v === 1 || v === "true";
+}
+
+async function columnExists(
+  db: TxQueryable,
+  tableName: string,
+  columnName: string
+): Promise<boolean> {
+  const res = await db.query<{ exists: boolean | string | number }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_name = $1 AND column_name = $2
+     ) AS exists`,
+    [tableName, columnName]
+  );
+  const v = res.rows[0]?.exists;
+  return v === true || v === "t" || v === 1 || v === "true";
+}
+
+async function loadPlatformPaymentEvidence(
+  db: TxQueryable,
+  transactionId: string
+): Promise<{ hasSuccessfulPlatformPayment: boolean }> {
+  if (
+    (await tableExists(db, "vauto_financial_obligations")) &&
+    (await columnExists(
+      db,
+      "vauto_financial_obligations",
+      "provider_verified_at"
+    ))
+  ) {
+    const obl = await db.query<{ ok: number }>(
+      `SELECT 1 AS ok FROM vauto_financial_obligations
+       WHERE transaction_id = $1
+         AND type <> 'REFUND'
+         AND status IN ('HELD', 'CAPTURED', 'RELEASED')
+         AND payment_provider_ref IS NOT NULL
+         AND provider_verified_at IS NOT NULL
+       LIMIT 1`,
+      [transactionId]
+    );
+    if (obl.rows[0]) return { hasSuccessfulPlatformPayment: true };
+  }
+  return { hasSuccessfulPlatformPayment: false };
 }
 
 export class ReputationService {
@@ -62,9 +117,11 @@ export class ReputationService {
           );
         }
 
-        if (txn.status !== REVIEW_ELIGIBLE_TX_STATUS) {
+        const evidence = await loadPlatformPaymentEvidence(tx, input.transactionId);
+        const eligibility = resolveReviewEligibilityPolicy();
+        if (!eligibility.canSubmit(txn, input.actorUserId)) {
           throw new ReputationForbiddenError(
-            `Review requires COMPLETED transaction; got ${txn.status}`
+            `Review not eligible for status ${txn.status} / policy ${txn.verificationPolicy}`
           );
         }
 
@@ -87,6 +144,7 @@ export class ReputationService {
           revieweeId,
           rating: body.rating as 1 | 2 | 3 | 4 | 5,
           comment: body.comment ?? null,
+          verificationLevel: eligibility.verificationLevel(txn, evidence),
         });
       });
 

@@ -61,7 +61,7 @@ export function buildSellerBuddyMessage(params: {
   const title = draft.title || "skelbimas";
 
   if (!hasPhoto && key === "vehicles") {
-    return `Automobilio skelbimas paruoštas. Publikuoti galima po nuotraukos įkėlimo ir VIN patikros.`;
+    return `Transporto skelbimas paruoštas. Publikuoti rekomenduojama su nuotrauka. VIN galite nurodyti, jei turite.`;
   }
 
   if (!hasPhoto) {

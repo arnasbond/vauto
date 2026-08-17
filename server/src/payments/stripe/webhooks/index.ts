@@ -28,6 +28,7 @@ export {
   verifyStripeWebhookSignature,
   generateTestStripeSignatureHeader,
   assertRawBodyUnmodified,
+  isSignatureVerifiedStripeEvent,
   type VerifiedStripeEvent,
 } from "./signature-verifier.js";
 
@@ -44,3 +45,11 @@ export {
   createStripeWebhookProcessor,
   type WebhookProcessorDeps,
 } from "./webhook-processor.js";
+
+export {
+  mintTrustedProviderProvenanceFromSignedWebhook,
+  applyTrustedProviderProvenance,
+  applyTrustedProviderProvenanceInTx,
+  isMintedTrustedProviderProvenance,
+  type TrustedProviderProvenance,
+} from "./trusted-provider-provenance.js";

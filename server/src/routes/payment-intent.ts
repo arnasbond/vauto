@@ -21,11 +21,12 @@ import {
   PaymentVersionConflictError,
 } from "../payment/index.js";
 import {
-  createStripePaymentIntentService,
   STRIPE_INTEGRATION_VERSION,
   StripeProviderError,
   StripeProviderTimeoutError,
 } from "../payments/stripe/index.js";
+import { createUniversalDealRoomService } from "../marketplace/universal-deal-room-service.js";
+import { mapUniversalDealError } from "../marketplace/universal-deal-http.js";
 
 export const paymentIntentRouter = Router();
 
@@ -96,15 +97,17 @@ paymentIntentRouter.post(
   requireAuth,
   async (req: AuthedRequest, res) => {
     try {
-      const svc = createPaymentIntentService(createPoolTxQueryable());
-      const result = await svc.createPaymentIntent({
+      const claimed = req.body as { verticalId?: unknown; vertical?: unknown };
+      const deal = createUniversalDealRoomService(createPoolTxQueryable());
+      const result = await deal.initiatePayment({
         transactionId: req.params.id,
         actorUserId: req.authUserId!,
         body: req.body,
+        clientVertical: claimed.verticalId ?? claimed.vertical,
       });
       res.status(result.idempotentReplay ? 200 : 201).json(result);
     } catch (e) {
-      if (mapError(res, e)) return;
+      if (mapUniversalDealError(res, e) || mapError(res, e)) return;
       sendInternalError(res, e);
     }
   }
@@ -122,27 +125,32 @@ paymentIntentRouter.get(
       });
       res.json(result);
     } catch (e) {
-      if (mapError(res, e)) return;
+      if (mapUniversalDealError(res, e) || mapError(res, e)) return;
       sendInternalError(res, e);
     }
   }
 );
 
-/** Stage 11F.2 — Stripe PaymentIntent create/reuse (2-phase). */
+/** Stage 11F.2 — Stripe PaymentIntent create/reuse (2-phase).
+ * 13C.1: same independent capability/participant/BUYER/state gate as initiatePayment.
+ */
 paymentIntentRouter.post(
   "/transactions/:id/payment-intent/stripe-intent",
   requireAuth,
   async (req: AuthedRequest, res) => {
     try {
-      const svc = createStripePaymentIntentService(createPoolTxQueryable());
-      const result = await svc.createStripePaymentIntent({
+      const body = (req.body ?? {}) as Record<string, unknown>;
+      const { verticalId, vertical, ...stripeBody } = body;
+      const deal = createUniversalDealRoomService(createPoolTxQueryable());
+      const result = await deal.createStripePaymentIntent({
         transactionId: req.params.id,
         actorUserId: req.authUserId!,
-        body: req.body,
+        body: stripeBody,
+        clientVertical: verticalId ?? vertical,
       });
       res.status(result.idempotentReplay ? 200 : 201).json(result);
     } catch (e) {
-      if (mapError(res, e)) return;
+      if (mapUniversalDealError(res, e) || mapError(res, e)) return;
       sendInternalError(res, e);
     }
   }

@@ -205,7 +205,7 @@ export function BusinessCockpitOverview({
 
   const categoryLabels: Record<string, string> = {
     electronics: "Elektronika",
-    vehicles: "Automobiliai",
+    vehicles: "Transportas",
     transport: "Transportas",
     services: "Paslaugos",
     jobs: "Darbas",

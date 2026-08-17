@@ -69,6 +69,12 @@ async function startTx(buyerToken: string, listing: string) {
   return tx!.id;
 }
 
+/** Static export `page.reload()` can drop `/sandoriai/?id=` (list view). Re-open like 13C. */
+async function reopenDeal(page: Page, txId: string) {
+  await page.goto(`/sandoriai/?id=${encodeURIComponent(txId)}`);
+  await dismissUiChrome(page);
+}
+
 test("1 happy path: Deal Room buyer/seller against real harness", async ({
   browser,
 }) => {
@@ -106,8 +112,7 @@ test("1 happy path: Deal Room buyer/seller against real harness", async ({
     timeout: 15_000,
   });
 
-  await buyer.page.reload();
-  await dismissUiChrome(buyer.page);
+  await reopenDeal(buyer.page, txId);
   await expect(buyer.page.locator("[data-start-payment]")).toBeVisible({
     timeout: 20_000,
   });
@@ -123,8 +128,7 @@ test("1 happy path: Deal Room buyer/seller against real harness", async ({
   );
   expect(paid.status, paid.text).toBeLessThan(300);
 
-  await seller.page.reload();
-  await dismissUiChrome(seller.page);
+  await reopenDeal(seller.page, txId);
   await expect(seller.page.locator("[data-create-label]")).toBeVisible({
     timeout: 20_000,
   });
@@ -159,8 +163,7 @@ test("1 happy path: Deal Room buyer/seller against real harness", async ({
   );
   expect(synced.status, synced.text).toBeLessThan(300);
 
-  await buyer.page.reload();
-  await dismissUiChrome(buyer.page);
+  await reopenDeal(buyer.page, txId);
   await expect(buyer.page.locator("[data-confirm-delivery]")).toBeVisible({
     timeout: 20_000,
   });
@@ -185,8 +188,7 @@ test("1 happy path: Deal Room buyer/seller against real harness", async ({
     timeout: 15_000,
   });
 
-  await seller.page.reload();
-  await dismissUiChrome(seller.page);
+  await reopenDeal(seller.page, txId);
   await expect(seller.page.locator("[data-verified-review-form]")).toBeVisible({
     timeout: 20_000,
   });

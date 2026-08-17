@@ -23,6 +23,7 @@ import {
   providerLookupFromFake,
   key,
   USE_REAL_PG,
+  collectConcurrentSuccesses,
 } from "./financial-harness.js";
 import {
   createProductionProviderLookup,
@@ -164,7 +165,7 @@ describe("11F.6 Financial Authority Consolidation Gate", () => {
         `rpg-rel-${i}`,
         85000 + i
       );
-      const out = await Promise.all(
+      const out = await collectConcurrentSuccesses(
         Array.from({ length: 8 }, (_, j) =>
           ctx.funds.releaseToSeller({
             transactionId: ctx.txId,

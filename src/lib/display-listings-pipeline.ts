@@ -19,6 +19,11 @@ import {
   type MarketplaceFilterState,
 
 } from "@/lib/marketplace-view";
+import {
+  applyFacetFilters,
+  parseFacetSearchParams,
+  sortFacetListings,
+} from "@vauto/shared/marketplace-domain";
 
 import {
 
@@ -233,9 +238,25 @@ function runDisplayPipeline(input: DisplayListingsInput): ScoredListing[] {
       ? { ...filters, category: "all" as const }
       : filters;
 
-  results = applyMarketplaceFilters(results, pinSafeFilters, input.buyerCoords);
+  const facetParsed = filters.facetQueryString
+    ? parseFacetSearchParams(filters.facetQueryString)
+    : null;
+  const filtersForMarketplace =
+    facetParsed?.ok && facetParsed.query.verticalId
+      ? { ...pinSafeFilters, category: "all" as const }
+      : pinSafeFilters;
 
+  results = applyMarketplaceFilters(results, filtersForMarketplace, input.buyerCoords);
 
+  if (
+    facetParsed?.ok &&
+    (facetParsed.query.verticalId || facetParsed.query.predicates.length > 0)
+  ) {
+    results = applyFacetFilters(results, facetParsed.query) as ScoredListing[];
+    if (facetParsed.query.sort !== "relevance") {
+      results = sortFacetListings(results, facetParsed.query.sort) as ScoredListing[];
+    }
+  }
 
   const effectiveSort =
 

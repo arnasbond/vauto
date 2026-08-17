@@ -123,8 +123,8 @@ export function AiPreferenceCenter({
               Mano AI Dvynio duomenys
             </h2>
             <p className="mt-1 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
-              Dydžiai, automobilis ir preferencijos — Magic Mirror bei asistentas
-              naudos tik šiuos realius duomenis (be spėlionių).
+              Dydžiai, transportas ir kitos preferencijos — asistentas naudos
+              tik šiuos realius duomenis (be spėlionių).
             </p>
           </div>
         </div>
@@ -207,7 +207,7 @@ export function AiPreferenceCenter({
             <fieldset>
               <legend className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
                 <Car className="h-3.5 w-3.5" aria-hidden />
-                Automobilis
+                Transportas
               </legend>
               <div className="grid gap-2 sm:grid-cols-3">
                 <label className="block text-xs font-medium text-[var(--vauto-text-main)]">

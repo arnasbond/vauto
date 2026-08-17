@@ -10,6 +10,15 @@ export type ReviewRating = (typeof REVIEW_RATINGS)[number];
 /** Only COMPLETED (paid, fulfilled) deals may receive a review. */
 export const REVIEW_ELIGIBLE_TX_STATUS = "COMPLETED" as const;
 
+export const REVIEW_VERIFICATION_LEVELS = [
+  "L1_PLATFORM_TRANSACTION",
+  "L2_INTERACTION",
+  "L3_CONTRACT",
+  "L0_UNVERIFIED",
+] as const;
+export type ReviewVerificationLevel =
+  (typeof REVIEW_VERIFICATION_LEVELS)[number];
+
 export type VautoReview = {
   id: string;
   transactionId: string;
@@ -19,6 +28,7 @@ export type VautoReview = {
   comment: string | null;
   createdAt: string;
   reputationEngineVersion: typeof REPUTATION_ENGINE_VERSION;
+  verificationLevel: ReviewVerificationLevel;
 };
 
 export type ReviewSubmitResult = {

@@ -68,13 +68,20 @@ const TEST_WHSEC = "whsec_test_vauto_11h1_dispute";
 const LISTINGS_STUB = `
 CREATE TABLE IF NOT EXISTS listings (
   id TEXT PRIMARY KEY,
+  seller_id TEXT,
   title TEXT NOT NULL,
   price NUMERIC(12,2),
+  location TEXT,
   image TEXT,
   images JSONB DEFAULT '[]'::jsonb,
   attributes JSONB DEFAULT '{}'::jsonb,
+  category TEXT,
   status TEXT DEFAULT 'active'
 );
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS seller_id TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS location TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS image TEXT;
+ALTER TABLE listings ADD COLUMN IF NOT EXISTS category TEXT;
 `;
 
 const REASONS: DisputeReason[] = [
@@ -152,22 +159,34 @@ describe("11H.3 Dispute TOCTOU Lock & Freeze Classification", () => {
     if (pglite) await pglite.close();
   });
 
-  async function seedListing(id: string) {
+  async function seedListing(id: string, sellerId = `seller-${id}`) {
+    const usersTbl = await q.query<{ t: string | null }>(
+      `SELECT to_regclass('public.users')::text AS t`
+    );
+    if (usersTbl.rows[0]?.t) {
+      await q.query(
+        `INSERT INTO users (id, name, phone, city)
+         VALUES ($1,'11H seller','+37060000000','Vilnius')
+         ON CONFLICT (id) DO NOTHING`,
+        [sellerId]
+      );
+    }
     await q.query(
-      `INSERT INTO listings (id, title, price, image, attributes, status)
-       VALUES ($1,'T',100,'https://img.example/a.jpg','{}'::jsonb,'active')
+      `INSERT INTO listings (id, seller_id, title, price, location, image, attributes, status, category)
+       VALUES ($1,$2,'T',100,'LT','https://img.example/a.jpg','{}'::jsonb,'active','electronics')
        ON CONFLICT (id) DO NOTHING`,
-      [id]
+      [id, sellerId]
     );
   }
 
   /** PAID + HELD + SHIPPED via delivery label+scan. */
   async function setupShippedHeld(tag: string, offerCents = 100000) {
-    await seedListing(`L-${tag}`);
+    const listingId = `L-${tag}-${randomUUID().slice(0, 8)}`;
+    await seedListing(listingId, `seller-${tag}`);
     const buyerId = `buyer-${tag}`;
     const sellerId = `seller-${tag}`;
     const tx = await txRepo.create({
-      listingId: `L-${tag}`,
+      listingId,
       buyerId,
       sellerId,
       currentPrice: 100,

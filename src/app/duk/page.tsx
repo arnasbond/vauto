@@ -5,9 +5,11 @@ export default function DukPage() {
   return (
     <LegalDocumentShell title="DUK — kaip veikia VAUTO" updated="2026-08-14">
       <p className="font-medium text-[var(--vauto-text)]">
-        Principas: <strong>AI padeda. Žmogus sprendžia.</strong> VAUTO paruošia
-        skelbimą, atrenka rezultatus ir veda sandorio eigą. Jūs patvirtinate
-        kiekvieną svarbų žingsnį.
+        Principas: <strong>AI padeda. Žmogus sprendžia.</strong> VAUTO yra
+        universali skelbimų ir sandorių platforma — transportas, nekilnojamasis
+        turtas, darbas, paslaugos, elektronika ir prekės. AI asistentas paruošia
+        paiešką ar juodraštį visoms kategorijoms. Jūs patvirtinate kiekvieną
+        svarbų žingsnį.
       </p>
 
       <section>
@@ -15,10 +17,23 @@ export default function DukPage() {
           Kuo VAUTO skiriasi nuo paprasto skelbimų portalo?
         </h2>
         <p>
-          Čia skelbimą galima paruošti iš nuotraukos ar sakinio, o sandorį vesti
-          per Deal Room: pasiūlymas, mokėjimas, Omniva sekimas, ginčas ir
-          patvirtintas atsiliepimas. Būsenas (apmokėta, išsiųsta, užbaigta)
-          visada nustato serveris, ne naršyklė.
+          Skelbimą galima paruošti iš nuotraukos ar sakinio bet kuriai
+          kategorijai, o sandorį vesti per Deal Room: pasiūlymas, mokėjimas,
+          siuntos sekimas, ginčas ir patvirtintas atsiliepimas. Būsenas
+          (apmokėta, išsiųsta, užbaigta) visada nustato serveris, ne naršyklė.
+        </p>
+      </section>
+
+      <section>
+        <h2 className="text-base font-semibold text-[var(--vauto-text)]">
+          Kokias kategorijas galima skelbti?
+        </h2>
+        <p>
+          Transportą, nekilnojamąjį turtą, elektroniką, paslaugas, darbą, namų ir
+          sodo prekes, drabužius ir kitas prekes. Pirmas žingsnis — kategorijos
+          parinkimas arba laisvas aprašymas. Specifiniai laukai (markė, plotas,
+          dydis) atsiranda tik pagal pasirinktą kategoriją — jie nėra privalomi
+          visiems skelbimams.
         </p>
       </section>
 
@@ -27,8 +42,9 @@ export default function DukPage() {
           Kaip parduoti?
         </h2>
         <p>
-          Parodote nuotrauką arba papasakojate — VAUTO paruošia juodraštį — jūs
-          patikrinat ir publikuojate. AI nesiunčia skelbimo be jūsų patvirtinimo.
+          Pasirinkite kategoriją arba papasakokite, ką skelbiate — VAUTO paruošia
+          juodraštį — jūs patikrinat ir publikuojate. AI nesiunčia skelbimo be
+          jūsų patvirtinimo.
         </p>
       </section>
 
@@ -37,20 +53,27 @@ export default function DukPage() {
           Kaip pirkti?
         </h2>
         <p>
-          Pasakote, ko ieškote — VAUTO atrenka — palyginate ir pasirenkate. AI
-          nereiškia, kad pirkėjas ar kaina yra garantuoti.
+          Pasakote, ko ieškote — buto, paslaugos, technikos ar transporto —
+          VAUTO atrenka, palyginate ir pasirenkate. AI nereiškia, kad pirkėjas
+          ar kaina yra užtikrinti. Galutinį pasirinkimą darote jūs.
         </p>
       </section>
 
       <section>
         <h2 className="text-base font-semibold text-[var(--vauto-text)]">
-          Kaip vyksta sandoris?
+          Platformos saugumo mechanizmai, jų ribos ir sąlygos
         </h2>
         <p>
-          Susitariate dėl kainos, tada VAUTO padeda aiškiai pereiti eigą:
-          priimtas pasiūlymas → mokėjimas (Stripe) → Omniva lipdukas ir sekimas →
-          pirkėjo gavimo patvirtinimas → užbaigtas sandoris. Kiekvieną būseną
-          tvirtina backend.
+          Sistema gali: vesti sandorį Deal Room, laikyti mokėjimą (Stripe) iki
+          gavimo patvirtinimo, rodyti vežėjo sekimą (pvz. Omniva prekėms) ir
+          priimti ginčą pagal sandorio bei siuntos įrodymus. Kiekvieną būseną
+          tvirtina backend — AI neperveda pinigų ir nekeičia būsenos už jus.
+        </p>
+        <p className="mt-2">
+          Pirkėjai ir pardavėjai lieka atsakingi už objekto būklę, apžiūrą,
+          teisėtumą ir tarpusavio susitarimą. NT, darbas ar paslaugos gali turėti
+          kitą įvykdymo kelią. Tai nėra visų rizikų draudimas, teismo pakaitalas
+          ar objekto kokybės pažyma.
         </p>
       </section>
 
@@ -67,12 +90,13 @@ export default function DukPage() {
 
       <section>
         <h2 className="text-base font-semibold text-[var(--vauto-text)]">
-          Omniva
+          Siunta ir Omniva
         </h2>
         <p>
-          Pardavėjas sukuria siuntos lipduką. Sekimo kodas ir vežėjo statusas
-          rodomi Deal Room. „Išsiųsta“ atsiranda po fizinio kurjerio įvykio, ne
-          nuo mygtuko naršyklėje.
+          Prekėms pardavėjas gali sukurti siuntos lipduką. Sekimo kodas ir
+          vežėjo statusas rodomi Deal Room. „Išsiųsta“ atsiranda po fizinio
+          kurjerio įvykio, ne nuo mygtuko naršyklėje. Paslaugoms, darbui ir NT
+          siunta nebūtina.
         </p>
       </section>
 
@@ -81,9 +105,9 @@ export default function DukPage() {
           Ginčai
         </h2>
         <p>
-          Ginčą galima kelti būsenose „Išsiųsta“ arba „Pristatyta“. Sprendimą
-          priima VAUTO pagal sandorio, pokalbio ir siuntos įrodymus. Tai nėra
-          teismo pakaitalas.
+          Ginčą galima kelti būsenose „Išsiųsta“ arba „Pristatyta“, kai sandoris
+          eina per platformos siuntą. Sprendimą priima VAUTO pagal sandorio,
+          pokalbio ir siuntos įrodymus. Tai nėra teismo pakaitalas.
         </p>
       </section>
 
@@ -100,21 +124,24 @@ export default function DukPage() {
 
       <section>
         <h2 className="text-base font-semibold text-[var(--vauto-text)]">
-          Ką VAUTO daro ir ko negarantuoja
+          Ką sistema daro ir už ką liekate atsakingi jūs
         </h2>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            VAUTO Score ir kainos rėžis — analitinė rekomendacija, ne garantuota
-            rinkos vertė ir ne automobilio būklės garantija.
+            VAUTO Score ir kainos rėžis — analitinė rekomendacija visoms
+            kategorijoms, ne rinkos vertės pažyma ir ne objekto būklės
+            įvertinimas.
           </li>
           <li>
             AI nepriima finansinių sprendimų ir nesudaro sandorio už jus.
           </li>
           <li>
-            Platforma nepakeičia profesionalios fizinės automobilio patikros.
+            Platforma nepakeičia profesionalios fizinės apžiūros (transportas,
+            NT ar technika) — tai pirkėjo ir pardavėjo atsakomybė.
           </li>
           <li>
-            VAUTO negarantuoja pardavimo, pirkėjo ar pristatymo termino.
+            VAUTO neužtikrina pardavimo, pirkėjo, pristatymo termino ar objekto
+            kokybės.
           </li>
           <li>
             Nenaudojame teiginių „100 % saugu“ ar „garantuotas pardavėjas“.

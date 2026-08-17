@@ -52,6 +52,8 @@ export interface MarketplaceFilterState {
   radiusKm: MarketplaceRadiusKm | null;
   /** Chameleon category-specific attribute filters (Auto, NT, Drabužiai, Darbas) */
   categoryAttributes: CategoryAttributeFilters;
+  /** Canonical 13B facet query string (vertical + predicates + sort + page). */
+  facetQueryString: string;
 }
 
 export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilterState = {
@@ -63,6 +65,7 @@ export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilterState = {
   sort: "relevance",
   radiusKm: null,
   categoryAttributes: { ...EMPTY_CATEGORY_ATTRIBUTE_FILTERS },
+  facetQueryString: "",
 };
 
 /** When category is „all“, infer Chameleon attribute filters from active portal/search. */
@@ -119,6 +122,7 @@ export function normalizeMarketplaceFilters(
       ...EMPTY_CATEGORY_ATTRIBUTE_FILTERS,
       ...(filters.categoryAttributes ?? {}),
     },
+    facetQueryString: filters.facetQueryString ?? "",
   };
 }
 

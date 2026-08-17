@@ -37,6 +37,16 @@ export function dealStatusLabel(status: string): string {
       return "Atšaukta";
     case "EXPIRED":
       return "Pasibaigė";
+    case "OPEN":
+      return "Laukiama pasiūlymo";
+    case "OFFERED":
+      return "Pasiūlymas pateiktas";
+    case "COUNTERED":
+      return "Priešpasiūlymas";
+    case "ACCEPTED":
+      return "Pasiūlymas priimtas";
+    case "REJECTED":
+      return "Pasiūlymas atmestas";
     default:
       return status;
   }
@@ -88,4 +98,23 @@ export function formatCentsEur(cents: number | null | undefined): string {
 export function formatRatingAverage(avg: number | null | undefined): string {
   if (avg == null || !Number.isFinite(avg)) return "";
   return avg.toFixed(2);
+}
+
+/** Vežėjo sekimo būsena — paaiškinimas pirkėjui / pardavėjui (ne žaliuzinis kodas). */
+export function carrierStatusHint(status: string): string {
+  const key = status.trim().toUpperCase();
+  switch (key) {
+    case "LABEL_CREATED":
+    case "SHIPPING_PENDING":
+      return "Lipdukas paruoštas. Siunta dar nepriimta kurjerio — „Išsiųsta“ atsiras po vežėjo skenavimo.";
+    case "CARRIER_ACCEPTED":
+    case "IN_TRANSIT":
+      return "Siunta kelyje. Būseną atnaujina vežėjas. Gavimo patvirtinimas Deal Room lieka jūsų.";
+    case "OUT_FOR_DELIVERY":
+      return "Siunta išvežta pristatymui. Kai gausite, patvirtinkite gavimą sandorio kambaryje.";
+    case "DELIVERED":
+      return "Vežėjas žymi pristatymą. Lėšos paleidžiamos, kai patvirtinate gavimą arba baigiasi ginčas.";
+    default:
+      return "Sekimo būsena ateina iš Omniva. Sandorio „Išsiųsta“ atsiranda po fizinio skenavimo, ne iš naršyklės.";
+  }
 }

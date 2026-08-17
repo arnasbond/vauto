@@ -18,6 +18,7 @@ const GLOBAL_ATTRIBUTE_KEYS = new Set([
   "socialPublishInstagram",
   // fashionCategory is clothing-only — never survive category switches to auto/parts.
   "skelbiuCategory",
+  "_canonicalVertical",
 ]);
 
 /**

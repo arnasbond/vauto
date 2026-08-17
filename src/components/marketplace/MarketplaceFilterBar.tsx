@@ -17,6 +17,12 @@ import { cn } from "@/lib/cn";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { MOCK_CATEGORY_LABELS } from "@/data/mockListings";
 import type { ListingCategory } from "@/lib/types";
+import { FacetFilterPanel } from "@/components/marketplace/FacetFilterPanel";
+import { useCanonicalFacetQuery } from "@/hooks/useCanonicalFacetUrl";
+import {
+  activeFacetCount,
+  serializeFacetSearchParams,
+} from "@vauto/shared/marketplace-domain";
 
 const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "all", label: "Visos kategorijos" },
@@ -29,10 +35,12 @@ function FilterFields({
   filters,
   onChange,
   idPrefix,
+  hideCategoryAndSort = false,
 }: {
   filters: MarketplaceFilterState;
   onChange: (next: MarketplaceFilterState) => void;
   idPrefix: string;
+  hideCategoryAndSort?: boolean;
 }) {
   const patch = (partial: Partial<MarketplaceFilterState>) => {
     onChange(normalizeMarketplaceFilters({ ...filters, ...partial }));
@@ -40,27 +48,31 @@ function FilterFields({
 
   return (
     <div className="grid gap-3 sm:grid-cols-2">
-      <Select
-        id={`${idPrefix}-category`}
-        label="Kategorija"
-        value={filters.category}
-        options={CATEGORY_OPTIONS}
-        onChange={(e) =>
-          patch({
-            category: e.target.value as MarketplaceFilterState["category"],
-          })
-        }
-      />
-      <Select
-        id={`${idPrefix}-sort`}
-        label="Rikiavimas"
-        value={filters.sort}
-        options={MARKETPLACE_SORT_OPTIONS.map((o) => ({
-          value: o.id,
-          label: o.label,
-        }))}
-        onChange={(e) => patch({ sort: e.target.value as MarketplaceSortMode })}
-      />
+      {!hideCategoryAndSort ? (
+        <>
+          <Select
+            id={`${idPrefix}-category`}
+            label="Kategorija"
+            value={filters.category}
+            options={CATEGORY_OPTIONS}
+            onChange={(e) =>
+              patch({
+                category: e.target.value as MarketplaceFilterState["category"],
+              })
+            }
+          />
+          <Select
+            id={`${idPrefix}-sort`}
+            label="Rikiavimas"
+            value={filters.sort}
+            options={MARKETPLACE_SORT_OPTIONS.map((o) => ({
+              value: o.id,
+              label: o.label,
+            }))}
+            onChange={(e) => patch({ sort: e.target.value as MarketplaceSortMode })}
+          />
+        </>
+      ) : null}
       <Input
         id={`${idPrefix}-location`}
         label="Vietovė"
@@ -126,6 +138,7 @@ export function MarketplaceFilterBar({
   onFiltersChange,
   viewMode,
   onViewModeChange,
+  surface = "auto",
 }: {
   searchQuery: string;
   resultCount: number;
@@ -133,11 +146,15 @@ export function MarketplaceFilterBar({
   onFiltersChange: (next: MarketplaceFilterState) => void;
   viewMode: MarketplaceViewMode;
   onViewModeChange: (mode: MarketplaceViewMode) => void;
+  surface?: "auto" | "mobile" | "desktop";
 }) {
   const { trackEvent } = useUserBehavior();
   const safeFilters = normalizeMarketplaceFilters(filters);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [draft, setDraft] = useState(safeFilters);
+  const { query, setQuery, setVertical, clearFacets } = useCanonicalFacetQuery();
+  const [draftQuery, setDraftQuery] = useState(query);
+  const facetCount = activeFacetCount(query);
 
   const hasActiveFilters =
     safeFilters.category !== "all" ||
@@ -147,27 +164,53 @@ export function MarketplaceFilterBar({
     safeFilters.condition !== "all" ||
     safeFilters.sort !== "relevance" ||
     safeFilters.radiusKm != null ||
-    Object.keys(safeFilters.categoryAttributes ?? {}).length > 0;
+    Object.keys(safeFilters.categoryAttributes ?? {}).length > 0 ||
+    facetCount > 0;
 
   const clearFilters = useCallback(() => {
-    onFiltersChange({ ...DEFAULT_MARKETPLACE_FILTERS });
-    setDraft({ ...DEFAULT_MARKETPLACE_FILTERS });
-    trackEvent("filter_change", { patch: { reset: true }, category: "all" });
-  }, [onFiltersChange, trackEvent]);
+    clearFacets();
+    setDraft({
+      ...DEFAULT_MARKETPLACE_FILTERS,
+      category: safeFilters.category,
+    });
+    trackEvent("filter_change", { patch: { reset: true }, category: safeFilters.category });
+  }, [clearFacets, safeFilters.category, trackEvent]);
+
+  const closeDrawer = () => {
+    setDrawerOpen(false);
+    document
+      .querySelector<HTMLButtonElement>("[data-facet-drawer-trigger]")
+      ?.focus();
+  };
 
   const openDrawer = () => {
     setDraft(safeFilters);
+    setDraftQuery(query);
     setDrawerOpen(true);
   };
 
   const applyDrawer = () => {
-    onFiltersChange(normalizeMarketplaceFilters(draft));
+    const params = serializeFacetSearchParams({
+      ...draftQuery,
+      q: searchQuery,
+      page: 1,
+    });
+    setQuery(draftQuery);
+    onFiltersChange(
+      normalizeMarketplaceFilters({
+        ...draft,
+        facetQueryString: params.toString(),
+      })
+    );
     trackEvent("filter_change", {
       patch: { drawer: true },
       category: draft.category,
     });
-    setDrawerOpen(false);
+    closeDrawer();
   };
+
+  const showMobileDrawer = surface !== "desktop";
+  const showDesktopPanel = surface !== "mobile";
 
   return (
     <div
@@ -184,19 +227,27 @@ export function MarketplaceFilterBar({
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          {showMobileDrawer ? (
           <Button
             variant="secondary"
             size="sm"
             leftIcon={<SlidersHorizontal className="h-3.5 w-3.5" />}
             onClick={openDrawer}
-            className="md:hidden"
+            className={surface === "mobile" ? undefined : "md:hidden"}
             aria-label="Atidaryti filtrus"
+            aria-expanded={drawerOpen}
+            data-facet-drawer-trigger
           >
             Filtrai
-            {hasActiveFilters ? (
+            {facetCount > 0 ? (
+              <span className="ml-1 text-[11px]" data-facet-active-count>
+                {facetCount}
+              </span>
+            ) : hasActiveFilters ? (
               <span className="ml-1 inline-flex h-1.5 w-1.5 rounded-full bg-[var(--ds-brand)]" />
             ) : null}
           </Button>
+          ) : null}
 
           {hasActiveFilters ? (
             <IconButton
@@ -242,42 +293,78 @@ export function MarketplaceFilterBar({
       </div>
 
       {/* Desktop inline filters */}
-      <div className="mt-3 hidden md:block">
-        <FilterFields
-          idPrefix="desktop-filter"
-          filters={safeFilters}
-          onChange={(next) => {
-            onFiltersChange(next);
-            trackEvent("filter_change", {
-              patch: { inline: true },
-              category: next.category,
-            });
-          }}
+      {showDesktopPanel ? (
+      <div className={surface === "desktop" ? "mt-3" : "mt-3 hidden md:block"} data-facet-desktop>
+        <FacetFilterPanel
+          query={query}
+          onChange={setQuery}
+          onVerticalChange={setVertical}
+          idPrefix="desktop-facet"
         />
+        <div className="mt-3">
+          <FilterFields
+            idPrefix="desktop-filter"
+            hideCategoryAndSort
+            filters={safeFilters}
+            onChange={(next) => {
+              onFiltersChange(next);
+              trackEvent("filter_change", {
+                patch: { inline: true },
+                category: next.category,
+              });
+            }}
+          />
+        </div>
       </div>
+      ) : null}
 
+      {showMobileDrawer ? (
       <Modal
         open={drawerOpen}
         title="Filtrai"
-        onClose={() => setDrawerOpen(false)}
-        className="max-h-[min(90dvh,40rem)] overflow-y-auto sm:max-w-lg"
+        onClose={closeDrawer}
+        className="max-h-[min(90dvh,40rem)] overflow-y-auto overflow-x-hidden sm:max-w-lg"
         footer={
           <>
             <Button variant="ghost" size="sm" onClick={clearFilters}>
-              Išvalyti
+              Išvalyti filtrus
             </Button>
-            <Button variant="primary" size="sm" onClick={applyDrawer}>
-              Taikyti
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={applyDrawer}
+              data-facet-apply
+            >
+              Taikyti filtrus
             </Button>
           </>
         }
       >
-        <FilterFields
-          idPrefix="drawer-filter"
-          filters={draft}
-          onChange={setDraft}
-        />
+        <div data-facet-drawer>
+          <FacetFilterPanel
+            query={draftQuery}
+            onChange={setDraftQuery}
+            onVerticalChange={(id) =>
+              setDraftQuery({
+                ...draftQuery,
+                verticalId: id,
+                predicates: [],
+                page: 1,
+              })
+            }
+            idPrefix="drawer-facet"
+          />
+          <div className="mt-3">
+            <FilterFields
+              idPrefix="drawer-filter"
+              hideCategoryAndSort
+              filters={draft}
+              onChange={setDraft}
+            />
+          </div>
+        </div>
       </Modal>
+      ) : null}
     </div>
   );
 }

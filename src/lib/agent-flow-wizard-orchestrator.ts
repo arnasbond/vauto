@@ -57,11 +57,13 @@ export const WARDROBE_BULK_PHOTO_PICK_EVENT = FLOW_PHOTO_PICK_EVENT;
 export const WARDROBE_BULK_REVIEW_EVENT = FLOW_REVIEW_SCROLL_EVENT;
 
 const CATEGORY_LABEL: Record<string, string> = {
-  vehicles: "automobilio",
+  vehicles: "transporto",
   real_estate: "nekilnojamojo turto",
   services: "paslaugų",
-  clothing: "drabužių",
+  electronics: "elektronikos",
   jobs: "darbo",
+  home: "namų ir sodo",
+  clothing: "drabužių",
   other: "skelbimo",
 };
 
@@ -76,8 +78,14 @@ export function buildListingWizardOpenedMessage(category?: ListingCategory): str
   if (category === "clothing") {
     return "Puiku, mes jau tavo spintoje! Įkelk drabužių nuotraukas čia pokalbyje — aš fone paruošiu skelbimo juodraštį.";
   }
-  if (category === "vehicles") {
-    return "Puiku, pradedame automobilio skelbimą! Įkelkite nuotraukas arba įveskite VIN čia pokalbyje — aš padėsiu suformuoti skelbimą. Jūs tik patvirtinkite.";
+  if (category === "vehicles" || category === "transport") {
+    return "Puiku, pradedame transporto skelbimą. Aprašykite objektą arba įkelkite nuotraukas — VIN galite nurodyti, jei turite. Jūs tik patvirtinkite.";
+  }
+  if (category === "electronics") {
+    return "Puiku, pradedame elektronikos skelbimą. Aprašykite objektą arba įkelkite nuotraukas — transporto specifikacijos nenaudojamos. Jūs tik patvirtinkite.";
+  }
+  if (category === "jobs") {
+    return "Puiku, pradedame darbo skelbimą. Nurodykite pareigas ir sąlygas. Šioje kategorijoje platformos mokėjimas netaikomas.";
   }
   if (category === "real_estate") {
     return "Puiku, pradedame NT skelbimą! Įkelkite objekto nuotraukas arba aprašykite plotą, kambarius — viską tvarkome pokalbyje.";
@@ -91,6 +99,9 @@ export function buildListingWizardOpenedMessage(category?: ListingCategory): str
 export function listingWizardOpenedChips(category?: ListingCategory): string[] {
   if (category === "clothing") {
     return ["Įkelti nuotraukų krepšelį", "Kaip veikia importas?", "Publikuoti vėliau"];
+  }
+  if (!category) {
+    return ["Pasirinkti kategoriją", "Aprašyti objektą", "Įkelti nuotraukas"];
   }
   return ["Įkelti nuotraukas", "Ką dar reikia?", "Publikuoti vėliau"];
 }
@@ -159,7 +170,7 @@ export function buildPublishSuccessMessage(
       return "Skelbimas publikuotas — drabužis jau matomas rinkoje.";
     }
     if (category === "vehicles") {
-      return "Skelbimas publikuotas — automobilis jau matomas rinkoje.";
+      return "Skelbimas publikuotas — transporto objektas jau matomas rinkoje.";
     }
     return "Skelbimas publikuotas ir jau matomas rinkoje.";
   }

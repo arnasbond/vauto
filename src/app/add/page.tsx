@@ -4,8 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { HeroSection } from "@/components/HeroSection";
+import { SellerListingSteps } from "@/components/home/SellerListingSteps";
+import { HomeCategoryGrid } from "@/components/home/HomeCategoryGrid";
+import { CategorySchemaPreview } from "@/components/marketplace/CategorySchemaPreview";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
+import {
+  addListingReturnPath,
+  getVertical,
+  parseAddListingSearch,
+  resolveVerticalId,
+} from "@vauto/shared/marketplace-domain";
 
 /**
  * Legacy /add route — thin redirect into home AI seller chat (4-step flow).
@@ -54,37 +63,51 @@ function AddRedirectShell({
 
 export default function AddPage() {
   const [isFashion, setIsFashion] = useState(false);
+  const [selectedVertical, setSelectedVertical] = useState<string | null>(null);
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [queryVertical, setQueryVertical] = useState<string | null>(null);
+  const [urlReady, setUrlReady] = useState(false);
   const { isAuthenticated, authHydrated, requireAuthForListing } = useVauto();
   const { openAiSellerListingChat } = useVautoAgent();
   const startedRef = useRef(false);
+  const selectedVerticalId = resolveVerticalId(selectedSlug || queryVertical);
 
   useEffect(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
-      setIsFashion(params.get("vertical") === "fashion");
+      const parsed = parseAddListingSearch(window.location.search);
+      setIsFashion(parsed.isFashion);
+      setQueryVertical(parsed.uiSlug);
+      if (parsed.verticalId && parsed.uiSlug) {
+        setSelectedSlug(parsed.uiSlug);
+        setSelectedVertical(getVertical(parsed.verticalId).label);
+      }
     } catch {
       setIsFashion(false);
+    } finally {
+      setUrlReady(true);
     }
   }, []);
 
   useEffect(() => {
     if (!authHydrated) return;
-    if (!isAuthenticated) {
-      requireAuthForListing(isFashion ? "/add?vertical=fashion" : "/add");
-      return;
-    }
+    if (!isAuthenticated) return;
+    if (!urlReady) return;
     if (startedRef.current) return;
     startedRef.current = true;
+    const verticalId = resolveVerticalId(selectedSlug || queryVertical);
     void openAiSellerListingChat({
+      verticalId,
       fashion: isFashion,
       navigateHome: true,
     });
   }, [
     authHydrated,
     isAuthenticated,
+    urlReady,
     isFashion,
+    queryVertical,
+    selectedSlug,
     openAiSellerListingChat,
-    requireAuthForListing,
   ]);
 
   if (!authHydrated) {
@@ -92,16 +115,62 @@ export default function AddPage() {
   }
 
   if (!isAuthenticated) {
+    const returnPath = addListingReturnPath({
+      isFashion,
+      uiSlug: selectedSlug ?? queryVertical,
+    });
     return (
       <VautoAdaptiveLayout>
-        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg">
+        <div
+          className="seller-flow-page mx-auto min-h-full w-full max-w-lg"
+          data-seller-funnel
+        >
           <HeroSection>
-            <h2 className="mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
+            <h1 className="mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
               {isFashion ? "Spinta — naujas drabužis" : "Naujas skelbimas"}
-            </h2>
-            <p className="mt-3 px-6 text-center text-sm text-[var(--vauto-text-muted)]">
+            </h1>
+            <p className="mt-3 px-2 text-center text-sm leading-relaxed text-[var(--vauto-text-muted)]">
+              Pasirinkite kategoriją arba aprašykite objektą / prekę laisvai.
+              AI padeda su antrašte, aprašymu ir kainos rėžiu. Skelbimą
+              publikuojate tik jūs — žmogus sprendžia.
+            </p>
+            <HomeCategoryGrid
+              className="mx-auto mt-5 max-w-lg"
+              onSelect={(_query, label, slug) => {
+                setSelectedVertical(label);
+                setSelectedSlug(slug);
+                requireAuthForListing(addListingReturnPath({ uiSlug: slug }));
+              }}
+            />
+            {selectedVertical ? (
+              <div className="mt-3 px-2">
+                <p
+                  className="text-center text-sm font-medium text-[var(--vauto-text-main)]"
+                  data-selected-vertical={selectedVertical}
+                >
+                  Pasirinkote: {selectedVertical}. Po prisijungimo aprašykite
+                  objektą laisvai
+                  {selectedVertical === "Elektronika"
+                    ? " (pvz. MacBook) — transporto laukai nebus rodomi."
+                    : "."}
+                </p>
+                {selectedVerticalId ? (
+                  <CategorySchemaPreview verticalId={selectedVerticalId} />
+                ) : null}
+              </div>
+            ) : null}
+            <SellerListingSteps className="mt-5" />
+            <p className="mt-4 text-center text-sm text-[var(--vauto-text-muted)]">
               Prisijunkite, kad galėtumėte kelti skelbimą per asistentą.
             </p>
+            <button
+              type="button"
+              data-seller-start-auth
+              onClick={() => requireAuthForListing(returnPath)}
+              className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-[var(--ds-brand,#1b4dff)] px-5 text-sm font-bold text-white"
+            >
+              Prisijungti ir pradėti
+            </button>
           </HeroSection>
         </div>
       </VautoAdaptiveLayout>

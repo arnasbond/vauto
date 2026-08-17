@@ -3,7 +3,7 @@
  * Injectable queryable for PGlite integration tests.
  */
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,18 +18,27 @@ import {
 } from "./state-machine.js";
 import {
   IdempotencyConflictError,
+  LEGACY_TRANSACTION_POLICY,
   TransactionNotFoundError,
   VersionConflictError,
   type ActorType,
+  type FulfillmentType,
+  type PaymentMode,
   type ReasonCode,
   type TransactionEventRecord,
   type TransactionStatus,
   type TransitionCommand,
   type TransitionResult,
   type VautoTransaction,
+  type VerificationPolicy,
+  type Vertical,
 } from "./types.js";
 import { TRANSACTION_STATE_MACHINE_VERSION } from "./version.js";
 import { runQueryableTransaction } from "./tx-connection.js";
+import { policyContextFromTx } from "./policies/index.js";
+import { resolvePaymentPolicy } from "./policies/payment/index.js";
+import { validateTransactionPolicyComposition } from "./policies/composition-validator.js";
+import { assertDirectContactCounterparty } from "./policies/fulfillment/direct-contact-policy.js";
 
 export type TxQueryable = {
   query: <T extends Record<string, unknown> = Record<string, unknown>>(
@@ -56,10 +65,24 @@ type TxRow = {
   state_machine_version: string;
   created_at: Date | string;
   updated_at: Date | string;
+  vertical?: string;
+  fulfillment_type?: string;
+  payment_mode?: string;
+  verification_policy?: string;
+  contract_value_cents?: string | number | null;
+  platform_managed_amount_cents?: string | number | null;
+  interaction_claimed_by?: string | null;
+  idempotency_fingerprint?: string | null;
 };
 
 function iso(v: Date | string): string {
   return v instanceof Date ? v.toISOString() : String(v);
+}
+
+function cents(v: string | number | null | undefined): number | null {
+  if (v == null || v === "") return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 function mapTx(r: TxRow): VautoTransaction {
@@ -81,8 +104,65 @@ function mapTx(r: TxRow): VautoTransaction {
     stateMachineVersion: TRANSACTION_STATE_MACHINE_VERSION,
     createdAt: iso(r.created_at),
     updatedAt: iso(r.updated_at),
+    vertical:
+      (r.vertical as Vertical | undefined) ?? LEGACY_TRANSACTION_POLICY.vertical,
+    fulfillmentType:
+      (r.fulfillment_type as FulfillmentType | undefined) ??
+      LEGACY_TRANSACTION_POLICY.fulfillmentType,
+    paymentMode:
+      (r.payment_mode as PaymentMode | undefined) ??
+      LEGACY_TRANSACTION_POLICY.paymentMode,
+    verificationPolicy:
+      (r.verification_policy as VerificationPolicy | undefined) ??
+      LEGACY_TRANSACTION_POLICY.verificationPolicy,
+    contractValueCents: cents(r.contract_value_cents),
+    platformManagedAmountCents:
+      cents(r.platform_managed_amount_cents) ??
+      LEGACY_TRANSACTION_POLICY.platformManagedAmountCents,
+    interactionClaimedBy: r.interaction_claimed_by ?? null,
   };
 }
+
+function isUniqueViolation(e: unknown): boolean {
+  if (!e || typeof e !== "object") return false;
+  const err = e as { code?: string; message?: string };
+  if (err.code === "23505") return true;
+  return /unique|duplicate key/i.test(String(err.message ?? ""));
+}
+
+export function computeCreateIdempotencyFingerprint(input: {
+  listingId: string;
+  buyerId: string;
+  sellerId: string;
+  currentPrice: number | null;
+  currency: string;
+  vertical: Vertical;
+  fulfillmentType: FulfillmentType;
+  paymentMode: PaymentMode;
+  verificationPolicy: VerificationPolicy;
+  contractValueCents: number | null;
+  platformManagedAmountCents: number;
+}): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        listingId: input.listingId,
+        buyerId: input.buyerId,
+        sellerId: input.sellerId,
+        currentPrice: input.currentPrice,
+        currency: input.currency,
+        vertical: input.vertical,
+        fulfillmentType: input.fulfillmentType,
+        paymentMode: input.paymentMode,
+        verificationPolicy: input.verificationPolicy,
+        contractValueCents: input.contractValueCents,
+        platformManagedAmountCents: input.platformManagedAmountCents,
+      })
+    )
+    .digest("hex");
+}
+
+type SchemaCaps = { policy: boolean; fingerprint: boolean };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -104,38 +184,182 @@ export type CreateTransactionInput = {
   currentPrice?: number | null;
   currency?: string;
   idempotencyKey?: string;
+  vertical?: Vertical;
+  fulfillmentType?: FulfillmentType;
+  paymentMode?: PaymentMode;
+  verificationPolicy?: VerificationPolicy;
+  contractValueCents?: number | null;
+  platformManagedAmountCents?: number;
 };
 
 export class TransactionRepository {
+  private schemaCapsCache: SchemaCaps | null = null;
+
   constructor(private readonly db: TxQueryable) {}
+
+  private async schemaCaps(): Promise<SchemaCaps> {
+    if (this.schemaCapsCache) return this.schemaCapsCache;
+    const cols = await this.db.query<{ column_name: string }>(
+      `SELECT column_name FROM information_schema.columns
+       WHERE table_name = 'vauto_transactions'
+         AND column_name IN ('vertical', 'idempotency_fingerprint')`
+    );
+    const names = new Set(cols.rows.map((r) => r.column_name));
+    this.schemaCapsCache = {
+      policy: names.has("vertical"),
+      fingerprint: names.has("idempotency_fingerprint"),
+    };
+    return this.schemaCapsCache;
+  }
+
+  private replayOrConflict(
+    row: TxRow,
+    fingerprint: string,
+    caps: SchemaCaps
+  ): VautoTransaction {
+    if (caps.fingerprint) {
+      const stored = row.idempotency_fingerprint ?? null;
+      if (stored && stored !== fingerprint) {
+        throw new IdempotencyConflictError(row.idempotency_key ?? "");
+      }
+    }
+    return mapTx(row);
+  }
 
   async create(input: CreateTransactionInput): Promise<VautoTransaction> {
     const parsed = CreateTransactionInputSchema.parse(input);
+    const vertical = parsed.vertical ?? LEGACY_TRANSACTION_POLICY.vertical;
+    const fulfillmentType =
+      parsed.fulfillmentType ?? LEGACY_TRANSACTION_POLICY.fulfillmentType;
+    const paymentMode =
+      parsed.paymentMode ?? LEGACY_TRANSACTION_POLICY.paymentMode;
+    const verificationPolicy =
+      parsed.verificationPolicy ?? LEGACY_TRANSACTION_POLICY.verificationPolicy;
+    validateTransactionPolicyComposition(
+      vertical,
+      fulfillmentType,
+      paymentMode,
+      verificationPolicy
+    );
+    const contractValueCents = parsed.contractValueCents ?? null;
+    const managed = resolvePaymentPolicy(paymentMode).resolveManagedAmountCents({
+      contractValueCents,
+      requestedManagedCents: parsed.platformManagedAmountCents ?? null,
+    });
+    const currency = parsed.currency ?? "EUR";
+    const currentPrice = parsed.currentPrice ?? null;
+    const fingerprint = computeCreateIdempotencyFingerprint({
+      listingId: parsed.listingId,
+      buyerId: parsed.buyerId,
+      sellerId: parsed.sellerId,
+      currentPrice,
+      currency,
+      vertical,
+      fulfillmentType,
+      paymentMode,
+      verificationPolicy,
+      contractValueCents,
+      platformManagedAmountCents: managed,
+    });
+    const caps = await this.schemaCaps();
+
     if (parsed.idempotencyKey) {
       const existing = await this.db.query<TxRow>(
         `SELECT * FROM vauto_transactions WHERE idempotency_key = $1 LIMIT 1`,
         [parsed.idempotencyKey]
       );
-      if (existing.rows[0]) return mapTx(existing.rows[0]);
+      if (existing.rows[0]) {
+        return this.replayOrConflict(existing.rows[0], fingerprint, caps);
+      }
     }
+
     const id = parsed.id ?? randomUUID();
-    const rows = await this.db.query<TxRow>(
-      `INSERT INTO vauto_transactions (
-         id, listing_id, buyer_id, seller_id, status, current_price, currency,
-         version, idempotency_key, state_machine_version, created_at, updated_at
-       ) VALUES ($1,$2,$3,$4,'DISCUSSION',$5,$6,0,$7,'1.0',NOW(),NOW())
-       RETURNING *`,
-      [
-        id,
-        parsed.listingId,
-        parsed.buyerId,
-        parsed.sellerId,
-        parsed.currentPrice ?? null,
-        parsed.currency ?? "EUR",
-        parsed.idempotencyKey ?? null,
-      ]
-    );
-    return mapTx(rows.rows[0]!);
+    try {
+      if (caps.policy && caps.fingerprint) {
+        const rows = await this.db.query<TxRow>(
+          `INSERT INTO vauto_transactions (
+             id, listing_id, buyer_id, seller_id, status, current_price, currency,
+             version, idempotency_key, state_machine_version, created_at, updated_at,
+             vertical, fulfillment_type, payment_mode, verification_policy,
+             contract_value_cents, platform_managed_amount_cents, idempotency_fingerprint
+           ) VALUES ($1,$2,$3,$4,'DISCUSSION',$5,$6,0,$7,'1.0',NOW(),NOW(),$8,$9,$10,$11,$12,$13,$14)
+           RETURNING *`,
+          [
+            id,
+            parsed.listingId,
+            parsed.buyerId,
+            parsed.sellerId,
+            currentPrice,
+            currency,
+            parsed.idempotencyKey ?? null,
+            vertical,
+            fulfillmentType,
+            paymentMode,
+            verificationPolicy,
+            contractValueCents,
+            managed,
+            fingerprint,
+          ]
+        );
+        return mapTx(rows.rows[0]!);
+      }
+      if (caps.policy) {
+        const rows = await this.db.query<TxRow>(
+          `INSERT INTO vauto_transactions (
+             id, listing_id, buyer_id, seller_id, status, current_price, currency,
+             version, idempotency_key, state_machine_version, created_at, updated_at,
+             vertical, fulfillment_type, payment_mode, verification_policy,
+             contract_value_cents, platform_managed_amount_cents
+           ) VALUES ($1,$2,$3,$4,'DISCUSSION',$5,$6,0,$7,'1.0',NOW(),NOW(),$8,$9,$10,$11,$12,$13)
+           RETURNING *`,
+          [
+            id,
+            parsed.listingId,
+            parsed.buyerId,
+            parsed.sellerId,
+            currentPrice,
+            currency,
+            parsed.idempotencyKey ?? null,
+            vertical,
+            fulfillmentType,
+            paymentMode,
+            verificationPolicy,
+            contractValueCents,
+            managed,
+          ]
+        );
+        return mapTx(rows.rows[0]!);
+      }
+
+      const rows = await this.db.query<TxRow>(
+        `INSERT INTO vauto_transactions (
+           id, listing_id, buyer_id, seller_id, status, current_price, currency,
+           version, idempotency_key, state_machine_version, created_at, updated_at
+         ) VALUES ($1,$2,$3,$4,'DISCUSSION',$5,$6,0,$7,'1.0',NOW(),NOW())
+         RETURNING *`,
+        [
+          id,
+          parsed.listingId,
+          parsed.buyerId,
+          parsed.sellerId,
+          currentPrice,
+          currency,
+          parsed.idempotencyKey ?? null,
+        ]
+      );
+      return mapTx(rows.rows[0]!);
+    } catch (e) {
+      if (parsed.idempotencyKey && isUniqueViolation(e)) {
+        const existing = await this.db.query<TxRow>(
+          `SELECT * FROM vauto_transactions WHERE idempotency_key = $1 LIMIT 1`,
+          [parsed.idempotencyKey]
+        );
+        if (existing.rows[0]) {
+          return this.replayOrConflict(existing.rows[0], fingerprint, caps);
+        }
+      }
+      throw e;
+    }
   }
 
   async getById(id: string): Promise<VautoTransaction | null> {
@@ -227,10 +451,12 @@ export class TransactionRepository {
 
   private async getByIdOn(
     client: TxQueryable,
-    id: string
+    id: string,
+    opts?: { forUpdate?: boolean }
   ): Promise<VautoTransaction | null> {
+    const lock = opts?.forUpdate ? " FOR UPDATE" : "";
     const rows = await client.query<TxRow>(
-      `SELECT * FROM vauto_transactions WHERE id = $1`,
+      `SELECT * FROM vauto_transactions WHERE id = $1${lock}`,
       [id]
     );
     return rows.rows[0] ? mapTx(rows.rows[0]) : null;
@@ -296,7 +522,9 @@ export class TransactionRepository {
       };
     }
 
-    const current = await this.getByIdOn(client, parsed.transactionId);
+    const current = await this.getByIdOn(client, parsed.transactionId, {
+      forUpdate: true,
+    });
     if (!current) throw new TransactionNotFoundError(parsed.transactionId);
 
     // Optimistic lock first — stale clients get 409, not a misleading matrix error
@@ -311,8 +539,21 @@ export class TransactionRepository {
       current.status,
       parsed.toStatus,
       parsed.actorType,
-      parsed.reasonCode as ReasonCode
+      parsed.reasonCode as ReasonCode,
+      policyContextFromTx(current)
     );
+
+    if (current.fulfillmentType === "DIRECT_CONTACT") {
+      assertDirectContactCounterparty({
+        from: current.status,
+        to: parsed.toStatus,
+        actorType: parsed.actorType,
+        actorId: parsed.actorId,
+        buyerId: current.buyerId,
+        sellerId: current.sellerId,
+        claimedBy: current.interactionClaimedBy ?? null,
+      });
+    }
 
     const fingerprint = computeIdempotencyFingerprint({
       transactionId: parsed.transactionId,
@@ -341,6 +582,16 @@ export class TransactionRepository {
         parsed.transactionId,
         parsed.expectedVersion
       );
+    }
+
+    if (parsed.toStatus === "INTERACTION_CLAIMED") {
+      await client.query(
+        `UPDATE vauto_transactions
+         SET interaction_claimed_by = $1
+         WHERE id = $2`,
+        [parsed.actorId, parsed.transactionId]
+      );
+      updated.rows[0].interaction_claimed_by = parsed.actorId;
     }
 
     const payload = {

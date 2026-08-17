@@ -93,8 +93,9 @@ export default function AuthGatePage() {
         </button>
 
         <p className="mt-4 text-center text-xs leading-relaxed text-[var(--vauto-text-muted)]">
-          Automobilių, nekilnojamojo turto, paslaugų, mados ir įvairūs skelbimai — viena
-          paskyra viskam. Prisijunk ir leisk AI padaryti sunkų darbą už tave.
+          Transportas, nekilnojamasis turtas, darbas, paslaugos, elektronika ir
+          prekės — viena paskyra viskam. Prisijunk ir leisk AI padaryti sunkų darbą
+          už tave.
         </p>
 
         <Link

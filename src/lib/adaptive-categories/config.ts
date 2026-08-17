@@ -28,7 +28,7 @@ export const ADAPTIVE_CATEGORIES: Record<
 > = {
   vehicles: {
     key: "vehicles",
-    label: "AUTOMOBILIŲ",
+    label: "TRANSPORTAS",
     portalStyle: "Auto",
     layout: "technical-grid",
     baseFields: ["title", "price", "location", "contact", "description"],

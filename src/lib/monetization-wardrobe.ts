@@ -7,7 +7,7 @@ import type { ChatThread, EscrowTransaction, Listing, UserProfile } from "@/lib/
 
 /** Success-based micro-fee — tik Derybų dvynio sandoriams Spintos režime */
 export const WARDROBE_NEGOTIATION_TWIN_FEE_RATE = 0.03;
-export const WARDROBE_NEGOTIATION_TWIN_FEE_LABEL = "AI saugumo garantija";
+export const WARDROBE_NEGOTIATION_TWIN_FEE_LABEL = "AI derybų paslaugos mokestis";
 
 /** AI Visibility Booster — asmeninių stiliaus derinių srautas */
 export const WARDROBE_STYLE_BOOST_EUR = 1.49;

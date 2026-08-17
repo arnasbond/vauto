@@ -20,6 +20,7 @@ import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
 import { subscribeHomeReset } from "@/lib/home-reset";
 import { HomeAiValueBand } from "@/components/home/HomeValuePropCards";
 import { HomeVisualFlow } from "@/components/home/HomeVisualFlow";
+import { DesktopHomeLayout } from "@/components/layout/desktop/DesktopHomeLayout";
 
 function MarketplaceView() {
   const { rankedListings } = useVauto();
@@ -79,7 +80,9 @@ function MarketplaceView() {
         </>
       ) : null}
       <ContentSection>
-        <ListingGrid hideEmptyAssistant={emptySearchMode} />
+        <DesktopHomeLayout>
+          <ListingGrid hideEmptyAssistant={emptySearchMode} />
+        </DesktopHomeLayout>
       </ContentSection>
     </>
   );

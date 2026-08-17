@@ -13,42 +13,42 @@ import { cn } from "@/lib/cn";
 const STEPS = [
   {
     n: "1",
-    title: "Parduodu",
-    text: "Parodau nuotrauką arba papasakoju. VAUTO paruošia skelbimą. Aš patikrinu ir patvirtinu.",
+    title: "Rask / Paruošk",
+    text: "Pasakote, ko ieškote, arba nufotografuojate. VAUTO atrenka skelbimus arba paruošia juodraštį. Publikuojate ir pasirenkate jūs.",
     icon: Camera,
     mock: (
       <div className="mt-4 flex items-center gap-2 rounded-xl border border-dashed border-[var(--ds-border-strong)] bg-[var(--ds-surface-muted)] px-3 py-2.5">
         <Camera className="h-4 w-4 text-[var(--ds-ai)]" aria-hidden />
         <span className="truncate text-xs font-medium text-[var(--ds-text-muted)]">
-          citroen-ds5.jpg · „Parduodu…“
+          Paieška arba nuotrauka
         </span>
       </div>
     ),
   },
   {
     n: "2",
-    title: "Perku",
-    text: "Pasakau, ko ieškau. VAUTO atrenka. Palyginu ir pasirinkiu — AI nereiškia, kad pirkėjas garantuotas.",
+    title: "Susitark",
+    text: "Palyginate, deratės ir pateikiate pasiūlymą Deal Room. AI nereiškia, kad pirkėjas ar kaina garantuoti.",
     icon: Sparkles,
     mock: (
       <div className="mt-4 space-y-2">
         <div className="h-2 w-[80%] rounded-full bg-[var(--ds-ai)]/25" />
         <div className="h-2 w-[60%] rounded-full bg-[var(--ds-ai)]/15" />
         <Badge tone="ai" className="mt-1">
-          Atrinkta palyginimui
+          Pasiūlymas Deal Room
         </Badge>
       </div>
     ),
   },
   {
     n: "3",
-    title: "Sandoris",
-    text: "Susitariame. VAUTO padeda aiškiai pereiti eigą: mokėjimas, Omniva, gavimas. Būsenas tvirtina serveris.",
+    title: "Sandorio eiga",
+    text: "Platformos saugumo mechanizmai, jų ribos ir sąlygos: lėšos laikomos iki gavimo. Pirkėjas ir pardavėjas lieka atsakingi už objektą ir susitarimą.",
     icon: Package,
     mock: (
       <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-[var(--ds-success)]">
         <CheckCircle2 className="h-4 w-4" aria-hidden />
-        Eiga matoma Deal Room
+        Lėšos iki gavimo patvirtinimo
       </div>
     ),
   },
@@ -81,8 +81,8 @@ export function HomeVisualFlow({ className, onInsightCta }: HomeVisualFlowProps)
             Kaip tai veikia
           </h2>
           <p className="mt-2 text-[length:var(--ds-text-body-sm-size)] text-[var(--ds-text-muted)] sm:text-base">
-            Trys keliai: parduoti, pirkti ir vesti sandorį. AI padeda — jūs
-            sprendžiate.
+            Trys žingsniai: raskite arba paruoškite, susitarkite, veskite sandorį.
+            AI padeda — jūs sprendžiate.
           </p>
         </div>
 
@@ -129,7 +129,7 @@ export function HomeVisualFlow({ className, onInsightCta }: HomeVisualFlowProps)
         <div className="mx-auto mt-8 max-w-2xl">
           <AiInsightCard
             title="Kainos rėžis (rekomendacija): 6 650 €"
-            body="Pagal panašius Citroën C4 skelbimus tai analitinis rėžis, ne garantuota rinkos vertė ir ne automobilio būklės pažyma. Galutinę kainą nustato pardavėjas."
+            body="Pagal panašius skelbimus tai analitinis rėžis, ne garantuota rinkos vertė ir ne objekto būklės pažyma. Galutinę kainą nustato pardavėjas."
             ctaLabel="Pradėti su AI"
             onCta={onInsightCta}
           />

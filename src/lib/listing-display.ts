@@ -25,7 +25,7 @@ const APPAREL_TEXT_RE =
 
 /** Public-facing category badges (never uppercase portal jargon alone). */
 const PUBLIC_CATEGORY_LABELS: Partial<Record<ListingCategory, string>> = {
-  vehicles: "Automobiliai",
+  vehicles: "Transportas",
   transport: "Transportas",
   electronics: "Elektronika",
   clothing: "Apranga",

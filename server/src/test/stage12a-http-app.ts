@@ -56,6 +56,7 @@ import { deliveryRouter } from "../routes/delivery.js";
 import { disputeRouter } from "../routes/disputes.js";
 import { reputationRouter } from "../routes/reputation.js";
 import { transactionsRouter } from "../routes/transactions.js";
+import { universalDealRoomRouter } from "../routes/universal-deal-room.js";
 
 export const STAGE12A_WHSEC = "whsec_stage12a_test_secret_key_0001";
 
@@ -68,6 +69,7 @@ CREATE TABLE IF NOT EXISTS listings (
   image TEXT,
   images JSONB DEFAULT '[]'::jsonb,
   attributes JSONB DEFAULT '{}'::jsonb,
+  category TEXT DEFAULT 'electronics',
   status TEXT DEFAULT 'active'
 );
 `;
@@ -146,6 +148,10 @@ export async function startStage12aHarness(port = Number(process.env.PORT ?? 401
     res.json({ ok: true, harness: "stage12a", db: "pglite" });
   });
 
+  app.get("/api/listings", (_req, res) => {
+    res.json([]);
+  });
+
   app.post("/api/test/token", (req, res) => {
     const userId = String(req.body?.userId ?? "").trim();
     if (!userId) {
@@ -166,13 +172,17 @@ export async function startStage12aHarness(port = Number(process.env.PORT ?? 401
       const sellerId = String(req.body?.sellerId ?? "seller-12a");
       const title = String(req.body?.title ?? "VAUTO 12A bandymas");
       const price = Number(req.body?.price ?? 1000);
+      const category = String(req.body?.category ?? "electronics");
+      const attributes = req.body?.attributes && typeof req.body.attributes === "object"
+        ? req.body.attributes
+        : { _canonicalVertical: String(req.body?.verticalId ?? "ELECTRONICS") };
       await q.query(
-        `INSERT INTO listings (id, seller_id, title, price, image, attributes, status)
-         VALUES ($1,$2,$3,$4,'https://img.example/12a.jpg','{}'::jsonb,'active')
-         ON CONFLICT (id) DO UPDATE SET seller_id = EXCLUDED.seller_id, title = EXCLUDED.title, price = EXCLUDED.price`,
-        [id, sellerId, title, price]
+        `INSERT INTO listings (id, seller_id, title, price, image, attributes, category, status)
+         VALUES ($1,$2,$3,$4,'https://img.example/12a.jpg',$5::jsonb,$6,'active')
+         ON CONFLICT (id) DO UPDATE SET seller_id = EXCLUDED.seller_id, title = EXCLUDED.title, price = EXCLUDED.price, category = EXCLUDED.category, attributes = EXCLUDED.attributes`,
+        [id, sellerId, title, price, JSON.stringify(attributes), category]
       );
-      res.status(201).json({ id, sellerId, title, price });
+      res.status(201).json({ id, sellerId, title, price, category });
     } catch (e) {
       res.status(500).json({ error: e instanceof Error ? e.message : "seed_failed" });
     }
@@ -276,6 +286,7 @@ export async function startStage12aHarness(port = Number(process.env.PORT ?? 401
   app.use("/api", transactionsRouter);
   app.use("/api", offersRouter);
   app.use("/api", dealRoomRouter);
+  app.use("/api", universalDealRoomRouter);
   app.use("/api", paymentIntentRouter);
   app.use("/api", fundsTransferRouter);
   app.use("/api", deliveryRouter);

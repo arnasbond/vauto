@@ -4,6 +4,7 @@
 
 import { z } from "zod";
 import { REPUTATION_ENGINE_VERSION } from "./version.js";
+import { REVIEW_VERIFICATION_LEVELS } from "./types.js";
 
 export const SubmitReviewBodySchema = z
   .object({
@@ -22,6 +23,7 @@ export const VautoReviewSchema = z
     comment: z.string().nullable(),
     createdAt: z.string().min(1),
     reputationEngineVersion: z.literal(REPUTATION_ENGINE_VERSION),
+    verificationLevel: z.enum(REVIEW_VERIFICATION_LEVELS).default("L1_PLATFORM_TRANSACTION"),
   })
   .strict();
 

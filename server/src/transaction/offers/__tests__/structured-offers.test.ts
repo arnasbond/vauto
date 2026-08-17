@@ -20,7 +20,10 @@ import {
   type VautoOffer,
 } from "../index.js";
 import type { VautoTransaction } from "../../index.js";
-import { TRANSACTION_STATE_MACHINE_VERSION } from "../../index.js";
+import {
+  TRANSACTION_STATE_MACHINE_VERSION,
+  LEGACY_TRANSACTION_POLICY,
+} from "../../index.js";
 
 function offer(partial: Partial<VautoOffer> = {}): VautoOffer {
   return {
@@ -58,6 +61,7 @@ function tx(partial: Partial<VautoTransaction> = {}): VautoTransaction {
     stateMachineVersion: TRANSACTION_STATE_MACHINE_VERSION,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    ...LEGACY_TRANSACTION_POLICY,
     ...partial,
   };
 }

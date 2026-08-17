@@ -6,8 +6,12 @@ import { z } from "zod";
 import { TRANSACTION_STATE_MACHINE_VERSION } from "./version.js";
 import {
   ACTOR_TYPES,
+  FULFILLMENT_TYPES,
+  PAYMENT_MODES,
   REASON_CODES,
   TRANSACTION_STATUSES,
+  VERIFICATION_POLICIES,
+  VERTICALS,
 } from "./types.js";
 
 export const TransactionStatusSchema = z.enum(TRANSACTION_STATUSES);
@@ -29,6 +33,13 @@ export const VautoTransactionSchema = z
     stateMachineVersion: z.literal(TRANSACTION_STATE_MACHINE_VERSION),
     createdAt: z.string().min(10).max(40),
     updatedAt: z.string().min(10).max(40),
+    vertical: z.enum(VERTICALS).default("GOODS"),
+    fulfillmentType: z.enum(FULFILLMENT_TYPES).default("CARRIER_DELIVERY"),
+    paymentMode: z.enum(PAYMENT_MODES).default("FULL_ESCROW"),
+    verificationPolicy: z.enum(VERIFICATION_POLICIES).default("PLATFORM_TRANSACTION"),
+    contractValueCents: z.number().int().nonnegative().nullable().default(null),
+    platformManagedAmountCents: z.number().int().nonnegative().default(0),
+    interactionClaimedBy: z.string().min(1).max(128).nullable().optional(),
   })
   .strict();
 
@@ -64,6 +75,12 @@ export const CreateTransactionInputSchema = z
     currency: z.string().min(1).max(8).optional(),
     /** Creation idempotency — optional. */
     idempotencyKey: z.string().min(8).max(200).optional(),
+    vertical: z.enum(VERTICALS).optional(),
+    fulfillmentType: z.enum(FULFILLMENT_TYPES).optional(),
+    paymentMode: z.enum(PAYMENT_MODES).optional(),
+    verificationPolicy: z.enum(VERIFICATION_POLICIES).optional(),
+    contractValueCents: z.number().int().nonnegative().nullable().optional(),
+    platformManagedAmountCents: z.number().int().nonnegative().optional(),
   })
   .strict()
   .superRefine((input, ctx) => {

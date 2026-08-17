@@ -232,11 +232,17 @@ import {
 } from "@/lib/listing-contact-parse";
 import { logHeroContactReask, markHeroListingFlowStart } from "@/lib/hero-kpis";
 import {
-  STATIC_FASHION_LISTING_WELCOME,
-  STATIC_SELLER_LISTING_WELCOME,
   buildAiSellerListingSeed,
   requestChatComposerFocus,
+  sellerListingWelcome,
 } from "@/lib/start-ai-seller-listing";
+import { MARKETPLACE_VERTICAL_LABELS } from "@/lib/marketplace-verticals";
+import {
+  listingCategoryForVertical,
+  type VerticalId,
+} from "@vauto/shared/marketplace-domain";
+import { listingWizardOpenedChips } from "@/lib/agent-flow-wizard-orchestrator";
+import type { ListingCategory } from "@/lib/types";
 const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
 
 export interface AgentSendOptions {
@@ -301,6 +307,7 @@ interface VautoAgentContextValue {
   openAiSellerListingChat: (options?: {
     fashion?: boolean;
     navigateHome?: boolean;
+    verticalId?: VerticalId | null;
   }) => Promise<void>;
   /** Run modal/chip actions directly — never inject raw chip text as user messages. */
   handleDirectAgentChip: (chip: string) => Promise<boolean>;
@@ -3484,28 +3491,46 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const resetSellerChat = beginFreshListingChatSession;
 
   const openAiSellerListingChat = useCallback(
-    async (options?: { fashion?: boolean; navigateHome?: boolean }) => {
+    async (options?: {
+      fashion?: boolean;
+      navigateHome?: boolean;
+      verticalId?: VerticalId | null;
+    }) => {
       const fashion = Boolean(options?.fashion);
       const navigateHome = options?.navigateHome !== false;
+      const verticalId = fashion ? null : (options?.verticalId ?? null);
       // FORCE full session wipe — zero LLM / SSE on start (<100ms).
       resetSellerChat();
       const kpiSource = fashion
         ? "open_ai_seller_listing_fashion"
-        : "open_ai_seller_listing";
+        : verticalId
+          ? "open_ai_seller_listing_vertical"
+          : "open_ai_seller_listing";
       markHeroListingFlowStart(kpiSource);
       trackEvent("kpi_listing_flow_start", { source: kpiSource });
       if (fashion) activateWardrobeSpinta();
-      applyAgentListingDraft(buildAiSellerListingSeed(user, { fashion }), undefined, "agent", {
-        replaceSession: true,
-      });
+      applyAgentListingDraft(
+        buildAiSellerListingSeed(user, { fashion, verticalId }),
+        undefined,
+        "agent",
+        {
+          replaceSession: true,
+        }
+      );
       setBusy(false);
       setStreamThinkingLabelNow("");
+      const listingCategory = verticalId
+        ? (listingCategoryForVertical(verticalId) as ListingCategory)
+        : undefined;
       setMessages([
         {
           role: "assistant",
-          text: fashion
-            ? STATIC_FASHION_LISTING_WELCOME
-            : STATIC_SELLER_LISTING_WELCOME,
+          text: sellerListingWelcome({ fashion, verticalId }),
+          quickReplies: fashion
+            ? undefined
+            : verticalId
+              ? listingWizardOpenedChips(listingCategory)
+              : [...MARKETPLACE_VERTICAL_LABELS],
         },
       ]);
       setOpen(true);

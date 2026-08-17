@@ -97,7 +97,7 @@ export function VehicleListingResults({ listings, title }: VehicleListingResults
         className="rounded-lg border border-dashed p-6 text-center text-sm"
         style={{ borderColor: ui.border, color: ui.textMuted }}
       >
-        Automobilių nerasta. Pabandykite kitą markę ar miestą.
+        Transporto skelbimų nerasta. Pabandykite kitą frazę ar miestą.
       </p>
     );
   }

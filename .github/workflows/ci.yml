@@ -144,6 +144,21 @@ jobs:
       - name: Stage 11I.1 Reputation Engine
         run: npm run test:reputation-engine --prefix server
 
+      - name: Stage 11J Universal Transaction Core
+        run: npm run test:universal-core --prefix server
+
+      - name: Stage 13A Category Domain
+        run: npm run test:category-domain --prefix server
+
+      - name: Stage 13B Faceted Search
+        run: npm run test:faceted-search --prefix server
+
+      - name: Stage 13C Universal Deal Room
+        run: npm run test:deal-room-13c --prefix server
+
+      - name: Stage 13C.1 PostgreSQL concurrency
+        run: npm run test:deal-room-13c-pg --prefix server
+
       - name: Conductor kill-switch drill
         run: node scripts/conductor-kill-switch-drill.mjs
 
@@ -199,6 +214,23 @@ jobs:
 
       - name: Run Stage 12A Deal Room E2E
         run: npx playwright test e2e/stage12a-deal-room-flows.spec.ts
+        env:
+          CI: "true"
+          E2E_MINT_REAL_JWT: "1"
+          JWT_SECRET: vauto-dev-secret-change-in-production
+
+      - name: Run Stage 12B user comprehension E2E
+        run: npx playwright test e2e/stage12b-user-comprehension.spec.ts
+        env:
+          CI: "true"
+
+      - name: Run Stage 13B faceted filters E2E
+        run: npx playwright test e2e/stage13b-faceted-filters.spec.ts
+        env:
+          CI: "true"
+
+      - name: Run Stage 13C Deal Room E2E
+        run: npx playwright test e2e/stage13c-deal-room.spec.ts
         env:
           CI: "true"
           E2E_MINT_REAL_JWT: "1"

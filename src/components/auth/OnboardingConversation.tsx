@@ -21,7 +21,14 @@ const QUESTIONS = [
   {
     key: "preferredCategories",
     prompt: "Kokios kategorijos jums aktualiausios?",
-    options: ["Drabužiai", "Automobiliai", "Elektronika", "Buitis"],
+    options: [
+      "Transportas",
+      "Nekilnojamasis turtas",
+      "Elektronika",
+      "Paslaugos",
+      "Darbas",
+      "Namai ir sodas",
+    ],
   },
   {
     key: "notifyMatches",

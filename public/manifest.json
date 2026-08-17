@@ -1,7 +1,7 @@
 {
-  "name": "VAUTO — AI skelbimai ir paslaugos",
+  "name": "VAUTO — AI skelbimai: NT, transportas, darbas",
   "short_name": "VAUTO",
-  "description": "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
+  "description": "Parduokite ir raskite NT, techniką, paslaugas, darbą ir transportą visoje Lietuvoje. AI paruošia juodraštį — jūs patvirtinate.",
   "id": "https://www.vauto.lt/",
   "scope": "https://www.vauto.lt/",
   "start_url": "https://www.vauto.lt/",

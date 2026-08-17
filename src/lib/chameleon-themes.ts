@@ -84,7 +84,7 @@ const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
   autoplius: {
     id: "autoplius",
     bodyClass: "chameleon-autoplius",
-    portalLabel: "Automobilių skelbimas",
+    portalLabel: "Transporto skelbimas",
     classicLayout: true,
     promote: {
       modalTitle: "Paryškinti skelbimą",

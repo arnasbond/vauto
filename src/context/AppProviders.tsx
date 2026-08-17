@@ -11,6 +11,7 @@ import { VautoProvider } from "@/context/VautoContext";
 import { UserBehaviorProvider } from "@/context/UserBehaviorContext";
 import { LayoutModeProvider } from "@/context/LayoutModeContext";
 import { NativeErrorBoundary } from "@/components/NativeErrorBoundary";
+import { FacetUrlSync } from "@/components/marketplace/FacetUrlSync";
 import { AppVersionProvider } from "@/context/AppVersionContext";
 import { WebAutoUpdateHost } from "@/components/version/WebAutoUpdateHost";
 import { UserBehaviorNavigationTracker } from "@/components/agent/UserBehaviorNavigationTracker";
@@ -34,6 +35,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
                   <UserBehaviorNavigationTracker />
                   <ZeroUiScreenProvider>
                     <VautoSearchProvider>
+                      <FacetUrlSync />
                       <VautoProvider>{children}</VautoProvider>
                     </VautoSearchProvider>
                   </ZeroUiScreenProvider>

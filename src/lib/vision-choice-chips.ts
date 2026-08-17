@@ -169,7 +169,7 @@ export function resolveDocumentAmbiguityRetry(quickReplies: string[] | undefined
   if (!hadDocument || sellableChips.length !== 1) {
     return { shouldRetry: false, sellableChips, preferredSellText: null };
   }
-  const noun = sellableChips[0].replace(/^parduoti\s+/i, "").trim() || "automobilį";
+  const noun = sellableChips[0].replace(/^parduoti\s+/i, "").trim() || "objektą";
   return {
     shouldRetry: true,
     sellableChips,

@@ -18,10 +18,21 @@ export {
   VersionConflictError,
   TransactionNotFoundError,
   IdempotencyConflictError,
+  PolicyForbiddenError,
+  InvalidPolicyCompositionError,
+  LEGACY_TRANSACTION_POLICY,
+  VERTICALS,
+  FULFILLMENT_TYPES,
+  PAYMENT_MODES,
+  VERIFICATION_POLICIES,
   type TransactionStatus,
   type TerminalStatus,
   type ActorType,
   type ReasonCode,
+  type Vertical,
+  type FulfillmentType,
+  type PaymentMode,
+  type VerificationPolicy,
   type VautoTransaction,
   type TransitionCommand,
   type TransitionResult,
@@ -67,6 +78,7 @@ export {
   createTransactionRepository,
   TRANSACTION_MIGRATION_SQL,
   TRANSACTION_MIGRATION_ID,
+  computeCreateIdempotencyFingerprint,
   type TxQueryable,
   type CreateTransactionInput,
 } from "./repository.js";
@@ -80,3 +92,4 @@ export {
 } from "./tx-connection.js";
 
 export * from "./offers/index.js";
+export * from "./policies/index.js";

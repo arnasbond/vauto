@@ -4,7 +4,7 @@ import { isListingPublicInFeed } from "@/lib/listing-visibility";
 import { displayPublicNickname } from "@/lib/profile-display";
 
 const SELLER_NAMESPACE_LABELS: Record<string, string> = {
-  auto: "Automobilių",
+  auto: "Transporto",
   nt: "NT",
   job: "Darbo",
   clo: "Drabužių",

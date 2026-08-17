@@ -50,6 +50,49 @@ function idem() {
     : `12a-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+export type UniversalDealPayload = {
+  universalDealRoomVersion: string;
+  transaction: { id: string; status: string; version: number };
+  listing: { id: string; title: string; sellerId: string };
+  verticalId: string | null;
+  capabilities: {
+    supportsOffers: boolean;
+    supportsNegotiation: boolean;
+    supportsPlatformPayment: boolean;
+    supportsShipping: boolean;
+    supportsPickup: boolean;
+    supportsAppointments: boolean;
+    supportsApplications: boolean;
+  };
+  allowedDealActions: string[];
+  viewerDealActions: string[];
+  fulfillment: {
+    shipping: boolean;
+    pickup: boolean;
+    appointments: boolean;
+  };
+  dealState: string;
+  turn: "BUYER" | "SELLER" | "NONE";
+  viewerRole: "BUYER" | "SELLER";
+  activeOffer: {
+    id: string;
+    amountCents: number;
+    status: string;
+    version: number;
+    createdByRole: "BUYER" | "SELLER";
+    parentOfferId: string | null;
+  } | null;
+  acceptedAmountCents: number | null;
+  history: Array<{
+    id: string;
+    amountCents: number;
+    status: string;
+    createdByRole: "BUYER" | "SELLER";
+    parentOfferId: string | null;
+    createdAt: string;
+  }>;
+};
+
 export type DealRoomPayload = {
   transaction: { id: string; state: string; version: number };
   listing: {
@@ -139,9 +182,43 @@ export async function apiStartListingDeal(listingId: string) {
   );
 }
 
+export async function apiGetUniversalDeal(transactionId: string) {
+  return dealFetch<UniversalDealPayload>(
+    `/api/transactions/${encodeURIComponent(transactionId)}/universal-deal`
+  );
+}
+
 export async function apiGetDealRoom(transactionId: string) {
   return dealFetch<DealRoomPayload>(
     `/api/transactions/${encodeURIComponent(transactionId)}/deal-room`
+  );
+}
+
+export async function apiCounterOffer(
+  offerId: string,
+  input: { amountCents: number; expectedVersion: number }
+) {
+  return dealFetch<{ offer: { id: string }; transaction: { status: string } }>(
+    `/api/offers/${encodeURIComponent(offerId)}/counter`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        amountCents: input.amountCents,
+        currency: "EUR",
+        idempotencyKey: idem(),
+        expectedVersion: input.expectedVersion,
+      }),
+    }
+  );
+}
+
+export async function apiRejectOffer(offerId: string, expectedVersion: number) {
+  return dealFetch<{ transaction: { id: string; status: string } }>(
+    `/api/offers/${encodeURIComponent(offerId)}/reject`,
+    {
+      method: "POST",
+      body: JSON.stringify({ idempotencyKey: idem(), expectedVersion }),
+    }
   );
 }
 

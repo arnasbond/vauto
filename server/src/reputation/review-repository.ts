@@ -5,7 +5,7 @@
 import { randomUUID } from "node:crypto";
 import type { TxQueryable } from "../transaction/index.js";
 import { REPUTATION_ENGINE_VERSION } from "./version.js";
-import type { ReviewRating, VautoReview } from "./types.js";
+import type { ReviewRating, ReviewVerificationLevel, VautoReview } from "./types.js";
 
 type ReviewRow = {
   id: string;
@@ -16,6 +16,7 @@ type ReviewRow = {
   comment: string | null;
   reputation_engine_version: string;
   created_at: string | Date;
+  verification_level?: string;
 };
 
 function mapRow(r: ReviewRow): VautoReview {
@@ -31,6 +32,9 @@ function mapRow(r: ReviewRow): VautoReview {
         ? r.created_at
         : r.created_at.toISOString(),
     reputationEngineVersion: REPUTATION_ENGINE_VERSION,
+    verificationLevel:
+      (r.verification_level as ReviewVerificationLevel | undefined) ??
+      "L1_PLATFORM_TRANSACTION",
   };
 }
 
@@ -102,6 +106,7 @@ export class ReviewRepository {
     revieweeId: string;
     rating: ReviewRating;
     comment: string | null;
+    verificationLevel?: ReviewVerificationLevel;
   }): Promise<VautoReview> {
     const id = `rev_${randomUUID().replace(/-/g, "")}`;
     const res = await this.db.query<ReviewRow>(
@@ -120,6 +125,28 @@ export class ReviewRepository {
         REPUTATION_ENGINE_VERSION,
       ]
     );
-    return mapRow(res.rows[0]!);
+    const created = mapRow(res.rows[0]!);
+    const level = input.verificationLevel ?? "L1_PLATFORM_TRANSACTION";
+    if (level === "L1_PLATFORM_TRANSACTION") return created;
+    const col = await this.db.query<{ exists: boolean | string | number }>(
+      `SELECT EXISTS (
+         SELECT 1 FROM information_schema.columns
+         WHERE table_name = 'vauto_reviews' AND column_name = 'verification_level'
+       ) AS exists`
+    );
+    const hasCol =
+      col.rows[0]?.exists === true ||
+      col.rows[0]?.exists === "t" ||
+      col.rows[0]?.exists === 1;
+    if (!hasCol) {
+      return { ...created, verificationLevel: level };
+    }
+    const updated = await this.db.query<ReviewRow>(
+      `UPDATE vauto_reviews SET verification_level = $1 WHERE id = $2 RETURNING *`,
+      [level, created.id]
+    );
+    return updated.rows[0]
+      ? mapRow(updated.rows[0])
+      : { ...created, verificationLevel: level };
   }
 }

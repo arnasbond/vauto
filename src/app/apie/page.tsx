@@ -6,12 +6,12 @@ import {
   Briefcase,
   Camera,
   Car,
+  Cpu,
   Heart,
   Home,
   KeyRound,
   Languages,
   LineChart,
-  MessageCircle,
   Package,
   Search,
   Share2,
@@ -146,7 +146,7 @@ export default function ApiePage() {
     }
 
     const payload = {
-      title: "VAUTO — Šiuolaikiška automobilių prekybos ir sandorių platforma",
+      title: "VAUTO — universali skelbimų ir sandorių platforma",
       text: "AI padeda paruošti skelbimą ir vesti sandorio eigą. Žmogus sprendžia.",
       url: SITE_URL,
       dialogTitle: "Pasidalinti su draugais",
@@ -179,7 +179,7 @@ export default function ApiePage() {
             AI padeda. Žmogus sprendžia.
           </p>
           <h1 className="mt-4 text-2xl font-extrabold leading-tight text-[var(--vauto-text)] sm:text-3xl lg:text-[2rem]">
-            VAUTO — Šiuolaikiška automobilių prekybos ir sandorių platforma
+            VAUTO — universali skelbimų ir sandorių platforma
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--vauto-text-muted)] sm:text-[15px]">
             Vision AI ir pokalbio asistentas paruošia skelbimo juodraštį iš
@@ -223,7 +223,7 @@ export default function ApiePage() {
             <AudienceCard
               icon={Search}
               title="Pirkėjams"
-              description="Ieškokite automobilio, buto, paslaugos ar daikto vienu sakiniu. Nerandate dabar? Įjunkite „Laukiu šio daikto“ — pranešime, kai atsiras atitikmuo. Pasirinkimą darote jūs."
+              description="Ieškokite buto, paslaugos, technikos ar transporto vienu sakiniu. Nerandate dabar? Įjunkite „Laukiu šio daikto“ — pranešime, kai atsiras atitikmuo. Pasirinkimą darote jūs."
             />
             <AudienceCard
               icon={Heart}
@@ -339,39 +339,40 @@ export default function ApiePage() {
               Palaikymas skelbimų kategorijoms
             </h2>
             <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
-              Viena platforma — nuo transporto iki mados ir elektronikos.
+              Viena platforma — transportas, NT, elektronika, paslaugos, darbas,
+              namai ir sodas.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <CategoryRow
               icon={Car}
-              title="🚗 Automobiliai ir transportas"
-              description="VIN / numerių OCR padeda užpildyti laukus. Duomenis peržiūrite jūs — tai nepakeičia fizinės apžiūros."
+              title="Transportas"
+              description="Lengvieji, komerciniai, nuoma. VIN / numerių OCR padeda, kai tinka kategorijai — tai nepakeičia fizinės apžiūros."
             />
             <CategoryRow
               icon={Home}
-              title="🏠 Nekilnojamasis turtas"
+              title="Nekilnojamasis turtas"
               description="Butai, namai, sklypai ir nuoma — aiškiai, be painiavos."
             />
             <CategoryRow
+              icon={Cpu}
+              title="Elektronika"
+              description="Telefonai, kompiuteriai, technika — juodraštis iš nuotraukos ar sakinio, publikavimas rankinis."
+            />
+            <CategoryRow
               icon={Wrench}
-              title="🛠️ Paslaugos ir nuoma"
-              description="Remontas, grožis, transportas, įrangos nuoma — su teritorijos filtru."
+              title="Paslaugos"
+              description="Remontas, grožis, įrangos nuoma — su teritorijos filtru."
             />
             <CategoryRow
               icon={Briefcase}
-              title="💼 Darbo skelbimai"
+              title="Darbas"
               description="Darbo pozicijos verslui ir specialistams — vienoje platformoje."
             />
             <CategoryRow
               icon={Smartphone}
-              title="📦 Elektronika, mada ir daiktai"
-              description="Telefonai, drabužiai, buitis — juodraštis iš pakuotės nuotraukos ir rankinis publikavimas."
-            />
-            <CategoryRow
-              icon={MessageCircle}
-              title="💬 Realaus laiko pokalbiai"
-              description="Pirkėjas ↔ pardavėjas akimirksniu, su vieno mygtuko vertimu."
+              title="Namai ir sodas"
+              description="Baldai, buitis, sodo technika — lygiavertė kategorija šalia transporto ir NT."
             />
           </div>
         </section>

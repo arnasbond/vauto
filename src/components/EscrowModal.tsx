@@ -471,7 +471,7 @@ export function EscrowModal({
               <div className="mt-3 space-y-1 border-t border-slate-200 pt-3 text-xs text-slate-600">
                 <div className="flex justify-between">
                   <span>
-                    Pirkėjo apsauga ({BUYER_PROTECTION_FEE_PERCENT}%)
+                    Platformos paslaugos mokestis ({BUYER_PROTECTION_FEE_PERCENT}%)
                     {freeCredits > 0 ? " — nemokamai" : ""}
                   </span>
                   <span className="font-semibold">

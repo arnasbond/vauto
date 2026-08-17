@@ -36,7 +36,7 @@ export async function runMigrations(): Promise<{ applied: string[] }> {
     );
     if (rows.length > 0) continue;
 
-    const sql = readFileSync(join(dir, file), "utf8");
+    const sql = readFileSync(join(dir, file), "utf8").replace(/^\uFEFF/, "");
     const client = await pool.connect();
     try {
       await client.query("BEGIN");

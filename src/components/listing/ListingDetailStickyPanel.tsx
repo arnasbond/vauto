@@ -247,7 +247,7 @@ export function ListingDetailStickyPanel({
                 className="w-full"
                 data-start-deal-cta="1"
               >
-                Pradėti saugų sandorį
+                Pradėti sandorio eigą
               </Button>
             ) : null}
             {offersOmnivaShipping ? (
@@ -294,9 +294,19 @@ export function ListingDetailStickyPanel({
         ) : null}
         <Badge tone="info" className="gap-1">
           <ShieldCheck className="mr-1 inline h-3 w-3" aria-hidden />
-          Pirkėjo apsauga
+          Sandorio eiga per platformą
         </Badge>
       </div>
+      {offersOmnivaShipping ? (
+        <p
+          className="mt-2 text-xs leading-relaxed text-[var(--ds-text-muted)]"
+          data-omniva-hint
+        >
+          Siuntos būseną atnaujina Omniva. Sandorio „Išsiųsta“ atsiranda po
+          vežėjo skenavimo, ne iš naršyklės. Lėšos laikomos, kol patvirtinate
+          gavimą.
+        </p>
+      ) : null}
 
       {!isOwner ? (
         <div className="mt-5 border-t border-[var(--ds-border-subtle)] pt-4">

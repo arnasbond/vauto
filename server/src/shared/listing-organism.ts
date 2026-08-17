@@ -61,7 +61,7 @@ export const PRE_PUBLISH_CARD_INTRO =
 
 /** Soft invite when user chose to attach photos — never a hard block on sell text. */
 export const AWAITING_PHOTOS_PROMPT =
-  "Puiku — įkelkite nuotraukas čia pokalbyje (iki 12 automobiliui, iki 8 kitoms prekėms). Gera nuotrauka dažnai atneša kelis kartus daugiau dėmesio.";
+  "Puiku — įkelkite nuotraukas čia pokalbyje (iki 12 transportui, iki 8 kitoms prekėms). Gera nuotrauka dažnai atneša kelis kartus daugiau dėmesio.";
 
 export const AWAITING_PHOTOS_NUDGE =
   "Kai būsite pasiruošę — įkelkite nuotraukas per (+) mygtuką pokalbyje (iki 12 / 8 vnt. pagal kategoriją).";
@@ -78,7 +78,7 @@ export const TEXT_DRAFT_READY_GATE =
   "Paruošiau pilną skelbimo juodraštį! Galite jį peržiūrėti PrePublish kortelėje arba parašyti, ką norite patikslinti.";
 
 export const POST_VISION_MORE_PHOTOS_NUDGE =
-  "Gerai — įkelkite nuotraukas per (+) mygtuką (iki 12 automobiliui ar iki 8 kitoms). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
+  "Gerai — įkelkite nuotraukas per (+) mygtuką (iki 12 transportui ar iki 8 kitoms). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
 
 /** Step 2 chips — generate full marketplace draft. */
 export const POST_VISION_PUBLISH_CHIPS = [
@@ -91,7 +91,7 @@ export const TEXT_DRAFT_READY_CHIPS = ["🚀 Publikuoti", "✏️ Papildyti"] as
 
 /** Lean Step-1 sell greeting — physical goods (photos / packaging tips). */
 export const LEAN_SELL_GREETING =
-  "Puiku — esu jūsų pardavimo partneris! Įkelkite nuotraukas (prekė, etiketė, komplektacija — iki 8, automobiliui iki 12) ir kainą — padėsiu su aprašymu, rinkos kainos rėžiu ir Omniva paštomatu.";
+  "Pasirinkite kategoriją arba aprašykite objektą / prekę laisvai. Nuotrauka nebūtina pirmam žingsniui — padėsiu su antrašte, kaina ir lokacija. Publikuojate jūs.";
 
 /** Category-aware Step-1 greeting — no packaging tips for jobs/services/NT. */
 export function buildLeanSellGreeting(category?: string | null): string {
@@ -462,10 +462,10 @@ export function listingFlowComposerPlaceholder(
   state: ListingFlowState | null
 ): string | null {
   if (state === "AWAITING_PHOTOS") {
-    return "Įkelkite nuotraukas per (+) arba parašykite kainą…";
+    return "Įkelkite nuotraukas per (+) arba įveskite objekto / prekės pavadinimą…";
   }
   if (state === "DRAFT_READY") {
-    return "Parašykite ridą, TA, kainą ar kitą detalę…";
+    return "Parašykite kainą, lokaciją ar kitą detalę…";
   }
   if (state === "AWAITING_CONFIRMATION") {
     return "Patikslinkite čia arba spauskite „Publikuoti“ kortelėje";
