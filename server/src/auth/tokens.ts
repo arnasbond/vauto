@@ -64,7 +64,11 @@ export function verifyAccessToken(token: string): TokenPayload | null {
     .createHmac("sha256", SECRET)
     .update(`${header}.${body}`)
     .digest("base64url");
-  if (sig !== expected) return null;
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expected);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return null;
+  }
   try {
     const payload = JSON.parse(
       Buffer.from(body, "base64url").toString("utf8")

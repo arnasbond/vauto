@@ -108,6 +108,14 @@ jobs:
       - name: Stage 10K HTTP Auth Integration
         run: npm run test:stage10-http-integration --prefix server
 
+      - name: Stage 16 security / authz / migration chain
+        run: npm run test:stage16-security --prefix server
+
+      - name: Stage 16C migrate from zero (disposable Postgres)
+        run: node scripts/migrate-from-zero.mjs
+        env:
+          TEST_DATABASE_URL: postgres://vauto_test:vauto_test_pass@localhost:5432/vauto_test
+
       - name: Stage 11A Transaction State Machine
         run: npm run test:transaction-state-machine --prefix server
 

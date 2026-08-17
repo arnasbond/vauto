@@ -1,0 +1,20 @@
+name: Check schema migrations
+
+on:
+  workflow_dispatch:
+
+jobs:
+  schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install server deps
+        run: npm ci --prefix server
+      - name: READ-ONLY schema_migrations (filenames only)
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          NODE_TLS_REJECT_UNAUTHORIZED: "0"
+        run: node scripts/check-schema-migrations.mjs

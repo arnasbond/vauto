@@ -13,6 +13,7 @@ import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import { demoWalletTopUpAllowed } from "../demo-guards.js";
 import { requireOpsSecret } from "../middleware/ops-secret.js";
 import { pool, runInTransaction } from "../db.js";
+import { getMigrationStatus } from "../migrate.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { fetchListingsFeed } from "../controllers/listing-controller.js";
 import {
@@ -553,6 +554,12 @@ apiRouter.get("/health", async (_req, res) => {
     await pool.query("SELECT 1");
     serviceLeads = await serviceLeadsReady();
     embeddings = await getEmbeddingIndexStats();
+    let schema: Awaited<ReturnType<typeof getMigrationStatus>> | undefined;
+    try {
+      schema = await getMigrationStatus();
+    } catch {
+      schema = undefined;
+    }
     const readiness = computeReadiness(
       { ...features, serviceLeads },
       embeddings,
@@ -569,6 +576,16 @@ apiRouter.get("/health", async (_req, res) => {
       infra: infraWithFlags,
       embeddings,
       readiness,
+      schema: schema
+        ? {
+            upToDate: schema.upToDate,
+            expectedCount: schema.expectedCount,
+            appliedCount: schema.appliedCount,
+            latestApplied: schema.latestApplied,
+            pendingCount: schema.pending.length,
+            pending: schema.pending.slice(0, 32),
+          }
+        : { upToDate: false, pendingCount: -1 },
     });
   } catch (_e) {
     res.status(503).json({

@@ -68,3 +68,36 @@ export async function runMigrations(): Promise<{ applied: string[] }> {
 
   return { applied };
 }
+
+export type MigrationStatus = {
+  upToDate: boolean;
+  expectedCount: number;
+  appliedCount: number;
+  latestApplied: string | null;
+  pending: string[];
+};
+
+/**
+ * READ-ONLY schema_migrations vs on-disk files. Does not apply SQL.
+ * Used by /api/health and scripts/check-schema-migrations.mjs.
+ */
+export async function getMigrationStatus(): Promise<MigrationStatus> {
+  const dir = join(__dirname, "../migrations");
+  const expected = readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+  await ensureMigrationsTable();
+  const { rows } = await pool.query<{ filename: string }>(
+    "SELECT filename FROM schema_migrations ORDER BY filename"
+  );
+  const applied = new Set(rows.map((r) => r.filename));
+  const pending = expected.filter((f) => !applied.has(f));
+  const latestApplied = rows.length ? rows[rows.length - 1].filename : null;
+  return {
+    upToDate: pending.length === 0 && expected.length > 0,
+    expectedCount: expected.length,
+    appliedCount: rows.length,
+    latestApplied,
+    pending,
+  };
+}

@@ -33,6 +33,7 @@ import { reputationRouter } from "./routes/reputation.js";
 import { transactionsRouter } from "./routes/transactions.js";
 import { universalDealRoomRouter } from "./routes/universal-deal-room.js";
 import { optionalAuth, requireAuth } from "./middleware/auth.js";
+import { securityHeaders } from "./middleware/security-headers.js";
 import { aiRateLimiter, actionRateLimiter, apiRateLimiter, authRateLimiter, searchRateLimiter } from "./middleware/rate-limit.js";
 import { assertProductionEnv } from "./env-check.js";
 import { silenceProductionConsole } from "./lib/dev-log.js";
@@ -68,6 +69,7 @@ const corsAllowlist = new Set(
   ].filter(Boolean)
 );
 
+app.use(securityHeaders);
 app.use(
   cors({
     origin(origin, callback) {

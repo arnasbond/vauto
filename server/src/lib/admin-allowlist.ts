@@ -4,7 +4,11 @@
  */
 
 const DEFAULT_ADMIN_EMAIL = "admin@vauto.com";
-const DEFAULT_ADMIN_NAMES = ["arnas", "arnasbond"];
+
+/**
+ * Stage 16 S16-001: do NOT ship hardcoded operator first names.
+ * Name elevation is opt-in via ADMIN_NAMES only (comma-separated).
+ */
 
 export function resolveAdminEmail(): string {
   return (process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAIL).trim().toLowerCase();
@@ -24,7 +28,7 @@ export function resolveAdminNames(): string[] {
     .split(",")
     .map((n) => n.trim().toLowerCase())
     .filter(Boolean);
-  return [...new Set([...DEFAULT_ADMIN_NAMES, ...extras])];
+  return [...new Set(extras)];
 }
 
 export function normalizePhoneDigits(phone?: string | null): string {

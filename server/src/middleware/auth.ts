@@ -78,30 +78,34 @@ export function isAdminRole(role: string | null | undefined): boolean {
  * (elevated to super_admin on session — same Control Center owners).
  */
 export async function userIsAdmin(req: AuthedRequest): Promise<boolean> {
-  if (!req.authUserId) return false;
-  if (isAdminRole(req.authRole)) {
-    if (req.authRole === "super_admin") return true;
-    if (req.authUserId === "admin-1") return true;
+  try {
+    if (!req.authUserId) return false;
+    if (isAdminRole(req.authRole)) {
+      if (req.authRole === "super_admin") return true;
+      if (req.authUserId === "admin-1") return true;
+    }
+    const user = await getUser(req.authUserId);
+    if (!user) return false;
+    if (isAdminRole(user.role)) {
+      if (user.role === "super_admin") return true;
+      if (user.id === "admin-1") return true;
+      if (isAllowlistedAdminEmail(user.email)) return true;
+    }
+    if (
+      shouldElevateToSuperAdmin({
+        email: user.email,
+        phone: user.phone,
+        name: user.name,
+        nickname: user.nickname,
+        firstName: user.firstName,
+      })
+    ) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
   }
-  const user = await getUser(req.authUserId);
-  if (!user) return false;
-  if (isAdminRole(user.role)) {
-    if (user.role === "super_admin") return true;
-    if (user.id === "admin-1") return true;
-    if (isAllowlistedAdminEmail(user.email)) return true;
-  }
-  if (
-    shouldElevateToSuperAdmin({
-      email: user.email,
-      phone: user.phone,
-      name: user.name,
-      nickname: user.nickname,
-      firstName: user.firstName,
-    })
-  ) {
-    return true;
-  }
-  return false;
 }
 
 /**
