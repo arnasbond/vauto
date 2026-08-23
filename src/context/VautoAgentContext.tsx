@@ -3035,7 +3035,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
         speakReply(finalAssistantText || assistantText);
         if (hasExecutableAction) {
-          if (!isEmptySearchAction) {
+          if (!isEmptySearchAction && !options?.fromSearchBar) {
             setSearchQuery("");
           }
           if (

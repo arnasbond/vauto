@@ -40,7 +40,7 @@ export async function dismissGdpr(page: Page) {
  */
 export async function installFirstTimeSearchStub(
   page: Page,
-  mode: "hits" | "empty"
+  mode: "hits" | "empty" | "re"
 ) {
   await page.route("**/runtime-config.json", async (route) => {
     await route.fulfill({
@@ -53,9 +53,13 @@ export async function installFirstTimeSearchStub(
     });
   });
 
-  const agentResult =
-    mode === "empty"
-      ? {
+  // Deterministic canned agent result keyed to the fixture mode. Every mode
+  // returns a fixed, repeatable `actions.listingIds` set so the listing grid has
+  // a stable object set to assert against (never "passes if data exists").
+  const agentResult = (() => {
+    switch (mode) {
+      case "empty":
+        return {
           ok: true,
           reply:
             "Šiuo metu skelbimų pagal šią užklausą neradome. Įjunkite „Laukiu šio daikto“ — pranešime, kai atsiras, arba pabandykite kitą frazę.",
@@ -64,8 +68,26 @@ export async function installFirstTimeSearchStub(
             searchQuery: "zzzzqwerty999neegzistuoja",
           },
           toolCalls: [],
-        }
-      : {
+        };
+      case "re":
+        // Deterministic real-estate fixture: lt-nt-004 is a canonical REAL_ESTATE
+        // "Butas" in Telšiai. The query "butas Telšiai" is a canonical 13A/13B
+        // MATCH for it, so the pinned card ALWAYS renders (never a silent pass on
+        // a sparse/absent result set). 18N-9 asserts this RE card WITHOUT Omniva,
+        // and 18N-7/18N-17 get a deterministic RE grid/object set to traverse.
+        return {
+          ok: true,
+          reply: "Radau nekilnojamojo turto variantų.",
+          actions: {
+            type: "search",
+            listingIds: ["lt-nt-004"],
+            searchQuery: "butas Telšiai",
+          },
+          toolCalls: [],
+        };
+      case "hits":
+      default:
+        return {
           ok: true,
           reply: "Radau elektronikos variantus — peržiūrėkite tinklelyje.",
           actions: {
@@ -75,6 +97,8 @@ export async function installFirstTimeSearchStub(
           },
           toolCalls: [],
         };
+    }
+  })();
 
   const fulfill = async (route: Route) => {
     if (route.request().method() !== "POST") {
@@ -103,7 +127,7 @@ export async function installFirstTimeSearchStub(
 export async function openHome(
   page: Page,
   viewport?: { width: number; height: number },
-  opts?: { searchStub?: "hits" | "empty" }
+  opts?: { searchStub?: "hits" | "empty" | "re" }
 ) {
   if (viewport) await page.setViewportSize(viewport);
   if (opts?.searchStub) await installFirstTimeSearchStub(page, opts.searchStub);

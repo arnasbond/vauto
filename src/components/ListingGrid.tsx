@@ -1,13 +1,14 @@
 "use client";
 // @disk-refresh 2026-07-08T00:04 — supervisor DOM fixes
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { SmartBrokerCard } from "@/components/broker/SmartBrokerCard";
 import { VisualSearchStrip } from "@/components/search/VisualSearchStrip";
 import { WantedEmptyState } from "@/components/wishlist/WantedEmptyState";
 import { MarketplaceFilterBar } from "@/components/marketplace/MarketplaceFilterBar";
+import { AiInterpretationChips } from "@/components/marketplace/AiInterpretationChips";
 import { ListingCard } from "@/components/marketplace/ListingCard";
 import { ListingGridSkeleton } from "@/components/marketplace/ListingCardSkeleton";
 import { ListingMapView } from "@/components/marketplace/ListingMapView";
@@ -18,7 +19,9 @@ import { useVautoAgent } from "@/context/VautoAgentContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
+import { interpretAiFacets } from "@/lib/ai-facet-interpretation";
 import type { ChameleonThemeId } from "@/lib/chameleon-themes";
+import { cn } from "@/lib/cn";
 import {
   NATIVE_GRID_INITIAL,
   NATIVE_GRID_STEP,
@@ -49,15 +52,26 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
   const { messages, busy: agentBusy } = useVautoAgent();
   const {
     searchQuery,
+    setSearchQuery,
     viewMode,
     setViewMode,
     marketplaceFilters,
     setMarketplaceFilters,
     searchLoading,
   } = useVautoSearch();
-
   const nativeLimited = shouldLimitNativeFeed();
   const [nativeVisible, setNativeVisible] = useState(NATIVE_GRID_INITIAL);
+
+  // Stage 18A — keep the interpretation chips mounted across transient blanks of
+  // the canonical `searchQuery`. The agent applying a search action internally
+  // sets `searchQuery("")` to clear the box; holding the last meaningful query
+  // here prevents the AI readout from flickering/unmounting, while a genuinely
+  // new committed query always refreshes it.
+  const heldQueryRef = useRef(searchQuery);
+  const effectiveSearchQuery =
+    searchQuery.trim().length > 0
+      ? ((heldQueryRef.current = searchQuery), searchQuery)
+      : heldQueryRef.current;
 
   useEffect(() => {
     setNativeVisible(NATIVE_GRID_INITIAL);
@@ -67,6 +81,17 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     if (!nativeLimited) return items;
     return items.slice(0, nativeVisible);
   };
+
+  // Stage 18D/18F — vertical for adaptive card composition. Prefer the vertical
+  // derived from the active AI interpretation of the query (deterministic local
+  // adapter) so real-estate/jobs get the correct adaptive grid even when the
+  // agent applies a generic result that momentarily resets the canonical
+  // category. Fall back to the canonical filter category otherwise.
+  const interpretedVertical = searchQuery.trim().length >= 3
+    ? interpretAiFacets(effectiveSearchQuery).vertical
+    : ("all" as const);
+  const activeVertical =
+    interpretedVertical !== "all" ? interpretedVertical : marketplaceFilters.category ?? "all";
 
   const brokerSignal = buildSmartBrokerSignal(searchQuery, displayListings);
   const portal = portalExperienceForQuery(searchQuery);
@@ -117,7 +142,19 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     }
     return (
       <>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
+        {/* Stage 18F — vertical-aware responsive grid: real estate & jobs use a
+            single column on small phones (390ŌĆō430px) so photo/title/price/place
+            stay readable in 1ŌĆō2s; goods/vehicles keep the denser 2-col layout. */}
+        <div
+          data-listing-grid
+          data-grid-vertical={activeVertical}
+          className={cn(
+            "mt-3 grid gap-3 sm:gap-4",
+            activeVertical === "real_estate" || activeVertical === "jobs"
+              ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+              : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4"
+          )}
+        >
           {visible.map((listing) => (
             <ListingCard
               key={listing.id}
@@ -149,6 +186,15 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
           surface="mobile"
         />
       </div>
+
+      {effectiveSearchQuery.trim().length > 0 && (
+        <AiInterpretationChips
+          searchQuery={effectiveSearchQuery}
+          filters={marketplaceFilters}
+          onFiltersChange={setMarketplaceFilters}
+          onQueryChange={setSearchQuery}
+        />
+      )}
 
       {searchLoading ? (
         <ListingGridSkeleton

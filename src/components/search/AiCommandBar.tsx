@@ -165,13 +165,15 @@ export function AiCommandBar({
     setEmptySearchHint(false);
   }, []);
 
-  const forceBlankSearchInput = useCallback(() => {
-    setSearchQuery("");
+  // Stage 18A/18B ŌĆö blank only the visible input, keeping the canonical
+  // `searchQuery` alive so the editable AI interpretation chips render above the
+  // results (the readout is tied to `searchQuery`, not the ephemeral input).
+  const clearDraftOnly = useCallback(() => {
     setDraftQuery("");
     if (inputRef.current) {
       inputRef.current.value = "";
     }
-  }, [setSearchQuery]);
+  }, []);
 
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -238,6 +240,26 @@ export function AiCommandBar({
   const wardrobeSearchOnly =
     pathname === "/fashion" || pathname === "/fashion/";
 
+  // Stage 18A/18B ŌĆö keep the user's query as the canonical search query so the
+  // editable AI interpretation chips render above the results. The agent still
+  // owns the displayed listings (agent-pinned), so this does not change result
+  // derivation (18C). We set it immediately and re-assert after the current
+  // microtask/task drains so the agent's own deferred `setSearchQuery("")`
+  // (applied while completing a search action) cannot blank it and dismantle
+  // the readout.
+  const persistInterpretationQuery = useCallback(
+    (q: string) => {
+      setSearchQuery(q);
+      const t = window.setTimeout(() => {
+        setSearchQuery(q);
+      }, 0);
+      // The timeout is intentional; we do not cancel it here because a fresh
+      // `commitSearch` for a different query will overwrite it naturally.
+      void t;
+    },
+    [setSearchQuery]
+  );
+
   const scrollToResults = () => {
     document
       .getElementById("listing-results")
@@ -247,7 +269,9 @@ export function AiCommandBar({
   const syncGridFromAgentActions = useCallback(
     (actions: VautoAgentAction | undefined) => {
       if (!actions || actions.type === "none") return;
-      forceBlankSearchInput();
+      // Stage 18A/18B ŌĆö keep the canonical search query (so the editable AI
+      // readout chips keep showing); only clear the visible input text.
+      clearDraftOnly();
       applyAgentActions(actions);
       if (actions.type === "search") {
         focusSearchOutcome(actions.listingIds.length);
@@ -262,7 +286,7 @@ export function AiCommandBar({
         focusSearchOutcome(0);
       }
     },
-    [applyAgentActions, forceBlankSearchInput]
+    [applyAgentActions, clearDraftOnly]
   );
 
   const commitSearch = useCallback(
@@ -334,15 +358,17 @@ export function AiCommandBar({
           } else if (exec?.agentResult.ok) {
             scrollToResults();
           }
+          persistInterpretationQuery(q);
           scrollToResults();
           return;
         }
         const res = await sendAgentMessage(q, { fromSearchBar: true });
         if (res.actions) syncGridFromAgentActions(res.actions);
-        else if (res.ok) forceBlankSearchInput();
+        else if (res.ok) clearDraftOnly();
         else if (res.reply) {
           scrollToResults();
         }
+        persistInterpretationQuery(q);
       } finally {
         setSearchLoading(false);
       }
@@ -356,7 +382,7 @@ export function AiCommandBar({
       setViewMode,
       sendAgentMessage,
       syncGridFromAgentActions,
-      forceBlankSearchInput,
+      clearDraftOnly,
       pathname,
       trackEvent,
       wardrobeSearchOnly,
@@ -364,6 +390,7 @@ export function AiCommandBar({
       openWithGreeting,
       showEmptySearchHint,
       clearEmptySearchHint,
+      persistInterpretationQuery,
     ]
   );
 

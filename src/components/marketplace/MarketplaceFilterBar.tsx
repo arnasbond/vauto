@@ -20,6 +20,11 @@ import type { ListingCategory } from "@/lib/types";
 import { FacetFilterPanel } from "@/components/marketplace/FacetFilterPanel";
 import { useCanonicalFacetQuery } from "@/hooks/useCanonicalFacetUrl";
 import {
+  categoryForVerticalId,
+  coerceCategoryAttributesToCategory,
+  syncMarketplaceFiltersToUrl,
+} from "@/lib/marketplace-filter-url";
+import {
   activeFacetCount,
   serializeFacetSearchParams,
 } from "@vauto/shared/marketplace-domain";
@@ -195,16 +200,26 @@ export function MarketplaceFilterBar({
       q: searchQuery,
       page: 1,
     });
-    setQuery(draftQuery);
-    onFiltersChange(
-      normalizeMarketplaceFilters({
-        ...draft,
-        facetQueryString: params.toString(),
-      })
+    // Stage 18.3 §5 — when the drawer changed vertical, the canonical category for
+    // the (possibly new) vertical governs which chameleon attributes may survive.
+    const effectiveCategory = categoryForVerticalId(
+      draftQuery.verticalId,
+      draft.category
     );
+    const clean = coerceCategoryAttributesToCategory(draft, effectiveCategory);
+    const next = normalizeMarketplaceFilters({
+      ...clean,
+      facetQueryString: params.toString(),
+    });
+    setQuery(draftQuery);
+    onFiltersChange(next);
+    // Stage 18.3 — persist the classic drawer's complementary facets (location,
+    // price, condition, radius, chameleon attrs) into the same search URL so
+    // they survive reload/deep-link and stay in sync with AI chips.
+    syncMarketplaceFiltersToUrl(next);
     trackEvent("filter_change", {
       patch: { drawer: true },
-      category: draft.category,
+      category: clean.category,
     });
     closeDrawer();
   };

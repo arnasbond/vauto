@@ -15,6 +15,7 @@ import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
 import { FeedTierBadge, feedTierCardClass } from "@/components/marketplace/FeedTierBadge";
+import { hasDeliveryCapability } from "@/lib/listing-capabilities";
 import { cn } from "@/lib/cn";
 
 export type ListingCardLayout = "grid" | "list";
@@ -66,7 +67,7 @@ export function ListingCard({
   const resolvedPrice = priceColor || "var(--ds-brand, var(--vauto-ink))";
   const aiPrice = resolveAiPriceSignal(listing);
   const verified = isListingVerified(listing);
-  const omniva = Boolean(listing.allowPastomatas);
+  const omniva = hasDeliveryCapability(listing);
   const categoryLabel =
     MOCK_CATEGORY_LABELS[listing.category] ?? listing.category;
   const photoCount = listing.images?.length ?? 0;
