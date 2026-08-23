@@ -36,7 +36,7 @@ export function HomeCategoryGrid({ onSelect, className }: HomeCategoryGridProps)
                   "flex h-full min-h-[4.5rem] w-full flex-col items-start justify-center gap-1.5 rounded-2xl",
                   "border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] px-3 py-2.5 text-left",
                   "transition-[transform,border-color,background-color] duration-150",
-                  "hover:-translate-y-px hover:border-[var(--ds-brand)]/35 hover:bg-[var(--ds-brand-soft,#eef2ff)]",
+                  "hover:-translate-y-px hover:border-[var(--ds-brand)]/35 hover:bg-[var(--ds-brand-soft,#ecfdf5)]",
                   "focus-visible:outline-none focus-visible:shadow-[var(--ds-focus-ring-ai)]"
                 )}
               >

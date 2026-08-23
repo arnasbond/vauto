@@ -1,5 +1,5 @@
 import type { ListingCategory } from "@/lib/types";
-import { MOCK_CATEGORY_LABELS } from "@/data/mockListings";
+import { LISTING_CATEGORY_LABELS } from "@vauto/shared/category-registry";
 import type { VisualPipelinePayload } from "@/lib/visual-pipeline-merge";
 import type { ResolvedVisualSearchIntent } from "@/lib/gemini-search-intent";
 
@@ -42,7 +42,10 @@ export interface PendingPhotoIntent {
 
 export function listingCategoryLabel(category: ListingCategory | string | null | undefined): string {
   if (!category) return "daiktą";
-  return MOCK_CATEGORY_LABELS[category as ListingCategory] ?? String(category);
+  return (
+    LISTING_CATEGORY_LABELS[category as keyof typeof LISTING_CATEGORY_LABELS] ??
+    String(category)
+  );
 }
 
 export function buildPhotoIntentPrompt(objectLabel: string, categoryLabel: string): string {

@@ -6,8 +6,8 @@ import {
   formatListingPlaceLine,
   formatPrice,
   isAiDiscoverListing,
-  MOCK_CATEGORY_LABELS,
 } from "@/data/mockListings";
+import { LISTING_CATEGORY_LABELS } from "@vauto/shared/category-registry";
 import { ListingImage } from "@/components/listing/ListingImage";
 import { VerifiedReputationBadge } from "@/components/reputation/VerifiedReputationBadge";
 import { Badge, IconButton } from "@/design-system";
@@ -69,7 +69,8 @@ export function ListingCard({
   const verified = isListingVerified(listing);
   const omniva = hasDeliveryCapability(listing);
   const categoryLabel =
-    MOCK_CATEGORY_LABELS[listing.category] ?? listing.category;
+    LISTING_CATEGORY_LABELS[listing.category as keyof typeof LISTING_CATEGORY_LABELS] ??
+    listing.category;
   const photoCount = listing.images?.length ?? 0;
 
   const heart = showHeart ? (

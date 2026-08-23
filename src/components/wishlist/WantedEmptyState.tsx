@@ -13,12 +13,15 @@ interface WantedEmptyStateProps {
   searchQuery: string;
   borderColor?: string;
   textMuted?: string;
+  /** 21D-3 — zero-result recovery: clear restrictive criteria to broaden the search. */
+  onBroaden?: () => void;
 }
 
 export function WantedEmptyState({
   searchQuery,
   borderColor = "var(--vauto-border-input)",
   textMuted = "var(--vauto-text-muted)",
+  onBroaden,
 }: WantedEmptyStateProps) {
   const { isAuthenticated, openAuthModal, subscribeWishlist, showToast } =
     useVauto();
@@ -68,6 +71,15 @@ export function WantedEmptyState({
             ? "Išsaugoma…"
             : EMPTY_SEARCH_WISHLIST_CHIP}
       </button>
+      {onBroaden && (
+        <button
+          type="button"
+          onClick={onBroaden}
+          className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-[var(--vauto-border-input)] px-4 py-2.5 text-sm font-medium text-[var(--vauto-text-heading)] transition hover:bg-[var(--vauto-surface-page)]"
+        >
+          Platesnė paieška
+        </button>
+      )}
     </div>
   );
 }

@@ -15,7 +15,7 @@ import {
 import { Button, IconButton, Input, Modal, Select } from "@/design-system";
 import { cn } from "@/lib/cn";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
-import { MOCK_CATEGORY_LABELS } from "@/data/mockListings";
+import { LISTING_CATEGORY_LABELS } from "@vauto/shared/category-registry";
 import type { ListingCategory } from "@/lib/types";
 import { FacetFilterPanel } from "@/components/marketplace/FacetFilterPanel";
 import { useCanonicalFacetQuery } from "@/hooks/useCanonicalFacetUrl";
@@ -29,11 +29,16 @@ import {
   serializeFacetSearchParams,
 } from "@vauto/shared/marketplace-domain";
 
+const MARKETPLACE_CATEGORY_IDS = (
+  Object.keys(LISTING_CATEGORY_LABELS) as ListingCategory[]
+).filter((c) => c !== "transport");
+
 const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "all", label: "Visos kategorijos" },
-  ...(Object.entries(MOCK_CATEGORY_LABELS) as [ListingCategory, string][]).map(
-    ([value, label]) => ({ value, label })
-  ),
+  ...MARKETPLACE_CATEGORY_IDS.map((value) => ({
+    value,
+    label: LISTING_CATEGORY_LABELS[value],
+  })),
 ];
 
 function FilterFields({
@@ -201,7 +206,7 @@ export function MarketplaceFilterBar({
       page: 1,
     });
     // Stage 18.3 §5 — when the drawer changed vertical, the canonical category for
-    // the (possibly new) vertical governs which chameleon attributes may survive.
+    // the (possibly new) vertical governs which category attributes may survive.
     const effectiveCategory = categoryForVerticalId(
       draftQuery.verticalId,
       draft.category
@@ -214,7 +219,7 @@ export function MarketplaceFilterBar({
     setQuery(draftQuery);
     onFiltersChange(next);
     // Stage 18.3 — persist the classic drawer's complementary facets (location,
-    // price, condition, radius, chameleon attrs) into the same search URL so
+    // price, condition, radius, category attrs) into the same search URL so
     // they survive reload/deep-link and stay in sync with AI chips.
     syncMarketplaceFiltersToUrl(next);
     trackEvent("filter_change", {

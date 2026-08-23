@@ -2,7 +2,8 @@
 
 import { useRef, useState } from "react";
 import { MapPin, Loader2, Phone, X, Star } from "lucide-react";
-import { formatPrice, MOCK_CATEGORY_LABELS } from "@/data/mockListings";
+import { formatPrice } from "@/data/mockListings";
+import { LISTING_CATEGORY_LABELS } from "@vauto/shared/category-registry";
 import { cn } from "@/lib/cn";
 import {
   getPrePublishVisibilityOption,
@@ -11,7 +12,6 @@ import {
   type PrePublishVisibilityId,
 } from "@/lib/listing-publish-visibility";
 import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
-import type { ListingCategory } from "@/lib/types";
 import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 
 export interface PrePublishListingCardProps {
@@ -27,7 +27,10 @@ export interface PrePublishListingCardProps {
 
 function categoryLabel(category?: string): string {
   if (!category) return "Skelbimas";
-  return MOCK_CATEGORY_LABELS[category as ListingCategory] ?? category;
+  return (
+    LISTING_CATEGORY_LABELS[category as keyof typeof LISTING_CATEGORY_LABELS] ??
+    category
+  );
 }
 
 export function PrePublishListingCard({

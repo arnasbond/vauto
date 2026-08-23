@@ -8,6 +8,9 @@ interface TopAiCommandChromeProps {
   variant?: "default" | "wardrobe";
   seedQuery?: string | null;
   onSeedConsumed?: () => void;
+  /** Live draft mirror — lets the parent render the deterministic AI readout
+   * chips adjacent to the entry (single interpretation state). */
+  onDraftChange?: (next: string) => void;
   sticky?: boolean;
   className?: string;
 }
@@ -20,6 +23,7 @@ export function TopAiCommandChrome({
   variant = "default",
   seedQuery,
   onSeedConsumed,
+  onDraftChange,
   sticky = true,
   className,
 }: TopAiCommandChromeProps) {
@@ -52,6 +56,7 @@ export function TopAiCommandChrome({
           placement="top"
           seedQuery={seedQuery}
           onSeedConsumed={onSeedConsumed}
+          onDraftChange={onDraftChange}
         />
       </div>
     </div>

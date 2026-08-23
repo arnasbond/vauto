@@ -39,8 +39,37 @@ function normDiacritics(t: string): string {
   return t.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
 }
 
+/**
+ * Short tokens that are stems of longer Lithuanian words (not standalone
+ * words), so they must keep prefix matching even at ≤3 chars: "indas"/"indai"
+ * (HOME_GARDEN dishes) and "sofa"/"sofos" (HOME_GARDEN furniture). Standalone
+ * short tokens (marks/acronyms like "kia", "vw", "suv", "bmw", "gpu", "cv")
+ * require an exact whole-word match so "kažkokia" cannot fire "kia" and
+ * "suvartoti" cannot fire "suv".
+ */
+const SHORT_STEM_EXCEPTIONS: ReadonlySet<string> = new Set(["ind", "sof"]);
+
+/**
+ * 21C-3 — word-boundary matching. A synonym must match at the START of a word
+ * (never a mid-word substring): "kažkokia" must NOT fire the "kia" vehicle
+ * synonym and "suvartoti" must NOT fire "suv". Long tokens match as word
+ * prefixes, which keeps Lithuanian declension stems working ("butas" →
+ * "buto", "dyzel" → "dyzelinis", "kambari" → "kambarių"). Multi-word phrases
+ * ("technikos nuom", "cv ") keep exact substring semantics.
+ */
+export function hasWordBoundaryMatch(text: string, needles: readonly string[]): boolean {
+  const words = text.split(/[^a-z0-9]+/).filter(Boolean);
+  return needles.some((n) => {
+    if (n.includes(" ")) return text.includes(n);
+    if (n.length <= 3 && !SHORT_STEM_EXCEPTIONS.has(n)) {
+      return words.includes(n);
+    }
+    return words.some((w) => w.startsWith(n));
+  });
+}
+
 function hasAny(text: string, needles: readonly string[]): boolean {
-  return needles.some((n) => text.includes(n));
+  return hasWordBoundaryMatch(text, needles);
 }
 
 interface VerticalAdapterRule {

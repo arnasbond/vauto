@@ -29,6 +29,8 @@ import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 import { subscribeHomeReset } from "@/lib/home-reset";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
+import { interpretAiFacets } from "@/lib/ai-facet-interpretation";
+import { applyFacetChips } from "@/lib/apply-ai-facet";
 import { AI_FIRST_SEARCH_PLACEHOLDER } from "@/lib/ai-first-search-vision";
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
 import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
@@ -83,6 +85,13 @@ export interface AiCommandBarProps {
   /** Fill composer only (no auto-submit) — used by homepage example chips. */
   draftSeed?: string | null;
   onDraftSeedConsumed?: () => void;
+  /**
+   * Live draft preview — mirrors the composer's current text so a parent (e.g.
+   * the homepage hero) can surface the deterministic AI interpretation chips
+   * adjacent to the entry point without duplicating the interpretation state.
+   * The same canonical marketplace filter state is shared by both consumers.
+   */
+  onDraftChange?: (next: string) => void;
   className?: string;
   /** Wizard mode — collapsed FAB until tap or new assistant reply. */
   collapsible?: boolean;
@@ -98,6 +107,7 @@ export function AiCommandBar({
   onSeedConsumed,
   draftSeed,
   onDraftSeedConsumed,
+  onDraftChange,
   className,
   collapsible = false,
 }: AiCommandBarProps) {
@@ -120,6 +130,8 @@ export function AiCommandBar({
     searchLoading,
     setAgentPinnedListings,
     setViewMode,
+    marketplaceFilters,
+    setMarketplaceFilters,
   } = useVautoSearch();
 
   const pathname = usePathname();
@@ -149,6 +161,15 @@ export function AiCommandBar({
   const photoSourceModeRef = useRef<"attach" | "search">("attach");
   const inputRef = useRef<HTMLInputElement>(null);
   const prevAssistantRef = useRef("");
+  /**
+   * 21D-6 — LATEST CONFIRMED USER INTENT WINS. Every user-initiated search
+   * submission bumps this sequence. When the async agent/interpretation
+   * response resolves, the commit only applies if its sequence is still the
+   * LATEST (a stale A must never overwrite a newer B). This is the smallest
+   * safe race guard: no cancellation machinery, no second state model — just a
+   * monotonic commit id that makes stale async results no-ops.
+   */
+  const commitSeqRef = useRef(0);
 
   const showEmptySearchHint = useCallback(() => {
     setEmptySearchHint(true);
@@ -159,10 +180,14 @@ export function AiCommandBar({
     setEmptySearchHint(false);
   }, []);
 
-  const updateDraftQuery = useCallback((value: string) => {
-    setDraftQuery(value);
-    setEmptySearchHint(false);
-  }, []);
+  const updateDraftQuery = useCallback(
+    (value: string) => {
+      setDraftQuery(value);
+      setEmptySearchHint(false);
+      onDraftChange?.(value);
+    },
+    [onDraftChange]
+  );
 
   // Stage 18A/18B — blank only the visible input, keeping the canonical
   // `searchQuery` alive so the editable AI interpretation chips render above the
@@ -211,6 +236,7 @@ export function AiCommandBar({
         const text = ev.results?.[0]?.[0]?.transcript?.trim();
         if (text) {
           setDraftQuery(text);
+          onDraftChange?.(text);
           setEmptySearchHint(false);
         }
         setVoiceListening(false);
@@ -226,7 +252,7 @@ export function AiCommandBar({
       setVoiceListening(false);
       showToast("Nepavyko paleisti mikrofono", "info");
     }
-  }, [showToast]);
+  }, [onDraftChange, showToast]);
 
   const activeVertical =
     sellerStep !== "idle"
@@ -246,11 +272,15 @@ export function AiCommandBar({
   // microtask/task drains so the agent's own deferred `setSearchQuery("")`
   // (applied while completing a search action) cannot blank it and dismantle
   // the readout.
+  //
+  // 21D-6 — the deferred re-assert is ALSO sequence-guarded: a stale A timeout
+  // must never overwrite the canonical query of a newer confirmed B.
   const persistInterpretationQuery = useCallback(
-    (q: string) => {
+    (q: string, seq: number) => {
+      if (seq !== commitSeqRef.current) return;
       setSearchQuery(q);
       const t = window.setTimeout(() => {
-        setSearchQuery(q);
+        if (seq === commitSeqRef.current) setSearchQuery(q);
       }, 0);
       // The timeout is intentional; we do not cancel it here because a fresh
       // `commitSearch` for a different query will overwrite it naturally.
@@ -288,6 +318,48 @@ export function AiCommandBar({
     [applyAgentActions, clearDraftOnly]
   );
 
+  const runDeterministicFacetSearch = useCallback(
+    (query: string, reason: "agent_unavailable" | "agent_error") => {
+      // AI DOWN ≠ VAUTO DOWN — degrade to deterministic facet extraction + classic search.
+      const interpretation = interpretAiFacets(query);
+      const hasFacets =
+        interpretation.chips.length > 0 || interpretation.vertical !== "all";
+      setMarketplaceFilters(
+        hasFacets
+          ? applyFacetChips(marketplaceFilters, interpretation.chips)
+          : marketplaceFilters
+      );
+      const visibleQuery = interpretation.residualQuery.trim() || query;
+      setSearchQuery(visibleQuery);
+      setDraftQuery("");
+      setAgentPinnedListings(null);
+      trackEvent("search_submit", {
+        query,
+        voice: false,
+        wardrobeMode: false,
+        pathname: pathname ?? "/",
+        fallback: reason,
+      });
+      if (reason === "agent_unavailable") {
+        showToast(
+          "Asistentas šiuo metu nepasiekiamas — rodome rezultatus pagal jūsų užklausą.",
+          "info"
+        );
+      }
+      scrollToResults();
+    },
+    [
+      marketplaceFilters,
+      pathname,
+      setAgentPinnedListings,
+      setDraftQuery,
+      setMarketplaceFilters,
+      setSearchQuery,
+      showToast,
+      trackEvent,
+    ]
+  );
+
   const commitSearch = useCallback(
     async (raw: string) => {
       const q = stripLegacyCategorySuffixes(sanitizeSearchQuery(raw, "final"));
@@ -295,6 +367,11 @@ export function AiCommandBar({
         showEmptySearchHint();
         return;
       }
+      // 21D-6 — LATEST CONFIRMED USER INTENT WINS. Bump the commit sequence and
+      // capture it for this invocation. Any async response (agent search action
+      // or deterministic fallback) whose seq is no longer the latest is dropped:
+      // a slow/stale A can never overwrite a newer confirmed B.
+      const seq = ++commitSeqRef.current;
       clearEmptySearchHint();
 
       trackEvent("search_submit", {
@@ -350,26 +427,42 @@ export function AiCommandBar({
           ...conductorSearchQuerySource("AiCommandBar"),
           payload: { query: q, wardrobeSearchOnly },
         });
+        // 21D-6 — a newer commit (B) superseded this one while the agent was
+        // working: drop this stale response entirely (no state writes).
+        if (seq !== commitSeqRef.current) return;
         if (!conductorShouldDelegateLegacy(route)) {
           const exec = readConductorSearchExecute(route);
           if (exec?.agentResult.actions) {
             syncGridFromAgentActions(exec.agentResult.actions);
           } else if (exec?.agentResult.ok) {
             scrollToResults();
+          } else {
+            runDeterministicFacetSearch(q, "agent_unavailable");
           }
-          persistInterpretationQuery(q);
+          persistInterpretationQuery(q, seq);
           scrollToResults();
           return;
         }
         const res = await sendAgentMessage(q, { fromSearchBar: true });
-        if (res.actions) syncGridFromAgentActions(res.actions);
-        else if (res.ok) clearDraftOnly();
-        else if (res.reply) {
+        if (seq !== commitSeqRef.current) return;
+        if (res.actions) {
+          syncGridFromAgentActions(res.actions);
+        } else if (res.ok) {
+          clearDraftOnly();
+        } else if (res.reply) {
           scrollToResults();
+        } else {
+          runDeterministicFacetSearch(q, "agent_error");
         }
-        persistInterpretationQuery(q);
+        persistInterpretationQuery(q, seq);
+      } catch {
+        if (seq === commitSeqRef.current) {
+          runDeterministicFacetSearch(q, "agent_unavailable");
+        }
       } finally {
-        setSearchLoading(false);
+        if (seq === commitSeqRef.current) {
+          setSearchLoading(false);
+        }
       }
     },
     [
@@ -390,6 +483,7 @@ export function AiCommandBar({
       showEmptySearchHint,
       clearEmptySearchHint,
       persistInterpretationQuery,
+      runDeterministicFacetSearch,
     ]
   );
 
@@ -406,10 +500,11 @@ export function AiCommandBar({
     if (!draftSeed?.trim() || draftSeed === lastDraftSeedRef.current) return;
     lastDraftSeedRef.current = draftSeed;
     setDraftQuery(draftSeed);
+    onDraftChange?.(draftSeed);
     setEmptySearchHint(false);
     onDraftSeedConsumed?.();
     requestAnimationFrame(() => inputRef.current?.focus());
-  }, [draftSeed, onDraftSeedConsumed]);
+  }, [draftSeed, onDraftChange, onDraftSeedConsumed]);
 
   const handleSubmit = useCallback(
     async (e?: React.FormEvent) => {

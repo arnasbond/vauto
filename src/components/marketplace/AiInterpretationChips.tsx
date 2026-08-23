@@ -77,13 +77,36 @@ export function AiInterpretationChips({
   // (18B adapter → canonical search state). Keyword chips (make/model) are NOT
   // applied here — they edit the search query itself. A re-submit or a changed
   // query re-applies; a manual removal stays removed (matched via filter state).
+  //
+  // 21C-1 — idempotency guard: if the interpreted facet set already equals the
+  // committed canonical filter state, do NOT rewrite it. This prevents a
+  // stale-readout race where an AI-UP agent response (which also writes the
+  // canonical filter state via applyAgentActions) could be silently overwritten
+  // by the chips' interpretation effect on a later mount of the same query.
   const appliedRef = useRef<string | null>(null);
   useEffect(() => {
     if (!query) return;
     if (appliedRef.current === query) return;
     appliedRef.current = query;
+    const next = applyFacetChips(filters, rawChips);
+    // 21C-1 idempotency guard — deep-value comparison, not reference: normalize
+    // always produces a fresh object, so only skip when every canonical field is
+    // already equal. This prevents an AI-UP agent response (which also writes
+    // the canonical filter state) from being silently overwritten on a later
+    // mount of the same query.
+    const same =
+      next.category === filters.category &&
+      next.location === filters.location &&
+      next.priceMin === filters.priceMin &&
+      next.priceMax === filters.priceMax &&
+      next.condition === filters.condition &&
+      next.radiusKm === filters.radiusKm &&
+      next.sort === filters.sort &&
+      JSON.stringify(next.categoryAttributes) ===
+        JSON.stringify(filters.categoryAttributes);
+    if (same) return;
     // Apply the interpretation via the single production write bridge.
-    onFiltersChange(applyFacetChips(filters, rawChips));
+    onFiltersChange(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot per query
   }, [query]);
 

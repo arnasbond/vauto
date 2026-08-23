@@ -1,4 +1,4 @@
-import type { LegacyListingInput, Listing, UserProfile, ChatThread, ListingCategory } from "@/lib/types";
+import type { LegacyListingInput, Listing, UserProfile, ChatThread } from "@/lib/types";
 import { enrichListingCoords } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
 import {
@@ -8,21 +8,6 @@ import {
 import { isVerifiedServiceSeller, verifyVin } from "@/lib/trust";
 import type { FeedVisibilityTier } from "@/lib/feed-tier";
 import { LITHUANIA_MOCK_CATALOG } from "@/data/lithuania-mock-catalog";
-
-/** VAUTO kategorijų etiketės UI (Auto, Elektronika, Namai, …) */
-export const MOCK_CATEGORY_LABELS: Record<ListingCategory, string> = {
-  transport: "Transportas",
-  real_estate: "NT",
-  electronics: "Elektronika",
-  services: "Paslaugos",
-  jobs: "Darbas",
-  home: "Namai",
-  vehicles: "Lengvieji",
-  clothing: "Drabužiai",
-  tools: "Įrankiai",
-  rental: "Nuoma",
-  other: "Kita",
-};
 
 /** Ar skelbimas rodomas „AI atranda“ tinklelyje */
 export function isAiDiscoverListing(listing: Pick<Listing, "tags">): boolean {

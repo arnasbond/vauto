@@ -63,17 +63,20 @@ function AddRedirectShell({
 
 export default function AddPage() {
   const [isFashion, setIsFashion] = useState(false);
+  const [manualMode, setManualMode] = useState(false);
   const [selectedVertical, setSelectedVertical] = useState<string | null>(null);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
   const [queryVertical, setQueryVertical] = useState<string | null>(null);
   const [urlReady, setUrlReady] = useState(false);
   const { isAuthenticated, authHydrated, requireAuthForListing } = useVauto();
-  const { openAiSellerListingChat } = useVautoAgent();
+  const { openAiSellerListingChat, startManualListing } = useVautoAgent();
   const startedRef = useRef(false);
   const selectedVerticalId = resolveVerticalId(selectedSlug || queryVertical);
 
   useEffect(() => {
     try {
+      const params = new URLSearchParams(window.location.search);
+      setManualMode(params.get("manual") === "1");
       const parsed = parseAddListingSearch(window.location.search);
       setIsFashion(parsed.isFashion);
       setQueryVertical(parsed.uiSlug);
@@ -94,6 +97,13 @@ export default function AddPage() {
     if (!urlReady) return;
     if (startedRef.current) return;
     startedRef.current = true;
+    if (manualMode) {
+      startManualListing({
+        verticalId: resolveVerticalId(selectedSlug || queryVertical),
+        fashion: isFashion,
+      });
+      return;
+    }
     const verticalId = resolveVerticalId(selectedSlug || queryVertical);
     void openAiSellerListingChat({
       verticalId,
@@ -105,9 +115,11 @@ export default function AddPage() {
     isAuthenticated,
     urlReady,
     isFashion,
+    manualMode,
     queryVertical,
     selectedSlug,
     openAiSellerListingChat,
+    startManualListing,
   ]);
 
   if (!authHydrated) {
@@ -115,10 +127,12 @@ export default function AddPage() {
   }
 
   if (!isAuthenticated) {
-    const returnPath = addListingReturnPath({
-      isFashion,
-      uiSlug: selectedSlug ?? queryVertical,
-    });
+    const returnPath = manualMode
+      ? "/add?manual=1"
+      : addListingReturnPath({
+          isFashion,
+          uiSlug: selectedSlug ?? queryVertical,
+        });
     return (
       <VautoAdaptiveLayout>
         <div
@@ -170,6 +184,14 @@ export default function AddPage() {
               className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-[var(--ds-brand,#10b981)] px-5 text-sm font-bold text-white"
             >
               Prisijungti ir pradėti
+            </button>
+            <button
+              type="button"
+              data-seller-start-manual
+              onClick={() => requireAuthForListing("/add?manual=1")}
+              className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] px-5 text-sm font-bold text-[var(--ds-text-primary)]"
+            >
+              Sukurti skelbimą be AI
             </button>
           </HeroSection>
         </div>

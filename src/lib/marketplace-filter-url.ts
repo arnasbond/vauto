@@ -20,7 +20,7 @@ import { parseFacetSearchParams } from "@vauto/shared/marketplace-domain";
  * + the shared filterable attribute predicates. It does NOT carry the
  * frontend `MarketplaceFilterState` fields that `applyMarketplaceFilters`
  * actually consumes on the client: `location` (for most verticals),
- * `priceMin`/`priceMax`, `condition`, `radiusKm` and the chameleon
+ * `priceMin`/`priceMax`, `condition`, `radiusKm` and the vertical
  * `categoryAttributes` (rooms, propertyType, locationType, ...).
  *
  * This adapter adds a complementary, origin-agnostic URL layer so those AI /
@@ -36,7 +36,7 @@ import { parseFacetSearchParams } from "@vauto/shared/marketplace-domain";
  *   condition=new|used
  *   radius=5|10|20|50
  *   sort=cheapest|newest
- *   ca_<chameleonKey>=<value>  (one per active categoryAttributes entry)
+ *   ca_<categoryAttributeKey>=<value>  (one per active categoryAttributes entry)
  */
 export const CA_PARAM_PREFIX = "ca_";
 
@@ -66,7 +66,7 @@ function enc(value: string): string {
     .trim();
 }
 
-/** Round-trip a chameleon category attribute key through the URL prefix. */
+/** Round-trip a category attribute key through the URL prefix. */
 export function encodeCaKey(key: string): string {
   return `${CA_PARAM_PREFIX}${key}`;
 }
@@ -128,7 +128,7 @@ function owned13bKeys(params: URLSearchParams): Set<string> {
  * (State 18.3.1 replacement semantics).
  *
  * Stripping is restricted to:
- *  - price/radius/chameleon keys: owned ONLY by the complement (13B never writes
+ *  - price/radius/category-attr keys: owned ONLY by the complement (13B never writes
  *    `price_min`, `price_max`, `radius`, or `ca_*`), so an inactive state value
  *    is always safe to remove.
  *  - `condition` / `sort`: removed only when the complement itself authored the
@@ -223,7 +223,7 @@ export function serializeMarketplaceFiltersIntoUrl(
     next.set("sort", filters.sort);
   }
 
-  // Chameleon category attributes, allowlisted for the current category.
+  // Category attributes, allowlisted for the current category.
   const allowed =
     serializableCategory(filters.category)
       ? new Set(categoryFilterFieldsFor(filters.category).map((f) => f.key))

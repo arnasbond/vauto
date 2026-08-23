@@ -323,6 +323,15 @@ interface VautoAgentContextValue {
   resetPublishSession: () => void;
   /** Resume a saved draft into PrePublish (Phase B multi-draft). */
   revealPrePublishCard: () => void;
+  /**
+   * Manual / no-AI listing entry: builds a deterministic empty seed draft and
+   * opens the editable PrePublish card. No LLM/agent call. Publication still
+   * requires the user's explicit confirm via POST /api/listings.
+   */
+  startManualListing: (options?: {
+    verticalId?: VerticalId | null;
+    fashion?: boolean;
+  }) => void;
 }
 
 const VautoAgentContext = createContext<VautoAgentContextValue | null>(null);
@@ -3574,6 +3583,40 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     touchAgentSessionActivity();
   }, []);
 
+  /**
+   * Manual / no-AI listing creation entry (Stage 21B-1.4).
+   * Deterministic: builds an empty seed draft locally and opens the editable
+   * PrePublish card. No LLM / agent / SSE call is made. Publication still runs
+   * through SellerFlowContext.publishListing → POST /api/listings, which is the
+   * authoritative publication path and requires the user's explicit confirm.
+   */
+  const startManualListing = useCallback(
+    (options?: { verticalId?: import("@vauto/shared/marketplace-domain").VerticalId | null; fashion?: boolean }) => {
+      const fashion = Boolean(options?.fashion);
+      const verticalId = fashion ? null : (options?.verticalId ?? null);
+      resetSellerChat();
+      applyAgentListingDraft(
+        {
+          ...buildAiSellerListingSeed(user, { fashion, verticalId }),
+          listingFlowState: "AWAITING_CONFIRMATION",
+          description: "",
+        },
+        undefined,
+        "manual",
+        { replaceSession: true }
+      );
+      revealPrePublishCard();
+      trackEvent("kpi_listing_flow_start", { source: "manual_listing_entry" });
+    },
+    [
+      applyAgentListingDraft,
+      resetSellerChat,
+      revealPrePublishCard,
+      trackEvent,
+      user,
+    ]
+  );
+
   const handleDirectAgentChip = useCallback(
     async (chip: string): Promise<boolean> => {
       const trimmed = chip.trim();
@@ -3870,6 +3913,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       beginFreshListingChatSession,
       resetSellerChat,
       openAiSellerListingChat,
+      startManualListing,
     }),
     [
       open,
@@ -3891,6 +3935,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       beginFreshListingChatSession,
       resetSellerChat,
       openAiSellerListingChat,
+      startManualListing,
     ]
   );
 

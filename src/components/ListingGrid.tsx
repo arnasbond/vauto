@@ -100,6 +100,22 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
   const browseAllActive = resolveBrowseAllIntent(searchQuery);
   const supervisorContext = agentBusy || agentHasSupervisorReply(messages);
 
+  // 21D-3 — zero-result recovery: clear restrictive criteria (location/price/
+  // attributes) while keeping the committed query so results recompute
+  // immediately. Writes the canonical MarketplaceFilterState only — no second
+  // state model, no AI involvement.
+  const broadenSearch = () => {
+    setMarketplaceFilters({
+      ...marketplaceFilters,
+      location: "",
+      radiusKm: null,
+      priceMin: null,
+      priceMax: null,
+      condition: "all",
+      categoryAttributes: {},
+    });
+  };
+
   const renderListingCards = (items: typeof displayListings, showLoadMore = false) => {
     const visible = sliceForNative(items);
     const hasMore = nativeLimited && items.length > visible.length;
@@ -212,6 +228,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
                 searchQuery={searchQuery}
                 borderColor={ui.border}
                 textMuted={ui.textMuted}
+                onBroaden={broadenSearch}
               />
             ) : null
           ) : searchQuery.trim().length < 3 ? (
@@ -222,6 +239,19 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
               {emptyMessage(vertical)}
             </p>
           ) : null}
+
+          {/* 21D-3 — a zero-result state with restrictive criteria must never be
+              a dead end: always offer a deterministic broaden action. */}
+          {!isAbsurdSearchQuery(searchQuery, listings) &&
+            searchQuery.trim().length >= 3 && (
+              <button
+                type="button"
+                onClick={broadenSearch}
+                className="mt-3 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-[var(--vauto-border-input)] px-4 py-2.5 text-sm font-medium text-[var(--vauto-text-heading)] transition hover:bg-[var(--vauto-surface-page)]"
+              >
+                Platesnė paieška
+              </button>
+            )}
 
           {fallbackListings.length > 0 && (
             <div className="mt-6">

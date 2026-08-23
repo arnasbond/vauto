@@ -7,8 +7,10 @@ import { Badge } from "@/design-system";
 import { AiCommandBar } from "@/components/search/AiCommandBar";
 import { AgentChatStrip } from "@/components/home/AgentChatStrip";
 import { HomeCategoryGrid } from "@/components/home/HomeCategoryGrid";
+import { AiInterpretationChips } from "@/components/marketplace/AiInterpretationChips";
 import { useShellChrome } from "@/hooks/useShellChrome";
 import { useVautoAgent } from "@/context/VautoAgentContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useCanonicalFacetQuery } from "@/hooks/useCanonicalFacetUrl";
 import { resolveVerticalId } from "@vauto/shared/marketplace-domain";
 import { isEmbeddedAgentChatVisible } from "@/lib/agent-chat-layout";
@@ -56,9 +58,16 @@ export function HomeAiHero({
   const shell = useShellChrome();
   const { messages, busy, open } = useVautoAgent();
   const { setVertical } = useCanonicalFacetQuery();
+  const {
+    searchQuery,
+    setSearchQuery,
+    marketplaceFilters,
+    setMarketplaceFilters,
+  } = useVautoSearch();
   const chatActive = open || isEmbeddedAgentChatVisible(messages, busy);
   const [draftSeed, setDraftSeed] = useState<string | null>(null);
   const [activeChip, setActiveChip] = useState<string | null>(null);
+  const [liveDraft, setLiveDraft] = useState<string>("");
 
   const handleSeedConsumed = useCallback(() => {
     onSeedConsumed?.();
@@ -115,28 +124,28 @@ export function HomeAiHero({
   return (
     <div className="relative mb-4 overflow-hidden md:mb-6">
       <div
-        className="pointer-events-none absolute inset-0 -mx-4 opacity-90 md:mx-0"
+        className="pointer-events-none absolute inset-0 -mx-4 opacity-50 md:mx-0"
         aria-hidden
       >
         <div
-          className="absolute -left-16 top-0 h-72 w-72 rounded-full blur-3xl"
+          className="absolute -left-16 top-0 h-64 w-64 rounded-full blur-3xl"
           style={{
             background:
-              "radial-gradient(circle, color-mix(in srgb, var(--ds-ai, #059669) 28%, transparent), transparent 70%)",
+              "radial-gradient(circle, color-mix(in srgb, var(--ds-ai, #059669) 16%, transparent), transparent 70%)",
           }}
         />
         <div
-          className="absolute -right-10 top-8 h-64 w-64 rounded-full blur-3xl"
+          className="absolute -right-10 top-8 h-56 w-56 rounded-full blur-3xl"
           style={{
             background:
-              "radial-gradient(circle, color-mix(in srgb, var(--ds-brand, #10b981) 18%, transparent), transparent 68%)",
+              "radial-gradient(circle, color-mix(in srgb, var(--ds-brand, #10b981) 10%, transparent), transparent 68%)",
           }}
         />
         <div
-          className="absolute inset-x-0 top-24 h-40 opacity-40"
+          className="absolute inset-x-0 top-24 h-32 opacity-25"
           style={{
             background:
-              "linear-gradient(180deg, transparent, color-mix(in srgb, var(--ds-ai-soft, #eef2ff) 80%, transparent))",
+              "linear-gradient(180deg, transparent, color-mix(in srgb, var(--ds-ai-soft, #ecfdf5) 60%, transparent))",
           }}
         />
       </div>
@@ -200,7 +209,7 @@ export function HomeAiHero({
             </div>
 
             <ol
-              className="mt-4 grid max-w-3xl grid-cols-3 gap-1.5 sm:gap-2"
+              className="mt-4 flex max-w-3xl flex-col divide-y divide-[var(--ds-border-subtle)] overflow-hidden rounded-2xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)]/70 sm:flex-row sm:divide-x sm:divide-y-0"
               data-home-how-it-works
               aria-label="Kaip tai veikia"
             >
@@ -209,16 +218,18 @@ export function HomeAiHero({
                 return (
                   <li
                     key={step.n}
-                    className="rounded-2xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)]/90 px-3 py-2.5"
+                    className="flex flex-1 items-center gap-2.5 px-3 py-2.5"
                   >
-                    <p className="flex flex-col items-start gap-0.5 text-[10px] font-bold uppercase leading-tight tracking-wide text-[var(--ds-brand)] sm:flex-row sm:items-center sm:gap-1.5 sm:text-[11px]">
-                      <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                      <span>
-                        {step.n}. {step.title}
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[var(--ds-ai-soft)] text-[var(--ds-ai-strong)]">
+                      <Icon className="h-4 w-4" aria-hidden />
+                    </span>
+                    <p className="min-w-0">
+                      <span className="block text-[11px] font-bold uppercase tracking-wide text-[var(--ds-brand)]">
+                        {step.title}
                       </span>
-                    </p>
-                    <p className="mt-1 hidden text-[11px] leading-snug text-[var(--ds-text-muted)] sm:block sm:text-xs">
-                      {step.text}
+                      <span className="mt-0.5 hidden text-[11px] leading-snug text-[var(--ds-text-muted)] sm:block sm:text-xs">
+                        {step.text}
+                      </span>
                     </p>
                   </li>
                 );
@@ -227,10 +238,10 @@ export function HomeAiHero({
 
             <div className="home-ai-copilot-shell relative mt-5 w-full max-w-3xl">
               <div
-                className="pointer-events-none absolute -inset-3 rounded-[2rem] opacity-70 blur-xl transition-opacity duration-[var(--ds-duration-normal,180ms)]"
+                className="pointer-events-none absolute -inset-1.5 rounded-[1.75rem] opacity-40"
                 style={{
                   background:
-                    "radial-gradient(60% 80% at 50% 50%, color-mix(in srgb, var(--ds-ai) 35%, transparent), transparent)",
+                    "radial-gradient(60% 80% at 50% 50%, color-mix(in srgb, var(--ds-ai) 22%, transparent), transparent)",
                 }}
                 aria-hidden
               />
@@ -240,7 +251,17 @@ export function HomeAiHero({
                 onSeedConsumed={handleSeedConsumed}
                 draftSeed={draftSeed}
                 onDraftSeedConsumed={handleDraftSeedConsumed}
+                onDraftChange={setLiveDraft}
                 className="relative z-[1]"
+              />
+            </div>
+
+            <div className="mt-2.5 w-full max-w-3xl">
+              <AiInterpretationChips
+                searchQuery={liveDraft.trim() || searchQuery.trim()}
+                filters={marketplaceFilters}
+                onFiltersChange={setMarketplaceFilters}
+                onQueryChange={setSearchQuery}
               />
             </div>
 
@@ -256,8 +277,8 @@ export function HomeAiHero({
                   type="button"
                   onClick={() => handleChip(chip)}
                   className={cn(
-                    "rounded-full border border-[var(--ds-border-subtle,#e6e9f0)] bg-[var(--ds-surface-card,#fff)] px-3 py-1.5",
-                    "text-left text-[12px] font-medium text-[var(--ds-text-secondary)] shadow-[var(--ds-shadow-xs)]",
+                    "max-w-full rounded-full border border-[var(--ds-border-subtle,#e6e9f0)] bg-[var(--ds-surface-card,#fff)] px-3 py-1.5",
+                    "text-left text-[12px] font-medium leading-snug text-[var(--ds-text-secondary)] shadow-[var(--ds-shadow-xs)]",
                     "transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-[var(--ds-ease)]",
                     "hover:-translate-y-px hover:border-[var(--ds-ai)]/40 hover:bg-[var(--ds-ai-soft)] hover:shadow-[var(--ds-shadow-sm)]",
                     "focus-visible:outline-none focus-visible:shadow-[var(--ds-focus-ring-ai)]",
@@ -265,7 +286,7 @@ export function HomeAiHero({
                       "border-[var(--ds-ai)]/50 bg-[var(--ds-ai-soft)] text-[var(--ds-ai-strong)]"
                   )}
                 >
-                  {chip}
+                  <span className="line-clamp-2 break-words">{chip}</span>
                 </button>
               ))}
               </div>
