@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -17,40 +13,13 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "plugins": [{ "name": "next" }],
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@vauto/shared/*": [
-        "./shared/*"
-      ]
+      "@/*": ["./src/*"],
+      "@vauto/shared/*": ["./shared/*"]
     }
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    "shared/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "server",
-    "api",
-    "canvases",
-    "e2e",
-    "playwright-report",
-    "playwright-report-prod-real",
-    "shared/**/*.test.ts",
-    "stage18-delta-archive",
-    "stage18-1-delta",
-    "stage18-2-delta",
-    "stage18-2-1-delta"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "shared/**/*.ts"],
+  "exclude": ["node_modules", "server", "api", "canvases", "e2e", "playwright-report", "playwright-report-prod-real", "shared/**/*.test.ts", "staging", "stage18-delta-archive", "stage18-1-delta", "stage18-2-delta", "stage18-2-1-delta", "stage18-3-delta"]
 }

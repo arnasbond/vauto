@@ -17,7 +17,8 @@ export function Tabs({ items, value, onChange, className }: TabsProps) {
     <div
       role="tablist"
       className={cn(
-        "inline-flex gap-1 rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)] p-1",
+        "inline-flex w-full max-w-full items-center gap-1 overflow-x-auto rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)] p-1",
+        "scrollbar-hide",
         className
       )}
     >
@@ -32,7 +33,7 @@ export function Tabs({ items, value, onChange, className }: TabsProps) {
             disabled={item.disabled}
             onClick={() => onChange(item.id)}
             className={cn(
-              "ds-focusable rounded-[calc(var(--ds-radius-control)-2px)] px-3 py-1.5 text-[length:var(--ds-text-body-sm-size)] font-semibold transition-colors duration-[var(--ds-duration-fast)] disabled:opacity-50",
+              "ds-focusable whitespace-nowrap rounded-[calc(var(--ds-radius-control)-2px)] px-3 py-1.5 text-[length:var(--ds-text-body-sm-size)] font-semibold transition-colors duration-[var(--ds-duration-fast)] disabled:opacity-50",
               active
                 ? "bg-[var(--ds-surface-card)] text-[var(--ds-text-primary)] shadow-[var(--ds-shadow-xs)]"
                 : "text-[var(--ds-text-muted)] hover:text-[var(--ds-text-primary)]"

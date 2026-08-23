@@ -28,8 +28,8 @@ interface AppThemeContextValue {
 const AppThemeContext = createContext<AppThemeContextValue | null>(null);
 
 const THEME_COLORS: Record<AppThemeId, string> = {
-  light: "#F4F7FC",
-  dark: "#0a0f18",
+  light: "#F7F8FB",
+  dark: "#0b1220",
 };
 
 function applyThemeToDocument(theme: AppThemeId): void {

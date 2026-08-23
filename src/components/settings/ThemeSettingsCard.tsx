@@ -7,8 +7,8 @@ import { cn } from "@/lib/cn";
 import { Panel } from "@/components/ui/surface";
 
 const SWATCH: Record<AppThemeId, string> = {
-  light: "bg-gradient-to-br from-[#F4F7FC] via-white to-[#ECFDF5]",
-  dark: "bg-gradient-to-br from-[#0B0F19] via-[#161C2A] to-[#1a2744]",
+  light: "bg-gradient-to-br from-[#F7F8FB] via-white to-[#ECFDF5]",
+  dark: "bg-gradient-to-br from-[#0B1220] via-[#121A2B] to-[#182235]",
 };
 
 /**

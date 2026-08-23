@@ -31,8 +31,8 @@ const VARIANT: Record<DsButtonVariant, string> = {
   ghost:
     "bg-transparent text-[var(--ds-text-secondary)] hover:bg-[var(--ds-surface-muted)] hover:text-[var(--ds-text-primary)]",
   danger:
-    "bg-[var(--ds-danger)] text-[var(--ds-danger-contrast)] hover:brightness-95 shadow-[var(--ds-shadow-xs)]",
-  ai: "text-[var(--ds-ai-contrast)] shadow-[var(--ds-shadow-xs)] hover:brightness-105 [background:var(--ds-ai-gradient)]",
+    "bg-[var(--ds-danger)] text-[var(--ds-danger-contrast)] hover:bg-[var(--ds-danger)]/90 shadow-[var(--ds-shadow-xs)]",
+  ai: "text-[var(--ds-ai-contrast)] shadow-[var(--ds-shadow-xs)] [background:var(--ds-ai-gradient)] hover:opacity-90",
 };
 
 export function Button({
@@ -62,9 +62,9 @@ export function Button({
         s.height,
         s.text,
         s.gap,
-        iconOnly ? "aspect-square px-0 w-auto min-w-[2.5rem]" : s.paddingX,
+        iconOnly ? "aspect-square px-0 w-auto min-w-[2.25rem] min-h-9" : s.paddingX,
         VARIANT[variant],
-        isDisabled && "cursor-not-allowed opacity-50 hover:brightness-100",
+        isDisabled && "cursor-not-allowed opacity-[var(--ds-disabled-opacity)] hover:opacity-[var(--ds-disabled-opacity)]",
         !isDisabled && "active:scale-[0.99]",
         className
       )}

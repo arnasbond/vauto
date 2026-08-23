@@ -165,7 +165,7 @@ export function AiCommandBar({
     setEmptySearchHint(false);
   }, []);
 
-  // Stage 18A/18B ŌĆö blank only the visible input, keeping the canonical
+  // Stage 18A/18B — blank only the visible input, keeping the canonical
   // `searchQuery` alive so the editable AI interpretation chips render above the
   // results (the readout is tied to `searchQuery`, not the ephemeral input).
   const clearDraftOnly = useCallback(() => {
@@ -240,7 +240,7 @@ export function AiCommandBar({
   const wardrobeSearchOnly =
     pathname === "/fashion" || pathname === "/fashion/";
 
-  // Stage 18A/18B ŌĆö keep the user's query as the canonical search query so the
+  // Stage 18A/18B — keep the user's query as the canonical search query so the
   // editable AI interpretation chips render above the results. The agent still
   // owns the displayed listings (agent-pinned), so this does not change result
   // derivation (18C). We set it immediately and re-assert after the current
@@ -269,7 +269,7 @@ export function AiCommandBar({
   const syncGridFromAgentActions = useCallback(
     (actions: VautoAgentAction | undefined) => {
       if (!actions || actions.type === "none") return;
-      // Stage 18A/18B ŌĆö keep the canonical search query (so the editable AI
+      // Stage 18A/18B — keep the canonical search query (so the editable AI
       // readout chips keep showing); only clear the visible input text.
       clearDraftOnly();
       applyAgentActions(actions);
@@ -905,12 +905,12 @@ export function AiCommandBar({
             ? "home-ai-hero-search home-ai-copilot-bar ds-ai-glow rounded-full py-2 pl-4 pr-2 shadow-md sm:pl-5 sm:pr-2"
             : !isChatBar && "vauto-surface-panel rounded-xl py-1.5 pl-3.5 pr-2",
           zeroUiActive && "zero-ui-search-active",
-          emptySearchHint && !isChatBar && "border-[var(--ds-ai,#6366f1)]/45",
+          emptySearchHint && !isChatBar && "border-[var(--ds-ai,#059669)]/45",
           className
         )}
         style={{
           borderColor: isTopBar
-            ? "color-mix(in srgb, var(--ds-ai, #6366f1) 35%, var(--vauto-border))"
+            ? "color-mix(in srgb, var(--ds-ai, #059669) 35%, var(--vauto-border))"
             : ui.searchBorder,
         }}
         onSubmit={(e) => void handleSubmit(e)}
@@ -976,7 +976,7 @@ export function AiCommandBar({
           className={cn(
             "min-w-0 flex-1 border-none bg-transparent outline-none vauto-body-text",
             isTopBar
-              ? "truncate text-[15px] text-[var(--vauto-text-main)] caret-[var(--ds-ai,#6366f1)] placeholder:text-[#4b5563]"
+              ? "truncate text-[15px] text-[var(--vauto-text-main)] caret-[var(--ds-ai,#059669)] placeholder:text-[#4b5563]"
               : "text-sm text-[var(--vauto-text-main)] caret-[var(--vauto-primary)] placeholder:text-[#4b5563]"
           )}
           disabled={isChatBar ? listingComposerLocked : searchComposerLocked}

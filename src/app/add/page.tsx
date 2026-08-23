@@ -167,7 +167,7 @@ export default function AddPage() {
               type="button"
               data-seller-start-auth
               onClick={() => requireAuthForListing(returnPath)}
-              className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-[var(--ds-brand,#1b4dff)] px-5 text-sm font-bold text-white"
+              className="mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-[var(--ds-brand,#10b981)] px-5 text-sm font-bold text-white"
             >
               Prisijungti ir pradėti
             </button>

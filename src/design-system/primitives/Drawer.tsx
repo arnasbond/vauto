@@ -87,7 +87,8 @@ export function Drawer({
 
   return (
     <div
-      className="fixed inset-0 z-[180] flex bg-black/45 backdrop-blur-md sm:bg-black/40"
+      className="fixed inset-0 z-[180] flex"
+      style={{ background: "var(--ds-overlay)", backdropFilter: "var(--ds-overlay-blur)" }}
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();

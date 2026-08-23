@@ -183,7 +183,8 @@ export function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-[180] flex items-end justify-center bg-black/45 p-4 backdrop-blur-md sm:items-center"
+      className="fixed inset-0 z-[180] flex items-end justify-center p-4 sm:items-center"
+      style={{ background: "var(--ds-overlay)", backdropFilter: "var(--ds-overlay-blur)" }}
       role="presentation"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -196,7 +197,7 @@ export function Modal({
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          "w-full max-w-md rounded-[var(--ds-radius-panel)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-elevated)] p-5 shadow-[var(--ds-shadow-lg)]",
+          "w-full max-w-md overflow-y-auto rounded-[var(--ds-radius-panel)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-elevated)] p-5 shadow-[var(--ds-shadow-lg)] sm:max-h-[85dvh]",
           className
         )}
       >

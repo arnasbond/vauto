@@ -8,8 +8,8 @@
   --ds-lift-y: 2px;
   --ds-glass-bg: color-mix(in srgb, var(--ds-surface-card) 82%, transparent);
   --ds-glass-strong: color-mix(in srgb, var(--ds-surface-elevated) 88%, transparent);
-  --ds-ai-glow: 0 0 0 1px color-mix(in srgb, var(--ds-ai) 28%, transparent),
-    0 8px 28px -10px color-mix(in srgb, var(--ds-ai) 45%, transparent);
+  --ds-ai-glow: 0 0 0 1px color-mix(in srgb, var(--ds-ai) 24%, transparent),
+    0 8px 24px -12px color-mix(in srgb, var(--ds-ai) 35%, transparent);
 }
 
 html[data-app-theme="dark"],
@@ -17,8 +17,8 @@ html[data-ds-theme="dark"],
 .ds-theme-dark {
   --ds-glass-bg: color-mix(in srgb, var(--ds-surface-card) 78%, transparent);
   --ds-glass-strong: color-mix(in srgb, var(--ds-surface-elevated) 84%, transparent);
-  --ds-ai-glow: 0 0 0 1px color-mix(in srgb, var(--ds-ai) 40%, transparent),
-    0 10px 32px -8px color-mix(in srgb, var(--ds-ai) 55%, transparent);
+  --ds-ai-glow: 0 0 0 1px color-mix(in srgb, var(--ds-ai) 32%, transparent),
+    0 10px 28px -10px color-mix(in srgb, var(--ds-ai) 42%, transparent);
 }
 
 /* Glass surfaces — sticky chrome / drawers / modals */
@@ -79,15 +79,15 @@ html[data-ds-theme="dark"],
   animation: ds-shimmer 1.35s var(--ds-ease) infinite;
 }
 
-/* AI indigo glow + soft pulse */
+/* AI emerald glow + soft pulse — local, restrained, semantic */
 @keyframes ds-ai-pulse {
   0%,
   100% {
     box-shadow: var(--ds-ai-glow);
   }
   50% {
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ds-ai) 45%, transparent),
-      0 12px 36px -8px color-mix(in srgb, var(--ds-ai) 55%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--ds-ai) 38%, transparent),
+      0 12px 30px -10px color-mix(in srgb, var(--ds-ai) 45%, transparent);
   }
 }
 

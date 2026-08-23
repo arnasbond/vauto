@@ -10,12 +10,12 @@ export const APP_THEMES: AppThemeMeta[] = [
   {
     id: "light",
     label: "Šviesi tema",
-    description: "Švarus šviesus fonas, žydras premium akcentas",
+    description: "Švarus šviesus fonas, subtilus smaragdo akcentas",
   },
   {
     id: "dark",
     label: "Tamsi tema",
-    description: "Gilus navy fonas, subtilūs neoniniai AI akcentai",
+    description: "Gilus tamsus fonas, tas pats smaragdo akcentas",
   },
 ];
 

@@ -122,14 +122,14 @@ export function HomeAiHero({
           className="absolute -left-16 top-0 h-72 w-72 rounded-full blur-3xl"
           style={{
             background:
-              "radial-gradient(circle, color-mix(in srgb, var(--ds-ai, #6366f1) 28%, transparent), transparent 70%)",
+              "radial-gradient(circle, color-mix(in srgb, var(--ds-ai, #059669) 28%, transparent), transparent 70%)",
           }}
         />
         <div
           className="absolute -right-10 top-8 h-64 w-64 rounded-full blur-3xl"
           style={{
             background:
-              "radial-gradient(circle, color-mix(in srgb, var(--ds-brand, #1b4dff) 18%, transparent), transparent 68%)",
+              "radial-gradient(circle, color-mix(in srgb, var(--ds-brand, #10b981) 18%, transparent), transparent 68%)",
           }}
         />
         <div
@@ -186,7 +186,7 @@ export function HomeAiHero({
                 type="button"
                 data-buyer-cta
                 onClick={startBuyerFunnel}
-                className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-[var(--ds-brand,#1b4dff)] px-5 py-2.5 text-sm font-bold text-white shadow-[var(--ds-shadow-sm)]"
+                className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-[var(--ds-brand,#10b981)] px-5 py-2.5 text-sm font-bold text-white shadow-[var(--ds-shadow-sm)]"
               >
                 Ieškoti skelbimų
               </button>

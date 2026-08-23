@@ -112,6 +112,24 @@
 .vauto-desktop-portal {
   color-scheme: light;
 
+  /* design-system 2.0 semantic layer — follow the desktop B2B palette
+     so primitives (Button/Input/Card/…) and legacy chrome share one source */
+  --ds-surface-page: var(--anonser-bg);
+  --ds-surface-card: var(--anonser-card);
+  --ds-surface-elevated: var(--anonser-card);
+  --ds-surface-muted: var(--anonser-surface-muted);
+  --ds-text-primary: var(--anonser-text);
+  --ds-text-secondary: var(--anonser-text-muted);
+  --ds-text-muted: var(--anonser-text-muted);
+  --ds-border-subtle: var(--anonser-border);
+  --ds-border-strong: color-mix(in srgb, var(--anonser-text) 22%, transparent);
+  --ds-brand: var(--anonser-primary);
+  --ds-brand-hover: color-mix(in srgb, var(--anonser-primary) 82%, #000);
+  --ds-brand-soft: var(--anonser-primary-soft);
+  --ds-ai: var(--anonser-primary);
+  --ds-ai-strong: var(--anonser-primary);
+  --ds-ai-soft: var(--anonser-primary-soft);
+
   /* semantic (shadcn) */
   --background: var(--anonser-bg);
   --foreground: var(--anonser-text);
@@ -166,6 +184,44 @@
   --home-ai-chip-bg: var(--anonser-surface-muted);
   --home-ai-chip-text: var(--anonser-text);
   --home-ai-panel-bg: var(--anonser-card);
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Desktop portal DARK binding (Stage 20A.1 — token-driven, no component edits).
+   .vauto-desktop-portal pins the desktop subtree to the legacy light
+   --anonser-* B2B palette. Under data-app-theme="dark" we re-map those tokens
+   to the frozen dark semantic set so the desktop surface objectively reflects
+   the active DARK theme (same tokens, same structure as LIGHT).
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-app-theme="dark"] .vauto-desktop-portal {
+  color-scheme: dark;
+
+  --ds-surface-page: #0b1220;
+  --ds-surface-card: #121a2b;
+  --ds-surface-elevated: #182235;
+  --ds-surface-muted: #0e1626;
+  --ds-text-primary: #f4f6fb;
+  --ds-text-secondary: #c5ccd9;
+  --ds-text-muted: #9aa3b5;
+  --ds-border-subtle: rgba(244, 246, 251, 0.1);
+  --ds-border-strong: rgba(244, 246, 251, 0.22);
+  --ds-brand: #34d399;
+  --ds-brand-hover: #6ee7b7;
+  --ds-brand-soft: rgba(52, 211, 153, 0.18);
+  --ds-ai: #34d399;
+  --ds-ai-strong: #6ee7b7;
+  --ds-ai-soft: rgba(52, 211, 153, 0.16);
+
+  --anonser-bg: var(--ds-surface-page);
+  --anonser-card: var(--ds-surface-card);
+  --anonser-text: var(--ds-text-primary);
+  --anonser-text-muted: var(--ds-text-muted);
+  --anonser-primary: var(--ds-brand);
+  --anonser-primary-soft: var(--ds-brand-soft);
+  --anonser-accent: var(--ds-brand);
+  --anonser-border: var(--ds-border-subtle);
+  --anonser-surface-muted: var(--ds-surface-muted);
+  --anonser-header-bg: var(--ds-surface-card);
 }
 
 @media (min-width: 768px) {
@@ -375,12 +431,12 @@ body {
   background: var(--accent);
 }
 
-/* Ambient mesh — Flux signature background (brand blue) */
+/* Ambient mesh — Flux signature background (emerald, restrained) */
 .vauto-flux-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(27, 77, 255, 0.12), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(21, 57, 204, 0.08), transparent 50%),
-    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(27, 77, 255, 0.06), transparent 55%),
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(16, 185, 129, 0.1), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(5, 150, 105, 0.07), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(16, 185, 129, 0.05), transparent 55%),
     var(--flux-bg);
 }
 
@@ -421,20 +477,20 @@ body {
 
 .home-ai-hero-search {
   background: #ffffff;
-  border-color: color-mix(in srgb, var(--ds-ai, #6366f1) 28%, var(--vauto-premium-border, var(--vauto-border))) !important;
+  border-color: color-mix(in srgb, var(--ds-ai, #059669) 28%, var(--vauto-premium-border, var(--vauto-border))) !important;
   box-shadow:
     0 4px 24px rgba(15, 23, 42, 0.06),
-    0 0 0 1px color-mix(in srgb, var(--ds-ai, #6366f1) 12%, transparent);
+    0 0 0 1px color-mix(in srgb, var(--ds-ai, #059669) 12%, transparent);
   transition: box-shadow var(--ds-duration-normal, 180ms) var(--ds-ease, ease),
     border-color var(--ds-duration-normal, 180ms) var(--ds-ease, ease);
 }
 
 .home-ai-hero-search:focus-within,
 .home-ai-copilot-bar:focus-within {
-  border-color: color-mix(in srgb, var(--ds-ai, #6366f1) 55%, transparent) !important;
+  border-color: color-mix(in srgb, var(--ds-ai, #059669) 55%, transparent) !important;
   box-shadow:
-    var(--ds-focus-ring-ai, 0 0 0 3px rgba(99, 102, 241, 0.4)),
-    0 8px 28px rgba(99, 102, 241, 0.18);
+    var(--ds-focus-ring-ai, 0 0 0 3px rgba(5, 150, 105, 0.4)),
+    0 8px 28px rgba(5, 150, 105, 0.18);
 }
 
 @keyframes fadeIn {
@@ -477,8 +533,8 @@ body {
 }
 
 .vauto-flux-chip-on {
-  background: linear-gradient(135deg, rgba(0, 212, 170, 0.25), rgba(99, 102, 241, 0.25));
-  border-color: rgba(0, 212, 170, 0.45);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.22));
+  border-color: rgba(16, 185, 129, 0.45);
   color: #f8fafc;
 }
 
@@ -604,8 +660,8 @@ body {
 .buddy-glow-teal {
   background: radial-gradient(
     circle,
-    rgba(0, 212, 170, 0.45) 0%,
-    rgba(0, 212, 170, 0.12) 45%,
+    rgba(16, 185, 129, 0.4) 0%,
+    rgba(16, 185, 129, 0.1) 45%,
     transparent 70%
   );
 }
@@ -622,13 +678,13 @@ body {
 .buddy-orb-teal {
   background: radial-gradient(
     circle at 35% 30%,
-    rgba(0, 212, 170, 0.55),
-    rgba(99, 102, 241, 0.35) 55%,
+    rgba(16, 185, 129, 0.55),
+    rgba(5, 150, 105, 0.35) 55%,
     rgba(11, 15, 23, 0.9) 100%
   );
   box-shadow:
-    0 0 40px rgba(0, 212, 170, 0.45),
-    0 0 80px rgba(0, 212, 170, 0.2);
+    0 0 40px rgba(16, 185, 129, 0.4),
+    0 0 80px rgba(16, 185, 129, 0.18);
 }
 
 .buddy-orb-orange {
@@ -645,8 +701,8 @@ body {
 
 .buddy-ambient-glow {
   background:
-    radial-gradient(ellipse 70% 55% at 50% 45%, rgba(0, 212, 170, 0.22), transparent 60%),
-    radial-gradient(ellipse 50% 40% at 55% 55%, rgba(255, 107, 74, 0.14), transparent 55%);
+    radial-gradient(ellipse 70% 55% at 50% 45%, rgba(16, 185, 129, 0.18), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 55% 55%, rgba(255, 107, 74, 0.12), transparent 55%);
   animation: buddy-ambient-shift 4s ease-in-out infinite;
 }
 
@@ -785,12 +841,12 @@ body.vauto-audio-first {
 
 body.vauto-audio-first .vauto-flux-glass,
 body.vauto-audio-first .vauto-dashboard-card {
-  border-color: rgba(0, 212, 170, 0.35);
+  border-color: rgba(16, 185, 129, 0.35);
 }
 
 .wake-neon-pulse {
   background:
-    radial-gradient(circle at 50% 50%, rgba(0, 212, 170, 0.35), transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.35), transparent 55%),
     radial-gradient(circle at 30% 70%, rgba(255, 107, 74, 0.2), transparent 50%);
   animation: wake-neon-pulse 2s ease-in-out infinite;
 }
@@ -859,8 +915,8 @@ body.vauto-audio-first .vauto-dashboard-card {
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    var(--vauto-primary, #2563eb),
-    color-mix(in srgb, var(--vauto-primary, #2563eb) 40%, #c4b5fd)
+    var(--vauto-primary, #10b981),
+    color-mix(in srgb, var(--vauto-primary, #10b981) 40%, #34d399)
   );
 }
 
@@ -1054,12 +1110,12 @@ body.chameleon-autoplius {
 
 body.chameleon-wardrobe,
 .chameleon-wardrobe {
-  --chameleon-accent: var(--vauto-primary, #1b4dff);
-  --portal-accent: var(--vauto-primary, #1b4dff);
+  --chameleon-accent: var(--vauto-primary, #10b981);
+  --portal-accent: var(--vauto-primary, #10b981);
   --portal-cta: var(--vauto-accent, #ff7a1a);
   --portal-wizard-bg: var(--vauto-bg, #eef1f6);
   --portal-wizard-surface: var(--vauto-surface, #ffffff);
-  --portal-progress: var(--vauto-primary, #1b4dff);
+  --portal-progress: var(--vauto-primary, #10b981);
   --portal-bg: var(--vauto-bg, #eef1f6);
   --portal-text: var(--vauto-text, #0b1220);
   font-weight: 400;
@@ -1774,16 +1830,16 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
    and "dark" below. The previous third-parties ("vauto-original",
    "light-minimal") are removed per 17B. */
 [data-app-theme="dark"] {
-  --background: #0a0f18;
+  --background: #0b1220;
   --foreground: #f1f5f9;
-  --card: #111827;
-  --popover: #141c2b;
+  --card: #121a2b;
+  --popover: #182235;
   --muted-foreground: #94a3b8;
   --border: rgba(16, 185, 129, 0.16);
   --accent: #132033;
   --accent-foreground: #f1f5f9;
   --primary: #34d399;
-  --primary-foreground: #0a0f18;
+  --primary-foreground: #06281c;
   --ring: #34d399;
   --flux-bg: var(--background);
   --flux-teal: #34d399;
@@ -1800,7 +1856,7 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   --vauto-accent: #34d399;
   --vauto-neon: #34d399;
   --vauto-neon-soft: rgba(52, 211, 153, 0.16);
-  --vauto-navy: #0a0f18;
+  --vauto-navy: #0b1220;
   --vauto-primary-contrast: var(--primary-foreground);
   --vauto-border: var(--border);
   --portal-text: var(--foreground);
@@ -2030,24 +2086,24 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 [data-app-theme="dark"] .agent-chat-bubble-assistant {
   background: #1e293b;
   color: #f1f5f9;
-  border-color: rgba(0, 242, 254, 0.22);
+  border-color: rgba(16, 185, 129, 0.22);
 }
 
 [data-app-theme="dark"] .agent-chat-bubble-user {
-  background: rgba(0, 242, 254, 0.12);
+  background: rgba(16, 185, 129, 0.12);
   color: #f8fafc;
-  border-color: rgba(0, 242, 254, 0.28);
+  border-color: rgba(16, 185, 129, 0.28);
 }
 
 [data-app-theme="dark"] .agent-quick-reply-chip {
   background: #161c2a;
   color: #e2e8f0;
-  border-color: rgba(0, 242, 254, 0.28);
+  border-color: rgba(16, 185, 129, 0.28);
 }
 
 [data-app-theme="dark"] .agent-quick-reply-chip:hover:not(:disabled) {
-  background: rgba(0, 242, 254, 0.14);
-  color: #00f2fe;
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
 }
 
 [data-app-theme="light"] .agent-chat-bubble-assistant {
@@ -2076,7 +2132,7 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 
 [data-app-theme="dark"] .photo-clarification-panel {
   background: #161c2a;
-  border-color: rgba(0, 242, 254, 0.22);
+  border-color: rgba(16, 185, 129, 0.22);
 }
 
 .zero-ui-intent-ack {
@@ -2796,20 +2852,20 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
 }
 
 .listing-card-btn--primary {
-  background-color: #1e3a8a;
-  color: #ffffff;
-  border: 1px solid #1e3a8a;
+  background-color: var(--vauto-primary, #10b981);
+  color: var(--vauto-primary-contrast, #ffffff);
+  border: 1px solid var(--vauto-primary, #10b981);
 }
 
 .listing-card-btn--primary:hover:not(:disabled) {
-  background-color: #1e40af;
-  border-color: #1e40af;
+  background-color: color-mix(in srgb, var(--vauto-primary, #10b981) 85%, #000);
+  border-color: color-mix(in srgb, var(--vauto-primary, #10b981) 85%, #000);
 }
 
 .listing-card-btn--accent {
-  background-color: #0f172a;
+  background-color: var(--vauto-navy, #0b1220);
   color: #ffffff;
-  border: 1px solid #0f172a;
+  border: 1px solid var(--vauto-navy, #0b1220);
 }
 
 .listing-card-btn--accent:hover:not(:disabled) {

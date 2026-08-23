@@ -87,7 +87,7 @@ export function UiKitPage() {
                 checked={dark}
                 onChange={(e) => setDark(e.target.checked)}
               />
-              <Badge tone="ai">AI indigo</Badge>
+              <Badge tone="ai">AI</Badge>
               <Badge tone="premium">Premium</Badge>
             </>
           }
@@ -224,8 +224,18 @@ export function UiKitPage() {
                   Loading
                 </Button>
                 <Button disabled>Disabled</Button>
+                <Button variant="secondary" disabled>
+                  Disabled secondary
+                </Button>
                 <Button iconOnly aria-label="Pridėti" leftIcon={<Plus className="h-4 w-4" />} />
+                <Button variant="ai" disabled leftIcon={<Sparkles className="h-4 w-4" />}>
+                  AI disabled
+                </Button>
               </div>
+              <p className="ds-caption">
+                Būsenos: default · hover · active · focus-visible (Tab) · loading ·
+                disabled. Visi mygtukai ≥ 40px touch target (h-8/10/12 pagal dydį).
+              </p>
               <div className="flex flex-wrap gap-2">
                 <IconButton label="Nustatymai">
                   <Settings className="h-4 w-4" />
@@ -268,6 +278,7 @@ export function UiKitPage() {
               <Card className="space-y-3">
                 <Input label="Pavadinimas" placeholder="iPhone 16" />
                 <Input label="Klaida" error="Privalomas laukas" defaultValue="" />
+                <Input label="Sėkmė" error="✓ Išsaugota" defaultValue="Užpildytas laukas" />
                 <SearchInput placeholder="Ieškoti…" aria-label="Paieška" />
                 <Textarea label="Aprašymas" placeholder="Trumpas tekstas" />
                 <Select
@@ -277,6 +288,11 @@ export function UiKitPage() {
                     { value: "tech", label: "Elektronika" },
                   ]}
                 />
+                <p className="ds-caption">
+                  Būsenos: default · hover · focus-visible (Tab) · filled ·
+                  disabled · error · success. Label visada matomas, placeholder —
+                  ne label pakaitalas.
+                </p>
               </Card>
               <Card className="space-y-4">
                 <Checkbox label="Sutinku su taisyklėmis" defaultChecked />
