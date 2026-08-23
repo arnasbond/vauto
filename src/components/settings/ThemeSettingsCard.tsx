@@ -7,9 +7,8 @@ import { cn } from "@/lib/cn";
 import { Panel } from "@/components/ui/surface";
 
 const SWATCH: Record<AppThemeId, string> = {
-  "vauto-original": "bg-gradient-to-br from-[#F4F7FC] via-white to-[#FFF4EC]",
+  light: "bg-gradient-to-br from-[#F4F7FC] via-white to-[#ECFDF5]",
   dark: "bg-gradient-to-br from-[#0B0F19] via-[#161C2A] to-[#1a2744]",
-  "light-minimal": "bg-gradient-to-br from-[#FAFAFA] via-white to-[#F5F5F5]",
 };
 
 /**

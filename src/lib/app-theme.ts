@@ -1,4 +1,4 @@
-export type AppThemeId = "vauto-original" | "dark" | "light-minimal";
+export type AppThemeId = "light" | "dark";
 
 export interface AppThemeMeta {
   id: AppThemeId;
@@ -8,24 +8,37 @@ export interface AppThemeMeta {
 
 export const APP_THEMES: AppThemeMeta[] = [
   {
-    id: "vauto-original",
-    label: "VAUTO Originali",
-    description: "Premium šviesi tema — gilus mėlynas akcentas, švarus fonas",
+    id: "light",
+    label: "Šviesi tema",
+    description: "Švarus šviesus fonas, žydras premium akcentas",
   },
   {
     id: "dark",
     label: "Tamsi tema",
     description: "Gilus navy fonas, subtilūs neoniniai AI akcentai",
   },
-  {
-    id: "light-minimal",
-    label: "Šviesioji minimali",
-    description: "Balsvas fonas, minkšti kortelių šešėliai",
-  },
 ];
 
-export const DEFAULT_APP_THEME: AppThemeId = "vauto-original";
+export const DEFAULT_APP_THEME: AppThemeId = "light";
 
-export function isAppThemeId(value: string): value is AppThemeId {
-  return value === "vauto-original" || value === "dark" || value === "light-minimal";
+/**
+ * Strict type guard (17.1-B). Returns true ONLY for the canonical theme ids
+ * "light" and "dark". Legacy theme ids ("vauto-original", "light-minimal")
+ * intentionally return false so that persistence/settings logic never treats
+ * them as a first-class theme; their migration to LIGHT lives in
+ * normalizeAppTheme().
+ */
+export function isAppThemeId(value: string | null | undefined): value is AppThemeId {
+  return value === "light" || value === "dark";
+}
+
+/**
+ * Migrate any persisted/legacy value to a canonical theme id. Legacy light
+ * variants ("vauto-original", "light-minimal") and unknown values all settle
+ * on the default LIGHT; only explicit "dark" stays dark. Public UX remains
+ * LIGHT and DARK only.
+ */
+export function normalizeAppTheme(value: string | null | undefined): AppThemeId {
+  if (value === "dark") return "dark";
+  return DEFAULT_APP_THEME;
 }

@@ -80,6 +80,7 @@
     "backfill:covers:db": "node scripts/backfill-listing-covers-db.mjs",
     "sync:apk-manifest": "node scripts/sync-apk-version-manifest.mjs",
     "test:server-smoke": "npm run server:build && node scripts/validation-smoke.mjs && node scripts/critical-smoke.mjs",
+    "test:unit:frontend": "node --import tsx --test \"src/**/__tests__/*.test.ts\"",
     "test:auth-e2e": "npm run server:build && node scripts/test-auth-e2e.mjs",
     "test:auth-e2e:live": "npm run server:build && node scripts/test-auth-e2e.mjs --live",
     "ops:auth-reset": "node scripts/auth-reset.mjs",

@@ -13,6 +13,7 @@ import {
   APP_THEMES,
   DEFAULT_APP_THEME,
   isAppThemeId,
+  normalizeAppTheme,
   type AppThemeId,
 } from "@/lib/app-theme";
 import { loadAppTheme, saveAppTheme } from "@/lib/storage";
@@ -26,16 +27,16 @@ interface AppThemeContextValue {
 
 const AppThemeContext = createContext<AppThemeContextValue | null>(null);
 
+const THEME_COLORS: Record<AppThemeId, string> = {
+  light: "#F4F7FC",
+  dark: "#0a0f18",
+};
+
 function applyThemeToDocument(theme: AppThemeId): void {
   if (typeof document === "undefined") return;
   document.documentElement.dataset.appTheme = theme;
   const meta = document.querySelector('meta[name="theme-color"]');
-  const colors: Record<AppThemeId, string> = {
-    "vauto-original": "#F4F7FC",
-    dark: "#0a0f18",
-    "light-minimal": "#FAFAFA",
-  };
-  if (meta) meta.setAttribute("content", colors[theme]);
+  if (meta) meta.setAttribute("content", THEME_COLORS[theme]);
 }
 
 export function AppThemeProvider({ children }: { children: ReactNode }) {
@@ -44,7 +45,7 @@ export function AppThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const stored = loadAppTheme();
-    const next = stored && isAppThemeId(stored) ? stored : DEFAULT_APP_THEME;
+    const next = stored && isAppThemeId(stored) ? normalizeAppTheme(stored) : DEFAULT_APP_THEME;
     setThemeState(next);
     applyThemeToDocument(next);
     setHydrated(true);

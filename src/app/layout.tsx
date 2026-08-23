@@ -90,7 +90,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="lt" translate="no" suppressHydrationWarning data-app-theme="vauto-original">
+    <html lang="lt" translate="no" suppressHydrationWarning data-app-theme="light">
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} antialiased`}
       >

@@ -7,29 +7,29 @@
    Premium, restrained palette. Map components to semantic tokens first.
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  /* ── Semantic (shadcn-compatible) — Brand Blue redesign 2026 ── */
+  /* ── Semantic (shadcn-compatible) — Emerald accent (Stage 17 rewire) ── */
   --background: #f7f8fb;
   --foreground: #0b1220;
   --card: #ffffff;
   --popover: #ffffff;
   --muted-foreground: #5b6578;
   --border: rgba(11, 18, 32, 0.1);
-  --accent: #e8edff;
+  --accent: #ecfdf5;
   --accent-foreground: #0b1220;
-  --primary: #1b4dff;
+  --primary: #10b981;
   --primary-foreground: #ffffff;
-  --ring: #1b4dff;
+  --ring: #10b981;
   --radius: 0.75rem;
 
-  /* ── Legacy Flux mesh (aligned toward brand blue; cyan kept as soft glow) ── */
+  /* ── Flux mesh aligned to emerald accent (soft ambient) ── */
   --flux-bg: var(--background);
-  --flux-teal: #1b4dff;
-  --flux-cyan: #4d7cff;
-  --flux-indigo: #1539cc;
+  --flux-teal: #10b981;
+  --flux-cyan: #34d399;
+  --flux-indigo: #059669;
   --flux-coral: #c2410c;
   --flux-coral-light: #ff7a1a;
-  --flux-price-start: #1b4dff;
-  --flux-price-end: #1539cc;
+  --flux-price-start: #10b981;
+  --flux-price-end: #059669;
 
   /* ── Canonical VAUTO tokens (alias semantic) ── */
   --vauto-bg: var(--background);
@@ -39,9 +39,9 @@
   --vauto-text-heading: var(--foreground);
   --vauto-text-muted: var(--muted-foreground);
   --vauto-primary: var(--primary);
-  --vauto-accent: #4d7cff;
-  --vauto-neon: #4d7cff;
-  --vauto-neon-soft: rgba(27, 77, 255, 0.14);
+  --vauto-accent: #34d399;
+  --vauto-neon: #10b981;
+  --vauto-neon-soft: rgba(16, 185, 129, 0.14);
   --vauto-navy: #0b1220;
   --vauto-primary-contrast: var(--primary-foreground);
   --vauto-border: var(--border);
@@ -62,9 +62,9 @@
 
   /* ── Redesign kit tokens (src/components/ui) ── */
   --vauto-ink: #0b1220;
-  --vauto-ai: #ff7a1a;
-  --vauto-ai-soft: #fff4eb;
-  --vauto-primary-soft: rgba(27, 77, 255, 0.1);
+  --vauto-ai: #00b389;
+  --vauto-ai-soft: #ecfdf5;
+  --vauto-primary-soft: rgba(16, 185, 129, 0.1);
   --vauto-border-subtle: #e6e9f0;
   --vauto-border-input: #d8deea;
   --vauto-surface-page: #f7f8fb;
@@ -73,13 +73,13 @@
   --vauto-subtle: #8b93a7;
   --vauto-body: #3a4558;
 
-  /* anonser.lt desktop portal (md+, >=768px) — same brand blue */
+  /* anonser.lt desktop portal (md+, >=768px) — same emerald accent */
   --anonser-bg: #eef1f6;
   --anonser-card: #ffffff;
   --anonser-text: #0b1220;
   --anonser-text-muted: #5b6578;
-  --anonser-primary: #1b4dff;
-  --anonser-primary-soft: #e8edff;
+  --anonser-primary: #10b981;
+  --anonser-primary-soft: #ecfdf5;
   --anonser-accent: #ff7a1a;
   --anonser-border: rgba(11, 18, 32, 0.1);
   --anonser-surface-muted: #e2e8f0;
@@ -95,6 +95,13 @@
   .vauto-adaptive-content {
     max-width: min(100%, var(--anonser-desktop-max));
   }
+}
+
+/* Horizontal-overflow guard — clips stray wide children at the content
+   layer (Stage 17C/17L: horizontal scroll = 0 at all breakpoints). */
+[data-app-content] {
+  overflow-x: clip;
+  min-width: 0;
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
@@ -121,8 +128,8 @@
   /* legacy flux */
   --flux-bg: var(--anonser-bg);
   --flux-teal: var(--anonser-primary);
-  --flux-cyan: #3b82f6;
-  --flux-indigo: #4338ca;
+  --flux-cyan: #34d399;
+  --flux-indigo: #059669;
   --flux-coral: #c2410c;
 
   /* canonical VAUTO tokens */
@@ -138,7 +145,7 @@
   --vauto-text-subtle: var(--anonser-text-muted);
   --vauto-primary: var(--anonser-primary);
   --vauto-primary-contrast: #ffffff;
-  --vauto-accent: var(--anonser-accent);
+  --vauto-accent: var(--anonser-primary);
   --vauto-border: var(--anonser-border);
 
   /* portal / wizard surfaces */
@@ -1070,10 +1077,8 @@ body.chameleon-wardrobe,
   background: var(--vauto-bg);
 }
 
-[data-app-theme="light-minimal"] body.chameleon-wardrobe,
-[data-app-theme="light-minimal"] .chameleon-wardrobe,
-[data-app-theme="vauto-original"] body.chameleon-wardrobe,
-[data-app-theme="vauto-original"] .chameleon-wardrobe {
+[data-app-theme="light"] body.chameleon-wardrobe,
+[data-app-theme="light"] .chameleon-wardrobe {
   --portal-bg: var(--vauto-bg);
   --portal-wizard-bg: var(--vauto-bg);
   --portal-wizard-surface: var(--vauto-card-bg);
@@ -1764,78 +1769,26 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   }
 }
 
-/* ── Global app themes (Profilis → Programėlės tema) ── */
-[data-app-theme="vauto-original"] {
-  --background: #f7f8fb;
-  --foreground: #0b1220;
-  --card: #ffffff;
-  --popover: #ffffff;
-  --muted-foreground: #5b6578;
-  --border: rgba(11, 18, 32, 0.1);
-  --accent: #e8edff;
-  --accent-foreground: #0b1220;
-  --primary: #1b4dff;
-  --primary-foreground: #ffffff;
-  --ring: #1b4dff;
-  --flux-bg: var(--background);
-  --flux-teal: #1b4dff;
-  --flux-cyan: #4d7cff;
-  --flux-indigo: #1539cc;
-  --flux-coral: #c2410c;
-  --vauto-bg: var(--background);
-  --vauto-card-bg: var(--card);
-  --vauto-surface-muted: #f1f3f6;
-  --vauto-text-main: var(--foreground);
-  --vauto-text-heading: var(--foreground);
-  --vauto-text-muted: var(--muted-foreground);
-  --vauto-primary: var(--primary);
-  --vauto-accent: #4d7cff;
-  --vauto-neon: #4d7cff;
-  --vauto-neon-soft: rgba(27, 77, 255, 0.12);
-  --vauto-navy: #0b1220;
-  --vauto-ink: #0b1220;
-  --vauto-ai: #ff7a1a;
-  --vauto-ai-soft: #fff4eb;
-  --vauto-orange: #ff7a1a;
-  --vauto-primary-contrast: var(--primary-foreground);
-  --vauto-border: var(--border);
-}
-
-[data-app-theme="vauto-original"] body,
-[data-app-theme="vauto-original"] .vauto-flux-bg {
-  background: var(--vauto-bg);
-  color: var(--vauto-text-main);
-}
-
-[data-app-theme="vauto-original"] .vauto-flux-bg {
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(27, 77, 255, 0.1), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(21, 57, 204, 0.07), transparent 50%),
-    var(--background);
-}
-
-[data-app-theme="vauto-original"] .vauto-flux-fab {
-  background: linear-gradient(135deg, #1b4dff, #4d7cff);
-  box-shadow: 0 12px 32px -8px rgba(27, 77, 255, 0.38);
-  border-color: var(--card);
-}
-
+/* ── Global app themes (Profilis → Programėlės tema) ──
+   Stage 17: exactly TWO themes — "light" (canonical, defined on :root)
+   and "dark" below. The previous third-parties ("vauto-original",
+   "light-minimal") are removed per 17B. */
 [data-app-theme="dark"] {
   --background: #0a0f18;
   --foreground: #f1f5f9;
   --card: #111827;
   --popover: #141c2b;
   --muted-foreground: #94a3b8;
-  --border: rgba(0, 212, 255, 0.12);
+  --border: rgba(16, 185, 129, 0.16);
   --accent: #132033;
   --accent-foreground: #f1f5f9;
-  --primary: #00d4ff;
+  --primary: #34d399;
   --primary-foreground: #0a0f18;
-  --ring: #00d4ff;
+  --ring: #34d399;
   --flux-bg: var(--background);
-  --flux-teal: #22d3ee;
-  --flux-cyan: #00d4ff;
-  --flux-indigo: #0284c7;
+  --flux-teal: #34d399;
+  --flux-cyan: #6ee7b7;
+  --flux-indigo: #059669;
   --flux-coral: #fb923c;
   --vauto-bg: var(--background);
   --vauto-card-bg: var(--card);
@@ -1844,9 +1797,9 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   --vauto-text-heading: var(--foreground);
   --vauto-text-muted: var(--muted-foreground);
   --vauto-primary: var(--primary);
-  --vauto-accent: #00d4ff;
-  --vauto-neon: #00d4ff;
-  --vauto-neon-soft: rgba(0, 212, 255, 0.16);
+  --vauto-accent: #34d399;
+  --vauto-neon: #34d399;
+  --vauto-neon-soft: rgba(52, 211, 153, 0.16);
   --vauto-navy: #0a0f18;
   --vauto-primary-contrast: var(--primary-foreground);
   --vauto-border: var(--border);
@@ -1864,14 +1817,14 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 
 [data-app-theme="dark"] .vauto-flux-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 212, 255, 0.16), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(2, 132, 199, 0.14), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(52, 211, 153, 0.16), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(5, 150, 105, 0.14), transparent 50%),
     var(--vauto-bg);
 }
 
 [data-app-theme="dark"] .vauto-flux-fab {
-  background: linear-gradient(135deg, #00d4ff 0%, #0284c7 55%, #22d3ee 100%);
-  box-shadow: 0 12px 36px -8px rgba(0, 212, 255, 0.48);
+  background: linear-gradient(135deg, #34d399 0%, #059669 55%, #6ee7b7 100%);
+  box-shadow: 0 12px 36px -8px rgba(52, 211, 153, 0.48);
 }
 
 [data-app-theme="dark"] .text-xs,
@@ -1964,17 +1917,14 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   background: color-mix(in srgb, var(--vauto-primary) 8%, var(--vauto-card-bg));
 }
 
-[data-app-theme="vauto-original"] .seller-flow-page,
-[data-app-theme="light-minimal"] .seller-flow-page {
+[data-app-theme="light"] .seller-flow-page {
   --portal-wizard-surface: var(--vauto-card-bg);
   --portal-wizard-bg: var(--vauto-bg);
   --portal-text: var(--vauto-text-main);
 }
 
-[data-app-theme="vauto-original"] .listing-wizard-overlay,
-[data-app-theme="vauto-original"] .listing-form-shell,
-[data-app-theme="light-minimal"] .listing-wizard-overlay,
-[data-app-theme="light-minimal"] .listing-form-shell {
+[data-app-theme="light"] .listing-wizard-overlay,
+[data-app-theme="light"] .listing-form-shell {
   background-color: var(--vauto-bg);
   color: var(--vauto-text-main);
 }
@@ -2100,40 +2050,22 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   color: #00f2fe;
 }
 
-[data-app-theme="light-minimal"] .agent-chat-bubble-assistant {
+[data-app-theme="light"] .agent-chat-bubble-assistant {
   background: #ffffff;
   color: #0f172a;
   border-color: color-mix(in srgb, var(--vauto-primary) 18%, #e2e8f0);
 }
 
-[data-app-theme="light-minimal"] .agent-chat-bubble-user {
+[data-app-theme="light"] .agent-chat-bubble-user {
   background: color-mix(in srgb, var(--vauto-primary) 10%, #f8fafc);
   color: #0f172a;
   border-color: color-mix(in srgb, var(--vauto-primary) 22%, #e2e8f0);
 }
 
-[data-app-theme="light-minimal"] .agent-quick-reply-chip {
+[data-app-theme="light"] .agent-quick-reply-chip {
   background: #f8fafc;
   color: #1e293b;
   border-color: #cbd5e1;
-}
-
-[data-app-theme="vauto-original"] .agent-chat-bubble-assistant {
-  background: color-mix(in srgb, #ffffff 94%, var(--vauto-primary) 6%);
-  color: #0a1128;
-  border-color: rgba(17, 103, 177, 0.2);
-}
-
-[data-app-theme="vauto-original"] .agent-chat-bubble-user {
-  background: rgba(17, 103, 177, 0.1);
-  color: #0a1128;
-  border-color: rgba(17, 103, 177, 0.28);
-}
-
-[data-app-theme="vauto-original"] .agent-quick-reply-chip {
-  background: #ffffff;
-  color: #0a1128;
-  border-color: rgba(17, 103, 177, 0.25);
 }
 
 .photo-clarification-panel {
@@ -2223,69 +2155,8 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   -webkit-text-fill-color: var(--vauto-text-main);
 }
 
-[data-app-theme="light-minimal"] {
-  --background: #fafafa;
-  --foreground: #111111;
-  --card: #ffffff;
-  --popover: #ffffff;
-  --muted-foreground: #4b5563;
-  --border: rgba(17, 17, 17, 0.08);
-  --accent: #f4f4f5;
-  --accent-foreground: #111111;
-  --primary: #18181b;
-  --primary-foreground: #ffffff;
-  --ring: #18181b;
-  --flux-bg: var(--background);
-  --flux-teal: var(--primary);
-  --flux-cyan: var(--primary);
-  --flux-indigo: var(--primary);
-  --flux-coral: #c2410c;
-  --vauto-bg: var(--background);
-  --vauto-card-bg: var(--card);
-  --vauto-surface-muted: #f4f4f5;
-  --vauto-text-main: var(--foreground);
-  --vauto-text-heading: var(--foreground);
-  --vauto-text-muted: var(--muted-foreground);
-  --vauto-primary: var(--primary);
-  --vauto-accent: #4338ca;
-  --vauto-primary-contrast: var(--primary-foreground);
-  --vauto-border: var(--border);
-}
-
-[data-app-theme="light-minimal"] body,
-[data-app-theme="light-minimal"] .vauto-flux-bg {
-  background: var(--vauto-bg);
-  color: var(--vauto-text-main);
-}
-
-[data-app-theme="light-minimal"] .vauto-flux-bg {
-  background: var(--vauto-bg);
-}
-
-[data-app-theme="light-minimal"] .vauto-dashboard-card,
-[data-app-theme="light-minimal"] .vauto-glass-card,
-[data-app-theme="light-minimal"] .vauto-flux-glass {
-  border: none;
-  box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.08);
-  background: var(--vauto-card-bg);
-  color: var(--vauto-text-main);
-}
-
-[data-app-theme="light-minimal"] .vauto-flux-nav,
-[data-app-theme="light-minimal"] .vauto-bottom-nav {
-  background: rgba(255, 255, 255, 0.92);
-  border-top-color: rgba(0, 0, 0, 0.06);
-}
-
-[data-app-theme="light-minimal"] .vauto-flux-fab {
-  background: linear-gradient(135deg, #111111, #333333);
-  box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.25);
-  border-color: #fafafa;
-}
-
 /* ── Home AI Hero: WCAG-safe contrast (light vs dark) ── */
-[data-app-theme="vauto-original"],
-[data-app-theme="light-minimal"] {
+[data-app-theme="light"] {
   --home-ai-input-text: #1e293b;
   --home-ai-input-placeholder: #4b5563;
   --home-ai-input-caret: var(--vauto-primary);
@@ -2299,9 +2170,9 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   --home-ai-panel-bg: #ffffff;
 }
 
-[data-app-theme="vauto-original"] .vauto-dashboard-card,
-[data-app-theme="vauto-original"] .vauto-glass-card,
-[data-app-theme="vauto-original"] .vauto-flux-glass {
+[data-app-theme="light"] .vauto-dashboard-card,
+[data-app-theme="light"] .vauto-glass-card,
+[data-app-theme="light"] .vauto-flux-glass {
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.08);
   background: var(--vauto-card-bg);
@@ -2418,8 +2289,7 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   color: var(--home-ai-muted);
 }
 
-[data-app-theme="vauto-original"] .home-quick-action-btn:hover,
-[data-app-theme="light-minimal"] .home-quick-action-btn:hover {
+[data-app-theme="light"] .home-quick-action-btn:hover {
   background: #f8fafc;
   border-color: rgba(15, 23, 42, 0.2);
 }
@@ -2431,8 +2301,7 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
 }
 
 /* ── Theme-safe surfaces (fix white-on-white in dark mode) ── */
-[data-app-theme="vauto-original"],
-[data-app-theme="light-minimal"] {
+[data-app-theme="light"] {
   --vauto-surface-muted: #f1f5f9;
   --vauto-surface-chip: #f8fafc;
   --vauto-surface-input: #ffffff;
@@ -2665,14 +2534,12 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   background: linear-gradient(to bottom, rgba(56, 189, 248, 0.1), var(--vauto-card-bg));
 }
 
-[data-app-theme="vauto-original"] .listing-card-tier-top,
-[data-app-theme="light-minimal"] .listing-card-tier-top {
+[data-app-theme="light"] .listing-card-tier-top {
   border-color: rgba(251, 191, 36, 0.55);
   background: linear-gradient(to bottom, rgba(254, 243, 199, 0.9), #ffffff);
 }
 
-[data-app-theme="vauto-original"] .listing-card-tier-plus,
-[data-app-theme="light-minimal"] .listing-card-tier-plus {
+[data-app-theme="light"] .listing-card-tier-plus {
   border-color: rgba(125, 211, 252, 0.55);
   background: linear-gradient(to bottom, rgba(224, 242, 254, 0.7), #ffffff);
 }
@@ -2698,11 +2565,9 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   color: #1f2937;
 }
 
-/* Light themes: crisp placeholders (gray-600) */
-[data-app-theme="vauto-original"] input::placeholder,
-[data-app-theme="vauto-original"] textarea::placeholder,
-[data-app-theme="light-minimal"] input::placeholder,
-[data-app-theme="light-minimal"] textarea::placeholder {
+/* Light theme: crisp placeholders (gray-600) */
+[data-app-theme="light"] input::placeholder,
+[data-app-theme="light"] textarea::placeholder {
   color: #4b5563 !important;
   -webkit-text-fill-color: #4b5563 !important;
   opacity: 1;
@@ -2785,31 +2650,26 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   color: inherit;
 }
 
-[data-app-theme="vauto-original"] .flow-skin-default.listing-wizard-overlay,
-[data-app-theme="light-minimal"] .flow-skin-default.listing-wizard-overlay {
+[data-app-theme="light"] .flow-skin-default.listing-wizard-overlay {
   background-color: var(--vauto-bg) !important;
 }
 
-[data-app-theme="vauto-original"] .flow-skin-spinta.listing-wizard-overlay,
-[data-app-theme="light-minimal"] .flow-skin-spinta.listing-wizard-overlay {
+[data-app-theme="light"] .flow-skin-spinta.listing-wizard-overlay {
   background-color: var(--vauto-bg) !important;
 }
 
-[data-app-theme="vauto-original"] .listing-wizard-overlay select,
-[data-app-theme="light-minimal"] .listing-wizard-overlay select {
+[data-app-theme="light"] .listing-wizard-overlay select {
   color: #0f172a !important;
   border-color: #cbd5e1 !important;
   background-color: #ffffff !important;
 }
 
-[data-app-theme="vauto-original"] .listing-wizard-overlay select option,
-[data-app-theme="light-minimal"] .listing-wizard-overlay select option {
+[data-app-theme="light"] .listing-wizard-overlay select option {
   color: #0f172a;
   background-color: #ffffff;
 }
 
-[data-app-theme="vauto-original"] .listing-wizard-overlay input::placeholder,
-[data-app-theme="light-minimal"] .listing-wizard-overlay input::placeholder {
+[data-app-theme="light"] .listing-wizard-overlay input::placeholder {
   color: #64748b;
 }
 
@@ -3054,13 +2914,13 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   background: color-mix(in srgb, var(--vauto-red) 5%, var(--vauto-card-bg));
 }
 
-[data-app-theme="light-minimal"] .vauto-panel {
+[data-app-theme="light"] .vauto-panel {
   border-color: transparent;
   box-shadow: 0 4px 24px -10px rgba(15, 23, 42, 0.1);
 }
 
-[data-app-theme="light-minimal"] .vauto-panel--nested,
-[data-app-theme="light-minimal"] .vauto-panel--quiet {
+[data-app-theme="light"] .vauto-panel--nested,
+[data-app-theme="light"] .vauto-panel--quiet {
   box-shadow: var(--vauto-elev-0);
 }
 
@@ -3094,7 +2954,7 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   box-shadow: var(--vauto-elev-1);
 }
 
-[data-app-theme="light-minimal"] .vauto-group {
+[data-app-theme="light"] .vauto-group {
   border-color: transparent;
   box-shadow: 0 4px 24px -10px rgba(15, 23, 42, 0.1);
 }

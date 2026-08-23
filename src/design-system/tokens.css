@@ -203,6 +203,34 @@ html[data-ds-theme="dark"],
   }
 }
 
+/* ── Layout · content wrapper & breakpoints (Stage 17.1-C) ──
+   DESIGN / DOCUMENTATION CONTRACT for the responsive system.
+   The RUNTIME implementation is Tailwind breakpoints (sm/md/lg/xl/2xl).
+   --ds-bp-* are reference VALUES only — they are NOT used as CSS media-query
+   conditions. Semantic seams match: --ds-bp-tablet-min (768) == md,
+   --ds-bp-desktop-min (1024) == lg. See docs/VAUTO-EXPERIENCE-SYSTEM.md
+   "Breakpoint single source of truth". Horizontal overflow must stay 0. */
+:root {
+  --ds-bp-mobile-max: 767.98px;  /* <768        single column, bottom nav */
+  --ds-bp-tablet-min: 768px;     /* 768–1023    optional 2-col, meta nav */
+  --ds-bp-tablet-max: 1023.98px;
+  --ds-bp-desktop-min: 1024px;   /* 1024–1439   professional density */
+  --ds-bp-large-min: 1440px;     /* ≥1440       max-width, whitespace */
+  --ds-bp-wide-min: 1920px;      /* ≥1920       large desktop, no stretch */
+
+  --ds-content-max: 80rem;        /* 1280 content ceiling */
+  --ds-content-max-wide: 90rem;   /* 1440 for large-desktop specials */
+  --ds-gutter-mobile: 1rem;       /* 390px page gutter */
+  --ds-gutter-tablet: 1.5rem;
+  --ds-gutter-desktop: 2rem;
+  --ds-section-gap: 2rem;         /* 32    section vertical rhythm */
+  --ds-section-gap-lg: 3rem;      /* 48    large screen section rhythm */
+  --ds-grid-gap: 1.5rem;          /* default grid gap */
+  --ds-grid-gap-sm: 1rem;         /* dense/tablet grid gap */
+
+  --ds-text-measure: 65ch;        /* comfortable body line length */
+}
+
 /* ── Typography utilities ── */
 .ds-display {
   font-family: var(--ds-font-sans);

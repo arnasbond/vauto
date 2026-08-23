@@ -133,3 +133,33 @@ html[data-ds-theme="dark"],
     transform: none !important;
   }
 }
+
+/* ── Drawer / sheet motion (Stage 17D) ──
+   Right-edge drawer slides in from the right; bottom sheet rises. Respects
+   prefers-reduced-motion via the tokens below overridden to 0ms. */
+@keyframes ds-drawer-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes ds-drawer-in-bottom {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.ds-drawer-motion {
+  animation: ds-drawer-in-right var(--ds-duration-slow, 240ms) var(--ds-ease);
+}
+
+.ds-drawer-motion--bottom {
+  animation: ds-drawer-in-bottom var(--ds-duration-slow, 240ms) var(--ds-ease);
+}
+
