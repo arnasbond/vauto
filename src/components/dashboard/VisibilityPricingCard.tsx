@@ -57,7 +57,7 @@ export function VisibilityPricingCard({
                         <p className="text-xs font-semibold text-slate-900">
                           {plan.label}
                           {plan.recommended && (
-                            <span className="ml-1.5 text-[9px] font-normal text-[var(--vauto-orange)]">
+                            <span className="ml-1.5 text-[9px] font-normal text-[var(--ds-warning)]">
                               rekomenduojama
                             </span>
                           )}
@@ -68,7 +68,7 @@ export function VisibilityPricingCard({
                             ` · max ${plan.maxSlotsPerRegion} vietos`}
                         </p>
                       </div>
-                      <p className="shrink-0 text-sm font-bold text-[var(--vauto-orange)]">
+                      <p className="shrink-0 text-sm font-bold text-[var(--vauto-ink)]">
                         nuo {plan.price.toFixed(2)} €
                       </p>
                     </div>

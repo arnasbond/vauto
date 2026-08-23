@@ -53,7 +53,7 @@ export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProp
             · {tier === "national" ? "Premium tarifas" : tier === "regional" ? "Regioninis tarifas" : "Vietinis tarifas"}
           </p>
         </div>
-        <Zap className="h-5 w-5 text-[var(--vauto-orange)]" />
+        <Zap className="h-5 w-5 text-[var(--ds-ai)]" />
       </div>
 
       {topRatedPlus && (
@@ -95,7 +95,7 @@ export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProp
                     {lead.category} · {lead.city} · {urgencyLabel(lead.urgency)}
                   </p>
                 </div>
-                <span className="rounded-full bg-[var(--vauto-orange)]/15 px-2 py-1 text-[10px] font-bold text-[var(--vauto-orange)]">
+                <span className="rounded-full bg-[var(--ds-brand-soft)] px-2 py-1 text-[10px] font-bold text-[var(--ds-brand)]">
                   {leadPrice.toFixed(2)} €
                 </span>
               </div>

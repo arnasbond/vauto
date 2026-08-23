@@ -498,15 +498,15 @@ export function EscrowModal({
                     <span className="font-semibold">{twinFee.toFixed(2)} €</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm font-bold text-[var(--vauto-orange)]">
+                <div className="flex justify-between text-sm font-bold text-[var(--vauto-ink)]">
                   <span>Iš viso</span>
                   <span>{buyerTotal.toFixed(2)} €</span>
                 </div>
               </div>
             </div>
-            <div className="mt-3 flex gap-2 rounded-xl border border-[#bfdbfe] bg-[#eef6ff] p-3">
-              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#1167b1]" />
-              <p className="text-xs leading-relaxed text-slate-700">
+            <div className="mt-3 flex gap-2 rounded-xl border border-[var(--ds-ai)]/25 bg-[var(--ds-ai-soft)] p-3">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ds-ai)]" />
+              <p className="text-xs leading-relaxed text-[var(--vauto-body)]">
                 {buyerProtectionExplanation()}
               </p>
             </div>
@@ -533,12 +533,12 @@ export function EscrowModal({
                     }}
                     className={`rounded-xl border p-3 text-left transition ${
                       shippingProvider === provider.id
-                        ? "border-[#f97316] bg-orange-500/10"
+                        ? "border-[var(--ds-brand)] bg-[var(--ds-brand-soft)]"
                         : "border-[var(--vauto-border)] bg-[var(--vauto-surface)]"
                     }`}
                   >
                     <span className="flex items-center gap-2 text-sm font-semibold text-[var(--vauto-text)]">
-                      <Truck className="h-4 w-4 text-[#f97316]" />
+                      <Truck className="h-4 w-4 text-[var(--ds-brand)]" />
                       {provider.label}
                     </span>
                     <span className="mt-1 block text-xs text-[var(--vauto-text-muted)]">
@@ -573,12 +573,12 @@ export function EscrowModal({
                       onClick={() => setPaymentProvider(provider.id)}
                       className={`rounded-xl border p-3 text-left transition ${
                         paymentProvider === provider.id
-                          ? "border-[#1167b1] bg-[#1167b1]/10"
+                          ? "border-[var(--ds-brand)] bg-[var(--ds-brand-soft)]"
                           : "border-[var(--vauto-border)] bg-[var(--vauto-surface)]"
                       }`}
                     >
                       <span className="flex items-center gap-2 text-sm font-semibold text-[var(--vauto-text)]">
-                        <CreditCard className="h-4 w-4 text-[#1167b1]" />
+                        <CreditCard className="h-4 w-4 text-[var(--ds-brand)]" />
                         {provider.label}
                       </span>
                     </button>
@@ -590,7 +590,7 @@ export function EscrowModal({
               type="button"
               onClick={() => void handlePay()}
               disabled={omnivaEligibility.eligible && !selectedLocker}
-              className="mt-6 w-full rounded-2xl bg-[var(--vauto-blue)] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+              className="mt-6 w-full rounded-2xl bg-[var(--ds-brand)] py-3.5 text-sm font-semibold text-[var(--ds-brand-contrast)] disabled:opacity-50"
             >
               Mokėti saugiai — {buyerTotal.toFixed(2)} €
             </button>
@@ -599,7 +599,7 @@ export function EscrowModal({
 
         {step === "paying" && (
           <div className="py-8 text-center">
-            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[var(--vauto-blue)]/20 border-t-[var(--vauto-blue)]" />
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[var(--ds-brand)]/20 border-t-[var(--ds-brand)]" />
             <p className="text-sm font-medium">
               Apdorojamas mokėjimas per {paymentLabel}...
             </p>
@@ -611,16 +611,16 @@ export function EscrowModal({
 
         {step === "label" && (
           <>
-            <div className="rounded-2xl border border-dashed border-[var(--vauto-blue)]/40 bg-[var(--vauto-blue)]/5 p-4">
+            <div className="rounded-2xl border border-dashed border-[var(--ds-brand)]/40 bg-[var(--ds-brand-soft)] p-4">
               <div className="flex items-center gap-3">
-                <Package className="h-10 w-10 shrink-0 text-[var(--vauto-blue)]" />
+                <Package className="h-10 w-10 shrink-0 text-[var(--ds-brand)]" />
                 <div>
                   <p className="text-sm font-semibold">Mokėjimas gautas ir įšaldytas</p>
                   <p className="text-xs text-[var(--vauto-text-muted)]">
                     Sugeneruokite siuntos lipduką pardavėjui.
                   </p>
                   {escrow?.shippingLockerName && (
-                    <p className="mt-1 text-xs text-slate-600">
+                    <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
                       Pristatymas: {escrow.shippingLockerName}
                     </p>
                   )}
@@ -634,8 +634,8 @@ export function EscrowModal({
                     onClick={() => setParcelSize(size)}
                     className={`flex-1 rounded-lg border px-1 py-2 text-left ${
                       parcelSize === size
-                        ? "border-[#1167b1] bg-[#eef6ff] text-[#1167b1]"
-                        : "border-slate-200 text-slate-500"
+                        ? "border-[var(--ds-brand)] bg-[var(--ds-brand-soft)] text-[var(--ds-brand)]"
+                        : "border-[var(--vauto-border)] text-[var(--vauto-text-muted)]"
                     }`}
                   >
                     <span className="block text-xs font-bold">{size}</span>
@@ -652,7 +652,7 @@ export function EscrowModal({
             <button
               type="button"
               onClick={() => void handleConfirmLabel()}
-              className="mt-6 w-full rounded-2xl bg-[var(--vauto-orange)] py-3.5 text-sm font-semibold text-white"
+              className="mt-6 w-full rounded-2xl bg-[var(--ds-brand)] py-3.5 text-sm font-semibold text-[var(--ds-brand-contrast)]"
             >
               Generuoti siuntos lipduką
             </button>
@@ -661,9 +661,9 @@ export function EscrowModal({
 
         {step === "shipping" && (
           <>
-            <div className="rounded-2xl border border-[#1167b1]/30 bg-[#1167b1]/10 p-4">
+            <div className="rounded-2xl border border-[var(--ds-brand)]/30 bg-[var(--ds-brand-soft)] p-4">
               <div className="flex items-center gap-3">
-                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[var(--vauto-surface)] text-[#1167b1] shadow-sm">
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-[var(--vauto-surface)] text-[var(--ds-brand)] shadow-sm">
                   <Package className="h-8 w-8" />
                 </div>
                 <div>
@@ -701,14 +701,14 @@ export function EscrowModal({
               <button
                 type="button"
                 onClick={handleMarkShipped}
-                className="rounded-xl border border-[#1167b1] bg-[var(--vauto-surface)] py-3 text-xs font-semibold text-[#1167b1]"
+                className="rounded-xl border border-[var(--ds-brand)] bg-[var(--vauto-surface)] py-3 text-xs font-semibold text-[var(--ds-brand)]"
               >
                 Pažymėti išsiųsta
               </button>
               <button
                 type="button"
                 onClick={() => void handleLockerDelivery()}
-                className="rounded-xl bg-[#1167b1] py-3 text-xs font-semibold text-white"
+                className="rounded-xl bg-[var(--ds-brand)] py-3 text-xs font-semibold text-[var(--ds-brand-contrast)]"
               >
                 {COURIER_LOCKER_DELIVERED_STATUS}
               </button>

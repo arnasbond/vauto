@@ -55,7 +55,7 @@ export function FleetMatchBuddyHost() {
       >
         <div className="rounded-[15px] bg-slate-950/90 px-4 py-3 text-sm text-white backdrop-blur-sm">
           <div className="mb-2 flex items-start gap-2">
-            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--vauto-orange)]" />
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ds-ai)]" />
             <p className="flex-1 leading-snug">{message}</p>
             <button
               type="button"

@@ -147,7 +147,7 @@ export function PaymentHistorySection({
                     {formatInvoiceDate(inv.createdAt)}
                   </td>
                   <td className="py-3 pr-3 text-[var(--vauto-text)]">{inv.serviceTitle}</td>
-                  <td className="py-3 pr-3 text-right font-semibold text-[var(--vauto-orange)]">
+                  <td className="py-3 pr-3 text-right font-semibold text-[var(--vauto-ink)]">
                     {inv.amountGross.toFixed(2)} €
                   </td>
                   <td className="py-3 text-right">

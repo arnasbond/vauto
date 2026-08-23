@@ -19,7 +19,7 @@ import {
   listingMatchesStrictBrandQuery,
   applyStrictBrandFilter,
 } from "@/lib/strict-brand-search";
-import { inferStrictCategory } from "@/lib/portal-listing-filter";
+import { inferStrictCategory } from "@/lib/vertical-listing-filter";
 import { isJobSearchQuery } from "@/lib/universal-search-intent";
 import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 import {

@@ -1,7 +1,34 @@
 import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories";
 import type { ListingCategory } from "@/lib/types";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
+import {
+  adaptiveKeyToPresentationId,
+  getPromoteLabelsForCategory as getVerticalPromoteLabels,
+  getVerticalPresentation,
+  type VerticalPresentationId,
+  type VerticalPromoteLabels,
+  type VerticalPresentationTokens,
+} from "@/lib/vertical-presentation";
 
+/**
+ * @deprecated Stage 20B.1 — Chameleon/portal semantics are deprecated.
+ *
+ * This module is kept ONLY as a compatibility bridge for:
+ *  - frozen backend invariants (monetization-wardrobe, escrow) that compare
+ *    `theme === "wardrobe"`;
+ *  - runtime app state (`VautoContext.chameleonTheme`) and seller-flow wiring;
+ *  - wardrobe cabinet logic.
+ *
+ * All generic presentation logic now lives in `@/lib/vertical-presentation`.
+ * Active UI components must import from there. Portal-native palettes have
+ * been removed — every vertical renders with the DS 2.0 emerald identity.
+ */
+
+/**
+ * @deprecated Use `VerticalPresentationId` from `@/lib/vertical-presentation`.
+ * Kept stable because frozen monetization/escrow modules and runtime state
+ * rely on `"wardrobe"`/`"flux"` identity values.
+ */
 export type ChameleonThemeId =
   | "flux"
   | "autoplius"
@@ -11,285 +38,36 @@ export type ChameleonThemeId =
   | "paslaugos"
   | "cvbankas";
 
-export interface ChameleonPromoteLabels {
-  modalTitle: string;
-  cardCta: string;
-  bumpLabel: string;
-  successMessage: string;
+/** @deprecated Use `VerticalPromoteLabels`. */
+export type ChameleonPromoteLabels = VerticalPromoteLabels;
+
+/** @deprecated Use `VerticalPresentationTokens`. */
+export type ChameleonThemeTokens = VerticalPresentationTokens;
+
+export function themeIdToVerticalId(id: ChameleonThemeId): VerticalPresentationId {
+  switch (id) {
+    case "autoplius":
+      return "transport";
+    case "wardrobe":
+      return "fashion";
+    case "aruodas":
+      return "real_estate";
+    case "paslaugos":
+      return "services";
+    case "cvbankas":
+      return "jobs";
+    case "skelbiu":
+      return "goods";
+    default:
+      return "marketplace";
+  }
 }
 
-export interface ChameleonThemeTokens {
-  id: ChameleonThemeId;
-  bodyClass: string;
-  portalLabel: string;
-  /** Classic portals — hide neon / sci-fi buddy chrome */
-  classicLayout: boolean;
-  promote: ChameleonPromoteLabels;
-  confirmation: {
-    shell: string;
-    headerBar: string;
-    title: string;
-    subtitle: string;
-    assistantLabel: string;
-    aiBubble: string;
-    userBubble: string;
-    detailsToggle: string;
-    detailsPanel: string;
-    publishBtn: string;
-    publishBtnDisabled: string;
-    cancelBtn: string;
-  };
-  panel: string;
-  published: {
-    shell: string;
-    card: string;
-    title: string;
-  };
-}
-
-const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
-  flux: {
-    id: "flux",
-    bodyClass: "chameleon-flux",
-    portalLabel: "VAUTO",
-    classicLayout: false,
-    promote: {
-      modalTitle: "Smart Promote",
-      cardCta: "Smart Promote",
-      bumpLabel: "Iškelti skelbimą",
-      successMessage: "Smart Promote aktyvuotas",
-    },
-    confirmation: {
-      shell: "bg-background text-foreground",
-      headerBar: "border-border bg-card",
-      title: "text-primary",
-      subtitle: "text-muted-foreground",
-      assistantLabel: "text-primary",
-      aiBubble: "border border-border bg-card text-foreground shadow-sm",
-      userBubble: "bg-primary text-primary-foreground",
-      detailsToggle: "border-border bg-card text-muted-foreground",
-      detailsPanel: "border-border bg-card",
-      publishBtn:
-        "bg-primary text-primary-foreground shadow-[var(--vauto-primary)]/25",
-      publishBtnDisabled: "disabled:opacity-40",
-      cancelBtn: "text-muted-foreground hover:bg-accent hover:text-foreground",
-    },
-    panel: "rounded-2xl border border-border bg-card p-4",
-    published: {
-      shell: "bg-background/95",
-      card: "border-border bg-card text-foreground",
-      title: "text-foreground",
-    },
-  },
-  autoplius: {
-    id: "autoplius",
-    bodyClass: "chameleon-autoplius",
-    portalLabel: "Transporto skelbimas",
-    classicLayout: true,
-    promote: {
-      modalTitle: "Paryškinti skelbimą",
-      cardCta: "Paryškinti skelbimą",
-      bumpLabel: "Iškelti į viršų",
-      successMessage: "Skelbimas paryškintas ir iškeltas į viršų",
-    },
-    confirmation: {
-      shell: "bg-[#f4f6f8]",
-      headerBar: "border-[#d0d7de] bg-white",
-      title: "text-[#1a56db]",
-      subtitle: "text-[#4b5563]",
-      assistantLabel: "text-[#1a56db]",
-      aiBubble:
-        "bg-white border border-[#d0d7de] text-[#1f2937] shadow-sm ring-0",
-      userBubble: "bg-[#e8f0fe] border border-[#c5d9f7] text-[#1f2937]",
-      detailsToggle:
-        "border-[#d0d7de] bg-white text-[#374151] hover:bg-[#f9fafb]",
-      detailsPanel: "border-[#d0d7de] bg-white shadow-sm",
-      publishBtn: "bg-[#ea580c] text-white shadow-md hover:bg-[#c2410c]",
-      publishBtnDisabled: "disabled:bg-[#fdba74]",
-      cancelBtn: "text-[#6b7280] hover:bg-[#f3f4f6]",
-    },
-    panel: "rounded-lg border border-[#d0d7de] bg-white p-4 shadow-sm",
-    published: {
-      shell: "bg-[#f4f6f8]",
-      card: "border-[#d0d7de] bg-white text-[#1f2937] shadow-md",
-      title: "text-[#1f2937]",
-    },
-  },
-  wardrobe: {
-    id: "wardrobe",
-    bodyClass: "chameleon-wardrobe",
-    portalLabel: "Aprangos skelbimas",
-    classicLayout: false,
-    promote: {
-      modalTitle: "Iškelti skelbimą",
-      cardCta: "Iškelti skelbimą",
-      bumpLabel: "Iškelti į viršų",
-      successMessage: "Skelbimas iškeltas į viršų",
-    },
-    confirmation: {
-      shell: "bg-[#faf8f5]",
-      headerBar: "border-[#e8e4df] bg-[#fffdf9]",
-      title: "text-[#09b1a8]",
-      subtitle: "text-[#6b7280]",
-      assistantLabel: "text-[#09b1a8] font-light tracking-wide",
-      aiBubble:
-        "bg-white border border-[#e8e4df] text-[#374151] shadow-sm font-light",
-      userBubble: "bg-[#e6f7f6] border border-[#b8ebe8] text-[#374151]",
-      detailsToggle:
-        "border-[#e8e4df] bg-white text-[#4b5563] font-light",
-      detailsPanel: "border-[#e8e4df] bg-white",
-      publishBtn: "bg-[#09b1a8] text-white shadow-sm hover:bg-[#078f88]",
-      publishBtnDisabled: "disabled:opacity-50",
-      cancelBtn: "text-[#9ca3af] hover:bg-[#f3f4f6]",
-    },
-    panel: "rounded-2xl border border-[#e8e4df] bg-white p-4",
-    published: {
-      shell: "bg-[#faf8f5]",
-      card: "border-[#e8e4df] bg-white text-[#374151]",
-      title: "text-[#374151] font-light",
-    },
-  },
-  skelbiu: {
-    id: "skelbiu",
-    bodyClass: "chameleon-skelbiu",
-    portalLabel: "Universalus skelbimas",
-    classicLayout: true,
-    promote: {
-      modalTitle: "Rodyti pirmame puslapyje",
-      cardCta: "Rodyti pirmame puslapyje",
-      bumpLabel: "Iškelti skelbimą",
-      successMessage: "Skelbimas rodomas pirmame puslapyje",
-    },
-    confirmation: {
-      shell: "bg-[#eceff1]",
-      headerBar: "border-[#b0bec5] bg-[#cfd8dc]",
-      title: "text-[#1565c0] font-bold",
-      subtitle: "text-[#455a64]",
-      assistantLabel: "text-[#1565c0] font-bold uppercase text-xs",
-      aiBubble: "bg-white border-2 border-[#b0bec5] text-[#263238]",
-      userBubble: "bg-[#e3f2fd] border-2 border-[#90caf9] text-[#263238]",
-      detailsToggle:
-        "border-2 border-[#b0bec5] bg-white text-[#37474f] font-semibold",
-      detailsPanel: "border-2 border-[#b0bec5] bg-white",
-      publishBtn: "bg-[#1565c0] text-white text-xl font-bold hover:bg-[#0d47a1]",
-      publishBtnDisabled: "disabled:bg-[#90caf9]",
-      cancelBtn: "text-[#546e7a] hover:bg-white",
-    },
-    panel: "rounded border-2 border-[#b0bec5] bg-white p-4",
-    published: {
-      shell: "bg-[#eceff1]",
-      card: "border-2 border-[#b0bec5] bg-white text-[#263238]",
-      title: "text-[#263238] font-bold",
-    },
-  },
-  aruodas: {
-    id: "aruodas",
-    bodyClass: "chameleon-aruodas",
-    portalLabel: "NT skelbimas",
-    classicLayout: true,
-    promote: {
-      modalTitle: "Iškelti NT skelbimą",
-      cardCta: "Iškelti NT skelbimą",
-      bumpLabel: "VIP skelbimas",
-      successMessage: "NT skelbimas iškeltas — matomas prioritetinėje zonoje",
-    },
-    confirmation: {
-      shell: "bg-[#f5f5f5]",
-      headerBar: "border-[#e0e0e0] bg-white shadow-sm",
-      title: "text-[#c62828] font-bold",
-      subtitle: "text-[#616161]",
-      assistantLabel: "text-[#c62828] font-semibold uppercase text-xs",
-      aiBubble:
-        "bg-white border border-[#e0e0e0] text-[#212121] shadow-sm rounded-md",
-      userBubble: "bg-[#ffebee] border border-[#ffcdd2] text-[#212121] rounded-md",
-      detailsToggle:
-        "border border-[#e0e0e0] bg-white text-[#424242] font-medium hover:bg-[#fafafa]",
-      detailsPanel: "border border-[#e0e0e0] bg-white shadow-sm",
-      publishBtn:
-        "bg-[#c62828] text-white text-lg font-bold shadow-md hover:bg-[#b71c1c] rounded-md",
-      publishBtnDisabled: "disabled:bg-[#ef9a9a]",
-      cancelBtn: "text-[#757575] hover:bg-[#fafafa]",
-    },
-    panel: "rounded-md border border-[#e0e0e0] bg-white p-4 shadow-sm",
-    published: {
-      shell: "bg-[#f5f5f5]",
-      card: "border border-[#e0e0e0] bg-white text-[#212121] shadow-md",
-      title: "text-[#c62828] font-bold",
-    },
-  },
-  paslaugos: {
-    id: "paslaugos",
-    bodyClass: "chameleon-paslaugos",
-    portalLabel: "Paslaugų skelbimas",
-    classicLayout: true,
-    promote: {
-      modalTitle: "Iškelti paslaugą",
-      cardCta: "Iškelti paslaugą",
-      bumpLabel: "TOP meistras",
-      successMessage: "Paslaugos skelbimas iškeltas paslaugų kataloge",
-    },
-    confirmation: {
-      shell: "bg-[#f4f9ff]",
-      headerBar: "border-[#cfe3ff] bg-white",
-      title: "text-[#0f766e] font-bold",
-      subtitle: "text-[#475569]",
-      assistantLabel: "text-[#0f766e] font-bold uppercase text-xs",
-      aiBubble: "bg-white border border-[#cfe3ff] text-[#0f172a] shadow-sm",
-      userBubble: "bg-[#e6fffb] border border-[#99f6e4] text-[#0f172a]",
-      detailsToggle:
-        "border border-[#cfe3ff] bg-white text-[#334155] font-semibold hover:bg-[#f8fbff]",
-      detailsPanel: "border border-[#cfe3ff] bg-white shadow-sm",
-      publishBtn: "bg-[#0f766e] text-white text-lg font-bold hover:bg-[#115e59]",
-      publishBtnDisabled: "disabled:bg-[#99f6e4]",
-      cancelBtn: "text-[#64748b] hover:bg-[#f1f5f9]",
-    },
-    panel: "rounded-xl border border-[#cfe3ff] bg-white p-4 shadow-sm",
-    published: {
-      shell: "bg-[#f4f9ff]",
-      card: "border border-[#cfe3ff] bg-white text-[#0f172a] shadow-md",
-      title: "text-[#0f766e] font-bold",
-    },
-  },
-  cvbankas: {
-    id: "cvbankas",
-    bodyClass: "chameleon-cvbankas",
-    portalLabel: "Darbo skelbimas",
-    classicLayout: true,
-    promote: {
-      modalTitle: "Iškelti darbo skelbimą",
-      cardCta: "Iškelti darbo skelbimą",
-      bumpLabel: "TOP darbo pasiūlymas",
-      successMessage: "Darbo skelbimas iškeltas kandidatų sraute",
-    },
-    confirmation: {
-      shell: "bg-[#f5f7fb]",
-      headerBar: "border-[#d9e2f1] bg-white",
-      title: "text-[#1f4b99] font-bold",
-      subtitle: "text-[#475569]",
-      assistantLabel: "text-[#1f4b99] font-bold uppercase text-xs",
-      aiBubble: "bg-white border border-[#d9e2f1] text-[#172033] shadow-sm",
-      userBubble: "bg-[#eaf1ff] border border-[#c8d8f4] text-[#172033]",
-      detailsToggle:
-        "border border-[#d9e2f1] bg-white text-[#334155] font-semibold hover:bg-[#f8fbff]",
-      detailsPanel: "border border-[#d9e2f1] bg-white shadow-sm",
-      publishBtn: "bg-[#1f4b99] text-white text-lg font-bold hover:bg-[#173a78]",
-      publishBtnDisabled: "disabled:bg-[#9bb4e2]",
-      cancelBtn: "text-[#64748b] hover:bg-[#f1f5f9]",
-    },
-    panel: "rounded-xl border border-[#d9e2f1] bg-white p-4 shadow-sm",
-    published: {
-      shell: "bg-[#f5f7fb]",
-      card: "border border-[#d9e2f1] bg-white text-[#172033] shadow-md",
-      title: "text-[#1f4b99] font-bold",
-    },
-  },
-};
-
-export function adaptiveKeyToTheme(key: AdaptiveCategoryKey): ChameleonThemeId {
-  switch (key) {
-    case "vehicles":
+export function verticalIdToThemeId(id: VerticalPresentationId): ChameleonThemeId {
+  switch (id) {
+    case "transport":
       return "autoplius";
-    case "clothing":
+    case "fashion":
       return "wardrobe";
     case "real_estate":
       return "aruodas";
@@ -297,21 +75,31 @@ export function adaptiveKeyToTheme(key: AdaptiveCategoryKey): ChameleonThemeId {
       return "paslaugos";
     case "jobs":
       return "cvbankas";
-    default:
+    case "goods":
       return "skelbiu";
+    default:
+      return "flux";
   }
 }
 
+/** @deprecated Use `getVerticalPresentation(verticalPresentationForCategory(category))`. */
+export function getChameleonTheme(id: ChameleonThemeId): ChameleonThemeTokens {
+  return getVerticalPresentation(themeIdToVerticalId(id));
+}
+
+/** @deprecated Use `adaptiveKeyToPresentationId` from `@/lib/vertical-presentation`. */
+export function adaptiveKeyToTheme(key: AdaptiveCategoryKey): ChameleonThemeId {
+  return verticalIdToThemeId(adaptiveKeyToPresentationId(key));
+}
+
+/** @deprecated Use `verticalPresentationForCategory` from `@/lib/vertical-presentation`. */
 export function categoryToTheme(category: ListingCategory): ChameleonThemeId {
   return adaptiveKeyToTheme(listingToAdaptiveKey(category));
 }
 
-export function getChameleonTheme(id: ChameleonThemeId): ChameleonThemeTokens {
-  return THEMES[id];
-}
-
+/** @deprecated Use `getPromoteLabelsForCategory` from `@/lib/vertical-presentation`. */
 export function getPromoteLabelsForCategory(
   category: ListingCategory
 ): ChameleonPromoteLabels {
-  return getChameleonTheme(categoryToTheme(category)).promote;
+  return getVerticalPromoteLabels(category);
 }

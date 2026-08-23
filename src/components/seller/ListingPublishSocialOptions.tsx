@@ -15,12 +15,12 @@ export function ListingPublishSocialOptions({ className }: { className?: string 
       )}
     >
       <div className="mb-3 flex items-center gap-2">
-        <Share2 className="h-4 w-4 text-[var(--vauto-accent,#ff6b00)]" />
-        <h3 className="text-sm font-semibold text-[var(--portal-text,var(--vauto-text-main,#111827))]">
+        <Share2 className="h-4 w-4 text-[var(--vauto-accent,#10b981)]" />
+        <h3 className="text-sm font-semibold text-[var(--vauto-text-main,#111827)]">
           Automatinis dalijimasis socialiniuose tinkluose
         </h3>
       </div>
-      <p className="listing-social-publish-desc mb-3 text-xs text-[var(--portal-text,var(--vauto-text-main,#374151))] opacity-80">
+      <p className="listing-social-publish-desc mb-3 text-xs text-[var(--vauto-text-main,#374151)] opacity-80">
         Pasirinkite, kur dar automatiškai reklamuoti skelbimą po publikavimo.
       </p>
       <div className="space-y-2.5">
@@ -63,9 +63,9 @@ function SocialCheckbox({
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--vauto-accent,#ff6b00)]"
+        className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--vauto-accent,#10b981)]"
       />
-      <span className="listing-social-option-label text-xs leading-snug text-[var(--portal-text,var(--vauto-text-main,#374151))]">
+      <span className="listing-social-option-label text-xs leading-snug text-[var(--vauto-text-main,#374151)]">
         {label}
       </span>
     </label>

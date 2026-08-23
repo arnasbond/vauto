@@ -32,7 +32,7 @@ export function ToastHost() {
         }`}
       >
         {toast.type === "success" && <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />}
-        {isBuddy && <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--vauto-orange)]" />}
+        {isBuddy && <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ds-ai)]" />}
         <span className="flex-1 leading-snug">{toast.message}</span>
         <button
           type="button"

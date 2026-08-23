@@ -45,7 +45,7 @@ export function InvoicePrintView({ invoice, onClose }: InvoicePrintViewProps) {
         >
           <header className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-6">
             <div>
-              <p className="text-2xl font-black tracking-tight text-[#0d9488]">VAUTO</p>
+              <p className="text-2xl font-black tracking-tight text-[var(--ds-brand)]">VAUTO</p>
               <p className="mt-1 text-sm text-slate-600">{seller.name}</p>
               {seller.companyCode ? (
                 <p className="text-xs text-slate-500">Įm. kodas: {seller.companyCode}</p>

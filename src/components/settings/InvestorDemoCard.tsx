@@ -26,13 +26,13 @@ export function InvestorDemoCard() {
       className={cn(
         "vauto-dashboard-card rounded-2xl border p-4",
         investorDemoActive
-          ? "border-[var(--vauto-orange)]/50 bg-[var(--vauto-orange)]/5"
+          ? "border-[var(--ds-brand)]/50 bg-[var(--ds-brand-soft)]"
           : "border-[var(--vauto-border)]"
       )}
     >
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Presentation className="h-5 w-5 text-[var(--vauto-orange)]" />
+          <Presentation className="h-5 w-5 text-[var(--ds-brand)]" />
           <div>
             <h3 className="text-sm font-bold text-[var(--vauto-text)]">
               Investuotojų Demo
@@ -57,7 +57,7 @@ export function InvestorDemoCard() {
         type="button"
         disabled={loading}
         onClick={() => void handleActivate()}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--vauto-orange)] py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--ds-brand)] py-3 text-sm font-semibold text-[var(--ds-brand-contrast)] transition hover:opacity-90 disabled:opacity-60"
       >
         <Sparkles className="h-4 w-4" />
         {loading

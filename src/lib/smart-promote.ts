@@ -1,5 +1,5 @@
 import type { Listing } from "@/lib/types";
-import { getPromoteLabelsForCategory } from "@/lib/chameleon-themes";
+import { getPromoteLabelsForCategory } from "@/lib/vertical-presentation";
 import { getMarketInsights, type MarketInsights } from "@/lib/market-insights";
 import type { PriceVerdict } from "@/lib/price-advisor";
 import {

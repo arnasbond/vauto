@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Heart } from "lucide-react";
 import { formatListingPlaceLine, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
-import { getPortalUi } from "@/lib/chameleon-portal-ui";
+import { getVerticalUi } from "@/lib/vertical-presentation";
 import { listingPath } from "@/lib/seo";
 import type { ScoredListing } from "@/lib/types";
 import {
@@ -22,9 +22,11 @@ function formatMileage(value: string | string[] | number): string {
   return `${s} km`;
 }
 
+const UI = getVerticalUi("transport");
+
 function VehicleRow({ listing }: { listing: ScoredListing }) {
   const { savedIds, toggleSave } = useVauto();
-  const ui = getPortalUi("autoplius");
+  const ui = UI;
   const isSaved = savedIds.has(listing.id);
   const attrs = listing.attributes ?? {};
   const specs = [
@@ -84,7 +86,7 @@ interface VehicleListingResultsProps {
 }
 
 export function VehicleListingResults({ listings, title }: VehicleListingResultsProps) {
-  const ui = getPortalUi("autoplius");
+  const ui = UI;
   const { searchQuery } = useVauto();
   const showParts = queryWantsVehicleParts(searchQuery);
   const vehicles = listings

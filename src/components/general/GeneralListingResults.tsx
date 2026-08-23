@@ -6,13 +6,13 @@ import Link from "next/link";
 import { Heart } from "lucide-react";
 import { formatListingPlaceLine, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
-import { getPortalUi } from "@/lib/chameleon-portal-ui";
+import { getVerticalUi } from "@/lib/vertical-presentation";
 import { listingPath } from "@/lib/seo";
 import type { ScoredListing } from "@/lib/types";
 
 function SkelbiuRow({ listing }: { listing: ScoredListing }) {
   const { savedIds, toggleSave } = useVauto();
-  const ui = getPortalUi("skelbiu");
+  const ui = getVerticalUi("goods");
   const isSaved = savedIds.has(listing.id);
   const categoryPath = listing.attributes?.skelbiuCategory
     ? String(listing.attributes.skelbiuCategory)
@@ -69,7 +69,7 @@ interface GeneralListingResultsProps {
 }
 
 export function GeneralListingResults({ listings, title }: GeneralListingResultsProps) {
-  const ui = getPortalUi("skelbiu");
+  const ui = getVerticalUi("goods");
   const items = listings.filter((l) =>
     ["electronics", "home", "other"].includes(l.category)
   );

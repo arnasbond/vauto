@@ -519,7 +519,7 @@ export function PrePublishModal({
                     className={cn(
                       "relative aspect-square overflow-hidden rounded-xl ring-1 ring-black/10",
                       idx === 0 && "ring-2 ring-[var(--vauto-primary)]",
-                      dragOver === idx && "ring-2 ring-[var(--vauto-accent,#38bdf8)]",
+                      dragOver === idx && "ring-2 ring-[var(--vauto-accent,#10b981)]",
                       onGalleryChange && "cursor-grab active:cursor-grabbing"
                     )}
                   >

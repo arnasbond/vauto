@@ -9,7 +9,6 @@ import {
   type CheckoutSession,
 } from "@/lib/monetization-catalog";
 import type { Listing } from "@/lib/types";
-import { categoryToTheme, getChameleonTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
 import { LAUNCH_PROMO_LISTING_NOTE, isLaunchPromoActive } from "@vauto/shared/launch-promo";
 
@@ -40,16 +39,12 @@ export function SmartPromoteModal({
 
   if (!open) return null;
 
-  const theme = getChameleonTheme(categoryToTheme(listing.category));
-  const classic = theme.classicLayout;
   const selectedProduct = B2C_PROMOTE_PRODUCTS.find((p) => p.id === selected)!;
 
-  const modalSurface = classic
-    ? "bg-white border border-[#d0d7de] text-[#1f2937] shadow-xl"
-    : "vauto-auth-modal border border-[var(--vauto-border)]";
+  const modalSurface = "vauto-auth-modal border border-[var(--vauto-border)]";
 
-  const titleColor = classic ? "text-[#1f2937]" : "text-[var(--vauto-text)]";
-  const mutedColor = classic ? "text-[#6b7280]" : "text-[var(--vauto-text-muted)]";
+  const titleColor = "text-[var(--vauto-text)]";
+  const mutedColor = "text-[var(--vauto-text-muted)]";
 
   const handleContinue = () => {
     onOpenCheckout(buildB2CPromoteCheckout(listing.id, listing.title, selected));
@@ -101,12 +96,8 @@ export function SmartPromoteModal({
                 className={cn(
                   "w-full rounded-xl border p-3 text-left transition",
                   isSelected
-                    ? classic
-                      ? "border-[#1565c0] bg-[#e8f0fe] ring-1 ring-[#1565c0]"
-                      : "border-[var(--vauto-teal)] bg-[var(--vauto-teal)]/15 ring-1 ring-[var(--vauto-teal)]"
-                    : classic
-                      ? "border-[#e5e7eb] bg-[#f9fafb] hover:bg-[#f3f4f6]"
-                      : "border-[var(--vauto-border)] bg-[var(--vauto-bg)]/40 hover:border-[var(--vauto-teal)]/30"
+                    ? "border-[var(--vauto-teal)] bg-[var(--vauto-teal)]/15 ring-1 ring-[var(--vauto-teal)]"
+                    : "border-[var(--vauto-border)] bg-[var(--vauto-bg)]/40 hover:border-[var(--vauto-teal)]/30"
                 )}
               >
                 <div className="flex items-start justify-between gap-2">

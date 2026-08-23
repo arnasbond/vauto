@@ -99,7 +99,7 @@ export function DashboardListingCard({
               {dashboardStateLabel(state)}
             </span>
           </div>
-          <p className="text-sm font-bold text-[var(--vauto-orange)]">
+          <p className="text-sm font-bold text-[var(--vauto-ink)]">
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
           <p className="text-xs text-[var(--vauto-text-muted)]">{listing.location}</p>

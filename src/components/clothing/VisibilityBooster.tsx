@@ -10,7 +10,7 @@ import {
 } from "@/lib/monetization-wardrobe";
 import type { Listing } from "@/lib/types";
 
-const ACCENT = "#09b1a8";
+const ACCENT = "var(--vauto-primary, #10b981)";
 
 interface VisibilityBoosterProps {
   listings: Listing[];

@@ -1,6 +1,6 @@
 import type { AiExtractedListing, Listing, ScoredListing } from "@/lib/types";
 import { WANTED_EMPTY_MESSAGE } from "@/lib/matching-service";
-import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
+import { sanitizeSearchQuery } from "@/lib/vertical-listing-filter";
 import { getSearchMatchStatus } from "@/lib/search-match";
 import { isConversationalSearchIntent } from "@/lib/search-conversational-intent";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";

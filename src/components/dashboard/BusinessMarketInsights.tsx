@@ -26,7 +26,7 @@ interface BusinessMarketInsightsProps {
 function urgencyStyles(urgency: BoostTip["urgency"]) {
   switch (urgency) {
     case "high":
-      return "border-[var(--vauto-orange)]/40 bg-[var(--vauto-orange)]/10";
+      return "border-[var(--ds-warning)]/40 bg-[var(--ds-warning-soft)]";
     case "medium":
       return "border-[var(--vauto-teal)]/30 bg-[var(--vauto-teal)]/10";
     default:

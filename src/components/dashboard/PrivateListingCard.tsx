@@ -65,7 +65,7 @@ export function PrivateListingCard({
               {status.text}
             </span>
           </div>
-          <p className="text-sm font-bold text-[var(--vauto-orange)]">
+          <p className="text-sm font-bold text-[var(--vauto-ink)]">
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
           <p className="text-xs text-slate-500">{listing.location}</p>

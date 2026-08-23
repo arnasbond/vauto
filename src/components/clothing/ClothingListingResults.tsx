@@ -6,13 +6,13 @@ import Link from "next/link";
 import { Heart } from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
-import { getPortalUi } from "@/lib/chameleon-portal-ui";
+import { getVerticalUi } from "@/lib/vertical-presentation";
 import { listingPath } from "@/lib/seo";
 import type { ScoredListing } from "@/lib/types";
 
 function WardrobeCard({ listing }: { listing: ScoredListing }) {
   const { savedIds, toggleSave } = useVauto();
-  const ui = getPortalUi("wardrobe");
+  const ui = getVerticalUi("fashion");
   const isSaved = savedIds.has(listing.id);
   const attrs = listing.attributes ?? {};
   const size = attrs.size ? String(attrs.size) : null;
@@ -71,7 +71,7 @@ interface ClothingListingResultsProps {
 }
 
 export function ClothingListingResults({ listings, title }: ClothingListingResultsProps) {
-  const ui = getPortalUi("wardrobe");
+  const ui = getVerticalUi("fashion");
   const items = listings.filter((l) => l.category === "clothing");
 
   if (items.length === 0) {

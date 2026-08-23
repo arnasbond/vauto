@@ -9,10 +9,7 @@ import { listingPath } from "@/lib/seo";
 import { dashboardListingState, dashboardStateLabel } from "@/lib/listing-visibility";
 import type { Listing } from "@/lib/types";
 
-const ACCENT = "#09b1a8";
-
-interface WardrobeCabinetGridProps {
-  listings: Listing[];
+interface WardrobeCabinetGridProps {  listings: Listing[];
   onEdit: (listing: Listing) => void;
   onMarkSold?: (listing: Listing) => void;
 }
@@ -46,7 +43,9 @@ function WardrobeShelfCard({
         </Link>
         <span
           className="absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-light text-white backdrop-blur-sm"
-          style={{ backgroundColor: `${ACCENT}dd` }}
+          style={{
+            backgroundColor: "color-mix(in srgb, var(--vauto-primary, #10b981) 87%, transparent)",
+          }}
         >
           {state === "sold" ? "Parduota" : dashboardStateLabel(state)}
         </span>
@@ -63,7 +62,7 @@ function WardrobeShelfCard({
             <button
               type="button"
               onClick={onMarkSold}
-              className="rounded-full bg-white/95 p-1.5 text-[#09b1a8] shadow-sm"
+                className="rounded-full bg-white/95 p-1.5 text-[var(--vauto-primary,#10b981)] shadow-sm"
               aria-label="Pažymėti parduota"
             >
               <Heart className="h-3.5 w-3.5" />
@@ -98,7 +97,7 @@ export function WardrobeCabinetGrid({
   if (clothing.length === 0) {
     return (
       <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
-        <Sparkles className="mx-auto mb-3 h-8 w-8 text-[#09b1a8]" />
+        <Sparkles className="mx-auto mb-3 h-8 w-8 text-[var(--vauto-primary,#10b981)]" />
         <p className="text-sm text-slate-600">
           Dar neturite skelbimų — pradėkite pokalbį pagrindiniame puslapyje.
         </p>

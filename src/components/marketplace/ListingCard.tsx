@@ -64,7 +64,7 @@ export function ListingCard({
   const { savedIds, toggleSave } = useVauto();
   const isSaved = savedIds.has(listing.id);
   const href = listingPath(listing);
-  const resolvedPrice = priceColor || "var(--ds-brand, var(--vauto-ink))";
+  const resolvedPrice = priceColor || "var(--vauto-ink, #0f172a)";
   const aiPrice = resolveAiPriceSignal(listing);
   const verified = isListingVerified(listing);
   const omniva = hasDeliveryCapability(listing);

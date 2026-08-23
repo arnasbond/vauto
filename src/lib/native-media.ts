@@ -564,13 +564,13 @@ function pickPhotoSourceOnWeb(): Promise<CapturedPhoto | null> {
     const cameraBtn = document.createElement("button");
     cameraBtn.type = "button";
     cameraBtn.className =
-      "mb-2 w-full rounded-xl bg-[#1167b1] py-3.5 text-sm font-semibold text-white";
+      "mb-2 w-full rounded-xl bg-[var(--ds-brand)] py-3.5 text-sm font-semibold text-[var(--ds-brand-contrast)]";
     cameraBtn.textContent = "Fotografuoti";
 
     const galleryBtn = document.createElement("button");
     galleryBtn.type = "button";
     galleryBtn.className =
-      "mb-2 w-full rounded-xl border border-[#dde5ef] py-3.5 text-sm font-semibold text-[#111827]";
+      "mb-2 w-full rounded-xl border border-[#e6e9f0] bg-white py-3.5 text-sm font-semibold text-[#111827]";
     galleryBtn.textContent = "Pasirinkti iš galerijos";
 
     const cancelBtn = document.createElement("button");

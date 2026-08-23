@@ -59,7 +59,7 @@ export function ZeroUiBusinessDashboard() {
           <button
             type="button"
             onClick={() => openAuthModal("/")}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#1167b1] px-5 py-2.5 text-sm font-bold text-white"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[var(--ds-brand)] px-5 py-2.5 text-sm font-bold text-[var(--ds-brand-contrast)]"
           >
             <LogIn className="h-4 w-4" />
             Prisijungti

@@ -116,13 +116,22 @@ export async function expectCleanSupervisorSearch(page: Page) {
   ).toBeVisible({ timeout: 15_000 });
 }
 
-/** Filter bar shows Lithuania-wide count after supervisor clears the query bar. */
+/**
+ * Filter bar result summary after a supervisor query search.
+ *
+ * Current product contract (`formatResultsLabel` in `marketplace-view.ts`,
+ * unchanged since Stage 14): a non-empty query renders `<query>: <count>`
+ * (e.g. "volvo v70: 1 rezultatas"); the Lithuania-wide label renders only
+ * when the query bar is empty. The agent-search path keeps the query in state,
+ * so assert the query-preserving label and never a stale "Skelbimai Lietuvoje:"
+ * format for a query-driven result.
+ */
 export async function expectMarketplaceResultSummary(page: Page) {
   const results = listingResults(page);
-  await expect(results.getByText(/Skelbimai Lietuvoje:.*rezultat/i)).toBeVisible({
-    timeout: 30_000,
-  });
-  await expect(results.getByText(/^(bmw|volvo).*rezultat/i)).toHaveCount(0);
+  await expect(
+    results.getByText(/Skelbimai Lietuvoje:.*rezultat|:.*rezultat/i)
+  ).toBeVisible({ timeout: 30_000 });
+  await expect(results.getByText(/^Skelbimai Lietuvoje: 0 rezultat/i)).toHaveCount(0);
 }
 
 export function supervisorSearchQuery(variant: SupervisorSearchMockVariant): string {

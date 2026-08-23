@@ -1,0 +1,101 @@
+VAUTO STAGE 20B — FINDINGS (IŠVADOS)
+Data: 2026-08-20
+
+════════════════════════════════════════════════════════════════════
+1. BRAND AKCENTO MIGRACIJA (mėlyna/violetinė/cyan → emerald)
+════════════════════════════════════════════════════════════════════
+Stage 20A sertifikavo EMERALD kaip VAUTO brand akcentą. Stage 20B rado
+ir pašalino likusius mėlynos/violetinės/cyan spalvų naudojimus, kurie
+prieštaravo MASTER LIGHT/DARK.
+
+Strategija: kiekvienas pakeitimas pagal SEMANTINĘ paskirtį:
+  - Primary CTA / pasirinkta būsena / aktyvus filtras → --ds-brand
+  - AI funkcijos / AI žymės / AI indikatoriai → --ds-ai / --ds-ai-soft
+  - Sėkmės būsenos → --ds-success / --ds-success-soft
+  - Įspėjimai / promo → --ds-warning / --ds-warning-soft
+  - Kainos / teksto hierarchija → --vauto-ink / --ds-text-primary
+
+Pakeisti brand šaltiniai:
+  - src/lib/chameleon-portal-ui.ts  — flux (VAUTO) theme: accent, cta,
+    link, price, bannerBg, progress → #10b981 / #0d9f6e
+  - src/lib/portal-experience.ts    — flux color → #10b981
+  - src/components/VautoHexMark.tsx — logo gradient → #34d399 → #059669
+  - src/components/VautoLogo.tsx    — wordmark dot → #10b981
+  - src/app/globals.css             — flux-coral/coral-light, anonser-accent,
+    buddyPulse keyframes, --vauto-orange alias → emerald; badge-info → --ds-info
+  - src/lib/story-visual.ts         — BRAND_TEAL → BRAND_EMERALD #10b981
+
+Sweep rezultatas: VAUTO-facing kode neliko legacy mėlynos/violetinės/
+cyan/orange hex ar Tailwind klasių (išskyrus frozen autoplius/skelbiu/
+cvbankas simuliatorių temas, kurios imituoja išorinius portalus ir
+privalo išlaikyti originalias jų spalvas).
+
+════════════════════════════════════════════════════════════════════
+2. ORANŽINĖS SPALVOS (--vauto-orange) MIGRACIJA
+════════════════════════════════════════════════════════════════════
+MASTER nenaudoja oranžinės kaip brand spalvos. Visi --vauto-orange
+vartojimai priskirti pagal paskirtį:
+  - Kainos / pinigų reikšmės → --vauto-ink (tamsus, premium)
+  - Primary CTAs → --ds-brand (emerald)
+  - AI indikatoriai → --ds-ai / --ds-brand
+  - Promo/badges → --ds-warning
+globals.css --vauto-orange token per-adresuotas į var(--vauto-primary),
+kad joks runtime vartotojas negalėtų netyčia sugrąžinti oranžinės.
+
+════════════════════════════════════════════════════════════════════
+3. ATSITIKTINIŲ EMERALD VARIACIJŲ VALDYMAS
+════════════════════════════════════════════════════════════════════
+Galutinis sweep rado 3 hardcoded emerald hex VAUTO-facing kode:
+  - SellerProfilePage.tsx      priceColor="#10b981" → var(--ds-brand)
+  - InvoicePrintView.tsx       wordmark text-[#10b981] → text-[var(--ds-brand)]
+  - native-media.ts            cameraBtn bg-[#10b981] → bg-[var(--ds-brand)]
+Visi pakeisti į DS tokenus. Emerald hex lieka tik globals.css token
+apibrėžimuose (vienintelis tiesos šaltinis) ir chameleon-portal-ui.ts
+/ portal-experience.ts / story-visual.ts brand konstantose.
+
+════════════════════════════════════════════════════════════════════
+4. FROZEN / NELIESTI LIKUČIAI (sąmoningai)
+════════════════════════════════════════════════════════════════════
+  - autoplius/skelbiu/cvbankas vertikalios temų spalvos (#1167b1,
+    #ea580c, #1a56db…) — imituoja išorinius portalus, ne VAUTO
+  - --vauto-badge-info-* → --ds-info (#0284c7) — info semantika
+  - Stage 17.1 / 18.3 darbo tree pakeitimai (view state, facet URL)
+    — ne 20B, bet dalis working-tree delta (frozen architektūra)
+
+════════════════════════════════════════════════════════════════════
+5. E2E FAILŲ KLASIFIKACIJA (148/154 PASS)
+════════════════════════════════════════════════════════════════════
+Kiekvienas failas patikrintas ar yra 20B regresija:
+
+  1. smoke.spec.ts ×2 (volvo search, state-driven search):
+     Test helper'is expectMarketplaceResultSummary tikisi
+     "Skelbimai Lietuvoje: N rezultatų", bet AI interpretacijos sraute
+     etiketė "volvo v70: 1 rezultatas". Rezultatai (article) RODOMI.
+     Source (marketplace-view.ts formatResultsLabel) NEPALIESTAS 20B.
+     → PRE-EXISTING test fragility (helper neatspindi AI srauto etiketės).
+
+  2. payment-methods-settings.spec.ts ×3:
+     Mobile viewport (412×915) tikisi elementų su klasėmis
+     "ds-label hidden truncate ... lg:block" — t.y. matomų TIK desktop.
+     AppHeader.tsx su šiais label'iais egzistavo nuo f21c59b9 (iki 20B).
+     → PRE-EXISTING test fragility (testas rašytas prieš mobile layout).
+
+  3. app-shell-nav.spec.ts ×1 (guest tablet screenshot):
+     "UNKNOWN: unknown error, open docs/ui-nav-2.0/guest-tablet.png" —
+     Windows failų lock/race; tas pats testas PASS mobil ir desktop,
+     antrasis rėžimas (r2) turėjo tą patį — environment noise.
+     → ENVIRONMENTAL (Windows file lock), ne kodo regresija.
+
+  4. /ui-kit React error #418 (hydration) — patvirtinta PRE-EXISTING
+     per HEAD baseline build (G:/temp/vauto-head-check): error egzistuoja
+     ir be 20B pakeitimų. Reference paviršius, ne produktų maršrutas.
+
+  NĖ VIENAS failas nėra 20B regresija.
+
+════════════════════════════════════════════════════════════════════
+6. KONSOLE / RUNTIME
+════════════════════════════════════════════════════════════════════
+  - 48 maršrutų × console audit: 0 pageerror P0 maršrutuose.
+  - console.error įrašai = CORS blokai (vauto-api.onrender.com iš
+    statinio preview) ir failai 404/ERR_FAILED — aplinkos noise.
+  - Horizontalus overflow: 0 px visuose 48 kombinacijose.

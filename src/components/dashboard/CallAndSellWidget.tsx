@@ -17,13 +17,13 @@ export function CallAndSellWidget({
 }: CallAndSellWidgetProps) {
   const stats = [
     { label: "Peržiūros", value: views, icon: Eye, color: "text-sky-400" },
-    { label: "Skambučiai", value: callClicks, icon: Phone, color: "text-[var(--vauto-orange)]" },
+    { label: "Skambučiai", value: callClicks, icon: Phone, color: "text-[var(--ds-brand)]" },
     { label: "Išsaugota", value: saves, icon: Heart, color: "text-[var(--vauto-red)]" },
     { label: "Pokalbiai", value: chatStarts, icon: MessageCircle, color: "text-[var(--flux-teal)]" },
   ];
 
   return (
-    <div className="vauto-dashboard-card mb-4 rounded-2xl border border-[var(--vauto-orange)]/20 p-4">
+    <div className="vauto-dashboard-card mb-4 rounded-2xl border border-[var(--ds-brand)]/20 p-4">
       <div className="mb-3">
         <h3 className="font-display text-sm font-bold text-slate-900">
           Paskambink ir parduok

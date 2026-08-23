@@ -5,21 +5,21 @@ import { useVauto } from "@/context/VautoContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
-import { getChameleonTheme } from "@/lib/chameleon-themes";
-import { getPortalUi } from "@/lib/chameleon-portal-ui";
-import { portalExperienceForQuery } from "@/lib/portal-experience";
+import { getVerticalPresentation } from "@/lib/vertical-presentation";
+import { getVerticalUi } from "@/lib/vertical-presentation";
+import { verticalExperienceForQuery } from "@/lib/vertical-presentation";
+import type { VerticalPresentationId } from "@/lib/vertical-presentation";
 
-const CHAMELEON_CLASSES = [
+const VERTICAL_BODY_CLASSES = [
   "chameleon-flux",
-  "chameleon-autoplius",
   "chameleon-wardrobe",
-  "chameleon-skelbiu",
-  "chameleon-aruodas",
-  "chameleon-paslaugos",
-  "chameleon-cvbankas",
 ] as const;
 
-/** Applies chameleon body class — seller flow or active search portal */
+/**
+ * Applies the active vertical body class — seller flow or active search query.
+ * Stage 20B.1 — every vertical renders under the single VAUTO DS 2.0 identity;
+ * only the fashion (Spinta) flow keeps its dedicated wardrobe body class.
+ */
 export function ChameleonThemeHost() {
   const { chameleonTheme } = useVauto();
   const { sellerStep } = useSellerFlow();
@@ -27,24 +27,32 @@ export function ChameleonThemeHost() {
   const { trackEvent } = useUserBehavior();
   const lastThemeRef = useRef<string | null>(null);
 
-  const effectiveTheme = useMemo(() => {
-    if (sellerStep !== "idle") return chameleonTheme;
-    if (chameleonTheme === "wardrobe") return "wardrobe";
-    if (searchQuery.trim()) return portalExperienceForQuery(searchQuery).theme;
+  const effectiveVertical = useMemo<VerticalPresentationId | null>(() => {
+    if (sellerStep !== "idle") {
+      return chameleonTheme === "wardrobe" ? "fashion" : "marketplace";
+    }
+    if (chameleonTheme === "wardrobe") return "fashion";
+    if (searchQuery.trim()) return verticalExperienceForQuery(searchQuery).vertical;
     return null;
   }, [chameleonTheme, searchQuery, sellerStep]);
 
-  const theme = effectiveTheme ? getChameleonTheme(effectiveTheme) : null;
+  const theme = effectiveVertical
+    ? getVerticalPresentation(effectiveVertical)
+    : null;
 
   useEffect(() => {
-    if (effectiveTheme === lastThemeRef.current) return;
-    lastThemeRef.current = effectiveTheme;
-    trackEvent("theme_change", { theme: effectiveTheme, chameleonTheme, sellerStep });
-  }, [effectiveTheme, chameleonTheme, sellerStep, trackEvent]);
+    if (effectiveVertical === lastThemeRef.current) return;
+    lastThemeRef.current = effectiveVertical;
+    trackEvent("theme_change", {
+      theme: effectiveVertical,
+      chameleonTheme,
+      sellerStep,
+    });
+  }, [effectiveVertical, chameleonTheme, sellerStep, trackEvent]);
 
   useEffect(() => {
     const body = document.body;
-    body.classList.remove(...CHAMELEON_CLASSES);
+    body.classList.remove(...VERTICAL_BODY_CLASSES);
     if (!theme) return;
     body.classList.add(theme.bodyClass);
     return () => {
@@ -53,8 +61,8 @@ export function ChameleonThemeHost() {
   }, [theme]);
 
   useEffect(() => {
-    if (!effectiveTheme) return;
-    const ui = getPortalUi(effectiveTheme);
+    if (!effectiveVertical) return;
+    const ui = getVerticalUi(effectiveVertical);
     let meta = document.querySelector('meta[name="theme-color"]');
     if (!meta) {
       meta = document.createElement("meta");
@@ -62,7 +70,7 @@ export function ChameleonThemeHost() {
       document.head.appendChild(meta);
     }
     meta.setAttribute("content", ui.bannerBg);
-  }, [effectiveTheme]);
+  }, [effectiveVertical]);
 
   return null;
 }

@@ -15,17 +15,17 @@ export function BulkUploadCard() {
   return (
     <section className="vauto-dashboard-card mb-4 rounded-2xl p-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1167b1]/20 text-[#60a5fa]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--ds-brand-soft)] text-[var(--ds-brand)]">
           <UploadCloud className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
             Bulk Upload / API XML
           </p>
-          <h2 className="mt-1 text-base font-bold text-slate-900">
+          <h2 className="mt-1 text-base font-bold text-[var(--vauto-text-heading)]">
             Įkelkite 100+ skelbimų vienu veiksmu
           </h2>
-          <p className="mt-1 text-xs leading-relaxed text-slate-400">
+          <p className="mt-1 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
             Demo importas imituoja XML/CSV feed iš auto aikštelės, sandėlio ar
             e-shop sistemos. Realus API ingestion gali naudoti tą patį kontraktą.
           </p>
@@ -35,13 +35,13 @@ export function BulkUploadCard() {
           <button
             type="button"
             onClick={() => setImported(true)}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[#1167b1] px-4 py-2.5 text-xs font-semibold text-white"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[var(--ds-brand)] px-4 py-2.5 text-xs font-semibold text-[var(--ds-brand-contrast)]"
           >
             <FileSpreadsheet className="h-4 w-4" />
             Testuoti demo importą
           </button>
           {imported && (
-            <p className="mt-2 rounded-lg bg-green-500/10 px-3 py-2 text-xs text-green-300">
+            <p className="mt-2 rounded-lg bg-[var(--ds-success-soft)] px-3 py-2 text-xs text-[var(--ds-success)]">
               Demo feed apdorotas: 12 skelbimų paruošta publikavimui, 2 reikalauja VIN patikros.
             </p>
           )}

@@ -95,8 +95,8 @@ export function ZeroUiListingPreview() {
     return (
       <ZeroUiScreenChrome subtitle="Analizuojama…" onBack={handleBack}>
         <div className="zero-ui-loader-state flex flex-col items-center gap-3 py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-[var(--vauto-primary,#1167b1)]" />
-          <p className="zero-ui-loader-copy text-center text-sm text-[var(--portal-text,var(--vauto-text-main,#111827))]">
+          <Loader2 className="h-8 w-8 animate-spin text-[var(--vauto-primary,#10b981)]" />
+          <p className="zero-ui-loader-copy text-center text-sm text-[var(--vauto-text-main,#111827)]">
             AI analizuoja skelbimo duomenis — tęskite pokalbyje su asistentu…
           </p>
         </div>
@@ -107,8 +107,8 @@ export function ZeroUiListingPreview() {
   return (
     <ZeroUiScreenChrome subtitle="Grįžtama…" onBack={handleBack}>
       <div className="zero-ui-loader-state flex flex-col items-center gap-3 py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-[var(--vauto-primary,#1167b1)]" />
-        <p className="zero-ui-loader-copy text-center text-sm text-[var(--portal-text,var(--vauto-text-main,#111827))]">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--vauto-primary,#10b981)]" />
+        <p className="zero-ui-loader-copy text-center text-sm text-[var(--vauto-text-main,#111827)]">
           Skelbimo patvirtinimas vyksta asistento pokalbyje…
         </p>
       </div>

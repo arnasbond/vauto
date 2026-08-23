@@ -35,9 +35,9 @@ export function ReferralInviteCard() {
   };
 
   return (
-    <section className="vauto-dashboard-card rounded-2xl border border-[var(--vauto-orange)]/30 bg-[var(--vauto-orange)]/5 p-4">
+    <section className="vauto-dashboard-card rounded-2xl border border-[var(--ds-warning)]/30 bg-[var(--ds-warning-soft)] p-4">
       <div className="mb-3 flex items-center gap-2">
-        <Gift className="h-5 w-5 text-[var(--vauto-orange)]" />
+        <Gift className="h-5 w-5 text-[var(--ds-warning)]" />
         <div>
           <h3 className="text-sm font-bold text-[var(--vauto-text)]">
             Pakviesk draugą ir gauk TOP iškėlimą nemokamai
@@ -62,7 +62,7 @@ export function ReferralInviteCard() {
         <button
           type="button"
           onClick={() => void handleShare()}
-          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--vauto-orange)] py-2.5 text-sm font-semibold text-white"
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--ds-brand)] py-2.5 text-sm font-semibold text-[var(--ds-brand-contrast)]"
         >
           <Share2 className="h-4 w-4" />
           Dalintis

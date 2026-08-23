@@ -49,7 +49,7 @@ export function AudioWaveAnimation({
       {levels.map((level, i) => (
         <span
           key={i}
-          className={`${reactive ? "" : "audio-wave-bar"} ${barWidth} ${barHeight} rounded-full bg-gradient-to-t from-[var(--vauto-orange)] to-[var(--vauto-red)]`}
+          className={`${reactive ? "" : "audio-wave-bar"} ${barWidth} ${barHeight} rounded-full bg-gradient-to-t from-[var(--ds-brand)] to-[var(--ds-ai)]`}
           style={{
             animationDelay: reactive ? undefined : `${FALLBACK_DELAYS[i]}s`,
             transform: reactive ? `scaleY(${level})` : undefined,

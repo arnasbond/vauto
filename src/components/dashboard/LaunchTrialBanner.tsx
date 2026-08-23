@@ -27,13 +27,13 @@ export function LaunchTrialBanner({ user }: LaunchTrialBannerProps) {
 
   if (hasActivePaidPlan && expiresAt && !expired) {
     return (
-      <section className="mb-4 rounded-2xl border border-[var(--vauto-orange)]/30 bg-[var(--vauto-orange)]/8 p-4">
+      <section className="mb-4 rounded-2xl border border-[var(--ds-warning)]/30 bg-[var(--ds-warning-soft)] p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-orange)]/15 text-[var(--vauto-orange)]">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--ds-warning)]/15 text-[var(--ds-warning)]">
             <Gift className="h-5 w-5" aria-hidden />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vauto-orange)]">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ds-warning)]">
               {LAUNCH_PROMO_TITLE}
             </p>
             <h2 className="mt-0.5 text-base font-bold text-[var(--vauto-text)]">
@@ -46,7 +46,7 @@ export function LaunchTrialBanner({ user }: LaunchTrialBannerProps) {
               </span>
               {" · "}
               Liko{" "}
-              <span className="font-bold text-[var(--vauto-orange)]">
+              <span className="font-bold text-[var(--ds-warning)]">
                 {daysLeft} {daysLeft === 1 ? "diena" : "d."}
               </span>
               {" · "}
@@ -78,13 +78,13 @@ export function LaunchTrialBanner({ user }: LaunchTrialBannerProps) {
   }
 
   return (
-    <section className="mb-4 rounded-2xl border border-[var(--vauto-orange)]/25 bg-gradient-to-br from-[var(--vauto-orange)]/10 to-transparent p-4">
+    <section className="mb-4 rounded-2xl border border-[var(--ds-warning)]/25 bg-gradient-to-br from-[var(--ds-warning-soft)] to-transparent p-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-orange)]/15 text-[var(--vauto-orange)]">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--ds-warning)]/15 text-[var(--ds-warning)]">
           <Gift className="h-5 w-5" aria-hidden />
         </div>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vauto-orange)]">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--ds-warning)]">
             {LAUNCH_PROMO_TITLE}
           </p>
           <h2 className="mt-0.5 text-base font-bold text-[var(--vauto-text)]">
@@ -92,7 +92,7 @@ export function LaunchTrialBanner({ user }: LaunchTrialBannerProps) {
           </h2>
           <p className="mt-1 text-sm text-[var(--vauto-text-muted)]">
             START 9 € · GROWTH 29 € · ENTERPRISE 69 € / mėn. — šiandien{" "}
-            <span className="font-bold text-[var(--vauto-orange)]">
+            <span className="font-bold text-[var(--ds-warning)]">
               {LAUNCH_PROMO_BADGE}
             </span>
             , be banko kortelės. Planų limitai galioja iškart.

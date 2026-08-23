@@ -35,30 +35,30 @@ export function AiIntroModal({ open, onClose, onStartAi }: AiIntroModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[225] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[225] flex items-center justify-center bg-[var(--ds-overlay)] p-4"
       role="dialog"
       aria-modal="true"
       aria-label="AI skelbimo pagalba"
     >
-      <div className="relative w-full max-w-sm rounded-2xl bg-[#1e293b] p-6 text-white shadow-xl">
+      <div className="relative w-full max-w-sm rounded-2xl bg-[var(--ds-surface-elevated)] p-6 text-[var(--ds-text-primary)] shadow-xl">
         <button
           type="button"
           onClick={dismiss}
-          className="absolute right-4 top-4 text-slate-400 hover:text-slate-200"
+          className="absolute right-4 top-4 text-[var(--ds-text-muted)] hover:text-[var(--ds-text-primary)]"
           aria-label="Uždaryti"
         >
           <X className="h-5 w-5" />
         </button>
 
-        <h2 className="font-display text-center text-lg font-bold text-white">
+        <h2 className="font-display text-center text-lg font-bold text-[var(--ds-text-primary)]">
           Norite skelbti greitai ir paprastai?
         </h2>
 
-        <div className="mx-auto mt-5 flex h-28 w-28 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1167b1]/30 to-[#0a1128]">
-          <Sparkles className="h-12 w-12 text-[#00f2fe]" />
+        <div className="mx-auto mt-5 flex h-28 w-28 items-center justify-center rounded-2xl bg-[var(--ds-ai-soft)]">
+          <Sparkles className="h-12 w-12 text-[var(--ds-ai)]" />
         </div>
 
-        <p className="mt-5 text-center text-sm leading-relaxed text-slate-300">
+        <p className="mt-5 text-center text-sm leading-relaxed text-[var(--ds-text-secondary)]">
           Pridėkite nuotraukas — likusią dalį padarys AI: pavadinimą, kategoriją
           ir aprašymą.
         </p>
@@ -66,14 +66,14 @@ export function AiIntroModal({ open, onClose, onStartAi }: AiIntroModalProps) {
         <button
           type="button"
           onClick={startAi}
-          className="mt-6 w-full rounded-xl bg-[#1167b1] py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0d5a9a]"
+          className="mt-6 w-full rounded-xl bg-[var(--ds-ai)] py-3.5 text-sm font-semibold text-[var(--ds-ai-contrast)] shadow-sm transition hover:opacity-90"
         >
           Taip, pradėkime
         </button>
         <button
           type="button"
           onClick={dismiss}
-          className="mt-2 w-full rounded-xl border border-slate-600 py-3.5 text-sm font-semibold text-slate-200 hover:bg-slate-700/50"
+          className="mt-2 w-full rounded-xl border border-[var(--ds-border-strong)] py-3.5 text-sm font-semibold text-[var(--ds-text-primary)] transition hover:bg-[var(--ds-surface-muted)]"
         >
           Ne, tęsti kaip įprasta
         </button>

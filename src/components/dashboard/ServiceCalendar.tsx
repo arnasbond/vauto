@@ -13,7 +13,7 @@ export function ServiceCalendar({ bookings }: { bookings: ServiceBooking[] }) {
     <div className="vauto-dashboard-card mb-4 rounded-2xl p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-[var(--vauto-orange)]" />
+          <Calendar className="h-4 w-4 text-[var(--ds-brand)]" />
           <h3 className="text-sm font-semibold text-slate-900">Artimiausi užsakymai</h3>
         </div>
         <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase text-amber-300">
@@ -35,8 +35,8 @@ export function ServiceCalendar({ bookings }: { bookings: ServiceBooking[] }) {
                 key={b.id}
                 className="mb-1.5 flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5"
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--vauto-orange)]/15">
-                  <Clock className="h-3.5 w-3.5 text-[var(--vauto-orange)]" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--ds-brand-soft)]">
+                  <Clock className="h-3.5 w-3.5 text-[var(--ds-brand)]" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-slate-900">

@@ -1,12 +1,9 @@
 import type { UserCoords } from "@/lib/geolocation";
 
 import {
-
-  portalRankedListings,
-
-  portalThemeForQuery,
-
-} from "@/lib/portal-listing-filter";
+  verticalRankedListings,
+  verticalIdForQuery,
+} from "@/lib/vertical-listing-filter";
 
 import {
 
@@ -223,9 +220,9 @@ function runDisplayPipeline(input: DisplayListingsInput): ScoredListing[] {
 
   const q = effectiveMarketplaceSearchQuery(input.searchQuery).trim();
 
-  if (q && portalThemeForQuery(q) !== "flux") {
+  if (q && verticalIdForQuery(q) !== "marketplace") {
 
-    results = portalRankedListings(q, results);
+    results = verticalRankedListings(q, results);
 
   }
 
@@ -273,7 +270,6 @@ function runDisplayPipeline(input: DisplayListingsInput): ScoredListing[] {
 
 
   return prioritizeFeedTiers(applyMarketplaceSort(results, effectiveSort));
-
 }
 
 

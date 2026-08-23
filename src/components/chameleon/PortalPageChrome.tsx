@@ -4,34 +4,41 @@ import type { ReactNode } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
-import { getPortalUi } from "@/lib/chameleon-portal-ui";
-import { portalExperienceForQuery } from "@/lib/portal-experience";
+import { getVerticalUi } from "@/lib/vertical-presentation";
+import { verticalExperienceForQuery } from "@/lib/vertical-presentation";
 
-interface PortalPageChromeProps {
+interface VerticalPageChromeProps {
   children: ReactNode;
   /** Sticky header block (search bar area) */
   header?: ReactNode;
-  /** Skip Skelbiu/autoplius hero card — use on dedicated search page */
+  /** Skip the vertical hero card — use on dedicated search page */
   minimal?: boolean;
 }
 
-/** Adapts hero/header chrome to active portal (autoplius, aruodas, etc.) */
-export function PortalPageChrome({
+/**
+ * Adapts hero/header chrome to the active vertical (Transportas, Apranga, …)
+ * under the single VAUTO DS 2.0 identity (Stage 20B.1 — no portal imitation).
+ */
+export function VerticalPageChrome({
   children,
   header,
   minimal = false,
-}: PortalPageChromeProps) {
+}: VerticalPageChromeProps) {
   const { chameleonTheme } = useVauto();
   const { sellerStep } = useSellerFlow();
   const { searchQuery } = useVautoSearch();
   const inSellerFlow = sellerStep !== "idle";
-  const activeTheme = inSellerFlow
-    ? chameleonTheme
-    : portalExperienceForQuery(searchQuery).theme;
-  const ui = getPortalUi(activeTheme);
-  const isFlux = activeTheme === "flux" && !searchQuery.trim() && !inSellerFlow;
+  const activeVertical = inSellerFlow
+    ? chameleonTheme === "wardrobe"
+      ? "fashion"
+      : "marketplace"
+    : verticalExperienceForQuery(searchQuery).vertical;
+  const ui = getVerticalUi(activeVertical);
+  const experience = verticalExperienceForQuery(searchQuery);
+  const isMarketplace =
+    activeVertical === "marketplace" && !searchQuery.trim() && !inSellerFlow;
 
-  if (isFlux || minimal) {
+  if (isMarketplace || minimal) {
     return (
       <>
         {header}
@@ -42,7 +49,7 @@ export function PortalPageChrome({
 
   return (
     <div
-      className="portal-chrome -mx-4 px-4 transition-colors duration-300"
+      className="vertical-chrome -mx-4 px-4 transition-colors duration-300"
       style={{ background: ui.bg, color: ui.text }}
     >
       <div
@@ -70,16 +77,16 @@ export function PortalPageChrome({
             className={`text-[11px] font-bold uppercase tracking-[0.14em] ${ui.fontClass}`}
             style={{ color: ui.accent }}
           >
-            {ui.portalName}
+            {ui.verticalName}
           </p>
           <h1
             className={`mt-1 text-xl font-extrabold leading-tight tracking-tight ${ui.fontClass}`}
             style={{ color: ui.text }}
           >
-            {portalExperienceForQuery(searchQuery).headline}
+            {experience.headline}
           </h1>
           <p className="mt-1 text-[13px] leading-snug" style={{ color: ui.textMuted }}>
-            {portalExperienceForQuery(searchQuery).description}
+            {experience.description}
           </p>
         </div>
       </div>

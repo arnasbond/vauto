@@ -138,7 +138,7 @@ test("18.3-A: serialized URL params reflect the active AI facet fields", () => {
   assert.equal(params.get("price_max"), "120000", "priceMax persisted");
   const rooms = applied.categoryAttributes?.rooms;
   if (rooms) {
-    assert.equal(params.get("ca_rooms"), rooms, "rooms chameleon attr persisted");
+    assert.equal(params.get("ca_rooms"), rooms, "rooms category attr persisted");
   }
 });
 
@@ -457,7 +457,7 @@ test("18.3.1: sort default (relevance) → stale sort param disappears from URL 
 });
 
 test("18.3.1: rooms chip removed → ca_rooms disappears from URL and reload does not restore", () => {
-  // Remove the rooms facet; the chameleon attr is gone from state.
+  // Remove the rooms facet; the category attr is gone from state.
   const cleared = activeReState({ categoryAttributes: { propertyType: "Butas" } });
   const params = serialize(
     cleared,

@@ -23,21 +23,21 @@ export function ZeroUiScreenChrome({
           <button
             type="button"
             onClick={onBack ?? (() => goToMarketplace())}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--vauto-border,#e5e7eb)] bg-[var(--vauto-card-bg,#fff)] text-[var(--portal-text,#374151)]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--vauto-border,#e5e7eb)] bg-[var(--vauto-card-bg,#fff)] text-[var(--vauto-text-main,#374151)]"
             aria-label="Grįžti į rinką"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--vauto-primary,#1167b1)]">
+            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--vauto-primary,#10b981)]">
               <Sparkles className="h-3 w-3" />
               Zero-UI
             </p>
-            <h2 className="truncate text-base font-bold text-[var(--portal-text,#111827)]">
+            <h2 className="truncate text-base font-bold text-[var(--vauto-text-main,#111827)]">
               {screenLabel}
             </h2>
             {subtitle ? (
-              <p className="zero-ui-screen-subtitle truncate text-xs text-[var(--portal-text,var(--vauto-text-main,#374151))] opacity-80">
+              <p className="zero-ui-screen-subtitle truncate text-xs text-[var(--vauto-text-main,#374151)] opacity-80">
                 {subtitle}
               </p>
             ) : null}

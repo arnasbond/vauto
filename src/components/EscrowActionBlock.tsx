@@ -26,14 +26,14 @@ export function EscrowActionBlock({
 
   if (escrow?.status === "completed") {
     return (
-      <div className="mx-2 my-3 flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 p-4">
-        <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+      <div className="mx-2 my-3 flex items-center gap-2 rounded-2xl border border-[var(--ds-success)]/30 bg-[var(--ds-success-soft)] p-4">
+        <CheckCircle2 className="h-5 w-5 shrink-0 text-[var(--ds-success)]" />
         <div>
-          <p className="text-sm font-medium text-green-800">
+          <p className="text-sm font-medium text-[var(--ds-text-primary)]">
             Escrow sandoris užbaigtas
           </p>
           {escrow.trackingCode && (
-            <p className="font-mono text-xs text-green-700">
+            <p className="font-mono text-xs text-[var(--ds-text-secondary)]">
               {escrow.trackingCode}
             </p>
           )}
@@ -61,9 +61,9 @@ export function EscrowActionBlock({
 
   return (
     <>
-      <div className="mx-2 my-3 rounded-2xl border border-[#bfdbfe] bg-[#eef6ff] p-4">
+      <div className="mx-2 my-3 rounded-2xl border border-[var(--ds-ai)]/25 bg-[var(--ds-ai-soft)] p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#1167b1] shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--ds-surface-card)] text-[var(--ds-ai)] shadow-sm">
             {escrow?.status === "label_sent" || escrow?.status === "shipped" ? (
               <Truck className="h-5 w-5" />
             ) : escrow?.status === "delivered" ? (
@@ -73,16 +73,16 @@ export function EscrowActionBlock({
             )}
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-[#1167b1]">
+            <p className="text-xs font-bold uppercase tracking-wide text-[var(--ds-ai)]">
               {statusLabel}
             </p>
-            <p className="mt-1 text-sm text-[#374151]">
+            <p className="mt-1 text-sm text-[var(--vauto-body)]">
               {inProgress ? (
                 <>
                   Mokėjimo / siuntos procesas vyksta.{" "}
                   <button
                     type="button"
-                    className="font-semibold text-[#f97316] underline underline-offset-2"
+                    className="font-semibold text-[var(--ds-brand)] underline underline-offset-2"
                     onClick={() => setOpen(true)}
                   >
                     Atidaryti būseną
@@ -93,7 +93,7 @@ export function EscrowActionBlock({
                   Atrodo, kad susitarėte dėl sandorio.{" "}
                   <button
                     type="button"
-                    className="font-semibold text-[#f97316] underline underline-offset-2"
+                    className="font-semibold text-[var(--ds-brand)] underline underline-offset-2"
                     onClick={() => setOpen(true)}
                   >
                     Pirkti saugiai — escrow + {amount.toFixed(2)} € + 5% apsauga
@@ -102,12 +102,12 @@ export function EscrowActionBlock({
               )}
             </p>
             {escrow?.trackingCode && (
-              <p className="mt-2 font-mono text-xs text-[#1167b1]">
+              <p className="mt-2 font-mono text-xs text-[var(--ds-ai)]">
                 {escrow.trackingCode}
               </p>
             )}
             {escrow?.expressEscrow24h && escrow.status === "delivered" && (
-              <p className="mt-2 flex items-center gap-1 text-xs text-amber-800">
+              <p className="mt-2 flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300">
                 <Clock className="h-3.5 w-3.5" />
                 24h pasimatavimas iki {formatExpressDeadline(escrow)}
               </p>

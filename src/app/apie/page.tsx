@@ -121,7 +121,7 @@ function JourneyStep({
         {step}
       </div>
       <div className="mt-4 flex h-10 w-10 items-center justify-center rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-bg)]">
-        <Icon className="h-5 w-5 text-[var(--vauto-orange)]" />
+        <Icon className="h-5 w-5 text-[var(--ds-brand)]" />
       </div>
       <h3 className="mt-3 text-sm font-bold text-[var(--vauto-text)]">{title}</h3>
       <p className="mt-1.5 max-w-xs text-xs leading-relaxed text-[var(--vauto-text-muted)]">
@@ -172,10 +172,10 @@ export default function ApiePage() {
     <AppShell variant="plain">
       <Header />
       <div className="pb-4 pt-2">
-        <section className="relative overflow-hidden rounded-3xl border border-[var(--vauto-border)] bg-gradient-to-br from-[var(--vauto-teal)]/15 via-[var(--vauto-surface)] to-[var(--vauto-orange)]/10 p-6 shadow-sm sm:p-8">
+        <section className="relative overflow-hidden rounded-3xl border border-[var(--vauto-border)] bg-gradient-to-br from-[var(--ds-ai-soft)] via-[var(--vauto-surface)] to-[var(--ds-brand-soft)] p-6 shadow-sm sm:p-8">
           <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[var(--vauto-teal)]/10 blur-2xl" />
-          <div className="absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-[var(--vauto-orange)]/10 blur-2xl" />
-          <p className="inline-flex items-center gap-1.5 rounded-full bg-[var(--vauto-orange)]/15 px-3 py-1 text-[11px] font-bold text-[var(--vauto-orange)] ring-1 ring-[var(--vauto-orange)]/25">
+          <div className="absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-[var(--ds-ai)]/10 blur-2xl" />
+          <p className="inline-flex items-center gap-1.5 rounded-full bg-[var(--ds-ai-soft)] px-3 py-1 text-[11px] font-bold text-[var(--ds-ai-strong)] ring-1 ring-[var(--ds-ai)]/25">
             AI padeda. Žmogus sprendžia.
           </p>
           <h1 className="mt-4 text-2xl font-extrabold leading-tight text-[var(--vauto-text)] sm:text-3xl lg:text-[2rem]">
@@ -208,7 +208,7 @@ export default function ApiePage() {
 
         <section className="mt-10">
           <div className="mb-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-orange)]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ds-brand)]">
               Kam skirta
             </p>
             <h2 className="mt-1 text-lg font-bold text-[var(--vauto-text)] sm:text-xl">
@@ -240,7 +240,7 @@ export default function ApiePage() {
 
         <section className="mt-10">
           <div className="mb-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-orange)]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ds-brand)]">
               Ekosistema
             </p>
             <h2 className="mt-1 text-lg font-bold text-[var(--vauto-text)] sm:text-xl">
@@ -306,7 +306,7 @@ export default function ApiePage() {
 
           <div className="relative mt-8 grid gap-10 sm:grid-cols-3 sm:gap-6">
             <div
-              className="pointer-events-none absolute left-[16.67%] right-[16.67%] top-6 hidden h-0.5 bg-gradient-to-r from-[var(--vauto-teal)]/20 via-[var(--vauto-teal)]/50 to-[var(--vauto-orange)]/40 sm:block"
+              className="pointer-events-none absolute left-[16.67%] right-[16.67%] top-6 hidden h-0.5 bg-gradient-to-r from-[var(--vauto-teal)]/20 via-[var(--vauto-teal)]/50 to-[var(--ds-ai)]/40 sm:block"
               aria-hidden
             />
             <JourneyStep
@@ -332,7 +332,7 @@ export default function ApiePage() {
 
         <section className="mt-10">
           <div className="mb-5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-orange)]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--ds-brand)]">
               Kategorijos
             </p>
             <h2 className="mt-1 text-lg font-bold text-[var(--vauto-text)] sm:text-xl">
@@ -391,8 +391,8 @@ export default function ApiePage() {
 
         <section
           className={cn(
-            "mt-10 rounded-3xl border border-[var(--vauto-orange)]/40 p-6 text-center",
-            "bg-gradient-to-r from-[var(--vauto-orange)]/10 to-[var(--vauto-teal)]/10"
+            "mt-10 rounded-3xl border border-[var(--ds-brand)]/40 p-6 text-center",
+            "bg-gradient-to-r from-[var(--ds-brand-soft)] to-[var(--ds-ai-soft)]"
           )}
         >
           <h2 className="text-lg font-bold text-[var(--vauto-text)]">
@@ -405,7 +405,7 @@ export default function ApiePage() {
           <button
             type="button"
             onClick={() => void handleShare()}
-            className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-[var(--vauto-orange)] px-6 py-3.5 text-sm font-bold text-white shadow-lg transition active:scale-[0.98]"
+            className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-[var(--ds-brand)] px-6 py-3.5 text-sm font-bold text-[var(--ds-brand-contrast)] shadow-lg transition active:scale-[0.98]"
           >
             <Share2 className="h-5 w-5" />
             Pasidalinti su draugais

@@ -17,8 +17,8 @@ interface WantedEmptyStateProps {
 
 export function WantedEmptyState({
   searchQuery,
-  borderColor = "#d1d5db",
-  textMuted = "#6b7280",
+  borderColor = "var(--vauto-border-input)",
+  textMuted = "var(--vauto-text-muted)",
 }: WantedEmptyStateProps) {
   const { isAuthenticated, openAuthModal, subscribeWishlist, showToast } =
     useVauto();
@@ -45,13 +45,13 @@ export function WantedEmptyState({
 
   return (
     <div
-      className="rounded-2xl border border-dashed bg-white p-6 text-center"
+      className="rounded-2xl border border-dashed bg-[var(--vauto-card-bg)] p-6 text-center"
       style={{ borderColor }}
     >
-      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#eef2ff] text-[#1a56db]">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[var(--ds-brand-soft)] text-[var(--ds-brand)]">
         <Sparkles className="h-6 w-6" />
       </div>
-      <p className="mb-2 text-sm font-medium text-[#111827]">VAUTO asistentas</p>
+      <p className="mb-2 text-sm font-medium text-[var(--vauto-text-heading)]">VAUTO asistentas</p>
       <p className="mx-auto mb-4 max-w-md whitespace-pre-line text-sm leading-relaxed" style={{ color: textMuted }}>
         {buildEmptySearchWishlistMessage(searchQuery)}
       </p>
@@ -59,7 +59,7 @@ export function WantedEmptyState({
         type="button"
         onClick={() => void handleRegister()}
         disabled={busy || registered}
-        className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[#1a56db] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#1648c4] disabled:opacity-60"
+        className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[var(--ds-brand)] px-5 py-3 text-sm font-semibold text-[var(--ds-brand-contrast)] transition hover:bg-[var(--ds-brand-hover)] disabled:opacity-60"
       >
         <Bell className="h-4 w-4" />
         {registered

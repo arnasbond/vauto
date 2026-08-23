@@ -65,7 +65,7 @@ export function B2BPlanCreditsCard({
             Mano planas / Kreditai
           </h2>
         </div>
-        <Sparkles className="h-5 w-5 text-[var(--vauto-orange)]" />
+        <Sparkles className="h-5 w-5 text-[var(--ds-ai)]" />
       </div>
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
@@ -103,7 +103,7 @@ export function B2BPlanCreditsCard({
               )}
             >
               <div className="mb-2 flex items-center gap-2">
-                <Icon className="h-4 w-4 text-[var(--vauto-orange)]" />
+                <Icon className="h-4 w-4 text-[var(--ds-brand)]" />
                 <span className="font-bold text-[var(--vauto-text)]">{plan.label}</span>
               </div>
               {promo ? (
@@ -112,12 +112,12 @@ export function B2BPlanCreditsCard({
                     {plan.monthlyPrice} €
                     <span className="text-xs font-normal"> / mėn.</span>
                   </p>
-                  <p className="text-lg font-black text-[var(--vauto-orange)]">
+                  <p className="text-lg font-black text-[var(--ds-warning)]">
                     {LAUNCH_PROMO_BADGE}
                   </p>
                 </div>
               ) : (
-                <p className="text-2xl font-black text-[var(--vauto-orange)]">
+                <p className="text-2xl font-black text-[var(--vauto-ink)]">
                   {plan.monthlyPrice} €
                   <span className="text-sm font-normal text-[var(--vauto-text-muted)]">
                     {" "}

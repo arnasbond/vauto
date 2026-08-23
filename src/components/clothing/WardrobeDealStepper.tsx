@@ -9,7 +9,7 @@ import {
 import type { WardrobeDealView } from "@/lib/wardrobe-deals";
 import type { EscrowTransaction } from "@/lib/types";
 
-const ACCENT = "#09b1a8";
+const ACCENT = "var(--vauto-primary, #10b981)";
 
 const STEPS = [
   { id: "paid", label: "Saugus mokėjimas", icon: Shield },
@@ -72,7 +72,7 @@ function DealStepperCard({ deal }: { deal: WardrobeDealView }) {
               <span
                 className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
                   done || current
-                    ? "border-[var(--chameleon-accent,#09b1a8)] bg-[color-mix(in_srgb,var(--chameleon-accent,#09b1a8)_12%,var(--vauto-card-bg))] text-[var(--chameleon-accent,#09b1a8)]"
+                    ? "border-[var(--vauto-accent)] bg-[color-mix(in_srgb,var(--vauto-accent)_12%,var(--vauto-card-bg))] text-[var(--vauto-accent)]"
                     : "border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] text-[var(--vauto-text-muted)]"
                 }`}
                 aria-current={current ? "step" : undefined}
@@ -82,7 +82,7 @@ function DealStepperCard({ deal }: { deal: WardrobeDealView }) {
               <span
                 className={`hidden text-center text-[9px] leading-tight sm:block ${
                   current
-                    ? "font-medium text-[var(--chameleon-accent,#09b1a8)]"
+                    ? "font-medium text-[var(--vauto-accent)]"
                     : "font-light text-[var(--vauto-text-muted)]"
                 }`}
               >

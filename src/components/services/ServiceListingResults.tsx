@@ -5,14 +5,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { BadgeCheck, Heart } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
-import { getPortalUi } from "@/lib/chameleon-portal-ui";
+import { getVerticalUi } from "@/lib/vertical-presentation";
 import { formatServiceDisplayTitle, formatServiceMetaLine } from "@/lib/service-catalog";
 import { listingPath } from "@/lib/seo";
 import type { ScoredListing } from "@/lib/types";
 
 function ServiceRow({ listing }: { listing: ScoredListing }) {
   const { savedIds, toggleSave } = useVauto();
-  const ui = getPortalUi("paslaugos");
+  const ui = getVerticalUi("services");
   const isSaved = savedIds.has(listing.id);
 
   return (
@@ -68,7 +68,7 @@ interface ServiceListingResultsProps {
 }
 
 export function ServiceListingResults({ listings, title }: ServiceListingResultsProps) {
-  const ui = getPortalUi("paslaugos");
+  const ui = getVerticalUi("services");
   const items = listings.filter((l) => l.category === "services");
 
   if (items.length === 0) {

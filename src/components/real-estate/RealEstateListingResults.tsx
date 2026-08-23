@@ -6,14 +6,14 @@ import Link from "next/link";
 import { Heart } from "lucide-react";
 import { formatListingPlaceLine, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
-import { getPortalUi } from "@/lib/chameleon-portal-ui";
+import { getVerticalUi } from "@/lib/vertical-presentation";
 import { formatRealEstateArea, realEstateSummaryLabel } from "@/lib/real-estate-catalog";
 import { listingPath } from "@/lib/seo";
 import type { ScoredListing } from "@/lib/types";
 
 function RealEstateRow({ listing }: { listing: ScoredListing }) {
   const { savedIds, toggleSave } = useVauto();
-  const ui = getPortalUi("aruodas");
+  const ui = getVerticalUi("real_estate");
   const isSaved = savedIds.has(listing.id);
   const attrs = listing.attributes ?? {};
   const rooms = attrs.rooms ? `${attrs.rooms} kamb.` : null;
@@ -72,7 +72,7 @@ interface RealEstateListingResultsProps {
 }
 
 export function RealEstateListingResults({ listings, title }: RealEstateListingResultsProps) {
-  const ui = getPortalUi("aruodas");
+  const ui = getVerticalUi("real_estate");
   const items = listings.filter((l) => l.category === "real_estate");
 
   if (items.length === 0) {

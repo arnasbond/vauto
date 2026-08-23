@@ -16,10 +16,10 @@ import {
   readConductorSearchExecute,
   conductorShouldDelegateLegacy,
 } from "@/lib/vauto-conductor";
-import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
+import { sanitizeSearchQuery } from "@/lib/vertical-listing-filter";
 import { AiModeBadge } from "@/components/AiModeBadge";
-import { getPortalUi } from "@/lib/chameleon-portal-ui";
-import { portalExperienceForQuery } from "@/lib/portal-experience";
+import { getVerticalUi } from "@/lib/vertical-presentation";
+import { verticalExperienceForQuery } from "@/lib/vertical-presentation";
 import { cn } from "@/lib/cn";
 import {
   parseViewModeIntent,
@@ -110,7 +110,6 @@ export function AiCommandBar({
     setSearchInputMode,
     clearVisualSearch,
     showToast,
-    chameleonTheme,
     listings,
   } = useVauto();
   const { sellerStep, sellerVisionRecoveryActive, aiDraft } = useSellerFlow();
@@ -229,11 +228,11 @@ export function AiCommandBar({
     }
   }, [showToast]);
 
-  const activeTheme =
+  const activeVertical =
     sellerStep !== "idle"
-      ? chameleonTheme
-      : portalExperienceForQuery(searchQuery).theme;
-  const ui = useMemo(() => getPortalUi(activeTheme), [activeTheme]);
+      ? "marketplace"
+      : verticalExperienceForQuery(searchQuery).vertical;
+  const ui = useMemo(() => getVerticalUi(activeVertical), [activeVertical]);
 
   const zeroUiActive = agentBusy || searchLoading || isPhotoSearching;
 

@@ -122,7 +122,7 @@ function clusterIcon(count: number) {
 
     className: "",
 
-    html: `<div style="width:${size}px;height:${size}px;border-radius:9999px;background:#1167b1;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.25);border:2px solid #fff">${count}</div>`,
+    html: `<div style="width:${size}px;height:${size}px;border-radius:9999px;background:#10b981;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.25);border:2px solid #fff">${count}</div>`,
 
     iconSize: [size, size],
 

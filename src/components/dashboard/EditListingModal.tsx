@@ -40,7 +40,7 @@ const CATEGORY_OPTIONS: { value: ListingCategory; label: string }[] = [
 ];
 
 const inputClass =
-  "mt-1 w-full rounded-xl border border-[var(--vauto-border-input,#cbd5e1)] bg-[var(--vauto-surface-page,#fff)] px-3 py-2.5 text-sm text-[var(--vauto-ink,#0f172a)] outline-none focus:border-[var(--vauto-teal,#14b8a6)]";
+  "mt-1 w-full rounded-xl border border-[var(--vauto-border-input,#cbd5e1)] bg-[var(--vauto-surface-page,#fff)] px-3 py-2.5 text-sm text-[var(--vauto-ink,#0f172a)] outline-none focus:border-[var(--vauto-primary,#10b981)]";
 const labelClass = "mb-1 block text-xs font-medium text-[var(--vauto-text-muted,#64748b)]";
 
 interface EditListingModalProps {
@@ -285,8 +285,8 @@ export function EditListingModal({
                 }}
                 className={cn(
                   "relative aspect-square overflow-hidden rounded-xl ring-1 ring-black/10",
-                  idx === 0 && "ring-2 ring-[var(--vauto-primary,#14b8a6)]",
-                  dragOver === idx && "ring-2 ring-sky-400",
+                  idx === 0 && "ring-2 ring-[var(--vauto-primary,#10b981)]",
+                  dragOver === idx && "ring-2 ring-[var(--vauto-primary,#10b981)]",
                   "cursor-grab active:cursor-grabbing"
                 )}
               >
@@ -480,7 +480,7 @@ export function EditListingModal({
             data-edit-save="1"
             disabled={!canSave}
             onClick={() => void handleSave()}
-            className="flex-1 rounded-xl bg-[var(--vauto-teal,#14b8a6)] py-3 text-sm font-semibold text-white disabled:opacity-40"
+            className="flex-1 rounded-xl bg-[var(--vauto-primary,#10b981)] py-3 text-sm font-semibold text-white disabled:opacity-40"
           >
             {saving ? "Saugoma…" : "Išsaugoti pakeitimus"}
           </button>

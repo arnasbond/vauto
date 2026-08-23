@@ -125,7 +125,7 @@ export function ProfileSettingsMenu({
           href="/profile/settings/"
         />
         <SettingsRow
-          icon={<Gift className="h-4 w-4 text-[var(--vauto-orange)]" />}
+          icon={<Gift className="h-4 w-4 text-[var(--ds-warning)]" />}
           label="Pakviesk draugą"
           hint={
             credits > 0

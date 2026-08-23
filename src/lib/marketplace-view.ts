@@ -9,7 +9,7 @@ import { distanceKm, type UserCoords } from "@/lib/geolocation";
 import { coordsForLtCity, detectCityInText } from "@/lib/lt-cities";
 import { sortListingsFast } from "@/lib/fast-agent-search";
 import type { AgentSearchFilters } from "@/lib/vauto-agent-client";
-import { portalExperienceForQuery } from "@/lib/portal-experience";
+import { verticalExperienceForQuery } from "@/lib/vertical-presentation";
 import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 
 export type MarketplaceViewMode = "list" | "grid" | "map";
@@ -50,7 +50,7 @@ export interface MarketplaceFilterState {
   sort: MarketplaceSortMode;
   /** Haversine radius from location city center or buyer GPS */
   radiusKm: MarketplaceRadiusKm | null;
-  /** Chameleon category-specific attribute filters (Auto, NT, Drabužiai, Darbas) */
+  /** Category-specific attribute filters (Auto, NT, Drabužiai, Darbas) */
   categoryAttributes: CategoryAttributeFilters;
   /** Canonical 13B facet query string (vertical + predicates + sort + page). */
   facetQueryString: string;
@@ -68,23 +68,26 @@ export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilterState = {
   facetQueryString: "",
 };
 
-/** When category is „all“, infer Chameleon attribute filters from active portal/search. */
-export function effectiveChameleonCategory(
+/**
+ * When category is „all“, infer the vertical category from the active query so
+ * category-specific attribute filters can be resolved (Stage 20B.1 — VAUTO-native
+ * vertical adaptation, no portal imitation).
+ */
+export function effectiveVerticalCategory(
   category: ListingCategory | "all",
   searchQuery: string
 ): ListingCategory | "all" {
   if (category !== "all") return category;
-  const theme = portalExperienceForQuery(searchQuery).theme;
-  switch (theme) {
-    case "autoplius":
+  switch (verticalExperienceForQuery(searchQuery).vertical) {
+    case "transport":
       return "vehicles";
-    case "aruodas":
+    case "real_estate":
       return "real_estate";
-    case "wardrobe":
+    case "fashion":
       return "clothing";
-    case "cvbankas":
+    case "jobs":
       return "jobs";
-    case "paslaugos":
+    case "services":
       return "services";
     default:
       return "all";

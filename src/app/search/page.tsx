@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { ListingGrid } from "@/components/ListingGrid";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
-import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
+import { VerticalPageChrome } from "@/components/chameleon/PortalPageChrome";
 import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 
@@ -24,7 +24,7 @@ export default function SearchPage() {
     <AppShell>
       <SearchResultsFocus />
       <HeroSection>
-        <PortalPageChrome
+        <VerticalPageChrome
           minimal
           header={
             <TopAiCommandChrome
@@ -44,7 +44,7 @@ export default function SearchPage() {
               Rašykite paiešką, filtruokite ir perjunkite tinklelį, sąrašą ar žemėlapį.
             </p>
           </div>
-        </PortalPageChrome>
+        </VerticalPageChrome>
       </HeroSection>
 
       <ContentSection>

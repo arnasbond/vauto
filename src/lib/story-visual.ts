@@ -9,8 +9,8 @@ export const STORY_WIDTH = 1080;
 export const STORY_HEIGHT = 1920;
 
 const BRAND_NAVY = "#0f2744";
-const BRAND_TEAL = "#0d9488";
-const BRAND_SOFT = "#e8f5f3";
+const BRAND_EMERALD = "#10b981";
+const BRAND_EMERALD_SOFT = "#e8f5f3";
 const INK = "#f8fafc";
 const MUTED = "#cbd5e1";
 
@@ -157,7 +157,7 @@ export async function renderListingStoryVisual(
   if (!photoOk) {
     const g = ctx.createLinearGradient(0, photoTop, STORY_WIDTH, photoTop + photoH);
     g.addColorStop(0, "#163a5c");
-    g.addColorStop(1, "#0d9488");
+    g.addColorStop(1, "#10b981");
     ctx.fillStyle = g;
     ctx.fillRect(0, photoTop, STORY_WIDTH, photoH);
     ctx.fillStyle = MUTED;
@@ -181,11 +181,11 @@ export async function renderListingStoryVisual(
   // Top brand bar
   ctx.fillStyle = "rgba(15,39,68,0.72)";
   ctx.fillRect(0, 0, STORY_WIDTH, 140);
-  ctx.fillStyle = BRAND_SOFT;
+  ctx.fillStyle = BRAND_EMERALD_SOFT;
   ctx.font = "800 54px Outfit, system-ui, sans-serif";
   ctx.textAlign = "left";
   ctx.fillText("VAUTO", 64, 88);
-  ctx.fillStyle = BRAND_TEAL;
+  ctx.fillStyle = BRAND_EMERALD;
   ctx.fillRect(64, 108, 120, 6);
   ctx.fillStyle = MUTED;
   ctx.font = "500 28px system-ui, sans-serif";
@@ -198,7 +198,7 @@ export async function renderListingStoryVisual(
   ctx.fillRect(0, panelY, STORY_WIDTH, STORY_HEIGHT - panelY);
 
   // Price pill
-  ctx.fillStyle = BRAND_TEAL;
+  ctx.fillStyle = BRAND_EMERALD;
   roundRect(ctx, 64, panelY + 48, 360, 72, 36);
   ctx.fill();
   ctx.fillStyle = INK;
@@ -225,7 +225,7 @@ export async function renderListingStoryVisual(
 
   // CTA button
   const ctaY = STORY_HEIGHT - 220;
-  ctx.fillStyle = BRAND_TEAL;
+  ctx.fillStyle = BRAND_EMERALD;
   roundRect(ctx, 64, ctaY, STORY_WIDTH - 128, 100, 50);
   ctx.fill();
   ctx.fillStyle = INK;

@@ -109,7 +109,7 @@ export function BusinessHoursEditor() {
       data-business-hours-editor="1"
     >
       <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-        <Clock className="h-3.5 w-3.5 text-[var(--vauto-orange)]" aria-hidden />
+        <Clock className="h-3.5 w-3.5 text-[var(--ds-brand)]" aria-hidden />
         Darbo laikas (Europe/Vilnius)
       </p>
       <p className="mb-2 text-[11px] leading-snug text-slate-500">
@@ -144,7 +144,7 @@ export function BusinessHoursEditor() {
           type="checkbox"
           checked={weekendOpen}
           onChange={(e) => setWeekendOpen(e.target.checked)}
-          className="accent-[var(--vauto-orange)]"
+          className="accent-[var(--ds-brand)]"
         />
         Šeštadieniais dirbame
       </label>
@@ -179,7 +179,7 @@ export function BusinessHoursEditor() {
         type="button"
         disabled={saving}
         onClick={() => void save()}
-        className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-[var(--vauto-orange)] px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-60"
+        className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-[var(--ds-brand)] px-3 py-1.5 text-[11px] font-bold text-[var(--ds-brand-contrast)] disabled:opacity-60"
       >
         {saving ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />

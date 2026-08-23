@@ -117,7 +117,7 @@ export function VautoCheckoutModal({
             <div className="mb-5 rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-bg)]/60 p-4">
               <div className="flex items-baseline justify-between">
                 <span className="text-sm text-[var(--vauto-text-muted)]">Mokėtina suma</span>
-                <span className="text-2xl font-bold text-[var(--vauto-orange)]">
+                <span className="text-2xl font-bold text-[var(--vauto-ink)]">
                   {amountGross.toFixed(2)} €
                 </span>
               </div>

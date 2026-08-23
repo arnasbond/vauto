@@ -1,0 +1,24 @@
+=== AFTER: getPortalUi/categoryToTheme/portalExperienceForQuery ===
+src\lib\chameleon-themes.ts
+src\lib\chameleon-portal-ui.ts
+src\lib\portal-experience.ts
+
+=== getVerticalUi/verticalExperienceForQuery vartotojai ===
+src\components\vehicle\VehicleListingResults.tsx
+src\app\discover\page.tsx
+src\components\theme\ChameleonThemeHost.tsx
+src\components\services\ServiceListingResults.tsx
+src\components\search\AiCommandBar.tsx
+src\hooks\useActivePortal.ts
+src\lib\chameleon-themes.ts
+src\components\real-estate\RealEstateListingResults.tsx
+src\lib\chameleon-portal-ui.ts
+src\components\clothing\ClothingListingResults.tsx
+src\components\chameleon\PortalPageChrome.tsx
+src\components\chameleon\PortalExperienceStrip.tsx
+src\components\ListingGrid.tsx
+src\lib\vertical-presentation.ts
+src\components\general\GeneralListingResults.tsx
+src\lib\vertical-listing-filter.ts
+src\lib\marketplace-view.ts
+src\lib\portal-experience.ts

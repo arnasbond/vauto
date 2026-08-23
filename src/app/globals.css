@@ -26,8 +26,8 @@
   --flux-teal: #10b981;
   --flux-cyan: #34d399;
   --flux-indigo: #059669;
-  --flux-coral: #c2410c;
-  --flux-coral-light: #ff7a1a;
+  --flux-coral: #059669;
+  --flux-coral-light: #34d399;
   --flux-price-start: #10b981;
   --flux-price-end: #059669;
 
@@ -53,9 +53,9 @@
   --vauto-surface: var(--vauto-card-bg);
   --vauto-teal: var(--vauto-primary);
   --vauto-blue: var(--vauto-primary);
-  /* AI accent only — never use for prices/body text */
-  --vauto-orange: #ff7a1a;
-  --vauto-orange-light: #fff4eb;
+  /* Stage 20B: legacy orange accent retired — aliased to certified emerald brand */
+  --vauto-orange: var(--vauto-primary);
+  --vauto-orange-light: #ecfdf5;
   --vauto-premium-bg: #f8fafc;
   --vauto-premium-border: rgba(15, 23, 42, 0.06);
   --vauto-red: #dc2626;
@@ -80,7 +80,7 @@
   --anonser-text-muted: #5b6578;
   --anonser-primary: #10b981;
   --anonser-primary-soft: #ecfdf5;
-  --anonser-accent: #ff7a1a;
+  --anonser-accent: #059669;
   --anonser-border: rgba(11, 18, 32, 0.1);
   --anonser-surface-muted: #e2e8f0;
   --anonser-header-bg: #ffffff;
@@ -148,7 +148,7 @@
   --flux-teal: var(--anonser-primary);
   --flux-cyan: #34d399;
   --flux-indigo: #059669;
-  --flux-coral: #c2410c;
+  --flux-coral: #059669;
 
   /* canonical VAUTO tokens */
   --vauto-bg: var(--anonser-bg);
@@ -669,8 +669,8 @@ body {
 .buddy-glow-orange {
   background: radial-gradient(
     circle,
-    rgba(255, 107, 74, 0.5) 0%,
-    rgba(255, 107, 74, 0.14) 45%,
+    rgba(16, 185, 129, 0.55) 0%,
+    rgba(16, 185, 129, 0.16) 45%,
     transparent 70%
   );
 }
@@ -690,13 +690,13 @@ body {
 .buddy-orb-orange {
   background: radial-gradient(
     circle at 35% 30%,
-    rgba(255, 107, 74, 0.6),
-    rgba(255, 143, 101, 0.35) 50%,
+    rgba(52, 211, 153, 0.65),
+    rgba(16, 185, 129, 0.4) 50%,
     rgba(11, 15, 23, 0.9) 100%
   );
   box-shadow:
-    0 0 40px rgba(255, 107, 74, 0.5),
-    0 0 80px rgba(255, 107, 74, 0.22);
+    0 0 40px rgba(16, 185, 129, 0.55),
+    0 0 80px rgba(16, 185, 129, 0.28);
 }
 
 .buddy-ambient-glow {
@@ -1093,26 +1093,16 @@ body.chameleon-flux {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-body.chameleon-autoplius {
-  --chameleon-accent: #1167b1;
-  --chameleon-cta: #ea580c;
-  --portal-accent: #1167b1;
-  --portal-cta: #ea580c;
-  --portal-wizard-bg: #f3f4f6;
-  --portal-wizard-surface: #ffffff;
-  --portal-progress: #1167b1;
-  --portal-bg: #f3f4f6;
-  --portal-text: #1f2937;
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-  color: var(--portal-text);
-  background: var(--portal-bg);
-}
+/* Stage 20B.1 — portal-native palettes removed. Every vertical renders under
+   the single VAUTO DS 2.0 emerald identity. The only surviving body classes are
+   the flux (marketplace) and wardrobe (fashion/Spinta) identities, both bound to
+   the DS 2.0 emerald tokens below. */
 
 body.chameleon-wardrobe,
 .chameleon-wardrobe {
   --chameleon-accent: var(--vauto-primary, #10b981);
   --portal-accent: var(--vauto-primary, #10b981);
-  --portal-cta: var(--vauto-accent, #ff7a1a);
+  --portal-cta: var(--vauto-accent, #10b981);
   --portal-wizard-bg: var(--vauto-bg, #eef1f6);
   --portal-wizard-surface: var(--vauto-surface, #ffffff);
   --portal-progress: var(--vauto-primary, #10b981);
@@ -1141,182 +1131,6 @@ body.chameleon-wardrobe,
   --portal-text: var(--vauto-text-main);
   color: var(--vauto-text-main);
   background: var(--vauto-bg);
-}
-
-body.chameleon-skelbiu {
-  --chameleon-accent: #1565c0;
-  --portal-accent: #1565c0;
-  --portal-cta: #43a047;
-  --portal-wizard-bg: #eceff1;
-  --portal-wizard-surface: #ffffff;
-  --portal-progress: #1565c0;
-  --portal-bg: #eceff1;
-  --portal-text: #263238;
-  color: var(--portal-text);
-  background: var(--portal-bg);
-}
-
-body.chameleon-aruodas {
-  --chameleon-accent: #c62828;
-  --portal-accent: #c62828;
-  --portal-cta: #c62828;
-  --portal-wizard-bg: #f5f5f5;
-  --portal-wizard-surface: #ffffff;
-  --portal-progress: #c62828;
-  --portal-bg: #f5f5f5;
-  --portal-text: #212121;
-  color: var(--portal-text);
-  background: var(--portal-bg);
-}
-
-body.chameleon-paslaugos {
-  --chameleon-accent: #0f766e;
-  --portal-accent: #0f766e;
-  --portal-cta: #0f766e;
-  --portal-wizard-bg: #f4f9ff;
-  --portal-wizard-surface: #ffffff;
-  --portal-progress: #0f766e;
-  --portal-bg: #f4f9ff;
-  --portal-text: #0f172a;
-  color: var(--portal-text);
-  background: var(--portal-bg);
-}
-
-body.chameleon-cvbankas {
-  --chameleon-accent: #1f4b99;
-  --portal-accent: #1f4b99;
-  --portal-cta: #1f4b99;
-  --portal-wizard-bg: #f5f7fb;
-  --portal-wizard-surface: #ffffff;
-  --portal-progress: #1f4b99;
-  --portal-bg: #f5f7fb;
-  --portal-text: #172033;
-  color: var(--portal-text);
-  background: var(--portal-bg);
-}
-
-.chameleon-aruodas-media img {
-  min-height: 200px;
-  object-fit: cover;
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
-}
-
-body.chameleon-aruodas .chameleon-details-panel input,
-body.chameleon-aruodas .chameleon-details-panel textarea {
-  border: 1px solid #e0e0e0;
-  background: #fafafa;
-  color: #212121;
-  border-radius: 4px;
-}
-
-.chameleon-wardrobe-media img {
-  min-height: 220px;
-  object-fit: cover;
-}
-
-.chameleon-details-panel input,
-.chameleon-details-panel textarea,
-.chameleon-details-panel select {
-  transition: border-color 0.2s ease, background-color 0.2s ease;
-}
-
-body.chameleon-autoplius .chameleon-details-panel input,
-body.chameleon-autoplius .chameleon-details-panel textarea {
-  border: 1px solid #d0d7de;
-  background: #f9fafb;
-  color: #1f2937;
-}
-
-body.chameleon-skelbiu .chameleon-details-panel input,
-body.chameleon-skelbiu .chameleon-details-panel textarea {
-  border: 2px solid #b0bec5;
-  background: #fff;
-  color: #263238;
-  font-size: 1rem;
-}
-
-body.chameleon-wardrobe .chameleon-details-panel input,
-body.chameleon-wardrobe .chameleon-details-panel textarea {
-  border: 1px solid rgba(217, 70, 239, 0.4);
-  background: #131c38;
-  color: #ffffff;
-  font-weight: 300;
-}
-
-body.chameleon-wardrobe .listing-wizard-overlay,
-body.chameleon-wardrobe .chameleon-wizard-shell > .mx-auto {
-  background-color: #0a1128 !important;
-  color: #ffffff;
-}
-
-body.chameleon-wardrobe .listing-wizard-overlay input,
-body.chameleon-wardrobe .listing-wizard-overlay textarea,
-body.chameleon-wardrobe .listing-wizard-overlay select {
-  background: #131c38 !important;
-  color: #ffffff !important;
-  border-color: rgba(217, 70, 239, 0.4) !important;
-}
-
-/* Spinta clothing wizard — force dark shell over global white fallbacks */
-.spinta-listing-wizard.listing-wizard-overlay,
-.spinta-listing-wizard.listing-wizard-overlay > .mx-auto,
-.spinta-listing-wizard .listing-wizard-overlay {
-  background-color: #0a1128 !important;
-  color: #ffffff !important;
-}
-
-.spinta-listing-wizard .listing-social-publish,
-.spinta-listing-wizard .listing-social-option {
-  background-color: #131c38 !important;
-  border-color: rgba(148, 163, 184, 0.35) !important;
-  color: #ffffff !important;
-}
-
-.spinta-listing-wizard .listing-social-publish h3,
-.spinta-listing-wizard .listing-social-publish-desc,
-.spinta-listing-wizard .listing-social-option-label {
-  color: #e2e8f0 !important;
-}
-
-.spinta-listing-wizard select option {
-  background-color: #131c38;
-  color: #ffffff;
-}
-
-body.chameleon-paslaugos .chameleon-details-panel input,
-body.chameleon-paslaugos .chameleon-details-panel textarea {
-  border: 1px solid #cfe3ff;
-  background: #f8fbff;
-  color: #0f172a;
-}
-
-body.chameleon-cvbankas .chameleon-details-panel input,
-body.chameleon-cvbankas .chameleon-details-panel textarea {
-  border: 1px solid #d9e2f1;
-  background: #f8fbff;
-  color: #172033;
-}
-
-/* Portal listing cards inherit accent on hover */
-body.chameleon-autoplius .portal-listing-card:hover {
-  border-color: #1167b1;
-}
-body.chameleon-aruodas .portal-listing-card:hover {
-  border-color: #c62828;
-}
-body.chameleon-wardrobe .portal-listing-card:hover {
-  border-color: #09b1a8;
-}
-body.chameleon-skelbiu .portal-listing-card:hover {
-  border-color: #1565c0;
-}
-body.chameleon-cvbankas .portal-listing-card:hover {
-  border-color: #1f4b99;
-}
-
-.chameleon-wizard-shell .rounded-lg.border.px-3.py-2.text-sm.font-medium {
-  transition: border-color 0.15s, background-color 0.15s;
 }
 
 /** Full-screen listing wizard — portals to body, covers bottom nav */
@@ -1386,12 +1200,12 @@ body.chameleon-cvbankas .portal-listing-card:hover {
 }
 
 .nt-wizard-chip:hover {
-  border-color: #c62828;
+  border-color: var(--vauto-primary, #10b981);
 }
 
 .nt-wizard-chip-active {
-  border-color: #c62828 !important;
-  background: #c62828 !important;
+  border-color: var(--vauto-primary, #10b981) !important;
+  background: var(--vauto-primary, #10b981) !important;
   color: #fff !important;
 }
 
@@ -1405,7 +1219,7 @@ body.chameleon-cvbankas .portal-listing-card:hover {
 }
 
 .nt-wizard-option-row-selected {
-  background: color-mix(in srgb, #c62828 10%, var(--portal-wizard-surface, #fff));
+  background: color-mix(in srgb, var(--vauto-primary, #10b981) 10%, var(--portal-wizard-surface, #fff));
 }
 
 .nt-wizard-footer {
@@ -1421,14 +1235,8 @@ body.chameleon-cvbankas .portal-listing-card:hover {
 }
 
 .nt-wizard-next-btn {
-  background: #ffc107;
-  color: #212121;
-}
-
-body.chameleon-autoplius .nt-wizard-chip-active {
-  border-color: #1167b1 !important;
-  background: #1167b1 !important;
-  color: #fff !important;
+  background: var(--vauto-primary, #10b981);
+  color: var(--vauto-primary-contrast, #ffffff);
 }
 
 .nt-wizard-field-invalid {
@@ -1649,7 +1457,8 @@ body.chameleon-autoplius .nt-wizard-chip-active {
   overflow: hidden;
 }
 
-body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[\#1167b1\] {
+body.chameleon-flux .chameleon-wizard-shell button[type="button"].border-\[\#1167b1\],
+body.chameleon-wardrobe .chameleon-wizard-shell button[type="button"].border-\[\#1167b1\] {
   border-color: var(--portal-accent);
   background: var(--portal-accent);
 }
@@ -1811,11 +1620,11 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   0%,
   100% {
     opacity: 1;
-    box-shadow: 0 10px 25px rgba(17, 103, 177, 0.2);
+    box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2);
   }
   50% {
     opacity: 0.88;
-    box-shadow: 0 10px 32px rgba(17, 103, 177, 0.45);
+    box-shadow: 0 10px 32px rgba(16, 185, 129, 0.45);
   }
 }
 
@@ -1845,7 +1654,7 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   --flux-teal: #34d399;
   --flux-cyan: #6ee7b7;
   --flux-indigo: #059669;
-  --flux-coral: #fb923c;
+  --flux-coral: #34d399;
   --vauto-bg: var(--background);
   --vauto-card-bg: var(--card);
   --vauto-surface-muted: #151d2e;
@@ -2373,8 +2182,8 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   --vauto-badge-muted-text: #64748b;
   --vauto-badge-warning-bg: #fef3c7;
   --vauto-badge-warning-text: #92400e;
-  --vauto-badge-info-bg: #dbeafe;
-  --vauto-badge-info-text: #1d4ed8;
+  --vauto-badge-info-bg: #f0f9ff;
+  --vauto-badge-info-text: #0284c7;
   --vauto-hero-panel-bg: #ffffff;
 }
 

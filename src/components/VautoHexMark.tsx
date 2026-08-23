@@ -25,8 +25,8 @@ export function VautoHexMark({
     >
       <defs>
         <linearGradient id={`${uid}-stroke`} x1="8" y1="4" x2="40" y2="44">
-          <stop offset="0%" stopColor="#22d3ee" />
-          <stop offset="100%" stopColor="#0891b2" />
+          <stop offset="0%" stopColor="#34d399" />
+          <stop offset="100%" stopColor="#059669" />
         </linearGradient>
       </defs>
       <polygon

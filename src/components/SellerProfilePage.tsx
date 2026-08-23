@@ -96,11 +96,11 @@ export function SellerProfilePage({ sellerId: sellerIdProp }: SellerProfilePageP
         </header>
 
         <section className="mt-6">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--vauto-text-muted)]">
             Aktyvūs skelbimai
           </h2>
           {active.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
+            <p className="rounded-2xl border border-dashed border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)] px-4 py-10 text-center text-sm text-[var(--vauto-text-muted)]">
               Šiuo metu nėra aktyvių skelbimų.
             </p>
           ) : (
@@ -109,7 +109,7 @@ export function SellerProfilePage({ sellerId: sellerIdProp }: SellerProfilePageP
                 <MarketplaceGridCard
                   key={listing.id}
                   listing={listing}
-                  priceColor="#1167b1"
+                  priceColor="var(--ds-brand)"
                 />
               ))}
             </div>

@@ -152,30 +152,30 @@ export function ParcelLockerPicker({
               onClick={() => onSelect(locker)}
               className={`w-full rounded-xl border p-3 text-left transition ${
                 active
-                  ? "border-[#1167b1] bg-[#eef6ff]"
-                  : "border-slate-200 bg-white hover:border-slate-300"
+                  ? "border-[var(--ds-brand)] bg-[var(--ds-brand-soft)]"
+                  : "border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] hover:border-[var(--vauto-border-input)]"
               }`}
             >
-              <span className="block text-sm font-semibold text-slate-900">
+              <span className="block text-sm font-semibold text-[var(--vauto-text-heading)]">
                 {locker.name}
               </span>
-              <span className="mt-0.5 block text-xs text-slate-500">
+              <span className="mt-0.5 block text-xs text-[var(--vauto-text-muted)]">
                 {locker.city} · {locker.address}
               </span>
             </button>
           );
         })}
         {!loading && lockers.length === 0 && (
-          <p className="rounded-xl border border-dashed border-slate-200 p-3 text-xs text-slate-500">
+          <p className="rounded-xl border border-dashed border-[var(--vauto-border)] p-3 text-xs text-[var(--vauto-text-muted)]">
             Paštomatų nerasta — pabandykite kitą miestą ar paiešką.
           </p>
         )}
       </div>
 
       {routeEstimate && (
-        <div className="flex gap-2 rounded-xl border border-[#bfdbfe] bg-[#eef6ff] p-3">
-          <Truck className="mt-0.5 h-4 w-4 shrink-0 text-[#1167b1]" />
-          <p className="text-xs leading-relaxed text-slate-700">
+        <div className="flex gap-2 rounded-xl border border-[var(--ds-ai)]/25 bg-[var(--ds-ai-soft)] p-3">
+          <Truck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ds-ai)]" />
+          <p className="text-xs leading-relaxed text-[var(--vauto-body)]">
             {routeEstimate.summaryLt}
           </p>
         </div>

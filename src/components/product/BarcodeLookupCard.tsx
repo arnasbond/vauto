@@ -32,9 +32,9 @@ export function BarcodeLookupCard({
   barcode,
 }: BarcodeLookupCardProps) {
   return (
-    <div className="mb-3 rounded-xl border border-[#e9d5ff] bg-[#faf5ff] p-3">
+    <div className="mb-3 rounded-xl border border-[var(--ds-ai)]/25 bg-[var(--ds-ai-soft)] p-3">
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#7c3aed] shadow-sm">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--ds-surface-card)] text-[var(--ds-ai)] shadow-sm">
           {loading ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
@@ -42,10 +42,10 @@ export function BarcodeLookupCard({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-wide text-[#7c3aed]">
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--ds-ai)]">
             Brūkšninis kodas
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-[#4b5563]">
+          <p className="mt-1 text-xs leading-relaxed text-[var(--vauto-body)]">
             {loading
               ? "Tikriname gamyklinius duomenis…"
               : barcode
@@ -53,7 +53,7 @@ export function BarcodeLookupCard({
                 : "Nuskaitytas kodas automatiškai užpildo prekės laukus."}
           </p>
           {result?.verified && (
-            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[#dcfce7] px-2.5 py-1 text-xs font-semibold text-[#15803d]">
+            <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-[var(--ds-success-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--ds-success)]">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Gyvi registrai — {sourceLabel(result.source)}
             </span>
@@ -62,9 +62,9 @@ export function BarcodeLookupCard({
       </div>
 
       {result && !loading && (
-        <div className="mt-3 rounded-lg bg-white p-3 text-xs text-[#374151]">
+        <div className="mt-3 rounded-lg bg-[var(--ds-surface-card)] p-3 text-xs text-[var(--vauto-body)]">
           {result.notFoundInRegistry ? (
-            <p className="leading-relaxed text-[#92400e]">
+            <p className="leading-relaxed text-amber-700 dark:text-amber-300">
               {result.userMessage ??
                 "Kodas atpažintas, bet nerastas viešame registre. Parašykite daikto pavadinimą patys."}
             </p>
@@ -76,7 +76,7 @@ export function BarcodeLookupCard({
               {result.quantity && <span>Talpa/dydis: {result.quantity}</span>}
               {result.author && <span>Autorius: {result.author}</span>}
               {result.publishYear && <span>Metai: {result.publishYear}</span>}
-              <span className="col-span-2 text-[#6b7280]">
+              <span className="col-span-2 text-[var(--vauto-text-muted)]">
                 Šaltinis: {sourceLabel(result.source)}
               </span>
             </div>

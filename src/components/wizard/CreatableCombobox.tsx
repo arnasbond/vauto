@@ -115,7 +115,7 @@ export function CreatableCombobox({
         placeholder={placeholder}
         className={cn(
           "nt-wizard-input w-full rounded-md border px-3 py-3 text-sm outline-none focus:border-[var(--vauto-primary)] focus:ring-1 focus:ring-[var(--vauto-primary)]",
-          highlight && !value && "border-[#ffe082] bg-[#fffde7]",
+          highlight && !value && "border-[var(--ds-warning)] bg-[var(--ds-warning-soft)]",
           disabled && "opacity-50"
         )}
         onFocus={() => !disabled && setOpen(true)}

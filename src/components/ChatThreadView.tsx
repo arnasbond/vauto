@@ -458,7 +458,7 @@ function ChatThreadContent({
         <button
           type="button"
           onClick={handleSend}
-          className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--vauto-orange)] text-white transition hover:opacity-90"
+          className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--ds-brand)] text-[var(--ds-brand-contrast)] transition hover:opacity-90"
           aria-label="Siųsti"
         >
           <Send className="h-5 w-5" />

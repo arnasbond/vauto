@@ -29,8 +29,8 @@ export function ActionButtons() {
           className="fab-glow relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white shadow-xl disabled:opacity-50"
           aria-label="Įdėti naują skelbimą"
         >
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--vauto-orange)]">
-            <Plus className="h-6 w-6 text-white" strokeWidth={2.5} />
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--ds-brand)]">
+            <Plus className="h-6 w-6 text-[var(--ds-brand-contrast)]" strokeWidth={2.5} />
           </span>
         </button>
       </div>

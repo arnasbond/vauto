@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { ListingGrid } from "@/components/ListingGrid";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
-import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
+import { VerticalPageChrome } from "@/components/chameleon/PortalPageChrome";
 import { HomeAiHero } from "@/components/home/HomeAiHero";
 import { ZeroUiListingPreview } from "@/components/zero-ui/ZeroUiListingPreview";
 import { ZeroUiBusinessDashboard } from "@/components/zero-ui/ZeroUiBusinessDashboard";
@@ -55,7 +55,7 @@ function MarketplaceView() {
     <>
       <SearchResultsFocus />
       <HeroSection>
-        <PortalPageChrome
+        <VerticalPageChrome
           minimal
           header={
             <>
@@ -71,7 +71,7 @@ function MarketplaceView() {
           }
         >
           <span className="sr-only">VAUTO pagrindinis puslapis</span>
-        </PortalPageChrome>
+        </VerticalPageChrome>
       </HeroSection>
       {showHowItWorks ? (
         <>

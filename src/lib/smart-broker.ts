@@ -1,5 +1,5 @@
 import type { ScoredListing } from "@/lib/types";
-import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
+import { sanitizeSearchQuery } from "@/lib/vertical-listing-filter";
 
 export type BrokerMode = "empty" | "weak-match";
 

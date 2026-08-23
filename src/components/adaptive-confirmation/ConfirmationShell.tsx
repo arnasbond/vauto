@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { ShareListingModal } from "@/components/social/ShareListingModal";
 import { ListingSuccessLottie } from "@/components/listing/ListingSuccessLottie";
-import { getChameleonTheme } from "@/lib/chameleon-themes";
+import { getVerticalPresentation } from "@/lib/vertical-presentation";
 import { cn } from "@/lib/cn";
 
 /** Post-publish celebration — Lottie success + non-blocking Share Modal. */
 export function PublishedOverlay() {
   const { lastPublishedListing, finishPublishedFlow } = useSellerFlow();
-  const theme = getChameleonTheme("flux");
+  const theme = getVerticalPresentation("marketplace");
   const p = theme.published;
   const [shareOpen, setShareOpen] = useState(true);
 

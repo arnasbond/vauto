@@ -45,7 +45,7 @@ export function MicroAnalytics({
       label: "9:16",
       value: shareStory,
       icon: Share2,
-      color: "text-[var(--vauto-orange)]",
+      color: "text-[var(--ds-brand)]",
     },
     { label: "Išsaugota", value: saves, icon: Heart, color: "text-[var(--vauto-red)]" },
   ];

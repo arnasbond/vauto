@@ -2,7 +2,7 @@
 export function VautoLogo({
   className = "",
   color,
-  dotColor = "#f97316",
+  dotColor = "#10b981",
 }: {
   className?: string;
   color?: string;

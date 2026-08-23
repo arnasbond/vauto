@@ -10,7 +10,7 @@ import {
 } from "@/lib/wardrobe-deals";
 import type { Listing } from "@/lib/types";
 
-const ACCENT = "#09b1a8";
+const ACCENT = "var(--vauto-primary, #10b981)";
 
 export const WARDROBE_SECRETARY_CLICK_GREETING =
   "Labas! Aš esu tavo AI asistentas — padėsiu paruošti skelbimą, pasiūlyti kainos rėžį, Omniva paštomatą ir Stories / Reels vizualus. Sandorį tvirtinate jūs. Ką išbandome pirmiausia?";

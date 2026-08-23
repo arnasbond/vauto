@@ -8,8 +8,6 @@ import { formatPrice } from "@/data/mockListings";
 import { getListingCoverImage } from "@/lib/listing-image";
 import { getListingMetrics } from "@/lib/listing-analytics";
 import { B2C_PROMOTE_PRODUCTS } from "@/lib/monetization-catalog";
-import { categoryToTheme } from "@/lib/chameleon-themes";
-import { cn } from "@/lib/cn";
 import { listingPath } from "@/lib/seo";
 import type { Listing, UserProfile } from "@/lib/types";
 import { TrustBadges } from "@/components/trust/TrustBadges";
@@ -50,7 +48,6 @@ export function ProListingCard({
   const [promoteOpen, setPromoteOpen] = useState(false);
   const metrics = getListingMetrics(listing);
   const featuredProduct = B2C_PROMOTE_PRODUCTS[1];
-  const promoteTheme = categoryToTheme(listing.category);
   const isSold = listing.status === "sold";
   const expiryLabel = formatExpiryLabel(listing);
   const expired = !isSold && !isListingActive(listing);
@@ -82,14 +79,7 @@ export function ProListingCard({
             />
             {visibilityActive && activeTier > 0 && (
               <span
-                className={cn(
-                  "absolute left-1 top-1 rounded-md px-1.5 py-0.5 text-[8px] font-bold text-white",
-                  promoteTheme === "autoplius" && "bg-[#1a56db]",
-                  promoteTheme === "wardrobe" && "bg-[#09b1a8]",
-                  promoteTheme === "skelbiu" && "bg-[#1565c0]",
-                  promoteTheme === "aruodas" && "bg-[#b91c1c]",
-                  promoteTheme === "flux" && "bg-[var(--vauto-orange)]"
-                )}
+                className="absolute left-1 top-1 rounded-md px-1.5 py-0.5 text-[8px] font-bold text-white bg-[var(--ds-brand)]"
               >
                 {activeTier >= 4 ? "TOP" : activeTier >= 2 ? "PLUS" : "VIP"}
               </span>
@@ -99,7 +89,7 @@ export function ProListingCard({
             <Link href={listingPath(listing)} className="block">
               <p className="truncate font-semibold text-slate-900">{listing.title}</p>
             </Link>
-            <p className="text-lg font-bold text-[var(--vauto-orange)]">
+            <p className="text-lg font-bold text-[var(--vauto-ink)]">
               {formatPrice(listing.price, listing.priceLabel)}
             </p>
             <TrustBadges listing={listing} size="sm" />

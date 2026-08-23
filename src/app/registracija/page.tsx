@@ -43,8 +43,8 @@ function RegistracijaContent() {
 
   return (
     <div className="flex min-h-[60dvh] flex-col items-center justify-center px-2 text-center">
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--vauto-orange)]/15">
-        <Gift className="h-8 w-8 text-[var(--vauto-orange)]" />
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--ds-warning-soft)]">
+        <Gift className="h-8 w-8 text-[var(--ds-warning)]" />
       </div>
       <h1 className="text-2xl font-bold text-[var(--vauto-text)]">Prisijunk prie VAUTO</h1>
       <p className="mt-2 max-w-sm text-sm text-[var(--vauto-text-muted)]">

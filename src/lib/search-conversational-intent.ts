@@ -1,4 +1,4 @@
-import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
+import { sanitizeSearchQuery } from "@/lib/vertical-listing-filter";
 
 const GREETING_RE =
   /^(labas|sveikas|sveiki|sveika|laba\s+diena|labas\s+rytas|labas\s+vakaras|hey|hi|hello|čia|cia)\b/i;

@@ -16,11 +16,11 @@ import { isAbsurdSearchQuery } from "@/lib/search-query-match";
 import { agentHasSupervisorReply } from "@/lib/agent-chat-layout";
 import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import { getPortalUi } from "@/lib/chameleon-portal-ui";
+import { getVerticalUi } from "@/lib/vertical-presentation";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
-import { portalExperienceForQuery } from "@/lib/portal-experience";
+import { verticalExperienceForQuery } from "@/lib/vertical-presentation";
 import { interpretAiFacets } from "@/lib/ai-facet-interpretation";
-import type { ChameleonThemeId } from "@/lib/chameleon-themes";
+import type { VerticalPresentationId } from "@/lib/vertical-presentation";
 import { cn } from "@/lib/cn";
 import {
   NATIVE_GRID_INITIAL,
@@ -28,19 +28,19 @@ import {
   shouldLimitNativeFeed,
 } from "@/lib/native-perf";
 
-function emptyMessage(theme: ChameleonThemeId): string {
-  switch (theme) {
-    case "cvbankas":
+function emptyMessage(vertical: VerticalPresentationId): string {
+  switch (vertical) {
+    case "jobs":
       return "Darbo skelbimų nerasta. Pabandykite kitą raktinį žodį ar miestą.";
-    case "autoplius":
+    case "transport":
       return "Transporto skelbimų nerasta. Pabandykite kitą frazę ar miestą.";
-    case "aruodas":
+    case "real_estate":
       return "NT skelbimų nerasta. Pabandykite kitą tipą ar miestą.";
-    case "wardrobe":
+    case "fashion":
       return "Drabužių nerasta. Pabandykite kitą dydį ar prekės ženklą.";
-    case "skelbiu":
+    case "goods":
       return "Skelbimų nerasta. Pabandykite kitą kategoriją ar miestą.";
-    case "paslaugos":
+    case "services":
       return "Paslaugų teikėjų nerasta. Pabandykite kitą specialybę ar miestą.";
     default:
       return "Tiesioginių skelbimų dar nėra. Patikslinkite paiešką arba įtraukite prekę į pageidavimų sąrašą.";
@@ -94,9 +94,9 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     interpretedVertical !== "all" ? interpretedVertical : marketplaceFilters.category ?? "all";
 
   const brokerSignal = buildSmartBrokerSignal(searchQuery, displayListings);
-  const portal = portalExperienceForQuery(searchQuery);
-  const theme = portal.theme;
-  const ui = getPortalUi(theme);
+  const experience = verticalExperienceForQuery(searchQuery);
+  const vertical = experience.vertical;
+  const ui = getVerticalUi(vertical);
   const browseAllActive = resolveBrowseAllIntent(searchQuery);
   const supervisorContext = agentBusy || agentHasSupervisorReply(messages);
 
@@ -143,8 +143,8 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     return (
       <>
         {/* Stage 18F — vertical-aware responsive grid: real estate & jobs use a
-            single column on small phones (390ŌĆō430px) so photo/title/price/place
-            stay readable in 1ŌĆō2s; goods/vehicles keep the denser 2-col layout. */}
+            single column on small phones (390–430px) so photo/title/price/place
+            stay readable in 1–2s; goods/vehicles keep the denser 2-col layout. */}
         <div
           data-listing-grid
           data-grid-vertical={activeVertical}
@@ -219,7 +219,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
               className="vauto-surface-panel mt-4 rounded-2xl border border-dashed p-6 text-center text-sm"
               style={{ borderColor: ui.border, color: ui.textMuted }}
             >
-              {emptyMessage(theme)}
+              {emptyMessage(vertical)}
             </p>
           ) : null}
 

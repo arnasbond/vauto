@@ -1,0 +1,121 @@
+VAUTO STAGE 20B — PRODUCT-WIDE DESIGN SYSTEM 2.0 MIGRATION
+MANIFEST — nepriklausomo ChatGPT audito paketas
+Data: 2026-08-20
+Bazinis commit: d4b7b41a (audit/stage16-security-ops)
+
+════════════════════════════════════════════════════════════════════
+1. ETAPO TIKSLAI (pagal produkto savininko direktyvą)
+════════════════════════════════════════════════════════════════════
+- Vizualiai migruoti realius VAUTO produktų puslapius į sertifikuotą
+  VAUTO Design System 2.0, sulygiuojant visą produktą su patvirtintais
+  MASTER LIGHT ir MASTER DARK vizualiniais etalonais.
+- Jokio savarankiško reinterpretavimo, naujo dizaino ar nukrypimo nuo
+  MASTER. MASTER yra privalomas ir nekintamas vizualinis etalonas.
+- Nulis funkcinės regresijos — tik vizualinė migracija, be verslo
+  logikos ar architektūros pakeitimų.
+- Stage 20A Design System 2.0 tokenai ir primitives (tokens.css,
+  globals.css, Button.tsx) yra vienintelis tiesos šaltinis.
+- Jokių atsitiktinių emerald variacijų: spalvos naudojamos tik per
+  --ds-* / --vauto-* tokenus (semantinė paskirtis), o ne hardcoded hex.
+- Mobile (390px) yra lygiavertis produktas su Desktop (1440px).
+- LIGHT/DARK paritetas kiekvienam migruotam maršrutui.
+
+════════════════════════════════════════════════════════════════════
+2. PAKETO STRUKTŪRA (vauto-20b-delta.zip)
+════════════════════════════════════════════════════════════════════
+Prieš kompresiją šis manifestas yra šakniniame kataloge.
+Galutinis ZIP turinys (deklaruojamas):
+
+  MANIFEST-20B.txt                 — šis failas
+  FINDINGS-20B.txt                 — spalvų migracijos išvados + likęs legacy
+  STATUS-20B.txt                   — etapų būsenos, gate'ų rezultatai
+  MATRIX-20B.md                    — P0–P3 maršrutų migracijos matrica
+  docs/visual-drift-register-20B.md        — vizualinio drift'o registras
+  docs/migration-route-matrix-20B.md       — detali maršrutų migracijos matrica
+  git-diff-stage20b.patch          — pilnas uncommitted working-tree patch
+  scripts/verify-20b-package.ps1  — 1:1 verifikacijos skriptas (PASS)
+  scripts/package-20b.ps1         — pakavimo skriptas (reprodukuojamas)
+  src/                             — pilni pakeisti source failai
+  stage20b/screenshots/            — 48 screenshot'ai (12 maršrutų × 2 temos × 2 viewport'ai)
+  stage20b/screenshots/probe-state.json   — objektyvūs rodikliai (overflow, theme)
+  stage20b/screenshots/console-audit.json — console/runtime auditas
+  stage20b-logs/                   — build/lint/tsc/E2E log failai
+  stage20b-e2e-p0.log, stage20b-e2e-p0-r2.log,
+  stage20b-e2e-p1.log, stage20b-e2e-p2.log — E2E rezultatai
+  scripts/verify-20b-package.ps1   — verifikacijos skriptas
+
+════════════════════════════════════════════════════════════════════
+3. MIGRUOTŲ MARŠRUTŲ SANTRAUKA (P0 + P1)
+════════════════════════════════════════════════════════════════════
+12 maršrutų × LIGHT/DARK × 1440/390 = 48 screenshot'ai.
+
+  P0 (core marketplace):
+    /                Homepage — hero, AI įėjimo taškas, HotKeywords, kategorijos
+    /search/         Search/results — FilterBubbles, VisualSearchStrip, ListingGrid
+    /listing/        Listing detail — TrustBadges, SellerTrustCard, AiTrustScoreBanner
+    /discover/       Discover — AI kategorijų atradimas
+
+  P1 (pagrindiniai produkto paviršiai):
+    /add/            Sukūrimo srautas — PhotoSourceSheet, AiIntroModal, PrePublish
+    /chats/          Pokalbiai — konversaciniai paviršiai
+    /sandoriai/      Deal Room / sandorių eiga — EscrowModal, EscrowActionBlock
+    /profile/        Profilis — WishlistSection, kabineto kortelės
+    /apie/           Apie VAUTO
+    /registracija/   Registracija
+    /install/        Įdiegti (PWA)
+    /ui-kit/         Design System reference paviršius
+
+════════════════════════════════════════════════════════════════════
+4. REGRESIJOS GATE'AI (galutiniai rezultatai)
+════════════════════════════════════════════════════════════════════
+  npm run build          PASS (exit 0)
+  npm run lint           PASS (exit 0)
+  npx tsc --noEmit       PASS (exit 0)
+  E2E (e2e-legacy, serially, 154 testai):
+    P0/P1 paketas r2:    47/50 PASS
+    P1/P2/P3 paketas:    80/83 PASS
+    Final paketas:       21/21 PASS
+    Iš viso:             148/154 PASS (96.1 %)
+
+  E2E failai — visi dokumentuoti kaip PRE-EXISTING / ENVIRONMENTAL,
+  NE 20B regresijos (išsamiau FINDINGS-20B.txt §5):
+    - smoke search helper jautrumas (2 testai) — AI interpretacijos
+      etiketė keičiasi, testas tikisi seno formato
+    - payment-methods-settings (3 testai) — mobile viewport tikisi
+      lg:block label'io, kuris niekada nematomas mobile
+    - app-shell-nav tablet screenshot rašymo lock (1 testas) — Windows
+      failų lock, atsitiktinis; tas pats testas PASS mobil/desktop
+
+════════════════════════════════════════════════════════════════════
+5. VIZUALINĖS REGRESIJOS ĮRODYMŲ REZULTATAI (probe-state.json)
+════════════════════════════════════════════════════════════════════
+  48/48 maršrutų: horizontalus overflow = 0 px
+  48/48 maršrutų: data-app-theme atitinka užklausą (0 mismatch)
+  LIGHT: body bg rgb(247,248,251) = #F7F8FB (sertifikuotas)
+  DARK : body bg rgb(11,18,32)    = #0b1220 (sertifikuotas)
+  h1    : mobile 27.2px → desktop 50.4px (MASTER hierarchija)
+  --ds-brand: #10b981 (emerald, patvirtinta per CDP)
+  --ds-ai   : #059669 (emerald, patvirtinta per CDP)
+  Primary CTA bg: rgb(16,185,129) = #10b981 (emerald)
+  AI CTA gradient: linear-gradient(135deg, #10b981, #059669 60%, #0d9488)
+
+════════════════════════════════════════════════════════════════════
+6. KONSOLE / RUNTIME AUDITAS
+════════════════════════════════════════════════════════════════════
+  P0 maršrutai (/, /search/, /listing/, /discover): 0 pageerror.
+  /ui-kit: React error #418 (hydration) — PRE-EXISTING, patvirtinta
+  palyginus su HEAD baseline build (error egzistuoja ir be 20B).
+  Likę console.error įrašai = CORS/network noise iš statinio preview
+  (vauto-api.onrender.com nepasiekiamas iš 127.0.0.1) — aplinka, ne kodas.
+
+════════════════════════════════════════════════════════════════════
+7. PATIKRINIMAS 1:1 (deklaruota == faktinė)
+════════════════════════════════════════════════════════════════════
+  Šio manifes deklaruoti failai palyginami su ZIP turiniu skriptu
+  scripts/verify-20b-package.ps1. Rezultatas: atitikimas 1:1.
+
+════════════════════════════════════════════════════════════════════
+8. STRICT STOP
+════════════════════════════════════════════════════════════════════
+  Po šio paketo paruošimo Stage 20B yra BAIGTAS. NEPRADĖTAS joks kitas
+  etapas. Laukiamas nepriklausomas ChatGPT auditas.

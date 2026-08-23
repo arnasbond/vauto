@@ -1,0 +1,58 @@
+VAUTO STAGE 20B — STATUS (BŪSENOS)
+Data: 2026-08-20
+
+════════════════════════════════════════════════════════════════════
+BENDRA BŪSENA: BAIGTA ✅ (STRICT STOP po 20B — laukiamas auditas)
+════════════════════════════════════════════════════════════════════
+
+1. ETAPŲ (WAVES) BŪSENOS
+   [x] Wave 1  Global shell + navigation + shared layout
+   [x] Wave 2  Homepage + AI entry (HotKeywordsGrid, hero)
+   [x] Wave 3  Search/results + categories + listing cards
+   [x] Wave 4  Listing detail (TrustBadges, SellerTrustCard, AiTrustScore)
+   [x] Wave 5  Create/sell flow (PhotoSourceSheet, AiIntroModal, PrePublish)
+   [x] Wave 6  Deal Room / transaction surfaces (Escrow, ParcelLocker, Buddy)
+   [x] Wave 7  Profile/auth/settings/favorites (Wishlist, dashboard cards)
+   [x] Wave 8  Supporting/error/empty/loading surfaces
+   [x] Final sweep — legacy hex/token likučiai (3 hardcoded emerald → tokenai)
+
+2. REGRESIJOS GATE'AI
+   [x] npm run build          → PASS
+   [x] npm run lint           → PASS
+   [x] npx tsc --noEmit       → PASS
+   [x] E2E e2e-legacy         → 148/154 PASS (6 failai visi dokumentuoti,
+                              ne 20B regresijos)
+
+3. VIZUALINĖ REGRESIJA (P0/P1 × LIGHT/DARK × 1440/390)
+   [x] 48 screenshot'ai užfiksuoti (stage20b/screenshots/)
+   [x] Overflow = 0 px visuose 48
+   [x] Theme paritetas: 0 mismatch
+   [x] Emerald patvirtintas: --ds-brand #10b981, --ds-ai #059669
+   [x] Vizualus palyginimas su MASTER LIGHT/DARK: atitinka hierarchiją,
+       emerald naudojimą, marketplace tapatybę, LIGHT/DARK santykį
+
+4. KONSOLE / RUNTIME
+   [x] P0 maršrutai: 0 pageerror
+   [x] /ui-kit React #418 — PRE-EXISTING (patvirtinta HEAD baseline)
+   [x] Likę console.error — aplinkos noise (CORS/network)
+
+5. PAKETO PARUOŠIMAS
+   [x] MANIFEST-20B.txt
+   [x] FINDINGS-20B.txt
+   [x] STATUS-20B.txt
+   [x] MATRIX-20B.md
+   [x] docs/visual-drift-register-20B.md
+   [x] docs/migration-route-matrix-20B.md
+   [x] git-diff-stage20b.patch
+   [x] stage20b/screenshots/ (48 png + probe-state.json + console-audit.json)
+   [x] stage20b-logs/ (build, lint, tsc, e2e logai)
+   [x] vauto-20b-delta.zip su 1:1 verifikacija
+
+6. PASTABOS AUDITORIUI
+   - Pakeitimai yra VIZUALINIAI (spalvos, tokenai, klasių žymėjimai).
+     Verslo logika, maršrutai, architektūra — nekeisti.
+   - Verticalių simuliatorių (autoplius, skelbiu, cvbankas) spalvos
+     sąmoningai paliktos — jos imituoja išorinius portalus.
+   - Stage 17.1/18.3 working-tree pakeitimai (view/facet URL) yra
+     ankstesnių etapų darbai, esantys toje pačioje uncommitted delta;
+     jie nėra 20B turinys, bet įtraukti į patch pilnumui.

@@ -92,12 +92,12 @@ export function B2BBillingCard({
                     <span className="mr-2 text-xs text-[var(--vauto-text-muted)] line-through">
                       {plan.monthlyPrice} €/mėn.
                     </span>
-                    <span className="text-sm font-bold text-[var(--vauto-orange)]">
+                    <span className="text-sm font-bold text-[var(--ds-warning)]">
                       {LAUNCH_PROMO_BADGE}
                     </span>
                   </div>
                 ) : (
-                  <span className="text-sm font-bold text-[var(--vauto-orange)]">
+                  <span className="text-sm font-bold text-[var(--vauto-ink)]">
                     {plan.monthlyPrice} €/mėn.
                   </span>
                 )}

@@ -5,9 +5,9 @@ import { Building2, Sparkles } from "lucide-react";
 
 export function ProUpsellCard() {
   return (
-    <section className="vauto-dashboard-card mb-4 rounded-2xl border border-[var(--vauto-orange)]/30 bg-gradient-to-br from-[var(--vauto-orange)]/10 to-transparent p-4">
+    <section className="vauto-dashboard-card mb-4 rounded-2xl border border-[var(--ds-brand)]/25 bg-[var(--ds-brand-soft)] p-4">
       <div className="mb-2 flex items-center gap-2">
-        <Building2 className="h-4 w-4 text-[var(--vauto-orange)]" />
+        <Building2 className="h-4 w-4 text-[var(--ds-brand)]" />
         <h3 className="text-sm font-semibold text-slate-900">Verslo paskyra</h3>
       </div>
       <p className="text-xs leading-relaxed text-slate-400">
@@ -26,7 +26,7 @@ export function ProUpsellCard() {
       </ul>
       <Link
         href="/profile/?upgrade=pro"
-        className="mt-4 flex w-full items-center justify-center rounded-xl bg-[var(--vauto-orange)] py-3 text-sm font-semibold text-white hover:opacity-90"
+        className="mt-4 flex w-full items-center justify-center rounded-xl bg-[var(--ds-brand)] py-3 text-sm font-semibold text-[var(--ds-brand-contrast)] hover:opacity-90"
       >
         Sužinoti apie Pro
       </Link>

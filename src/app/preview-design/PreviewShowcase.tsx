@@ -596,8 +596,8 @@ function AiPrepublishTab() {
                 Siūlo kainos rėžį (rekomendacija, ne garantija)
               </li>
             </ul>
-            <p className="mt-5 rounded-xl bg-[var(--vauto-ai-soft)] px-3 py-2.5 text-xs leading-relaxed text-[#8A4B12]">
-              Oranžinė spalva naudojama tik AI žymoms — kainos ir tekstas lieka tamsūs.
+            <p className="mt-5 rounded-xl bg-[var(--vauto-ai-soft)] px-3 py-2.5 text-xs leading-relaxed text-[var(--vauto-muted)]">
+              Emerald akcentas naudojamas tik AI žymoms — kainos ir tekstas lieka tamsūs.
             </p>
           </aside>
         </div>

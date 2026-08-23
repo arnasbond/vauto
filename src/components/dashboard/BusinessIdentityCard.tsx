@@ -8,7 +8,7 @@ export function BusinessIdentityCard({ user }: { user: UserProfile }) {
   return (
     <section className="vauto-dashboard-card mb-4 rounded-2xl p-4">
       <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-orange)]/20 text-[var(--vauto-orange)]">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--ds-brand-soft)] text-[var(--ds-brand)]">
           <Building2 className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
@@ -20,7 +20,7 @@ export function BusinessIdentityCard({ user }: { user: UserProfile }) {
               user.nickname?.trim() ||
               user.name?.trim() ||
               "VAUTO Pro"}
-            <span className="ml-2 align-middle rounded-full bg-[var(--vauto-orange)]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--vauto-orange)]">
+            <span className="ml-2 align-middle rounded-full bg-[var(--ds-brand-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ds-brand)]">
               Pro
             </span>
           </h2>
@@ -41,7 +41,7 @@ export function BusinessIdentityCard({ user }: { user: UserProfile }) {
           {user.businessType === "services" && (
             <div className="mt-3 rounded-xl bg-slate-50 p-3">
               <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
-                <MapPin className="h-3.5 w-3.5 text-[var(--vauto-orange)]" />
+                <MapPin className="h-3.5 w-3.5 text-[var(--ds-brand)]" />
                 Darbo teritorija
               </p>
               <p className="text-xs text-slate-400">

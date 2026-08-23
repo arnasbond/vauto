@@ -20,7 +20,7 @@ export function BuddyAvatar({ state }: BuddyAvatarProps) {
         <Sparkles className="h-5 w-5 text-[var(--vauto-teal)]" />
       </div>
       {isActive && (
-        <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--vauto-orange)] text-[8px] font-bold text-white">
+        <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--ds-brand)] text-[8px] font-bold text-[var(--ds-brand-contrast)]">
           {state === "speaking" ? "🔊" : "…"}
         </span>
       )}

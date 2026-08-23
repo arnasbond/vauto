@@ -5,11 +5,11 @@ import { Bell, MessageCircle } from "lucide-react";
 import Link from "next/link";
 import { useNotificationBell } from "@/context/NotificationBellContext";
 import { useAuth } from "@/context/AuthContext";
-import { useActivePortal } from "@/hooks/useActivePortal";
+import { useActiveVertical } from "@/hooks/useActivePortal";
 
 export function NotificationBell() {
   const { isAuthenticated, openAuthModal } = useAuth();
-  const { ui } = useActivePortal();
+  const { ui } = useActiveVertical();
   const {
     notifications,
     totalUnreadCount,

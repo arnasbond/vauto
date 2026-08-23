@@ -2,15 +2,15 @@
 
 import { useVauto } from "@/context/VautoContext";
 import {
-  allPortalExperiences,
-  portalExperienceForQuery,
-  portalShortLabel,
-} from "@/lib/portal-experience";
+  allVerticalExperiences,
+  verticalExperienceForQuery,
+  verticalShortLabel,
+} from "@/lib/vertical-presentation";
 
-export function PortalExperienceStrip() {
+export function VerticalExperienceStrip() {
   const { searchQuery, setSearchQuery } = useVauto();
-  const active = portalExperienceForQuery(searchQuery);
-  const portals = allPortalExperiences();
+  const active = verticalExperienceForQuery(searchQuery);
+  const verticals = allVerticalExperiences();
 
   return (
     <section
@@ -23,7 +23,7 @@ export function PortalExperienceStrip() {
             className="text-[11px] font-bold uppercase tracking-[0.18em]"
             style={{ color: active.color }}
           >
-            {active.portalName}
+            {active.verticalName}
           </p>
           <h2 className="mt-1 text-lg font-extrabold text-[#111827]">
             {active.headline}
@@ -36,7 +36,7 @@ export function PortalExperienceStrip() {
           className="shrink-0 rounded-full px-3 py-1 text-[10px] font-bold text-white"
           style={{ background: active.color }}
         >
-          {active.theme === "flux" ? "VAUTO" : "Kategorija"}
+          {active.vertical === "marketplace" ? "VAUTO" : "Kategorija"}
         </span>
       </div>
 
@@ -54,21 +54,21 @@ export function PortalExperienceStrip() {
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-1.5 sm:grid-cols-6">
-        {portals.map((portal) => (
+        {verticals.map((vertical) => (
           <button
-            key={portal.theme}
+            key={vertical.vertical}
             type="button"
-            onClick={() => setSearchQuery(portal.quickFilters[0])}
+            onClick={() => setSearchQuery(vertical.quickFilters[0])}
             className="rounded-xl bg-white/75 px-2 py-2 text-[10px] font-bold leading-tight shadow-sm"
             style={{
-              color: portal.color,
+              color: vertical.color,
               outline:
-                portal.theme === active.theme
-                  ? `2px solid ${portal.color}`
+                vertical.vertical === active.vertical
+                  ? `2px solid ${vertical.color}`
                   : "1px solid rgba(255,255,255,0.6)",
             }}
           >
-            {portalShortLabel(portal.theme)}
+            {verticalShortLabel(vertical.vertical)}
           </button>
         ))}
       </div>

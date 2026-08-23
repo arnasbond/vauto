@@ -203,7 +203,7 @@ export function PrePublishListingCard({
             <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--vauto-primary)]" aria-hidden />
             <a
               href={`tel:${card.phone.replace(/\s/g, "")}`}
-              className="font-bold text-blue-600 hover:underline"
+              className="font-bold text-[var(--vauto-primary)] hover:underline"
             >
               {card.phone}
             </a>

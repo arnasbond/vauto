@@ -20,11 +20,11 @@ interface BuddyVoicePulseProps {
 
 const MODE_COPY: Record<
   BuddyPulseMode,
-  { status: string; glow: "teal" | "orange" }
+  { status: string; glow: "teal" | "ai" }
 > = {
   listening: { status: "Klausausi…", glow: "teal" },
-  reasoning: { status: "AI analizuoja…", glow: "orange" },
-  speaking: { status: "VAUTO atsako…", glow: "orange" },
+  reasoning: { status: "AI analizuoja…", glow: "ai" },
+  speaking: { status: "VAUTO atsako…", glow: "ai" },
 };
 
 export function BuddyVoicePulse({
@@ -39,7 +39,7 @@ export function BuddyVoicePulse({
   className,
 }: BuddyVoicePulseProps) {
   const copy = MODE_COPY[mode];
-  const isOrange = copy.glow === "orange";
+  const isAi = copy.glow === "ai";
   const isFab = variant === "fab";
   const isCompact = variant === "compact";
 
@@ -53,14 +53,14 @@ export function BuddyVoicePulse({
       <span
         className={cn(
           "buddy-ring-pulse pointer-events-none absolute inset-0 rounded-full",
-          isOrange ? "buddy-glow-orange" : "buddy-glow-teal"
+          isAi ? "buddy-glow-orange" : "buddy-glow-teal"
         )}
         aria-hidden
       />
       <span
         className={cn(
           "buddy-ring-pulse pointer-events-none absolute rounded-full",
-          isOrange ? "buddy-glow-orange" : "buddy-glow-teal",
+          isAi ? "buddy-glow-orange" : "buddy-glow-teal",
           isFab ? "inset-1" : "inset-3 sm:inset-4"
         )}
         style={{ animationDelay: "0.45s" }}
@@ -69,7 +69,7 @@ export function BuddyVoicePulse({
       <span
         className={cn(
           "buddy-ring-pulse pointer-events-none absolute rounded-full opacity-80",
-          isOrange ? "buddy-glow-orange" : "buddy-glow-teal",
+          isAi ? "buddy-glow-orange" : "buddy-glow-teal",
           isFab ? "inset-2" : "inset-6 sm:inset-8"
         )}
         style={{ animationDelay: "0.9s" }}
@@ -79,7 +79,7 @@ export function BuddyVoicePulse({
       <div
         className={cn(
           "buddy-orb relative z-10 flex items-center justify-center rounded-full shadow-2xl transition-all duration-500 ease-in-out",
-          isOrange ? "buddy-orb-orange" : "buddy-orb-teal",
+          isAi ? "buddy-orb-orange" : "buddy-orb-teal",
           isFab ? "h-14 w-14" : isCompact ? "h-20 w-20" : "h-28 w-28 sm:h-32 sm:w-32"
         )}
       >
@@ -107,7 +107,7 @@ export function BuddyVoicePulse({
           cy="100"
           r="72"
           fill="none"
-          stroke={isOrange ? "var(--vauto-orange)" : "var(--vauto-teal)"}
+          stroke={isAi ? "var(--ds-ai)" : "var(--vauto-teal)"}
           strokeWidth="1.5"
           strokeLinecap="round"
           className="buddy-wave-ring"
@@ -118,7 +118,7 @@ export function BuddyVoicePulse({
           cy="100"
           r="58"
           fill="none"
-          stroke={isOrange ? "var(--vauto-orange-light)" : "var(--flux-cyan)"}
+          stroke={isAi ? "var(--ds-brand)" : "var(--vauto-teal)"}
           strokeWidth="1"
           strokeLinecap="round"
           className="buddy-wave-ring-reverse"

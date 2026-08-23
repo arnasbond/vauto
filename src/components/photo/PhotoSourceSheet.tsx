@@ -25,24 +25,24 @@ export function PhotoSourceSheet({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[10001] flex items-end justify-center bg-black/60 p-0"
+      className="fixed inset-0 z-[10001] flex items-end justify-center bg-[var(--ds-overlay)] p-0"
       role="dialog"
       aria-modal="true"
       aria-label="Pridėti failą"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-2xl bg-white px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-xl"
+        className="w-full max-w-lg rounded-t-2xl bg-[var(--ds-surface-card)] px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-[#111827]">
+          <h3 className="text-base font-semibold text-[var(--ds-text-primary)]">
             Pridėti failą
           </h3>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-[#6b7280] hover:bg-[#f3f4f6]"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--ds-text-muted)] hover:bg-[var(--ds-surface-muted)]"
             aria-label="Uždaryti"
           >
             <X className="h-5 w-5" />
@@ -52,34 +52,34 @@ export function PhotoSourceSheet({
         <button
           type="button"
           onClick={() => onSelect("camera")}
-          className="mb-2 flex w-full items-center gap-3 rounded-xl border border-[#e5e7eb] px-4 py-3.5 text-left transition hover:bg-[#f9fafb]"
+          className="mb-2 flex w-full items-center gap-3 rounded-xl border border-[var(--ds-border-subtle)] px-4 py-3.5 text-left transition hover:bg-[var(--ds-surface-muted)]"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eef6ff] text-[#1167b1]">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--ds-brand-soft)] text-[var(--ds-brand)]">
             <Camera className="h-5 w-5" />
           </span>
-          <span className="flex-1 text-sm font-medium text-[#111827]">
+          <span className="flex-1 text-sm font-medium text-[var(--ds-text-primary)]">
             Fotografuoti
           </span>
-          <ChevronRight className="h-5 w-5 text-[#9ca3af]" />
+          <ChevronRight className="h-5 w-5 text-[var(--ds-text-muted)]" />
         </button>
 
         <button
           type="button"
           onClick={() => onSelect("gallery")}
-          className="flex w-full items-center gap-3 rounded-xl border border-[#e5e7eb] px-4 py-3.5 text-left transition hover:bg-[#f9fafb]"
+          className="flex w-full items-center gap-3 rounded-xl border border-[var(--ds-border-subtle)] px-4 py-3.5 text-left transition hover:bg-[var(--ds-surface-muted)]"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eef6ff] text-[#1167b1]">
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--ds-brand-soft)] text-[var(--ds-brand)]">
             <FolderOpen className="h-5 w-5" />
           </span>
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="text-sm font-medium text-[#111827]">
+            <span className="text-sm font-medium text-[var(--ds-text-primary)]">
               Failai ir galerija
             </span>
-            <span className="text-[11px] text-[#6b7280]">
+            <span className="text-[11px] text-[var(--ds-text-muted)]">
               Nuotraukos, PDF, CV, Documents, Downloads
             </span>
           </span>
-          <ChevronRight className="h-5 w-5 text-[#9ca3af]" />
+          <ChevronRight className="h-5 w-5 text-[var(--ds-text-muted)]" />
         </button>
       </div>
     </div>,

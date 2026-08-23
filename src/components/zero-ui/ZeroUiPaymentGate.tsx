@@ -74,7 +74,7 @@ export function ZeroUiPaymentGate({
   ]);
 
   const shellClass = embedded
-    ? "rounded-2xl border border-[#bfdbfe] bg-gradient-to-br from-[#eef6ff] to-white p-5 shadow-sm"
+    ? "rounded-2xl border border-[var(--ds-brand)]/30 bg-gradient-to-br from-[var(--ds-brand-soft)] to-[var(--ds-surface-card)] p-5 shadow-sm"
     : "fixed inset-0 z-[260] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center";
 
   const cardClass = embedded
@@ -89,29 +89,29 @@ export function ZeroUiPaymentGate({
             <div className="mb-4 flex items-start justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-[var(--vauto-teal)]" />
-                <h3 className="font-display text-lg font-bold text-[#111827]">
+                <h3 className="font-display text-lg font-bold text-[var(--ds-text-primary)]">
                   {productTitle(resolvedIntent.product)}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={onCancel}
-                className="rounded-full p-1 text-[#6b7280] hover:bg-[#f3f4f6]"
+                className="rounded-full p-1 text-[var(--ds-text-secondary)] hover:bg-[var(--ds-surface-muted)]"
                 aria-label="Uždaryti"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <p className="text-sm leading-relaxed text-[#374151]">{resolvedIntent.reason}</p>
+            <p className="text-sm leading-relaxed text-[var(--ds-text-primary)]">{resolvedIntent.reason}</p>
 
-            <div className="mt-4 rounded-xl border border-[#dbeafe] bg-[#f8fafc] px-4 py-3">
-              <p className="text-xs uppercase tracking-wide text-[#6b7280]">Suma</p>
-              <p className="font-display text-2xl font-bold text-[#1167b1]">
+            <div className="mt-4 rounded-xl border border-[var(--ds-ai)]/25 bg-[var(--ds-ai-soft)] px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-[var(--vauto-text-muted)]">Suma</p>
+              <p className="font-display text-2xl font-bold text-[var(--ds-ai)]">
                 {resolvedIntent.price.toFixed(2)} €
               </p>
               {isSmartBoost && (
-                <p className="mt-1 text-xs text-[#6b7280]">
+                <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
                   {isB2bBoost
                     ? "Verslo Smart Boost — apgalvotas matomumas, apsauga nuo dirbtinės konkurencijos (7 d.)"
                     : "Padidina skelbimo matomumą 7 dienoms"}
@@ -119,7 +119,7 @@ export function ZeroUiPaymentGate({
               )}
             </div>
 
-            <div className="mt-4 flex items-center gap-2 text-xs text-[#6b7280]">
+            <div className="mt-4 flex items-center gap-2 text-xs text-[var(--vauto-text-muted)]">
               <Wallet className="h-4 w-4" />
               Piniginė: {walletBalance.toFixed(2)} €
               {!canUseWallet && " — demo režime mokėjimas vis tiek leidžiamas"}
@@ -129,7 +129,7 @@ export function ZeroUiPaymentGate({
               <button
                 type="button"
                 onClick={completePayment}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1167b1] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0d5a9a]"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--ds-brand)] px-4 py-3 text-sm font-semibold text-[var(--ds-brand-contrast)] hover:bg-[var(--ds-brand-hover)]"
               >
                 <CreditCard className="h-4 w-4" />
                 {confirmLabel}
@@ -137,7 +137,7 @@ export function ZeroUiPaymentGate({
               <button
                 type="button"
                 onClick={onCancel}
-                className="py-2 text-sm text-[#6b7280] hover:text-[#111827]"
+                className="py-2 text-sm text-[var(--vauto-text-muted)] hover:text-[var(--vauto-text-heading)]"
               >
                 Atšaukti
               </button>
@@ -147,15 +147,15 @@ export function ZeroUiPaymentGate({
 
         {step === "paying" && (
           <div className="py-10 text-center">
-            <Sparkles className="mx-auto h-8 w-8 animate-pulse text-[var(--vauto-teal)]" />
-            <p className="mt-3 text-sm font-medium text-[#374151]">Apdorojamas mokėjimas…</p>
+            <Sparkles className="mx-auto h-8 w-8 animate-pulse text-[var(--ds-brand)]" />
+            <p className="mt-3 text-sm font-medium text-[var(--vauto-body)]">Apdorojamas mokėjimas…</p>
           </div>
         )}
 
         {step === "success" && (
           <div className="py-10 text-center">
             <p className="font-display text-lg font-bold text-emerald-600">Mokėjimas patvirtintas</p>
-            <p className="mt-2 text-sm text-[#6b7280]">{productTitle(resolvedIntent.product)} aktyvuotas</p>
+            <p className="mt-2 text-sm text-[var(--ds-text-secondary)]">{productTitle(resolvedIntent.product)} aktyvuotas</p>
           </div>
         )}
       </div>

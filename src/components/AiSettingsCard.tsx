@@ -69,7 +69,7 @@ export function AiSettingsCard() {
   return (
     <div className="vauto-settings-card mt-6 rounded-2xl p-4">
       <div className="mb-3 flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-[var(--vauto-orange)]" />
+        <Sparkles className="h-5 w-5 text-[var(--ds-ai)]" />
         <h2 className="vauto-text-heading font-semibold">Gemini AI</h2>
         <span
           className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.className}`}
