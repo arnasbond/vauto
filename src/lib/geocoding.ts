@@ -128,8 +128,18 @@ export function distanceToListing(
 }
 
 export function enrichListingCoords<T extends { location: string; id?: string; latitude?: number; longitude?: number; attributes?: Record<string, unknown> }>(
-  listing: T
+  listing: T,
+  opts?: { geoContext?: "normal" | "forceUngeocoded" }
 ): T & { latitude?: number; longitude?: number } {
+  // 22B.1 AUD-01 test hook — deterministic zero-geocoded scenario. When a test
+  // opts into `forceUngeocoded`, NO listing may derive map coordinates, even
+  // when explicit coords / known cities exist. This proves the map's empty
+  // state and the "never fabricate" invariant deterministically. Production
+  // call sites never pass this option (the canonical enrich path is unchanged).
+  if (opts?.geoContext === "forceUngeocoded") {
+    return { ...listing, latitude: undefined, longitude: undefined };
+  }
+
   // Preserve explicit coords (e.g. GPS) already on the listing.
   if (listing.latitude != null && listing.longitude != null) {
     return listing;
@@ -154,6 +164,37 @@ export function enrichListingCoords<T extends { location: string; id?: string; l
     latitude: coords.lat,
     longitude: coords.lng,
   };
+}
+
+/**
+ * 22B.1 AUD-01 — deterministic map-graphics context override. Returns
+ * `forceUngeocoded` when a dedicated test flag is present so the map's empty
+ * state can be proven with a canonical result set that has ZERO geocodable
+ * listings (no fabricated coordinates). `normal` otherwise.
+ *
+ * The flag is read from BOTH the URL (`?maptest=nogeo`) and sessionStorage
+ * (`vauto_map_test_ctx`). sessionStorage is the stable transport: the canonical
+ * AI facet URL sync (syncMarketplaceFiltersToUrl) may rewrite the URL without
+ * the test param, but the session context survives and keeps the deterministic
+ * scenario deterministic for the whole test session. Production navigation
+ * never sets either.
+ */
+export function mapGeoContextFromUrl(url: string): "normal" | "forceUngeocoded" {
+  let urlFlag: string | null = null;
+  try {
+    urlFlag = new URL(url).searchParams.get("maptest");
+  } catch {
+    urlFlag = null;
+  }
+  if (urlFlag === "nogeo") return "forceUngeocoded";
+  try {
+    if (globalThis.sessionStorage?.getItem("vauto_map_test_ctx") === "nogeo") {
+      return "forceUngeocoded";
+    }
+  } catch {
+    // storage unavailable — fall through to normal
+  }
+  return "normal";
 }
 
 /** Read soft-attached _geoLat/_geoLng from draft attributes. */

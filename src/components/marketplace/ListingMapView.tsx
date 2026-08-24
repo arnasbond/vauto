@@ -11,7 +11,7 @@ const ListingMapViewInner = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[min(70vh,520px)] items-center justify-center rounded-2xl border border-[#dde5ef] bg-white text-sm text-[#6b7280]">
+      <div className="flex h-[min(70vh,520px)] items-center justify-center rounded-2xl border border-[var(--vauto-border-input)] bg-[var(--vauto-surface-page)] text-sm text-[var(--vauto-text-subtle)]">
         Kraunamas žemėlapis…
       </div>
     ),
