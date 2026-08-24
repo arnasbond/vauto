@@ -284,7 +284,11 @@ export function useHydrateFacetUrl() {
     // production write bridge (`applyFacetChips`), so a deep-link with an
     // explicit facet behaves exactly as it does after the chips settle.
     const q = result.query.q || cleaned.get("q") || "";
-    let nextFilters = { ...hydrated, ...restored };
+    let nextFilters = {
+      ...hydrated,
+      ...restored,
+      facetQueryString: params.toString(),
+    };
     if (q.trim()) {
       nextFilters = applyFacetChips(nextFilters, interpretAiFacets(q).chips);
       const settledParams = serializeMarketplaceFiltersIntoUrl(nextFilters, params);
