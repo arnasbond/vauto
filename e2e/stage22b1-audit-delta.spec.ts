@@ -86,11 +86,16 @@ test.describe("22B.1-AUD-01 — deterministic zero-geocoded case (chromium)", ()
     expect(page.url()).toContain("vertical=real_estate");
     expect(page.url()).toContain("q=butas");
 
-    // Wait for the AI facet interpretation to settle (it may add
-    // `ca_propertyType=Butas` right after load) so the canonical URL baseline is
-    // stable for the whole scenario.
-    await page.waitForTimeout(1200);
+    // Stage 22B remediation (HIGH-2): the AI facet interpretation of the
+    // landing query settles SYNCHRONOUSLY during hydration — the URL captured
+    // right after the first card renders is ALREADY the settled canonical URL
+    // (no async `ca_propertyType=Butas` mutation window). Asserting the facet
+    // here proves the baseline is stable for the whole scenario without any
+    // settle wait.
     const urlBefore = page.url();
+    expect(urlBefore, "settled URL carries the canonical AI facet immediately").toContain(
+      "ca_propertyType=Butas"
+    );
 
     // Open MAP — deterministic empty state must appear.
     const mapBtn = page.locator('[data-view-mode="map"][data-view-mode-enabled="true"]').first();
@@ -132,7 +137,10 @@ test.describe("22B.1-AUD-02 — real marker → detail → Back (chromium)", () 
     page,
   }) => {
     await openMap(page, RE_URL, "light");
-    await page.waitForTimeout(1000);
+    // Stage 22B remediation (HIGH-2): canonical URL is settled synchronously
+    // during hydration — the settled URL already carries the AI facet before
+    // marker navigation begins (no async mutation window).
+    expect(page.url()).toContain("ca_propertyType=Butas");
 
     // Deterministically reach an individual (photo) marker: if a cluster is
     // shown, keep expanding it until a photo marker `[data-map-marker]` is
@@ -212,10 +220,8 @@ test.describe("22B.1-AUD-03 — true live MAP resize continuity (chromium)", () 
     // [data-map-container] after EVERY transition).
     await openMap(page, RE_URL, "light");
 
-    // Wait for AI facet interpretation to settle so the canonical URL is stable
-    // before the resize chain begins (URL rewrites stop being a factor).
-    await page.waitForTimeout(1200);
-
+    // Stage 22B remediation (HIGH-2): the canonical URL settles synchronously
+    // during hydration — no settle wait needed before the resize chain begins.
     // Prove MAP is the effective view mode while the mobile toolbar is visible.
     await expect(page.locator('[data-view-mode="map"]').first()).toHaveAttribute(
       "aria-pressed",
@@ -223,6 +229,10 @@ test.describe("22B.1-AUD-03 — true live MAP resize continuity (chromium)", () 
     );
 
     const canonicalUrlBefore = page.url().replace(/[?&]view=[a-z]+/, "");
+    expect(
+      canonicalUrlBefore,
+      "settled canonical URL carries the AI facet before any resize"
+    ).toContain("ca_propertyType=Butas");
 
     // Canonical geocoded count captured BEFORE any resize — the same map must
     // survive the whole chain without reload and without losing its state.

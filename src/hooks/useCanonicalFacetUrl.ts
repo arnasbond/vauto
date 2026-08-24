@@ -18,8 +18,10 @@ import {
   deriveCanonicalLocationMirror,
   deriveCanonicalSortMirror,
 } from "@/lib/marketplace-filter-url";
-import { normalizeMarketplaceFilters } from "@/lib/marketplace-view";
+import { interpretAiFacets } from "@/lib/ai-facet-interpretation";
+import { applyFacetChips } from "@/lib/apply-ai-facet";
 import type { ListingCategory } from "@/lib/types";
+import { normalizeMarketplaceFilters } from "@/lib/marketplace-view";
 
 function emptyQuery(): ParsedFacetQuery {
   return {
@@ -83,17 +85,19 @@ export function useCanonicalFacetQuery() {
       // URL before the next render, and a cleared sort vanishes on reload.
       const derivedSort = deriveCanonicalSortMirror(next.sort);
       // Derived location mirror. The canonical `location` predicate is the
-      // authority for the mirror while it is present in `next`. When it is
-      // removed, the canonical location is CLEARED — we do not fall back to stale
-      // `marketplaceFilters.location`. A complement-only location (authored via
-      // AI chips / classic FilterFields, never entered the canonical query) is
-      // preserved because the previous canonical query never held a location
-      // predicate for it.
+      // authority for the mirror while it is present in `next`. When it
+      // is removed, the canonical location is CLEARED — we do not fall back to
+      // stale `marketplaceFilters.location`. A complement-only location
+      // (authored via AI chips / classic FilterFields, never entered the
+      // canonical query) is preserved because the previous canonical query
+      // never held a location predicate for it.
       const nextLocation =
         (next.predicates.find((p) => p.kind === "location") as
           | { kind: "location"; key: string; value: string }
           | undefined)?.value ??
-        (next.predicates.find((p) => p.kind === "contains" && p.key === "location") as
+        (next.predicates.find(
+          (p) => p.kind === "contains" && p.key === "location"
+        ) as
           | { kind: "contains"; key: string; value: string }
           | undefined)?.value;
       const derivedLocation = deriveCanonicalLocationMirror(
@@ -109,7 +113,7 @@ export function useCanonicalFacetQuery() {
         location: derivedLocation,
         sort: derivedSort,
       };
-      // Mirror the client filter state (location/price/condition/radius/chameleon
+      // Mirror the client filter state (location/price/condition/radius/vertical
       // attrs) into the same search URL so AI/classic facets survive reload &
       // deep-link without re-running AI interpretation. Allowlist against the
       // target category so incompatible attributes are never written.
@@ -202,23 +206,41 @@ export function useHydrateFacetUrl() {
       ? (listingCategoryForVertical(result.query.verticalId) as ListingCategory)
       : "all";
     const rawRestored = parseMarketplaceFiltersFromUrl(rawParams, category);
-    params = serializeMarketplaceFiltersIntoUrl(
-      normalizeMarketplaceFilters({
-        ...marketplaceFilters,
-        ...rawRestored,
-        category,
-      }),
-      params
-    );
+    const hydrated = normalizeMarketplaceFilters({
+      ...marketplaceFilters,
+      ...rawRestored,
+      category,
+    });
+    params = serializeMarketplaceFiltersIntoUrl(hydrated, params);
     writeSearch(params);
     const restored = parseMarketplaceFiltersFromUrl(params, category);
-    setMarketplaceFilters({
-      ...marketplaceFilters,
-      ...restored,
-      category,
-      facetQueryString: params.toString(),
-    });
-    if (result.query.q) setSearchQuery(result.query.q);
+
+    // Stage 22B remediation (HIGH-2) — settle the canonical URL synchronously
+    // during hydration by applying the deterministic AI facet interpretation of
+    // the landing query. Without this, `AiInterpretationChips` applies the same
+    // facets in a later effect tick (~200ms after first paint), so any actor
+    // reading the URL in that window (user navigation, LIST→MAP→LIST, an E2E
+    // asserting a settled URL) observes a transient URL mutation. Pre-applying
+    // here makes the URL settle before results render, while producing the
+    // EXACT same final state (the chips' later effect no-ops via its
+    // 21C-1 idempotency guard). The derivation is identical to the chips'
+    // production write bridge (`applyFacetChips`), so a deep-link with an
+    // explicit facet behaves exactly as it does after the chips settle.
+    const q = result.query.q || cleaned.get("q") || "";
+    let nextFilters = { ...hydrated, ...restored };
+    if (q.trim()) {
+      nextFilters = applyFacetChips(nextFilters, interpretAiFacets(q).chips);
+      const settledParams = serializeMarketplaceFiltersIntoUrl(nextFilters, params);
+      const settled = parseMarketplaceFiltersFromUrl(settledParams, category);
+      writeSearch(settledParams);
+      nextFilters = {
+        ...nextFilters,
+        ...settled,
+        facetQueryString: settledParams.toString(),
+      };
+    }
+    setMarketplaceFilters(nextFilters);
+    if (q) setSearchQuery(q);
     // Hydrate once from the landing URL. Later URL writes go through commit().
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once-only deep-link restore
   }, []);

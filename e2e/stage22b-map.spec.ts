@@ -94,7 +94,15 @@ test.describe("22B — capability gating (chromium)", () => {
 test.describe("22B — LIST/GRID → MAP → LIST/GRID continuity (chromium)", () => {
   test("LIST → MAP → LIST preserves query/facets/URL", async ({ page }) => {
     await openSearch(page, RE_URL, "light", MOBILE);
+    // Stage 22B remediation (HIGH-2): the AI facet interpretation settles
+    // synchronously during hydration, so the URL captured right after the first
+    // card renders is already the settled canonical URL (no async
+    // `ca_propertyType=Butas` mutation window). Asserting the facet here is the
+    // regression proof for the deterministic LIST→MAP→LIST invariant.
     const urlBefore = page.url();
+    expect(urlBefore, "settled URL carries the canonical AI facet immediately").toContain(
+      "ca_propertyType=Butas"
+    );
 
     // Mobile toolbar: LIST default active.
     await expect(page.getByRole("button", { name: "Sąrašas" }).first()).toHaveAttribute(
