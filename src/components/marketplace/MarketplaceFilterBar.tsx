@@ -24,8 +24,8 @@ import { FacetFilterPanel } from "@/components/marketplace/FacetFilterPanel";
 import { useCanonicalFacetQuery } from "@/hooks/useCanonicalFacetUrl";
 import {
   categoryForVerticalId,
-  coerceCategoryAttributesToCategory,
   syncMarketplaceFiltersToUrl,
+  transitionMarketplaceFiltersToVertical,
 } from "@/lib/marketplace-filter-url";
 import {
   activeFacetCount,
@@ -214,31 +214,34 @@ export function MarketplaceFilterBar({
   };
 
   const applyDrawer = () => {
-    const params = serializeFacetSearchParams({
-      ...draftQuery,
-      q: searchQuery,
-      page: 1,
+    // Stage 22C — the drawer's chosen vertical drives ONE deterministic
+    // transition: prune canonical predicates + category attributes + location
+    // against the target vertical's canonical schema, preserving global state
+    // (price/condition/radius/query). The drawer's canonical edits live in
+    // `draftQuery`, so they are serialized into the facetQueryString the
+    // transition parses — never a stale pre-drawer string. `setQuery` commits
+    // the pruned canonical query (the URL becomes canonical), and the SAME
+    // transitioned state is committed to the filter store — no one-write-lag
+    // between URL and state.
+    const targetVerticalId = draftQuery.verticalId;
+    const drawerQuery = { ...draftQuery, q: searchQuery, page: 1 };
+    const merged = {
+      ...draft,
+      facetQueryString: serializeFacetSearchParams(drawerQuery).toString(),
+    };
+    const transitioned = transitionMarketplaceFiltersToVertical(merged, {
+      verticalId: targetVerticalId,
+      category: categoryForVerticalId(targetVerticalId, draft.category),
     });
-    // Stage 18.3 §5 — when the drawer changed vertical, the canonical category for
-    // the (possibly new) vertical governs which category attributes may survive.
-    const effectiveCategory = categoryForVerticalId(
-      draftQuery.verticalId,
-      draft.category
-    );
-    const clean = coerceCategoryAttributesToCategory(draft, effectiveCategory);
-    const next = normalizeMarketplaceFilters({
-      ...clean,
-      facetQueryString: params.toString(),
-    });
-    setQuery(draftQuery);
-    onFiltersChange(next);
+    setQuery(drawerQuery);
+    onFiltersChange(transitioned);
     // Stage 18.3 — persist the classic drawer's complementary facets (location,
     // price, condition, radius, category attrs) into the same search URL so
     // they survive reload/deep-link and stay in sync with AI chips.
-    syncMarketplaceFiltersToUrl(next);
+    syncMarketplaceFiltersToUrl(transitioned);
     trackEvent("filter_change", {
       patch: { drawer: true },
-      category: clean.category,
+      category: transitioned.category,
     });
     closeDrawer();
   };

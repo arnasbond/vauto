@@ -7,7 +7,6 @@ import {
   canonicalizeFacetSearchParams,
   clearVerticalFacets,
   resetFacetPage,
-  listingCategoryForVertical,
   type ParsedFacetQuery,
   type VerticalId,
 } from "@vauto/shared/marketplace-domain";
@@ -17,10 +16,12 @@ import {
   parseMarketplaceFiltersFromUrl,
   deriveCanonicalLocationMirror,
   deriveCanonicalSortMirror,
+  pruneFacetPredicatesForVertical,
+  canonicalMarketplaceCategoryForVertical,
+  verticalOwnsCanonicalLocationFacet,
 } from "@/lib/marketplace-filter-url";
 import { interpretAiFacets } from "@/lib/ai-facet-interpretation";
 import { applyFacetChips } from "@/lib/apply-ai-facet";
-import type { ListingCategory } from "@/lib/types";
 import { normalizeMarketplaceFilters } from "@/lib/marketplace-view";
 
 function emptyQuery(): ParsedFacetQuery {
@@ -64,9 +65,21 @@ export function useCanonicalFacetQuery() {
 
   const commit = useCallback(
     (next: ParsedFacetQuery) => {
-      let params = serializeFacetSearchParams({ ...next, q: next.q });
-      const category = next.verticalId
-        ? (listingCategoryForVertical(next.verticalId) as ListingCategory)
+      // Stage 22C — deterministic vertical transition (R2/R9): the canonical
+      // layer must NEVER carry a predicate the active vertical cannot filter.
+      // Pruning here makes every commit path (setVertical / setQuery / drawer /
+      // clearFacets) deterministic: predicates are re-validated against the
+      // target vertical's canonical filterable schema, and a `null` vertical
+      // prunes all predicates (fail-closed — the 13B parser rejects facets
+      // without a vertical anyway).
+      const transitioned = pruneFacetPredicatesForVertical(next, next.verticalId);
+      let params = serializeFacetSearchParams({ ...transitioned, q: transitioned.q });
+      // Stage 22C — the canonical listing category uses the SAME operational
+      // resolution as the AI adapter and the transition helper (TRANSPORT →
+      // "vehicles"), so manual switching, drawer transitions and AI
+      // interpretation converge on ONE category value.
+      const category = transitioned.verticalId
+        ? canonicalMarketplaceCategoryForVertical(transitioned.verticalId)
         : ("all" as const);
       // Stage 18.3 — a vertical change must drop attribute facets incompatible
       // with the new canonical vertical (18.3-E/G), so stale RE-only chips
@@ -83,28 +96,48 @@ export function useCanonicalFacetQuery() {
       // sort up-front, and the SAME value feeds both the URL serializer and the
       // committed state — so a canonical sort clear/change is reflected in the
       // URL before the next render, and a cleared sort vanishes on reload.
-      const derivedSort = deriveCanonicalSortMirror(next.sort);
+      const derivedSort = deriveCanonicalSortMirror(transitioned.sort);
       // Derived location mirror. The canonical `location` predicate is the
-      // authority for the mirror while it is present in `next`. When it
+      // authority for the mirror while it is present in `transitioned`. When it
       // is removed, the canonical location is CLEARED — we do not fall back to
       // stale `marketplaceFilters.location`. A complement-only location
       // (authored via AI chips / classic FilterFields, never entered the
       // canonical query) is preserved because the previous canonical query
       // never held a location predicate for it.
       const nextLocation =
-        (next.predicates.find((p) => p.kind === "location") as
+        (transitioned.predicates.find((p) => p.kind === "location") as
           | { kind: "location"; key: string; value: string }
           | undefined)?.value ??
-        (next.predicates.find(
+        (transitioned.predicates.find(
           (p) => p.kind === "contains" && p.key === "location"
         ) as
           | { kind: "contains"; key: string; value: string }
           | undefined)?.value;
-      const derivedLocation = deriveCanonicalLocationMirror(
-        marketplaceFilters.facetQueryString,
-        marketplaceFilters.location,
-        nextLocation
+      // Stage 22C R3/R6 — on a VERTICAL CHANGE the user's complement location
+      // survives when the target vertical expresses geography via the complement
+      // layer (TRANSPORT/ELECTRONICS/SERVICES/HOME_GARDEN), matching the drawer
+      // transition exactly. Same-vertical location clears keep the certified
+      // 18.3.2 mirror semantics (canonical removal clears the mirror).
+      const prevParsed = parseFacetSearchParams(
+        marketplaceFilters.facetQueryString ?? ""
       );
+      const prevVerticalId = prevParsed.ok
+        ? prevParsed.query.verticalId
+        : null;
+      const verticalChanged =
+        prevVerticalId !== transitioned.verticalId &&
+        (prevVerticalId !== null || transitioned.verticalId !== null);
+      const targetOwnsCanonicalLocation = verticalOwnsCanonicalLocationFacet(
+        transitioned.verticalId
+      );
+      const derivedLocation =
+        verticalChanged && !targetOwnsCanonicalLocation && nextLocation === undefined
+          ? marketplaceFilters.location ?? ""
+          : deriveCanonicalLocationMirror(
+              marketplaceFilters.facetQueryString,
+              marketplaceFilters.location,
+              nextLocation
+            );
 
       const derivedState = {
         ...marketplaceFilters,
@@ -123,20 +156,24 @@ export function useCanonicalFacetQuery() {
         ...derivedState,
         facetQueryString: params.toString(),
       });
-      if (next.q !== searchQuery) setSearchQuery(next.q);
+      if (transitioned.q !== searchQuery) setSearchQuery(transitioned.q);
     },
     [marketplaceFilters, searchQuery, setMarketplaceFilters, setSearchQuery]
   );
 
   const setVertical = useCallback(
     (verticalId: VerticalId | null) => {
-      commit(
-        resetFacetPage({
-          ...clearVerticalFacets(parsed),
-          verticalId,
-          q: searchQuery,
-        })
+      // Stage 22C R3/R4 — deterministic vertical transition: keep the current
+      // vertical's predicates that the target vertical CAN filter (shared
+      // canonical attributes survive), drop incompatible ones. `commit` re-runs
+      // the same prune against the target schema, so this is belt-and-braces
+      // for the desktop panel (no draft). Compatible global state (q/sort)
+      // survives; page resets to 1.
+      const pruned = pruneFacetPredicatesForVertical(
+        { ...parsed, verticalId },
+        verticalId
       );
+      commit(resetFacetPage({ ...pruned, q: searchQuery }));
     },
     [commit, parsed, searchQuery]
   );
@@ -171,7 +208,27 @@ export function useHydrateFacetUrl() {
     const raw = window.location.search.replace(/^\?/, "");
     if (!raw) return;
     const rawParams = new URLSearchParams(raw);
-    const cleaned = canonicalizeFacetSearchParams(rawParams);
+    // Stage 22C §10 — a deep-link can carry BOTH canonical 13B predicates
+    // (propertyType=Butas, rooms_min=1) AND complementary frontend params
+    // (price_min/price_max/radius/ca_*). The canonical parser rejects
+    // complement-only keys as unknown facets, which would poison the whole
+    // parse and silently DROP the valid canonical predicates on reload.
+    // Scrub the complement-owned keys before canonical parsing (same allowlist
+    // as `canonicalLocationPredicate`), then re-add them from `rawParams` via
+    // the complement layer — deterministic deep-link → equivalent state.
+    const canonicalScrub = new URLSearchParams();
+    for (const [key, value] of rawParams) {
+      if (
+        key === "price_min" ||
+        key === "price_max" ||
+        key === "radius" ||
+        key.startsWith("ca_")
+      ) {
+        continue;
+      }
+      canonicalScrub.append(key, value);
+    }
+    const cleaned = canonicalizeFacetSearchParams(canonicalScrub);
     writeSearch(cleaned);
     const result = parseFacetSearchParams(cleaned);
     if (!result.ok) {
@@ -203,7 +260,7 @@ export function useHydrateFacetUrl() {
     // the UI restores those facets verbatim.
     let params = serializeFacetSearchParams(result.query);
     const category = result.query.verticalId
-      ? (listingCategoryForVertical(result.query.verticalId) as ListingCategory)
+      ? canonicalMarketplaceCategoryForVertical(result.query.verticalId)
       : "all";
     const rawRestored = parseMarketplaceFiltersFromUrl(rawParams, category);
     const hydrated = normalizeMarketplaceFilters({

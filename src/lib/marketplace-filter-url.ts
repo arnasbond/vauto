@@ -10,7 +10,15 @@ import type { ListingCategory } from "@/lib/types";
 import { listingCategoryForVertical, type FacetSortId } from "@vauto/shared/marketplace-domain";
 // 13B canonical query parser — used read-only to know which search-URL params the
 // canonical layer owns, so the complementary strip never deletes a 13B predicate.
-import { parseFacetSearchParams } from "@vauto/shared/marketplace-domain";
+import {
+  getFilterableAttributes,
+  listingCategoriesForVertical,
+  parseFacetSearchParams,
+  resolveVerticalId,
+  serializeFacetSearchParams,
+  type ParsedFacetQuery,
+  type VerticalId,
+} from "@vauto/shared/marketplace-domain";
 
 /**
  * Stage 18.3 — frontend-only URL serialization adapter.
@@ -434,4 +442,152 @@ export function deriveCanonicalSortMirror(
   if (nextSort === "price_asc") return "cheapest";
   if (nextSort === "newest") return "newest";
   return "relevance";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STAGE 22C — CROSS-VERTICAL CONTINUITY (deterministic vertical transition)
+//
+// Vertical switching must be deterministic: valid canonical state survives,
+// vertical-specific state is pruned. Every allowlist below is derived from the
+// canonical 13A/13B registry — no second category registry is introduced.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The set of canonical attribute keys filterable for a vertical id (13A
+ * `getFilterableAttributes`), as a plain string set for O(1) predicate checks.
+ * Returns an empty set for an unknown/null vertical (fail-closed — nothing is
+ * kept when the target cannot be resolved).
+ */
+export function filterableFacetKeysForVerticalId(
+  verticalId: string | null | undefined
+): Set<string> {
+  const id = resolveVerticalId(verticalId ?? "") ?? null;
+  if (!id) return new Set<string>();
+  return new Set(getFilterableAttributes(id).map((a) => a.key));
+}
+
+/**
+ * Whether the canonical 13B vertical schema declares a filterable `location`
+ * attribute. REAL_ESTATE and JOBS own a canonical `location`; TRANSPORT,
+ * ELECTRONICS, SERVICES, HOME_GARDEN do not (geography is expressed via the
+ * complementary `filters.location` for services/transport/goods).
+ */
+export function verticalOwnsCanonicalLocationFacet(
+  verticalId: string | null | undefined
+): boolean {
+  return filterableFacetKeysForVerticalId(verticalId).has("location");
+}
+
+/**
+ * Prune a canonical 13B `ParsedFacetQuery` against the target vertical's
+ * filterable attribute schema (Stage 22C R2/R9).
+ *
+ * Deterministic rules:
+ *  - predicates whose key is NOT filterable in the target vertical are dropped
+ *    (e.g. REAL_ESTATE `propertyType`/`rooms` must never leak into
+ *    ELECTRONICS/SERVICES/JOBS/HOME_GARDEN);
+ *  - the canonical `location` predicate is kept ONLY when the target vertical
+ *    owns a filterable `location` attribute (REAL_ESTATE/JOBS);
+ *  - global canonical state (`q`, `sort`, `page`) is preserved verbatim.
+ *
+ * The vertical itself is left to the caller so this helper stays a pure
+ * predicate/prune function; a `null`/unresolvable target prunes all predicates
+ * (fail-closed — an unknown vertical cannot keep vertical-specific facets).
+ */
+export function pruneFacetPredicatesForVertical(
+  query: ParsedFacetQuery,
+  targetVerticalId: VerticalId | null | undefined
+): ParsedFacetQuery {
+  const allowed = filterableFacetKeysForVerticalId(targetVerticalId);
+  const keepLocation = verticalOwnsCanonicalLocationFacet(targetVerticalId);
+  const predicates = query.predicates.filter((pred) => {
+    if (pred.kind === "location") return keepLocation;
+    return allowed.has(pred.key);
+  });
+  return { ...query, predicates, page: 1 };
+}
+
+/**
+ * Full deterministic vertical-transition for the frontend
+ * `MarketplaceFilterState` + its 13B `facetQueryString` (Stage 22C R2/R9).
+ *
+ * Combines the canonical predicate pruning with the frontend complement
+ * pruning into ONE deterministic transition:
+ *  1. Set the target vertical on the canonical query and prune its predicates
+ *     to the target vertical's filterable schema — the canonical `location`
+ *     predicate survives only for REAL_ESTATE/JOBS (they own a filterable
+ *     `location`); TRANSPORT/ELECTRONICS/SERVICES/HOME_GARDEN express geography
+ *     via the complementary `filters.location`, so the complement location is
+ *     PRESERVED (certified 18.3.2 complement semantics).
+ *  2. Drop `categoryAttributes` the target category does not allow (reuses the
+ *     certified `coerceCategoryAttributesToCategory`).
+ *  3. Preserve global state: query, location (complement), price bounds,
+ *     condition, sort, radius.
+ *
+ * The returned state keeps the caller's `category` when it is a real category
+ * and the target resolves to it; when the caller passes an explicit new
+ * category it wins. Compatible state survives; incompatible state is pruned.
+ */
+export function transitionMarketplaceFiltersToVertical(
+  filters: MarketplaceFilterState,
+  target: {
+    verticalId: VerticalId | null | undefined;
+    category: ListingCategory | "all";
+  }
+): MarketplaceFilterState {
+  const currentQuery = filters.facetQueryString
+    ? parseFacetSearchParams(filters.facetQueryString)
+    : null;
+  const prunedQuery = currentQuery?.ok
+    ? pruneFacetPredicatesForVertical(
+        { ...currentQuery.query, verticalId: target.verticalId ?? null },
+        target.verticalId
+      )
+    : null;
+
+  const coerced = coerceCategoryAttributesToCategory(filters, target.category);
+
+  const base = {
+    ...filters,
+    ...coerced,
+    category: target.category,
+  };
+  if (prunedQuery) {
+    base.facetQueryString = serializeFacetSearchParams(prunedQuery).toString();
+  }
+  return normalizeMarketplaceFilters(base);
+}
+
+/**
+ * Resolve the canonical marketplace listing category for a vertical the way the
+ * production AI adapter does: the operational marketplace segment ("vehicles"
+ * for TRANSPORT) is authoritative over the raw listing-kind string, so the
+ * frontend filter category and the AI interpretation agree on ONE value.
+ */
+export function canonicalMarketplaceCategoryForVertical(
+  verticalId: VerticalId | null
+): ListingCategory | "all" {
+  if (!verticalId) return "all";
+  const raw = listingCategoryForVertical(verticalId) as ListingCategory;
+  const categories = listingCategoriesForVertical(verticalId).map(
+    (c) => c as ListingCategory
+  );
+  if (verticalId === "TRANSPORT" && categories.includes("vehicles")) return "vehicles";
+  if (categories.includes(raw)) return raw;
+  return categories[0] ?? raw;
+}
+
+/**
+ * Convenience: transition using a canonical `VerticalId` and its canonical
+ * marketplace listing category (single registry lookup — never a second
+ * taxonomy). The operational category resolution mirrors the AI adapter
+ * (TRANSPORT → "vehicles"), so manual switching and AI interpretation always
+ * converge on the same canonical category.
+ */
+export function transitionMarketplaceFiltersToVerticalId(
+  filters: MarketplaceFilterState,
+  verticalId: VerticalId | null
+): MarketplaceFilterState {
+  const category = canonicalMarketplaceCategoryForVertical(verticalId);
+  return transitionMarketplaceFiltersToVertical(filters, { verticalId, category });
 }

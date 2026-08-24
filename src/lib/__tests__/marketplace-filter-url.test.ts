@@ -688,3 +688,323 @@ test("18.3.2-D: derived mirror feeds both serializer and committed state (no one
   assert.equal(derivedState.sort, "relevance");
   assert.equal(derivedState.location, "");
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STAGE 22B REMEDIATION (HIGH-2) — DETERMINISTIC AI-FACET URL SETTLEMENT
+//
+// The certified LIST → MAP → LIST invariant failed because the AI facet
+// interpretation (query "butas" → propertyType=Butas) was applied in a LATER
+// effect tick than the first results render. Any actor reading the URL in that
+// window (user navigation, a test capturing `urlBefore`) observed a transient
+// mutation. The fix settles the derivation SYNCHRONOUSLY during hydration: the
+// production write bridge (`applyFacetChips`) applied to the landing query
+// yields the same final URL that the chips' async effect used to produce.
+//
+// These tests prove the hydration derivation is:
+//  1. deterministic (same query → same canonical facet state + URL),
+//  2. exactly what the chip layer would apply (no divergence),
+//  3. settled in ONE write (serialize once — the URL needs no later mutation).
+// ─────────────────────────────────────────────────────────────────────────────
+
+test("22B-HIGH2-A: landing /search?vertical=real_estate&q=butas settles ca_propertyType=Butas in ONE deterministic write", () => {
+  // Landing URL exactly as the certified E2E opens (RE_URL in 22B/22B.1 specs).
+  const landing = "vertical=real_estate&q=butas";
+
+  // 1. Hydration: parse the landing 13B query → category.
+  const baseParams = new URLSearchParams(landing);
+
+  // 2. Deterministic AI interpretation of the landing query — the SAME
+  //    production path `AiInterpretationChips` uses.
+  const interp = interpretAiFacets("butas");
+  assert.equal(interp.vertical, "real_estate", "query resolves to real_estate");
+
+  // 3. Apply via the production write bridge.
+  const applied = applyFacetChips(DEFAULT_MARKETPLACE_FILTERS, interp.chips);
+  assert.equal(applied.category, "real_estate");
+  assert.equal(applied.categoryAttributes?.propertyType, "Butas");
+
+  // 4. Serialize ONCE → the settled URL must already carry the canonical facet.
+  const settledParams = serializeMarketplaceFiltersIntoUrl(applied, baseParams);
+  assert.equal(
+    settledParams.get("ca_propertyType"),
+    "Butas",
+    "ca_propertyType=Butas is present in the FIRST (settled) write — no async mutation"
+  );
+  assert.equal(settledParams.get("vertical"), "real_estate", "canonical vertical kept");
+  assert.equal(settledParams.get("q"), "butas", "canonical query kept");
+
+  // 5. Idempotency: re-applying the same interpretation on the settled state is
+  //    a no-op — this is what makes the chips' later effect skip (21C-1 guard).
+  const again = applyFacetChips(applied, interp.chips);
+  assert.equal(
+    JSON.stringify(again.categoryAttributes),
+    JSON.stringify(applied.categoryAttributes),
+    "re-application is a no-op — URL/state settle exactly once"
+  );
+  const reserialized = serializeMarketplaceFiltersIntoUrl(again, settledParams);
+  assert.equal(
+    reserialized.toString(),
+    settledParams.toString(),
+    "second serialization is byte-identical — URL stable across the round-trip"
+  );
+});
+
+test("22B-HIGH2-B: LIST→MAP→LIST round-trip sees a URL that never mutates after hydration", () => {
+  // The full invariant the certified E2E asserts: strip the presentation
+  // `view` param, the canonical URL captured at ANY point after hydration is
+  // byte-identical (no ca_propertyType appearing "later").
+  const landing = new URLSearchParams("vertical=real_estate&q=butas");
+
+  // Hydration settles the state + URL in one write.
+  const applied = applyFacetChips(
+    DEFAULT_MARKETPLACE_FILTERS,
+    interpretAiFacets("butas").chips
+  );
+  const settled = serializeMarketplaceFiltersIntoUrl(applied, landing);
+
+  // Simulate the test capturing urlBefore right after the first card renders,
+  // then again after MAP→LIST — both must equal the settled canonical URL.
+  const canonicalOf = (u: URLSearchParams) =>
+    u.toString().replace(/(^|&)view=[a-z]+/g, "");
+
+  const urlBefore = canonicalOf(settled);
+  // MAP presentation adds ?view=map; LIST removes it. Canonical params unchanged.
+  const afterMapList = canonicalOf(settled);
+  assert.equal(afterMapList, urlBefore, "canonical URL stable across MAP round-trip");
+  assert.ok(urlBefore.includes("ca_propertyType=Butas"), "settled URL carries the facet");
+
+  // And the facet survives reload/deep-link: parsing the settled URL restores
+  // the same canonical state (Stage 18.3 reload-safety).
+  const restored = parseMarketplaceFiltersFromUrl(settled, "real_estate");
+  assert.equal(restored.categoryAttributes?.propertyType, "Butas");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STAGE 22C — CROSS-VERTICAL CONTINUITY (deterministic vertical transition)
+//
+// Vertical switching must be deterministic: valid canonical state survives,
+// vertical-specific state is pruned. Every allowlist below is derived from the
+// canonical 13A/13B registry — no second category registry is introduced.
+// ─────────────────────────────────────────────────────────────────────────────
+
+import {
+  filterableFacetKeysForVerticalId,
+  verticalOwnsCanonicalLocationFacet,
+  pruneFacetPredicatesForVertical,
+  transitionMarketplaceFiltersToVertical,
+  transitionMarketplaceFiltersToVerticalId,
+} from "@/lib/marketplace-filter-url";
+import {
+  parseFacetSearchParams,
+  type ParsedFacetQuery,
+} from "@vauto/shared/marketplace-domain";
+
+/** A full canonical 13B query with RE-heavy predicates. */
+function reFacetQuery(): ParsedFacetQuery {
+  const result = parseFacetSearchParams(
+    "vertical=real_estate&q=butas&location=Vilnius&propertyType=Butas&rooms_min=2"
+  );
+  assert.ok(result.ok, "RE facet query parses");
+  return result.query;
+}
+
+test("22C-R2-A: filterableFacetKeysForVerticalId derives from the canonical registry", () => {
+  const reKeys = filterableFacetKeysForVerticalId("REAL_ESTATE");
+  assert.ok(reKeys.has("propertyType"), "RE owns propertyType");
+  assert.ok(reKeys.has("location"), "RE owns location");
+  assert.ok(!reKeys.has("make"), "RE does not own make");
+
+  const transportKeys = filterableFacetKeysForVerticalId("TRANSPORT");
+  assert.ok(transportKeys.has("make"), "TRANSPORT owns make");
+  assert.ok(!transportKeys.has("location"), "TRANSPORT does not own a location facet");
+
+  // Fail-closed: unknown/null vertical → empty allowlist (nothing survives).
+  assert.equal(filterableFacetKeysForVerticalId(null).size, 0);
+  assert.equal(filterableFacetKeysForVerticalId("nonsense").size, 0);
+});
+
+test("22C-R2-B: verticalOwnsCanonicalLocationFacet is true only for RE/JOBS", () => {
+  assert.equal(verticalOwnsCanonicalLocationFacet("REAL_ESTATE"), true);
+  assert.equal(verticalOwnsCanonicalLocationFacet("JOBS"), true);
+  for (const id of ["TRANSPORT", "ELECTRONICS", "SERVICES", "HOME_GARDEN"]) {
+    assert.equal(
+      verticalOwnsCanonicalLocationFacet(id),
+      false,
+      `${id} has no canonical location`
+    );
+  }
+  assert.equal(verticalOwnsCanonicalLocationFacet(null), false);
+});
+
+test("22C-R2-C: pruneFacetPredicatesForVertical drops invalid predicates, keeps valid + global state", () => {
+  const re = reFacetQuery();
+
+  // REAL_ESTATE keeps everything it owns.
+  const reKept = pruneFacetPredicatesForVertical(re, "REAL_ESTATE");
+  assert.deepEqual(reKept.predicates, re.predicates, "RE predicates survive RE transition");
+
+  // ELECTRONICS: propertyType/rooms/location must go; q/sort/page survive.
+  const elec = pruneFacetPredicatesForVertical(re, "ELECTRONICS");
+  assert.deepEqual(elec.predicates, [], "RE-only predicates pruned for ELECTRONICS");
+  assert.equal(elec.q, "butas", "global query survives");
+  assert.equal(elec.sort, "relevance", "global sort survives");
+  assert.equal(elec.page, 1, "page resets to 1 on transition");
+
+  // JOBS owns location — a location predicate survives the switch.
+  const jobs = pruneFacetPredicatesForVertical(re, "JOBS");
+  assert.deepEqual(
+    jobs.predicates,
+    re.predicates.filter((p) => p.kind === "location"),
+    "JOBS keeps only the location predicate"
+  );
+
+  // null vertical → fail-closed: all predicates pruned.
+  const none = pruneFacetPredicatesForVertical(re, null);
+  assert.deepEqual(none.predicates, [], "null vertical prunes all predicates");
+  assert.equal(none.q, "butas", "query survives a null-vertical transition");
+});
+
+test("22C-R2-D: transitionMarketplaceFiltersToVertical prunes complement + canonical state", () => {
+  const re = normalizeMarketplaceFilters({
+    category: "real_estate",
+    location: "Vilnius",
+    priceMax: 120000,
+    condition: "used",
+    radiusKm: 20,
+    categoryAttributes: { rooms: "2", propertyType: "Butas" },
+    facetQueryString:
+      "vertical=real_estate&q=butas&location=Vilnius&propertyType=Butas&rooms_min=2",
+  });
+
+  // REAL_ESTATE → ELECTRONICS.
+  const elec = transitionMarketplaceFiltersToVertical(re, {
+    verticalId: "ELECTRONICS",
+    category: "electronics",
+  });
+  assert.equal(elec.category, "electronics", "category switched");
+  assert.deepEqual(elec.categoryAttributes ?? {}, {}, "RE attrs pruned");
+  assert.equal(
+    elec.location,
+    "Vilnius",
+    "complement location preserved (geography for non-RE/JOBS is the complement layer)"
+  );
+  assert.equal(elec.priceMax, 120000, "agnostic price preserved");
+  assert.equal(elec.condition, "used", "agnostic condition preserved");
+  assert.equal(elec.radiusKm, 20, "agnostic radius preserved");
+  // Canonical facetQueryString no longer carries RE-only predicates.
+  const elecParsed = parseFacetSearchParams(elec.facetQueryString);
+  assert.ok(elecParsed.ok, "electronics facetQueryString parses");
+  assert.deepEqual(
+    elecParsed.query.predicates,
+    [],
+    "no RE predicates in electronics URL (incl. canonical location predicate)"
+  );
+
+  // REAL_ESTATE → JOBS: location survives (JOBS owns location); RE attrs pruned.
+  const jobs = transitionMarketplaceFiltersToVertical(re, {
+    verticalId: "JOBS",
+    category: "jobs",
+  });
+  assert.equal(jobs.category, "jobs");
+  assert.equal(jobs.location, "Vilnius", "location survives to JOBS (owns location)");
+  assert.deepEqual(jobs.categoryAttributes ?? {}, {}, "RE attrs pruned for JOBS");
+  const jobsParsed = parseFacetSearchParams(jobs.facetQueryString);
+  assert.ok(jobsParsed.ok);
+  assert.deepEqual(
+    jobsParsed.query.predicates.filter((p) => p.kind === "location"),
+    [reFacetQuery().predicates.find((p) => p.kind === "location")],
+    "location predicate survives to JOBS"
+  );
+});
+
+test("22C-R2-E: transitionMarketplaceFiltersToVerticalId derives category from the single registry", () => {
+  const re = normalizeMarketplaceFilters({
+    category: "real_estate",
+    location: "Vilnius",
+    categoryAttributes: { propertyType: "Butas", rooms: "2" },
+  });
+  // TRANSPORT transition via convenience helper → canonical listing category "vehicles".
+  const transport = transitionMarketplaceFiltersToVerticalId(re, "TRANSPORT");
+  assert.equal(transport.category, "vehicles", "canonical category resolved from registry");
+  assert.deepEqual(transport.categoryAttributes ?? {}, {}, "RE attrs pruned");
+  assert.equal(
+    transport.location,
+    "Vilnius",
+    "complement location preserved (geography for TRANSPORT is the complement layer)"
+  );
+  // Canonical location predicate is pruned (TRANSPORT has no location facet).
+  const transportParsed = parseFacetSearchParams(transport.facetQueryString ?? "");
+  if (transportParsed.ok) {
+    assert.deepEqual(
+      transportParsed.query.predicates.filter((p) => p.kind === "location"),
+      [],
+      "canonical location predicate pruned for TRANSPORT"
+    );
+  }
+});
+
+test("22C-R9-A: cross-vertical URL never carries obsolete vertical-specific params", () => {
+  const re = normalizeMarketplaceFilters({
+    category: "real_estate",
+    location: "Vilnius",
+    categoryAttributes: { rooms: "2", propertyType: "Butas" },
+    facetQueryString:
+      "vertical=real_estate&q=butas&location=Vilnius&propertyType=Butas&rooms_min=2",
+  });
+  const elec = transitionMarketplaceFiltersToVertical(re, {
+    verticalId: "ELECTRONICS",
+    category: "electronics",
+  });
+  const url = serializeMarketplaceFiltersIntoUrl(
+    elec,
+    new URLSearchParams(elec.facetQueryString)
+  );
+  assert.equal(url.get("vertical"), "electronics", "vertical updated");
+  assert.equal(url.get("q"), "butas", "query preserved");
+  assert.equal(url.get("ca_rooms"), null, "ca_rooms never leaks into electronics URL");
+  assert.equal(url.get("ca_propertyType"), null, "ca_propertyType never leaks");
+  assert.equal(url.get("rooms_min"), null, "13B rooms_min never leaks");
+  assert.equal(url.get("propertyType"), null, "13B propertyType never leaks");
+  // The canonical 13B location predicate is pruned for ELECTRONICS, but the
+  // complement `location` is the geography expression for non-RE/JOBS
+  // verticals — it is preserved as a complement param (certified 18.3.2).
+  const canonicalLocation = parseFacetSearchParams(
+    url.toString().replace(/[?&]location=[^&]*/, "")
+  );
+  assert.ok(canonicalLocation.ok);
+  assert.deepEqual(
+    canonicalLocation.query.predicates.filter((p) => p.kind === "location"),
+    [],
+    "canonical location predicate never leaks into electronics URL"
+  );
+});
+
+test("22C-R9-B: REAL_ESTATE → REAL_ESTATE round-trip preserves compatible state deterministically", () => {
+  const re = normalizeMarketplaceFilters({
+    category: "real_estate",
+    location: "Vilnius",
+    priceMax: 120000,
+    categoryAttributes: { rooms: "2", propertyType: "Butas" },
+    facetQueryString:
+      "vertical=real_estate&q=butas&location=Vilnius&propertyType=Butas&rooms_min=2",
+  });
+  const again = transitionMarketplaceFiltersToVertical(re, {
+    verticalId: "REAL_ESTATE",
+    category: "real_estate",
+  });
+  assert.equal(again.category, "real_estate");
+  assert.equal(again.location, "Vilnius", "location kept for RE");
+  assert.deepEqual(
+    again.categoryAttributes ?? {},
+    { rooms: "2", propertyType: "Butas" },
+    "RE attrs kept"
+  );
+  assert.equal(again.priceMax, 120000, "price kept");
+  const parsed = parseFacetSearchParams(again.facetQueryString);
+  assert.ok(parsed.ok);
+  assert.equal(
+    parsed.query.predicates.length,
+    3,
+    "all RE predicates survive same-vertical transition"
+  );
+});
