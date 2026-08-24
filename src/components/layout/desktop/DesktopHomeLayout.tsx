@@ -28,6 +28,7 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
     setMarketplaceFilters,
     viewMode,
     setViewMode,
+    viewModeExplicit,
   } = useVautoSearch();
   const { query, setVertical } = useCanonicalFacetQuery();
 
@@ -76,6 +77,7 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
               filters={marketplaceFilters}
               onFiltersChange={setMarketplaceFilters}
               viewMode={viewMode}
+              viewModeExplicit={viewModeExplicit}
               onViewModeChange={setViewMode}
               surface="desktop"
             />

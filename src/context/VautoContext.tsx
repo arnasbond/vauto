@@ -18,7 +18,7 @@ import {
   mergeHiddenListingsIntoCatalog,
   shouldShowDemoCatalog,
 } from "@/lib/demo-catalog";
-import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
+import { sanitizeSearchQuery } from "@/lib/vertical-listing-filter";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { generateDynamicFilters } from "@/lib/scoring";
 import {
@@ -245,7 +245,12 @@ interface VautoContextValue {
   setAgentPinnedListings: (ids: string[] | null) => void;
   clearAgentPinnedListings: () => void;
   viewMode: import("@/lib/marketplace-view").MarketplaceViewMode;
-  setViewMode: (mode: import("@/lib/marketplace-view").MarketplaceViewMode) => void;
+  /** Stage 22A.1-A — whether the view was explicitly chosen (vs responsive default). */
+  viewModeExplicit: boolean;
+  setViewMode: (
+    mode: import("@/lib/marketplace-view").MarketplaceViewMode,
+    opts?: { explicit?: boolean }
+  ) => void;
   marketplaceFilters: import("@/lib/marketplace-view").MarketplaceFilterState;
   setMarketplaceFilters: (
     filters: import("@/lib/marketplace-view").MarketplaceFilterState
@@ -519,6 +524,7 @@ type VautoCatalogSlice = Omit<
   | "setAgentPinnedListings"
   | "clearAgentPinnedListings"
   | "viewMode"
+  | "viewModeExplicit"
   | "setViewMode"
   | "marketplaceFilters"
   | "setMarketplaceFilters"

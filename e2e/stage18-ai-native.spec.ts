@@ -158,19 +158,27 @@ test.describe("Stage 18N — AI-native & vertical-adaptive UX", () => {
     await expect(cards.getByText(/Omniva|Pristatymas/i)).toHaveCount(0);
   });
 
-  // 18N-7 + 18D: real-estate vertical uses a 1-column mobile grid (readable in 1–2s).
+  // 18N-7 + 18D: real-estate vertical uses a readable 1-column mobile layout.
+  // Stage 22A.1-A — the narrow-mobile automatic default is LIST; an explicit
+  // GRID selection renders the real-estate grid in one column at 390px.
   test("mobile 390px: real-estate/jobs grid is 1-column, goods stays 2-column", async ({ page }) => {
     // Deterministic "re" fixture guarantees a real_estate adaptive grid renders,
     // so the column assertion is meaningful (not skipped when the grid is absent).
     await openResultsWithQuery(page, "butas Telšiai", 390, 844, "re");
 
     await expect(page.locator("#listing-results")).toBeAttached({ timeout: 15_000 });
+    // Stage 22A.1-A automatic default on narrow mobile is the readable LIST.
+    const listRows = page.locator(".listing-card-row");
+    await expect(listRows.first()).toBeVisible({ timeout: 10_000 });
+    expect(await horizontalOverflowPx(page)).toBeLessThanOrEqual(0);
+
+    // The user explicitly chooses GRID (CASE 2) — the RE grid renders 1 column.
+    const gridToggle = page.getByRole("button", { name: "Tinklelis" }).first();
+    await expect(gridToggle).toBeVisible({ timeout: 10_000 });
+    await gridToggle.click();
     const gridSel = '[data-listing-grid][data-grid-vertical="real_estate"]';
     const grid = page.locator(gridSel).first();
-    // Await an actually-rendered (visible) RE grid so the handle is stable — a bare
-    // "attached" can race a re-render and make evaluate() hang on a detached node.
     await expect(grid).toBeVisible({ timeout: 10_000 });
-    // Re-locate fresh to avoid evaluating a stale handle that was replaced mid-render.
     const freshGrid = page.locator(gridSel).first();
     await expect(freshGrid).toHaveCount(1);
     const colCount = await freshGrid.evaluate((el) =>
@@ -297,32 +305,33 @@ test.describe("Stage 18N — AI-native & vertical-adaptive UX", () => {
       .count();
     expect(classicFacetCount, "state A includes a classic attribute facet (propertyType)").toBeGreaterThan(0);
 
-    // State A view = grid (Tinklelis pressed, no ?view in the URL), with a real
-    // real_estate card rendered.
+    // State A view: on narrow mobile the automatic default is LIST (22A.1-A);
+    // the canonical mode is grid (Tinklelis NOT pressed — LIST is pressed), and
+    // the URL carries no ?view. A real RE card renders in the single column.
     const gridToggle = page.getByRole("button", { name: "Tinklelis" }).first();
     const listToggle = page.getByRole("button", { name: "Sąrašas" }).first();
-    await expect(gridToggle.first()).toHaveAttribute("aria-pressed", "true");
+    await expect(listToggle.first()).toHaveAttribute("aria-pressed", "true");
     await expect(page.locator('[data-listing-card][data-listing-category="real_estate"]').first()).toBeVisible({ timeout: 10_000 });
     const stateAUrl = page.url();
-    const grid = page.locator("[data-listing-grid]");
     const listRows = page.locator(".listing-card-row");
-    await expect(grid.first()).toBeVisible({ timeout: 10_000 });
-    expect(stateAUrl).not.toMatch(/view=/); // grid → no view param
-
-    // Navigate to state B (grid → list) via the real view control: a pushState
-    // entry that Back/Forward must traverse. Assert list view value + DOM.
-    await expect(listToggle).toBeVisible({ timeout: 10_000 });
-    await listToggle.click();
-    await expect(page.getByRole("button", { name: "Sąrašas" }).first()).toHaveAttribute("aria-pressed", "true");
     await expect(listRows.first()).toBeVisible({ timeout: 10_000 });
-    await expect(grid).toHaveCount(0);
-    await expect(page).toHaveURL(/view=list/, { timeout: 10_000 });
+    expect(stateAUrl).not.toMatch(/view=/); // automatic default → no view param
+
+    // Navigate to state B via a real navigational view change: LIST → MAP
+    // (real-estate has map PRIMARY). MAP pushes ?view=map, creating a history
+    // entry that Back/Forward must traverse. (GRID is the canonical no-param
+    // state per 17.1-A, so it is NOT a navigation entry.)
+    const mapToggle = page.getByRole("button", { name: "Žemėlapis" }).first();
+    await expect(mapToggle).toBeVisible({ timeout: 10_000 });
+    await mapToggle.click();
+    await expect(page.getByRole("button", { name: "Žemėlapis" }).first()).toHaveAttribute("aria-pressed", "true");
     const stateBUrl = page.url();
     expect(stateBUrl).not.toBe(stateAUrl);
+    expect(new URL(stateBUrl).searchParams.get("view")).toBe("map");
 
-    // Browser Back → real State A restored (view=grid, vertical+location+classic).
+    // Browser Back → real State A restored (responsive LIST, vertical+location+classic).
     await page.goBack({ waitUntil: "load" });
-    await expect(page.getByRole("button", { name: "Tinklelis" }).first()).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
+    await expect(page.getByRole("button", { name: "Sąrašas" }).first()).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
     const verticalTextBack = await page
       .locator('[data-ai-chip][data-chip-kind="vertical"]')
       .first()
@@ -330,15 +339,14 @@ test.describe("Stage 18N — AI-native & vertical-adaptive UX", () => {
     expect(verticalTextBack, "state A vertical restored after Back").toContain("Nekilnojamasis");
     await expect(page.locator('[data-ai-chip][data-chip-field="location"]').first()).toBeVisible({ timeout: 15_000 });
     expect(await page.locator('[data-ai-chip][data-chip-field="propertyType"]').count()).toBeGreaterThan(0);
-    await expect(grid.first()).toBeVisible({ timeout: 10_000 }); // grid restored
-    await expect(listRows).toHaveCount(0);
+    await expect(listRows.first()).toBeVisible({ timeout: 10_000 }); // LIST restored
+    await expect(page.locator("[data-listing-map-view]")).toHaveCount(0);
     await expect(page.locator("#listing-results")).toBeAttached({ timeout: 15_000 });
 
-    // Browser Forward → real State B restored (view=list).
+    // Browser Forward → real State B restored (explicit map).
     await page.goForward({ waitUntil: "load" });
-    await expect(page.getByRole("button", { name: "Sąrašas" }).first()).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
-    await expect(listRows.first()).toBeVisible({ timeout: 15_000 });
-    await expect(grid).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Žemėlapis" }).first()).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
+    expect(new URL(page.url()).searchParams.get("view")).toBe("map");
     await expect(page.locator("#listing-results")).toBeAttached({ timeout: 15_000 });
   });
 

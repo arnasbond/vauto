@@ -6,6 +6,9 @@ import {
 import { resolveEffectiveListingCategory } from "@/lib/listing-attribute-isolation";
 import { getDynamicAttributeEntries } from "@/lib/listing-dynamic-attributes";
 import {
+  presentationContractForListing,
+} from "@/lib/vertical-presentation-contract";
+import {
   isPartsOrWheelsQuery,
   isVehicleQuery,
   VEHICLE_BRAND_PATTERN,
@@ -173,13 +176,68 @@ export function resolveDisplayListingCategory(listing: Listing): ListingCategory
   return category;
 }
 
-/** Schema-less detail rows: only populated attribute map entries. */
+/**
+ * Schema-less detail rows: only populated attribute map entries, ordered by the
+ * canonical vertical presentation contract's detail priority (primary decision
+ * info first) and then by the remaining schema-less attribute order. The
+ * canonical vertical contract is a read-only presentation adapter — the domain
+ * schema itself is never re-declared here.
+ */
 export function getListingDetailRows(listing: Listing): ListingDetailRow[] {
   const category = resolveDisplayListingCategory(listing);
-  return getDynamicAttributeEntries(
+  const entries = getDynamicAttributeEntries(
     listing.attributes as Record<string, unknown>,
     category
   ).map((e) => ({ label: e.label, value: e.value }));
+
+  const contract = presentationContractForListing(listing);
+  if (!contract) return entries;
+
+  const byKey = new Map(entries.map((e) => [normalizeDetailKey(e.label), e]));
+  const priority = contract.detailPriority
+    .map((key) => byKey.get(normalizeDetailKey(key)))
+    .filter((e): e is ListingDetailRow => Boolean(e));
+  const seen = new Set(priority.map((e) => normalizeDetailKey(e.label)));
+  const rest = entries.filter((e) => !seen.has(normalizeDetailKey(e.label)));
+  return [...priority, ...rest];
+}
+
+/** Normalize "Kuras"/"Rida (km)" labels to contract keys for matching. */
+function normalizeDetailKey(label: string): string {
+  const map: Record<string, string> = {
+    "kuras": "fuelType",
+    "kuro tipas": "fuelType",
+    "rida (km)": "mileage",
+    "rida": "mileage",
+    "metai": "year",
+    "markė": "make",
+    "modelis": "model",
+    "pavarų dėžė": "transmission",
+    "transmisija": "transmission",
+    "objekto tipas": "propertyType",
+    "kambariai": "rooms",
+    "kambarių skaičius": "rooms",
+    "plotas": "area",
+    "statybos metai": "yearBuilt",
+    "aukštas": "floor",
+    "gamintojas": "manufacturer",
+    "būklė": "condition",
+    "atmintis": "storage",
+    "garantija": "warranty",
+    "paslaugos tipas": "serviceType",
+    "lokacija / nuotoliu": "serviceMode",
+    "kainodara": "pricingType",
+    "trukmė": "duration",
+    "pareigos": "jobTitle",
+    "darbo forma": "employmentType",
+    "atlygis nuo": "salaryMin",
+    "atlygis iki": "salaryMax",
+    "darbo tipas": "workType",
+    "prekės tipas": "itemType",
+    "medžiaga": "material",
+    "pristatymas": "deliveryOption",
+  };
+  return map[label.trim().toLowerCase()] ?? label.trim().toLowerCase();
 }
 
 export function getCategoryLabel(listing: Listing): string {

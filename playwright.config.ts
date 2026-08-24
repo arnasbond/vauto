@@ -76,6 +76,17 @@ export default defineConfig({
       },
     },
     {
+      name: "e2e-webkit",
+      testDir: "./e2e",
+      testMatch: /stage22a[12]-webkit.*\.spec\.ts$/,
+      use: {
+        ...devices["Desktop Chrome"],
+        browserName: "webkit",
+        channel: undefined,
+        viewport: { width: 390, height: 844 },
+      },
+    },
+    {
       name: "e2e-enterprise",
       testDir: "./tests/e2e",
       use: {

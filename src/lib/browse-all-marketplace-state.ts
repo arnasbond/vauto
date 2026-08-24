@@ -10,7 +10,10 @@ export interface BrowseAllMarketplaceStateDeps {
   clearVisualSearch?: (opts?: { keepInputMode?: boolean }) => void;
   setSearchInputMode?: (mode: "text" | "voice") => void;
   setSearchVoiceMode?: (v: boolean) => void;
-  setViewMode?: (mode: "grid" | "list" | "map") => void;
+  setViewMode?: (
+    mode: "grid" | "list" | "map",
+    opts?: { explicit?: boolean }
+  ) => void;
 }
 
 /** Force-clear global search text and marketplace filters for full-catalog browse. */
@@ -24,5 +27,7 @@ export function applyBrowseAllMarketplaceState(
   deps.setAgentPinnedListings(null);
   deps.resetMarketplaceFilters();
   deps.clearSearchFilters();
-  deps.setViewMode?.("grid");
+  // Stage 22A.1-A — browse-all returns to the RESPONSIVE DEFAULT view (grid on
+  // desktop, readable LIST on narrow mobile) instead of pinning an explicit grid.
+  deps.setViewMode?.("grid", { explicit: false });
 }

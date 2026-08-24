@@ -29,10 +29,18 @@ const VIEW_PARAM = "view";
  * Every consumer (initial render, URL sync, popstate) uses this single function
  * so Back/Forward deterministically restores the view state, and an absent
  * parameter always means the default (grid).
+ *
+ * Stage 22A.1-A — the SECOND return value reports whether the view was an
+ * EXPLICIT URL selection (?view=list|map|grid present and valid). A present
+ * valid ?view marks the mode as explicit; a missing/invalid ?view means the
+ * responsive default applies (mobile => LIST).
  */
-export function parseViewMode(value: string | null | undefined): MarketplaceViewMode {
-  if (value === "list" || value === "map") return value;
-  return "grid";
+export function parseViewMode(
+  value: string | null | undefined
+): { mode: MarketplaceViewMode; explicit: boolean } {
+  if (value === "list" || value === "map") return { mode: value, explicit: true };
+  if (value === "grid") return { mode: "grid", explicit: true };
+  return { mode: "grid", explicit: false };
 }
 
 /** Whether the given ?view value is valid and currently reflected in state. */
@@ -61,6 +69,14 @@ export interface VautoSearchState {
   searchLoading: boolean;
   marketplaceFilters: MarketplaceFilterState;
   viewMode: MarketplaceViewMode;
+  /**
+   * Stage 22A.1-A — whether the current view mode is an EXPLICIT user/AI
+   * selection (`?view=` present in URL / setViewMode called) rather than the
+   * responsive default. The responsive fallback (mobile => LIST) only applies
+   * when this is false, so an explicit GRID/LIST/MAP choice is always respected
+   * and viewport resizing alone never overwrites it.
+   */
+  viewModeExplicit: boolean;
   agentPinnedListingIds: string[] | null;
   searchInputMode: SearchInputMode;
   searchVoiceMode: boolean;
@@ -71,7 +87,10 @@ export interface VautoSearchDispatch {
   setSearchLoading: (loading: boolean) => void;
   setMarketplaceFilters: (filters: MarketplaceFilterState) => void;
   resetMarketplaceFilters: () => void;
-  setViewMode: (mode: MarketplaceViewMode) => void;
+  setViewMode: (
+    mode: MarketplaceViewMode,
+    opts?: { explicit?: boolean }
+  ) => void;
   setAgentPinnedListings: (ids: string[] | null) => void;
   clearAgentPinnedListings: () => void;
   setSearchInputMode: (mode: SearchInputMode) => void;
@@ -89,46 +108,63 @@ export function VautoSearchProvider({ children }: { children: ReactNode }) {
   const [agentPinnedListingIds, setAgentPinnedListingIds] = useState<string[] | null>(
     null
   );
-  const [viewMode, setViewModeState] = useState<MarketplaceViewMode>(
-    () => parseViewMode(currentViewParam())
-  );
+  const [viewMode, setViewModeState] = useState<MarketplaceViewMode>(() => {
+    const { mode } = parseViewMode(currentViewParam());
+    return mode;
+  });
+  const [viewModeExplicit, setViewModeExplicit] = useState<boolean>(() => {
+    const { explicit } = parseViewMode(currentViewParam());
+    return explicit;
+  });
   const [marketplaceFilters, setMarketplaceFiltersState] =
     useState<MarketplaceFilterState>(DEFAULT_MARKETPLACE_FILTERS);
   const [searchInputMode, setSearchInputMode] = useState<SearchInputMode>(null);
   const [searchVoiceMode, setSearchVoiceMode] = useState(false);
 
   const urlModeRef = useRef<MarketplaceViewMode>(viewMode);
+  const viewModeExplicitRef = useRef(viewModeExplicit);
 
   /**
    * Intentional user view change (grid→list→map) is a navigational state:
    * use pushState so browser Back/Forward traverses each step. Initial URL is
    * NOT pushed here — it already exists in history.
+   *
+   * Stage 22A.1-A — any setViewMode call is an EXPLICIT selection (the user or
+   * the AI explicitly chose the mode). Pass { explicit: false } only for
+   * capability-safe fallbacks that must return to the responsive default
+   * (e.g. MAP=NOT_APPLICABLE after a vertical switch).
    */
-  const setViewMode = useCallback((next: MarketplaceViewMode) => {
-    if (next === urlModeRef.current) return;
-    urlModeRef.current = next;
-    setViewModeState(next);
-    if (typeof window !== "undefined") {
-      const target = hrefForView(window.location.href, next);
-      if (target !== window.location.href) {
-        window.history.pushState(window.history.state, "", target);
+  const setViewMode = useCallback(
+    (next: MarketplaceViewMode, opts?: { explicit?: boolean }) => {
+      const explicit = opts?.explicit ?? true;
+      urlModeRef.current = next;
+      setViewModeState(next);
+      setViewModeExplicit(explicit);
+      if (typeof window !== "undefined") {
+        const target = hrefForView(window.location.href, next);
+        if (target !== window.location.href) {
+          window.history.pushState(window.history.state, "", target);
+        }
       }
-    }
-  }, []);
+    },
+    []
+  );
 
   // Sync any non-user URL change (Back/Forward or external navigation) into
   // state via the canonical parser, and normalize invalid/should-be-absent
   // ?view values back to a clean URL using replaceState (no full reload).
   useEffect(() => {
     const onPopState = () => {
-      const next = parseViewMode(currentViewParam());
-      if (next !== urlModeRef.current) {
-        urlModeRef.current = next;
-        setViewModeState(next);
+      const parsed = parseViewMode(currentViewParam());
+      if (parsed.mode !== urlModeRef.current || parsed.explicit !== viewModeExplicitRef.current) {
+        urlModeRef.current = parsed.mode;
+        viewModeExplicitRef.current = parsed.explicit;
+        setViewModeState(parsed.mode);
+        setViewModeExplicit(parsed.explicit);
       }
       // Canonical normalisation: if the URL exposed an invalid ?view while the
       // state resolves to grid, clean it up with replaceState (no reload).
-      if (next === "grid") {
+      if (parsed.mode === "grid") {
         const raw = currentViewParam();
         if (raw !== null && raw !== "" && window.location.search.includes(`${VIEW_PARAM}=`)) {
           const clean = hrefForView(window.location.href, "grid");
@@ -141,6 +177,11 @@ export function VautoSearchProvider({ children }: { children: ReactNode }) {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+
+  // Track explicit flag in a ref so popstate can compare without re-subscribing.
+  useEffect(() => {
+    viewModeExplicitRef.current = viewModeExplicit;
+  }, [viewModeExplicit]);
 
   // Mount/normalization guard: if the entry URL carried ?view=invalid (which the
   // parser maps to grid), canonicalize it once with replaceState.
@@ -177,6 +218,7 @@ export function VautoSearchProvider({ children }: { children: ReactNode }) {
       searchLoading,
       marketplaceFilters,
       viewMode,
+      viewModeExplicit,
       agentPinnedListingIds,
       searchInputMode,
       searchVoiceMode,
@@ -186,6 +228,7 @@ export function VautoSearchProvider({ children }: { children: ReactNode }) {
       searchLoading,
       marketplaceFilters,
       viewMode,
+      viewModeExplicit,
       agentPinnedListingIds,
       searchInputMode,
       searchVoiceMode,

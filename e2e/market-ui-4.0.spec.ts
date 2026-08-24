@@ -28,14 +28,16 @@ test.describe("Marketplace ListingCard 2.0 snapshots", () => {
     });
   });
 
-  test("mobile grid 390x844", async ({ page }) => {
+  test("mobile list 390x844 (Stage 22A.1-A automatic default)", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
     await dismissGdpr(page);
     await expect(
       page.getByRole("button", { name: /Atidaryti filtrus|Filtrai/i })
     ).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator("[data-listing-card='grid']").first()).toBeVisible({
+    // Narrow-mobile automatic default is the readable single-column LIST —
+    // never a forced dense 2-column grid.
+    await expect(page.locator("[data-listing-card='list']").first()).toBeVisible({
       timeout: 20_000,
     });
     await page.locator("#listing-results").scrollIntoViewIfNeeded();

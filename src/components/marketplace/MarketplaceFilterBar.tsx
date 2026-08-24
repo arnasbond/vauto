@@ -6,14 +6,17 @@ import {
   DEFAULT_MARKETPLACE_FILTERS,
   MARKETPLACE_RADIUS_OPTIONS,
   MARKETPLACE_SORT_OPTIONS,
+  effectiveViewMode,
   formatResultsLabel,
   normalizeMarketplaceFilters,
   type MarketplaceFilterState,
   type MarketplaceSortMode,
   type MarketplaceViewMode,
 } from "@/lib/marketplace-view";
+import { enabledViewModesForVertical } from "@/lib/vertical-presentation-contract";
 import { Button, IconButton, Input, Modal, Select } from "@/design-system";
 import { cn } from "@/lib/cn";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { LISTING_CATEGORY_LABELS } from "@vauto/shared/category-registry";
 import type { ListingCategory } from "@/lib/types";
@@ -147,6 +150,7 @@ export function MarketplaceFilterBar({
   filters,
   onFiltersChange,
   viewMode,
+  viewModeExplicit,
   onViewModeChange,
   surface = "auto",
 }: {
@@ -155,6 +159,7 @@ export function MarketplaceFilterBar({
   filters: MarketplaceFilterState;
   onFiltersChange: (next: MarketplaceFilterState) => void;
   viewMode: MarketplaceViewMode;
+  viewModeExplicit?: boolean;
   onViewModeChange: (mode: MarketplaceViewMode) => void;
   surface?: "auto" | "mobile" | "desktop";
 }) {
@@ -165,6 +170,15 @@ export function MarketplaceFilterBar({
   const { query, setQuery, setVertical, clearFacets } = useCanonicalFacetQuery();
   const [draftQuery, setDraftQuery] = useState(query);
   const facetCount = activeFacetCount(query);
+
+  // Stage 22A.1-A — the toolbar highlights the EFFECTIVE view (responsive
+  // automatic default included), while explicit user selections are preserved.
+  const isMobile = useIsMobile();
+  const activeViewMode = effectiveViewMode(
+    viewMode,
+    viewModeExplicit ?? false,
+    isMobile
+  );
 
   const hasActiveFilters =
     safeFilters.category !== "all" ||
@@ -281,33 +295,38 @@ export function MarketplaceFilterBar({
           ) : null}
 
           <div className="flex items-center gap-0.5 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] p-0.5">
-            {(
-              [
-                ["list", List, "Sąrašas"],
-                ["grid", LayoutGrid, "Tinklelis"],
-                ["map", Map, "Žemėlapis"],
-              ] as const
-            ).map(([mode, Icon, label]) => (
-              <button
-                key={mode}
-                type="button"
-                title={label}
-                aria-label={label}
-                aria-pressed={viewMode === mode}
-                onClick={() => {
-                  trackEvent("view_mode_change", { mode });
-                  onViewModeChange(mode);
-                }}
-                className={cn(
-                  "rounded-[var(--ds-radius-sm)] p-2 transition-colors duration-[160ms]",
-                  viewMode === mode
-                    ? "bg-[var(--ds-brand)] text-[var(--ds-brand-contrast)]"
-                    : "text-[var(--ds-text-muted)] hover:bg-[var(--ds-surface-muted)] hover:text-[var(--ds-text-primary)]"
-                )}
-              >
-                <Icon className="h-4 w-4" />
-              </button>
-            ))}
+            {enabledViewModesForVertical(query.verticalId).map(({ mode, enabled, mapLevel }) => {
+              const Icon = mode === "list" ? List : mode === "grid" ? LayoutGrid : Map;
+              const label = mode === "list" ? "Sąrašas" : mode === "grid" ? "Tinklelis" : "Žemėlapis";
+              const isActive = activeViewMode === mode;
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  title={mapLevel ? `${label} (${mapLevel})` : label}
+                  aria-label={mapLevel ? `${label} (${mapLevel})` : label}
+                  aria-pressed={isActive}
+                  aria-disabled={!enabled}
+                  disabled={!enabled}
+                  data-view-mode={mode}
+                  data-view-mode-enabled={enabled}
+                  onClick={() => {
+                    if (!enabled) return;
+                    trackEvent("view_mode_change", { mode });
+                    onViewModeChange(mode);
+                  }}
+                  className={cn(
+                    "rounded-[var(--ds-radius-sm)] p-2 transition-colors duration-[160ms]",
+                    !enabled && "cursor-not-allowed opacity-35",
+                    isActive && enabled
+                      ? "bg-[var(--ds-brand)] text-[var(--ds-brand-contrast)]"
+                      : "text-[var(--ds-text-muted)] hover:bg-[var(--ds-surface-muted)] hover:text-[var(--ds-text-primary)]"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

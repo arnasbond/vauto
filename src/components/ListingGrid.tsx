@@ -16,10 +16,14 @@ import { isAbsurdSearchQuery } from "@/lib/search-query-match";
 import { agentHasSupervisorReply } from "@/lib/agent-chat-layout";
 import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 import { useVautoAgent } from "@/context/VautoAgentContext";
+import { useCanonicalFacetQuery } from "@/hooks/useCanonicalFacetUrl";
 import { getVerticalUi } from "@/lib/vertical-presentation";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import { verticalExperienceForQuery } from "@/lib/vertical-presentation";
 import { interpretAiFacets } from "@/lib/ai-facet-interpretation";
+import { enabledViewModesForVertical } from "@/lib/vertical-presentation-contract";
+import { effectiveViewMode } from "@/lib/marketplace-view";
+import { useIsMobile } from "@/hooks/useIsMobile";
 import type { VerticalPresentationId } from "@/lib/vertical-presentation";
 import { cn } from "@/lib/cn";
 import {
@@ -55,12 +59,45 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     setSearchQuery,
     viewMode,
     setViewMode,
+    viewModeExplicit,
     marketplaceFilters,
     setMarketplaceFilters,
     searchLoading,
   } = useVautoSearch();
   const nativeLimited = shouldLimitNativeFeed();
   const [nativeVisible, setNativeVisible] = useState(NATIVE_GRID_INITIAL);
+
+  // Stage 22A.1-A — the responsive automatic default: on narrow viewports
+  // (mobile) with NO explicit user/AI view selection, present the safe
+  // single-column LIST instead of the dense 2-column GRID. This is render-time
+  // only — the canonical viewMode/URL stay untouched, so resizing alone never
+  // corrupts persisted view state. An explicit selection always wins.
+  const isMobile = useIsMobile();
+  const effectiveMode = effectiveViewMode(viewMode, viewModeExplicit, isMobile);
+
+  // Stage 22A-5 + 22A.1-D CASE 4 — a vertical with MAP NOT_APPLICABLE must
+  // NEVER render the map, even for one frame after a vertical switch. The
+  // canonical state fallback (useEffect below) eventually lands on the safe
+  // default, but render-time capability gating prevents any transient empty
+  // map shell: if the active canonical vertical disables map, the render mode
+  // falls back to the responsive default (LIST on mobile, grid elsewhere).
+  const { query: facetQuery } = useCanonicalFacetQuery();
+  const mapCapabilityEnabled = enabledViewModesForVertical(facetQuery.verticalId).find(
+    (v) => v.mode === "map"
+  )?.enabled;
+  const renderMode =
+    effectiveMode === "map" && mapCapabilityEnabled === false
+      ? isMobile
+        ? "list"
+        : "grid"
+      : effectiveMode;
+
+  useEffect(() => {
+    if (viewMode !== "map") return;
+    if (mapCapabilityEnabled === false) {
+      setViewMode("grid", { explicit: false });
+    }
+  }, [viewMode, mapCapabilityEnabled, setViewMode]);
 
   // Stage 18A — keep the interpretation chips mounted across transient blanks of
   // the canonical `searchQuery`. The agent applying a search action internally
@@ -131,7 +168,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         </button>
       ) : null;
 
-    if (viewMode === "map") {
+    if (renderMode === "map") {
       return (
         <div className="mt-3">
           <ListingMapView listings={visible} />
@@ -139,7 +176,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         </div>
       );
     }
-    if (viewMode === "list") {
+    if (renderMode === "list") {
       return (
         <>
           <div className="listing-card-row mt-1 space-y-2">
@@ -198,6 +235,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
           filters={marketplaceFilters}
           onFiltersChange={setMarketplaceFilters}
           viewMode={viewMode}
+          viewModeExplicit={viewModeExplicit}
           onViewModeChange={setViewMode}
           surface="mobile"
         />
@@ -214,8 +252,8 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
 
       {searchLoading ? (
         <ListingGridSkeleton
-          count={viewMode === "list" ? 6 : 8}
-          layout={viewMode === "list" ? "list" : "grid"}
+          count={renderMode === "list" ? 6 : 8}
+          layout={renderMode === "list" ? "list" : "grid"}
         />
       ) : displayListings.length === 0 ? (
         <>

@@ -16,6 +16,7 @@ import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
 import { FeedTierBadge, feedTierCardClass } from "@/components/marketplace/FeedTierBadge";
 import { hasDeliveryCapability } from "@/lib/listing-capabilities";
+import { cardAttributeLinesForListing } from "@/lib/vertical-presentation-contract";
 import { cn } from "@/lib/cn";
 
 export type ListingCardLayout = "grid" | "list";
@@ -167,6 +168,21 @@ export function ListingCard({
           >
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
+          {cardAttributeLinesForListing(listing, 2).length > 0 ? (
+            <ul
+              className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] leading-tight text-[var(--ds-text-secondary)]"
+              data-listing-card-attributes
+            >
+              {cardAttributeLinesForListing(listing, 2).map((attr) => (
+                <li key={attr.key} className="inline-flex items-center gap-1">
+                  <span className="text-[var(--ds-text-muted)]">{attr.label}</span>
+                  <span className="font-semibold text-[var(--ds-text-primary)]">
+                    {attr.value}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <p className="mt-1 flex items-center gap-1 text-xs text-[var(--ds-text-muted)]">
             <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
             <span className="truncate">
@@ -237,6 +253,21 @@ export function ListingCard({
         >
           {formatPrice(listing.price, listing.priceLabel)}
         </p>
+        {cardAttributeLinesForListing(listing, 3).length > 0 ? (
+          <ul
+            className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] leading-tight text-[var(--ds-text-secondary)]"
+            data-listing-card-attributes
+          >
+            {cardAttributeLinesForListing(listing, 3).map((attr) => (
+              <li key={attr.key} className="inline-flex items-center gap-1">
+                <span className="text-[var(--ds-text-muted)]">{attr.label}</span>
+                <span className="font-semibold text-[var(--ds-text-primary)]">
+                  {attr.value}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <div className="flex items-center justify-between gap-2 pt-0.5">
           <p className="flex min-w-0 items-center gap-1 text-xs text-[var(--ds-text-muted)]">
             <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />

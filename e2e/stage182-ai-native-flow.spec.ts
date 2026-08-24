@@ -92,24 +92,33 @@ test.describe("Stage 18.2 — AI-native universal marketplace flow", () => {
     const stateAVertical = await verticalChip.first().innerText();
     expect(stateAVertical).toContain("Nekilnojamasis");
 
-    // State A grid view.
+    // State A: the narrow-mobile automatic default is LIST (Stage 22A.1-A) —
+    // no explicit ?view was chosen, so the safe single-column presentation is
+    // active while the canonical mode stays "grid" with no URL parameter.
     const gridToggle = page.getByRole("button", { name: "Tinklelis" }).first();
     const listToggle = page.getByRole("button", { name: "Sąrašas" }).first();
-    await expect(gridToggle).toBeVisible({ timeout: 10_000 });
+    await expect(listToggle).toBeVisible({ timeout: 10_000 });
+    await expect(listToggle).toHaveAttribute("aria-pressed", "true");
+    expect(new URL(page.url()).searchParams.has("view")).toBe(false);
 
-    // Change a classic filter: toggle to list view (a canonical view control).
-    await listToggle.click();
+    // Change view via a real navigational control: LIST → MAP. Real-estate has
+    // map PRIMARY, so the map toggle is enabled and ?view=map creates a history
+    // entry that Back/Forward must traverse. (GRID is the canonical no-param
+    // state per 17.1-A, so it is not a navigation entry.)
+    const mapToggle = page.getByRole("button", { name: "Žemėlapis" }).first();
+    await expect(mapToggle).toBeVisible({ timeout: 10_000 });
+    await mapToggle.click();
     await expect(
-      page.getByRole("button", { name: "Sąrašas" }).first()
+      page.getByRole("button", { name: "Žemėlapis" }).first()
     ).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator(".listing-card-row").first()).toBeVisible({ timeout: 10_000 });
     const stateBurl = page.url();
-    expect(stateBurl).toMatch(/view=list/);
+    expect(new URL(stateBurl).searchParams.get("view")).toBe("map");
+    expect(stateBurl).not.toMatch(/view=grid/);
 
-    // Browser Back → state A (grid) restored, AI facets preserved.
+    // Browser Back → state A (responsive LIST) restored, AI facets preserved.
     await page.goBack({ waitUntil: "load" });
     await expect(
-      page.getByRole("button", { name: "Tinklelis" }).first()
+      page.getByRole("button", { name: "Sąrašas" }).first()
     ).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
     const verticalBack = await page
       .locator('[data-ai-chip][data-chip-kind="vertical"]')
@@ -117,12 +126,12 @@ test.describe("Stage 18.2 — AI-native universal marketplace flow", () => {
       .innerText();
     expect(verticalBack).toContain("Nekilnojamasis");
 
-    // Browser Forward → state B (list) restored.
+    // Browser Forward → state B (explicit map) restored.
     await page.goForward({ waitUntil: "load" });
     await expect(
-      page.getByRole("button", { name: "Sąrašas" }).first()
+      page.getByRole("button", { name: "Žemėlapis" }).first()
     ).toHaveAttribute("aria-pressed", "true", { timeout: 15_000 });
-    await expect(page.locator(".listing-card-row").first()).toBeVisible({ timeout: 15_000 });
+    expect(new URL(page.url()).searchParams.get("view")).toBe("map");
   });
 
   // 18.2-E E2E: zero results is a recoverable state, not a dead end.

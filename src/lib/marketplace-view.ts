@@ -16,6 +16,27 @@ export type MarketplaceViewMode = "list" | "grid" | "map";
 
 export type MarketplaceSortMode = "relevance" | "cheapest" | "newest" | "closest";
 
+/**
+ * Stage 22A.1-A — responsive automatic view default.
+ *
+ * The canonical `viewMode` stays the single source of truth (URL ?view +
+ * VautoSearchContext). `explicit` distinguishes a user/AI-selected view from
+ * the pure default. When the user has NOT made an explicit selection and the
+ * viewport is narrow (mobile), the safest readable presentation is LIST
+ * (single column) instead of the dense 2-column GRID.
+ *
+ * This is a pure render-time helper — it never writes URL/state, so changing
+ * viewport size alone can never corrupt persisted/canonical view state.
+ */
+export function effectiveViewMode(
+  mode: MarketplaceViewMode,
+  explicit: boolean,
+  isMobile: boolean
+): MarketplaceViewMode {
+  if (explicit) return mode;
+  return isMobile ? "list" : mode;
+}
+
 export const MARKETPLACE_SORT_OPTIONS: Array<{
   id: MarketplaceSortMode;
   label: string;

@@ -6,7 +6,8 @@ import { dismissGdpr, horizontalOverflowPx } from "./helpers/stage12b-comprehens
  *
  * The marketplace view (grid/list/map) is driven by the canonical ?view URL
  * parameter. This spec verifies:
- *  - missing/invalid ?view always resolves to the default "grid";
+ *  - missing/invalid ?view always resolves to the responsive default
+ *    (LIST on narrow mobile — Stage 22A.1-A; GRID on desktop);
  *  - intentional toggle changes are navigational (pushState), so the browser
  *    Back/Forward stack deterministically restores each view;
  *  - canonical URL normalisation never triggers a full page reload;
@@ -42,11 +43,25 @@ async function openResults(
 }
 
 test.describe("Stage 17.1-A — URL-authoritative view state", () => {
-  test("/search without ?view defaults to grid", async ({ page }) => {
+  test("/search without ?view on narrow mobile defaults to LIST (Stage 22A.1-A)", async ({
+    page,
+  }) => {
     await openResults(page, "/search");
-    await expect(TOGGLE.grid(page).first()).toHaveAttribute("aria-pressed", "true");
-    await expect(TOGGLE.list(page).first()).toHaveAttribute("aria-pressed", "false");
+    await expect(TOGGLE.list(page).first()).toHaveAttribute("aria-pressed", "true");
+    await expect(TOGGLE.grid(page).first()).toHaveAttribute("aria-pressed", "false");
     expect(new URL(page.url()).searchParams.has("view")).toBe(false);
+  });
+
+  test("/search without ?view on desktop defaults to grid", async ({ page }) => {
+    await openResults(page, "/search", { width: 1440, height: 900, expectToggle: false });
+    // The desktop toolbar lives in DesktopHomeLayout; /search surfaces it via
+    // the mobile-first MarketplaceFilterBar only below md. At 1440 the toggle is
+    // hidden, so assert the URL is canonical (no ?view) and the grid feed is
+    // the one rendered.
+    expect(new URL(page.url()).searchParams.has("view")).toBe(false);
+    await expect(page.locator("[data-listing-grid]").first()).toBeAttached({
+      timeout: 20_000,
+    });
   });
 
   test("grid -> list -> map, then Back/Forward deterministically restores state", async ({
@@ -54,8 +69,15 @@ test.describe("Stage 17.1-A — URL-authoritative view state", () => {
   }) => {
     await openResults(page, "/search");
 
-    // grid is default and the URL omits ?view.
+    // Narrow-mobile default is LIST (Stage 22A.1-A); the URL omits ?view.
+    await expect(TOGGLE.list(page).first()).toHaveAttribute("aria-pressed", "true");
+    expect(new URL(page.url()).searchParams.has("view")).toBe(false);
+
+    // list(default) -> grid (explicit user choice; URL keeps no ?view — grid is
+    // the canonical "no param" state per 17.1-A)
+    await TOGGLE.grid(page).first().click();
     await expect(TOGGLE.grid(page).first()).toHaveAttribute("aria-pressed", "true");
+    expect(new URL(page.url()).searchParams.has("view")).toBe(false);
 
     // grid -> list (navigational push)
     await TOGGLE.list(page).first().click();
@@ -72,9 +94,11 @@ test.describe("Stage 17.1-A — URL-authoritative view state", () => {
     await expect(TOGGLE.list(page).first()).toHaveAttribute("aria-pressed", "true");
     expect(new URL(page.url()).searchParams.get("view")).toBe("list");
 
-    // browser back => list -> grid (no ?view param — the edge case)
+    // browser back => list -> grid (no ?view param — the edge case). On narrow
+    // mobile the responsive default (LIST) renders, but the canonical mode is
+    // grid with no explicit flag.
     await page.goBack();
-    await expect(TOGGLE.grid(page).first()).toHaveAttribute("aria-pressed", "true");
+    await expect(TOGGLE.list(page).first()).toHaveAttribute("aria-pressed", "true");
     expect(new URL(page.url()).searchParams.has("view")).toBe(false);
 
     // browser forward => grid -> list
@@ -90,25 +114,30 @@ test.describe("Stage 17.1-A — URL-authoritative view state", () => {
 
   test("?view=invalid normalises to grid", async ({ page }) => {
     await openResults(page, "/search?view=invalid");
-    await expect(TOGGLE.grid(page).first()).toHaveAttribute("aria-pressed", "true");
+    // invalid ?view resolves to the responsive default — LIST on narrow mobile.
+    await expect(TOGGLE.list(page).first()).toHaveAttribute("aria-pressed", "true");
     // The invalid parameter is canonicalised away (replaced, not reloaded).
     await expect
       .poll(() => new URL(page.url()).searchParams.get("view"))
       .toBeNull();
   });
 
-  test("popstate landing on an absent ?view restores grid", async ({ page }) => {
+  test("popstate landing on an absent ?view restores responsive default", async ({
+    page,
+  }) => {
     await openResults(page, "/search");
 
-    // grid -> list (push) -> map (push)
+    // list(default) -> grid (explicit) -> list -> map
+    await TOGGLE.grid(page).first().click();
     await TOGGLE.list(page).first().click();
     await TOGGLE.map(page).first().click();
     await expect(TOGGLE.map(page).first()).toHaveAttribute("aria-pressed", "true");
 
-    // Back twice: map -> list -> grid (no ?view). Grid must be restored.
+    // Back twice: map -> list -> grid (no ?view). The responsive default on
+    // narrow mobile (LIST) is restored; the URL carries no ?view.
     await page.goBack();
     await page.goBack();
-    await expect(TOGGLE.grid(page).first()).toHaveAttribute("aria-pressed", "true");
+    await expect(TOGGLE.list(page).first()).toHaveAttribute("aria-pressed", "true");
     expect(new URL(page.url()).searchParams.has("view")).toBe(false);
   });
 
