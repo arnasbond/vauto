@@ -165,16 +165,20 @@ export function HomeAiHero({
               className="max-w-3xl font-[family-name:var(--font-outfit)] text-[clamp(1.7rem,4.2vw,3.15rem)] font-extrabold leading-[1.08] tracking-[-0.03em] text-[var(--ds-text-primary,var(--vauto-ink))]"
             >
               <span className="block text-[var(--ds-brand,var(--vauto-primary))]">
-                VAUTO
+                Pasakyk, ko nori.
               </span>
               <span className="mt-1.5 block">
-                AI padeda.{" "}
+                VAUTO padės
                 <span
                   className="bg-clip-text text-transparent"
                   style={{ backgroundImage: "var(--ds-ai-gradient)" }}
                 >
-                  Žmogus sprendžia.
+                  {" "}
+                  padaryti visa kita.
                 </span>
+              </span>
+              <span className="mt-2.5 block text-[clamp(1rem,2vw,1.3rem)] font-bold tracking-[-0.01em] text-[var(--ds-text-secondary)]">
+                AI padeda. Žmogus sprendžia.
               </span>
             </h1>
 
