@@ -73,3 +73,10 @@ server/dist
 
 # local agent temp secrets / helpers
 scripts/_tmp_*
+
+# generated independent-audit packaging / staging (evidence copies, never source)
+/VAUTO-*-INDEPENDENT-AUDIT/
+/package-*-audit/
+/package-*-source-evidence/
+/vauto-*-independent-audit/
+
