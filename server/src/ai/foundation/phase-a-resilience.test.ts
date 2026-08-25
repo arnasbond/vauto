@@ -9,7 +9,11 @@
  *  H. Legacy/conflicting instructions (e.g. "automatically publish after
  *     generation") must never override the manual-confirmation policy.
  *  I. Long (≈50 turn) conversation stress — current intent still wins, product
- *     policy remains authoritative, draft state is not corrupted.
+ *     policy remains authoritative. The canonical merge/state-boundary
+ *     invariant under stale context is covered at the contract level in
+ *     shared/listing-intelligence/draft-intelligence.test.ts (which exercises
+ *     the real mergeAiSuggestion behavior); this file covers the server-side
+ *     policy boundaries (history sanitization, session pivot, sell schema).
  */
 
 import assert from "node:assert/strict";
@@ -109,11 +113,11 @@ describe("I. long-conversation / context-stress (≈50 turns)", () => {
     assert.ok(!(current.filters.maxPrice && current.filters.maxPrice > 8000));
   });
 
-  it("50 stale suggestions cannot corrupt canonical draft fields (policy boundary)", () => {
-    // The shared contract test covers field immutability under 50 stale AI
-    // suggestions (I, contract level). Here we assert the same invariant at the
-    // policy boundary: the sell schema only exposes `missing`/`warnings` as
-    // context-derived collections — they cannot overwrite draft fields.
+  it("stale context cannot reach the canonical merge boundary through the sell schema", () => {
+    // The sell schema is the deterministic policy boundary that converts agent
+    // context into a draft. It exposes only `missing`/`warnings` as
+    // context-derived collections — there is no context field that could mutate
+    // a canonical draft value at this boundary.
     const parsed = SellDraftSchema.safeParse({
       category: { value: "electronics", confidence: 1, source: "USER_PROVIDED", requiresConfirmation: false },
       title: { value: "Telefonas", confidence: 1, source: "USER_PROVIDED", requiresConfirmation: false },
@@ -130,13 +134,6 @@ describe("I. long-conversation / context-stress (≈50 turns)", () => {
       assert.equal(parsed.data.requiresUserConfirmation, true);
       assert.equal(parsed.data.autoPublish, false);
     }
-  });
-
-  it("stale context cannot silently mutate current canonical draft fields", () => {
-    // A new AI suggestion after 50 stale turns still cannot overwrite a
-    // human-confirmed field (invariant from the shared contract).
-    const field = { value: "2019", provenance: "VISION", confidence: 0.95 };
-    assert.equal(field.value, "2019");
   });
 });
 

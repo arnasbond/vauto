@@ -12,8 +12,12 @@
  * - Crosses the client/server boundary safely (plain JSON, no class instances,
  *   no functions, no dates).
  * - Never fabricates provenance or fake numeric confidence.
- * - Human-entered or explicitly confirmed values are stronger than unconfirmed
- *   AI suggestions; AI must never silently overwrite a human-confirmed value.
+ * - PROVENANCE != AUTHORITY: where a value came from and whether a human
+ *   explicitly confirmed it are different dimensions. Only explicit human
+ *   confirmation / direct manual canonical-field entry (USER_ENTERED) may carry
+ *   HUMAN_CONFIRMED / HUMAN_OVERRIDDEN authority. CONTEXT, USER_TEXT, VISION,
+ *   DOCUMENT, SCHEMA and AI_INFERRED never silently gain human authority.
+ * - AI must never silently overwrite a human-confirmed value.
  * - No field here can independently authorize publication — publishing stays
  *   100% manual and is enforced by the existing publish boundary.
  */
@@ -56,7 +60,11 @@ export type ListingIntelCandidate<T> = {
 
 /** Explicit representation of conflicting evidence for one draft field. */
 export type ListingIntelConflict<T> = {
-  /** Stable field key, e.g. "year" or "attributes.bodyColor". */
+  /**
+   * Stable canonical field key, e.g. "year" or "attributes.bodyColor".
+   * The merge operation receives the real key from the caller — it is never a
+   * placeholder and never derived from display labels / array positions.
+   */
   fieldKey: string;
   candidates: [ListingIntelCandidate<T>, ListingIntelCandidate<T>, ...ListingIntelCandidate<T>[]];
   /** Human-readable review prompt (Lithuanian, advisory). */
@@ -108,13 +116,35 @@ export const INTEL_LOW_CONFIDENCE_REVIEW_MAX = 0.75;
 export type IntelConfidenceTier = "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
 
 /**
+ * Enforce the declared [0,1] runtime invariant for confidence.
+ *
+ * Invariant: confidence is `number | null` where a number must satisfy
+ * `0 <= confidence <= 1` and be finite. Invalid inputs (NaN, ±Infinity,
+ * out-of-range) become `null` — explicitly unknown — and can therefore never
+ * classify as HIGH. No silent clamping (e.g. `1.7 -> 1`): clamping would hide
+ * upstream/provider defects and manufacture false certainty. Review semantics
+ * treat the normalized unknown exactly like a missing confidence (reviewable,
+ * never a publish gate).
+ */
+export function normalizeIntelConfidence(
+  confidence: number | null | undefined
+): number | null {
+  if (typeof confidence !== "number") return null;
+  if (!Number.isFinite(confidence)) return null;
+  if (confidence < 0 || confidence > 1) return null;
+  return confidence;
+}
+
+/**
  * Classify a confidence value without manufacturing false precision.
- * NaN / missing → UNKNOWN. Unknown is NOT equal to high confidence.
+ * Invalid values (non-finite or outside [0,1]) → UNKNOWN, never HIGH.
+ * Unknown is NOT equal to high confidence.
  */
 export function classifyIntelConfidence(confidence: number | null | undefined): IntelConfidenceTier {
-  if (typeof confidence !== "number" || !Number.isFinite(confidence)) return "UNKNOWN";
-  if (confidence >= INTEL_HIGH_CONFIDENCE_MIN) return "HIGH";
-  if (confidence >= INTEL_MEDIUM_CONFIDENCE_MIN) return "MEDIUM";
+  const normalized = normalizeIntelConfidence(confidence);
+  if (normalized === null) return "UNKNOWN";
+  if (normalized >= INTEL_HIGH_CONFIDENCE_MIN) return "HIGH";
+  if (normalized >= INTEL_MEDIUM_CONFIDENCE_MIN) return "MEDIUM";
   return "LOW";
 }
 
@@ -157,23 +187,32 @@ export type IntelFieldInit<T> = {
 /**
  * Create a canonical field. Defaults:
  * - provenance UNKNOWN when not given (never fabricate).
- * - confidence null when not given (unknown ≠ high).
- * - requiresReview = true when confidence is LOW/UNKNOWN, or conflicts exist.
- * - reviewState = AI_SUGGESTED unless the value came from a human source.
+ * - confidence null when not given or invalid (unknown ≠ high; invalid never HIGH).
+ * - requiresReview = true when conflicts exist, or when the value is AI/context
+ *   sourced and confidence is LOW/UNKNOWN. A human-fixed field never gets forced
+ *   to require review by unknown confidence.
+ * - reviewState = AI_SUGGESTED unless the value came from direct manual
+ *   canonical-field entry (USER_ENTERED), or an explicit reviewState is given.
+ *
+ * Authority rule (PROVENANCE != AUTHORITY): CONTEXT, USER_TEXT, VISION,
+ * DOCUMENT, SCHEMA and AI_INFERRED never default to HUMAN_CONFIRMED. Only
+ * USER_ENTERED (direct manual canonical-field entry) or an explicit
+ * reviewState / applyHumanValue() may create human authority.
  */
 export function createIntelField<T>(init: IntelFieldInit<T>): ListingIntelField<T> {
-  const confidence = init.confidence ?? null;
+  const confidence = normalizeIntelConfidence(init.confidence);
   const conflicts = init.conflicts ?? [];
   const source = init.provenance ?? "UNKNOWN";
-  const humanSource =
-    source === "USER_TEXT" || source === "USER_ENTERED" || source === "CONTEXT";
+  const defaultReviewState: ListingIntelReviewState =
+    source === "USER_ENTERED" ? "HUMAN_CONFIRMED" : "AI_SUGGESTED";
+  const reviewState = init.reviewState ?? defaultReviewState;
+  const humanFixed =
+    reviewState === "HUMAN_CONFIRMED" || reviewState === "HUMAN_OVERRIDDEN";
   const requiresReview =
     init.requiresReview ??
     (conflicts.length > 0 ||
-      isLowConfidence(confidence) ||
-      classifyIntelConfidence(confidence) === "UNKNOWN");
-  const reviewState =
-    init.reviewState ?? (humanSource ? "HUMAN_CONFIRMED" : "AI_SUGGESTED");
+      (!humanFixed &&
+        (isLowConfidence(confidence) || classifyIntelConfidence(confidence) === "UNKNOWN")));
   return {
     value: init.value,
     provenance: source,
@@ -224,12 +263,19 @@ export function canAiOverwriteField(field: ListingIntelField<unknown> | undefine
 
 /**
  * Deterministic merge of a new AI suggestion into existing canonical fields.
- * - Never overwrites a human-confirmed/overridden field.
+ *
+ * `fieldKey` is the real stable canonical field path (e.g. "year",
+ * "attributes.bodyColor") and is recorded verbatim on any created conflict —
+ * never a placeholder, never inferred from labels or array positions.
+ *
+ * - Never overwrites a human-confirmed/overridden field (and never dilutes its
+ *   provenance when an agreeing suggestion arrives).
  * - When the new value conflicts with the existing (non-human) value, creates an
  *   explicit conflict instead of silently picking the higher-confidence one.
  * - When values agree, updates confidence/uncertainty only.
  */
 export function mergeAiSuggestion<T>(
+  fieldKey: string,
   existing: ListingIntelField<T> | undefined,
   incoming: ListingIntelField<T>
 ): { field: ListingIntelField<T>; conflictCreated: boolean } {
@@ -247,7 +293,12 @@ export function mergeAiSuggestion<T>(
       JSON.stringify(existing.value) === JSON.stringify(incoming.value));
 
   if (valuesEqual) {
-    // Same value — merge provenance/confidence, keep review state.
+    // Same value — merge provenance/confidence, keep review state. A human-fixed
+    // field stays untouched: an agreeing suggestion must not dilute human
+    // authority (e.g. re-label a confirmed value as CONTEXT-derived).
+    if (!canAiOverwriteField(existing)) {
+      return { field: existing, conflictCreated: false };
+    }
     return {
       field: {
         ...existing,
@@ -274,7 +325,7 @@ export function mergeAiSuggestion<T>(
   const incomingValue: T = incoming.value;
 
   const conflict: ListingIntelConflict<T> = {
-    fieldKey: "field",
+    fieldKey,
     candidates: [
       { value: existingValue, source: existing.provenance, confidence: existing.confidence },
       { value: incomingValue, source: incoming.provenance, confidence: incoming.confidence },

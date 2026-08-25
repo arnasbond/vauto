@@ -14,6 +14,7 @@ export {
   intelFieldValue,
   isLowConfidence,
   mergeAiSuggestion,
+  normalizeIntelConfidence,
 } from "./draft-intelligence";
 export type {
   ConfidenceReviewAdvice,
