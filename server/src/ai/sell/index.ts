@@ -22,6 +22,7 @@ export {
   type VisionExtractor,
   type BuildSellDraftOptions,
 } from "./visual-sell-engine.js";
+export { sellDraftToIntelDraft } from "./sell-to-intel.js";
 export {
   validateImagesFailClosed,
   assertSafeImageUrl,

@@ -1,0 +1,28 @@
+export {
+  LISTING_INTEL_REVIEW_STATES,
+  LISTING_INTEL_SOURCES,
+  INTEL_HIGH_CONFIDENCE_MIN,
+  INTEL_LOW_CONFIDENCE_REVIEW_MAX,
+  INTEL_MEDIUM_CONFIDENCE_MIN,
+  applyHumanValue,
+  canAiOverwriteField,
+  classifyIntelConfidence,
+  confidenceReviewAdvice,
+  countFieldsNeedingReview,
+  createIntelField,
+  draftNeedsReview,
+  intelFieldValue,
+  isLowConfidence,
+  mergeAiSuggestion,
+  normalizeIntelConfidence,
+} from "./draft-intelligence.js";
+export type {
+  ConfidenceReviewAdvice,
+  IntelConfidenceTier,
+  ListingIntelCandidate,
+  ListingIntelConflict,
+  ListingIntelDraft,
+  ListingIntelField,
+  ListingIntelReviewState,
+  ListingIntelSource,
+} from "./draft-intelligence.js";

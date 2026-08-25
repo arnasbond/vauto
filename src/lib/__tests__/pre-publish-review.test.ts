@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDraftReviewHints } from "@/lib/pre-publish-review";
+import {
+  buildCanonicalDraftFromListing,
+  buildDraftReviewHints,
+  summarizeCanonicalDraft,
+} from "@/lib/pre-publish-review";
 import type { AiExtractedListing } from "@/lib/types";
 import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
 
@@ -104,4 +108,69 @@ test("hints never gate publish (purely informational contract)", () => {
     assert.ok(typeof hint.id === "string" && hint.id.length > 0);
     assert.ok(typeof hint.text === "string" && hint.text.length > 0);
   }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Phase B — canonical draft consumption on the client review path             */
+/* -------------------------------------------------------------------------- */
+
+test("buildCanonicalDraftFromListing marks user-visible fields HUMAN_CONFIRMED", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({ title: "MacBook Pro", price: 2400, location: "Vilnius" })
+  );
+  assert.equal(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.price!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.location!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.title!.provenance, "USER_ENTERED");
+});
+
+test("buildCanonicalDraftFromListing never upgrades AI fields to human authority", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({ confidence: 0.99, description: "Puikūs metai" })
+  );
+  assert.equal(canonical.fields.description!.reviewState, "AI_SUGGESTED");
+  assert.notEqual(canonical.fields.description!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.description!.provenance, "AI_INFERRED");
+  // High confidence does not create human authority.
+  assert.equal(canonical.fields.description!.confidence, 0.99);
+  assert.equal(canonical.fields.description!.requiresReview, false);
+});
+
+test("buildCanonicalDraftFromListing surfaces document-derived attributes as DOCUMENT", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      attributes: {
+        documentImageUrls: ["https://cdn.example/doc.jpg"],
+        registrationYear: "2020",
+      },
+    })
+  );
+  const attr = canonical.fields["attributes.registrationYear"]!;
+  assert.equal(attr.provenance, "DOCUMENT");
+  assert.equal(attr.reviewState, "AI_SUGGESTED");
+  assert.equal(attr.requiresReview, true);
+});
+
+test("buildCanonicalDraftFromListing normalizes invalid confidence to null", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({ confidence: 1.7, description: "x" })
+  );
+  assert.equal(canonical.fields.description!.confidence, null);
+  assert.equal(canonical.fields.description!.requiresReview, true);
+});
+
+test("summarizeCanonicalDraft is advisory and never exposes publish authority", () => {
+  const summary = summarizeCanonicalDraft(
+    baseDraft({ confidence: 0.5, description: "Aprašymas" })
+  );
+  assert.ok(summary.fields.length > 0);
+  assert.ok(!("publishAllowed" in summary));
+  assert.ok(!("autoPublish" in summary));
+  const desc = summary.fields.find((f) => f.fieldKey === "description")!;
+  assert.equal(desc.state, "REVIEW");
+});
+
+test("summarizeCanonicalDraft returns empty summary for no draft", () => {
+  const summary = summarizeCanonicalDraft(null);
+  assert.deepEqual(summary, { fields: [], needsReview: false, hasConflicts: false });
 });

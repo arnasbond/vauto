@@ -4,8 +4,15 @@ import {
   classifyIntelConfidence,
   confidenceReviewAdvice,
   INTEL_LOW_CONFIDENCE_REVIEW_MAX,
+  normalizeIntelConfidence,
   type IntelConfidenceTier,
+  type ListingIntelDraft,
+  type ListingIntelField,
 } from "@vauto/shared/listing-intelligence";
+import {
+  projectIntelDraft,
+  type IntelDraftSummary,
+} from "@vauto/shared/intelligence-projection";
 
 /**
  * Non-blocking pre-publish review hints derived from existing draft/readiness
@@ -17,6 +24,10 @@ import {
  * contract (@vauto/shared/listing-intelligence) so there is exactly ONE source
  * of truth for confidence/uncertainty semantics across client, server and
  * shared policy.
+ *
+ * Phase B: `buildCanonicalDraftFromListing` + `summarizeCanonicalDraft` bring
+ * the canonical ListingIntelDraft into the real client review path
+ * (progressive disclosure). Publishing remains 100% manual.
  */
 
 export interface DraftReviewHint {
@@ -102,3 +113,88 @@ export function buildDraftReviewHints(
 
 /** Keep threshold import referenced for audit/traceability. */
 export const REVIEW_HINT_LOW_CONFIDENCE_THRESHOLD = LOW_CONFIDENCE_THRESHOLD;
+
+/* -------------------------------------------------------------------------- */
+/* Phase B — canonical draft consumption in the real client review path        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Map a client `AiExtractedListing` into the canonical ListingIntelDraft.
+ *
+ * - Explicit `USER_ENTERED` semantics: the user-visible fields (title, price,
+ *   location) on an editable review surface are treated as direct manual
+ *   canonical-field entry → HUMAN_CONFIRMED (the same authority the PrePublish
+ *   modal grants when the user edits them).
+ * - Every other field is an AI suggestion (AI_INFERRED) with the draft's real
+ *   confidence — never upgraded to human authority by high confidence.
+ * - Legacy document attributes surface as DOCUMENT provenance.
+ * - The function is pure and never publishes.
+ */
+export function buildCanonicalDraftFromListing(
+  draft: AiExtractedListing
+): ListingIntelDraft {
+  const fields: Record<string, ListingIntelField<unknown>> = {};
+
+  const attrs = (draft.attributes ?? {}) as Record<string, unknown>;
+  const hasDocumentEvidence =
+    Array.isArray(attrs.documentImageUrls) || Array.isArray(attrs.documentUrls) ||
+    (typeof attrs.documentImageUrls === "string" && attrs.documentImageUrls.length > 0) ||
+    (typeof attrs.documentUrls === "string" && attrs.documentUrls.length > 0);
+
+  const confidence = normalizeIntelConfidence(draft.confidence);
+
+  const humanEntered = (key: string, value: unknown): ListingIntelField<unknown> => ({
+    value: value ?? null,
+    provenance: "USER_ENTERED",
+    confidence: 1,
+    requiresReview: false,
+    conflicts: [],
+    reviewState: "HUMAN_CONFIRMED",
+  });
+
+  const aiSuggested = (key: string, value: unknown): ListingIntelField<unknown> => ({
+    value: value ?? null,
+    provenance: "AI_INFERRED",
+    confidence,
+    requiresReview: confidence === null || confidence < 0.9,
+    conflicts: [],
+    reviewState: "AI_SUGGESTED",
+  });
+
+  if (draft.title) fields.title = humanEntered("title", draft.title);
+  if (draft.price > 0) fields.price = humanEntered("price", draft.price);
+  if (draft.location) fields.location = humanEntered("location", draft.location);
+  if (draft.category) fields.category = aiSuggested("category", draft.category);
+  if (draft.description) fields.description = aiSuggested("description", draft.description);
+
+  for (const [key, value] of Object.entries(attrs)) {
+    if (key === "documentImageUrls" || key === "documentUrls" || key === "documentOcrSoftNote") {
+      continue;
+    }
+    if (value == null || value === "") continue;
+    const fieldKey = `attributes.${key}`;
+    fields[fieldKey] = hasDocumentEvidence
+      ? { value, provenance: "DOCUMENT", confidence: null, requiresReview: true, conflicts: [], reviewState: "AI_SUGGESTED" }
+      : aiSuggested(fieldKey, value);
+  }
+
+  return {
+    fields,
+    requiresReview: draft.requiresReview ?? false,
+    reviewReasons: [],
+  };
+}
+
+/**
+ * Project a client listing's canonical draft into the progressive-disclosure
+ * summary. Used by the review surface to show confirmed / suggestion / review /
+ * unknown without a technical dashboard. Advisory only.
+ */
+export function summarizeCanonicalDraft(
+  draft: AiExtractedListing | null | undefined
+): IntelDraftSummary {
+  if (!draft) {
+    return { fields: [], needsReview: false, hasConflicts: false };
+  }
+  return projectIntelDraft(buildCanonicalDraftFromListing(draft));
+}

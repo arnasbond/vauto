@@ -9,6 +9,7 @@ import {
   buildSellDraft,
   interpretOcrAsUntrusted,
   parseSellDraft,
+  sellDraftToIntelDraft,
   spokenDigitsToNumber,
   validateImagesFailClosed,
   normalizeSellVoiceText,
@@ -466,5 +467,49 @@ describe("Sell 10C security unit checks", () => {
     assert.equal(v.hints.fuel, "diesel");
     assert.equal(v.hints.transmission, "automatic");
     assert.equal(v.hints.engineLiters, 3);
+  });
+});
+
+describe("Phase B — sell draft → canonical intel adapter", () => {
+  it("derives canonical draft with USER_ENTERED authority for user-provided price", async () => {
+    const draft = await buildSellDraft({
+      input: { text: "Parduodu Audi A6 2019 metų, kaina 15000 €" },
+    });
+    const canonical = sellDraftToIntelDraft(draft);
+    assert.equal(canonical.fields.price!.reviewState, "HUMAN_CONFIRMED");
+    assert.equal(canonical.fields.price!.provenance, "USER_ENTERED");
+    assert.equal(canonical.requiresReview, true);
+  });
+
+  it("never upgrades VISION-derived values to human authority", async () => {
+    const draft = await buildSellDraft({
+      input: { text: "Parduodu automobilį", imageUrls: ["https://cdn.example.com/car.jpg"] },
+      visionExtractor: async () => ({
+        visualBrand: "BMW",
+        visualModel: "320d",
+        confidence: 0.98,
+      }),
+      imageSafetyProvider: async () => ({ safe: true, reasons: [] }),
+    });
+    const canonical = sellDraftToIntelDraft(draft);
+    assert.equal(canonical.fields.brand!.provenance, "VISION");
+    assert.equal(canonical.fields.brand!.reviewState, "AI_SUGGESTED");
+    assert.notEqual(canonical.fields.brand!.reviewState, "HUMAN_CONFIRMED");
+    // No publish authority anywhere on the derived canonical draft.
+    assert.ok(!("autoPublish" in canonical));
+    assert.ok(!("publishAllowed" in canonical));
+    // Legacy draft hard gates stay intact.
+    assert.equal(draft.autoPublish, SELL_AUTO_PUBLISH);
+    assert.equal(draft.requiresUserConfirmation, true);
+  });
+
+  it("legacy draft shape is unchanged (pure derivation)", async () => {
+    const draft = await buildSellDraft({
+      input: { text: "Parduodu dviratį už 200 €" },
+    });
+    assert.equal(draft.autoPublish, false);
+    assert.equal(draft.requiresUserConfirmation, true);
+    assert.equal(draft.foundationVersion.length > 0, true);
+    assert.equal("canonicalDraft" in draft, false);
   });
 });
