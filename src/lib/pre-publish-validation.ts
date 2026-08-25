@@ -17,6 +17,7 @@ import {
 import { coerceListingCategoryForDb } from "@vauto/shared/category-registry";
 import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
+import { buildDraftReviewHints, type DraftReviewHint } from "@/lib/pre-publish-review";
 import {
   dedupeListingImageUrls,
   filterSessionListingImages,
@@ -43,6 +44,8 @@ export interface PrePublishCardPayload {
   /** Business VAT breakdown when seller has vatCode */
   vatLabelNet?: string;
   vatLabelGross?: string;
+  /** Non-blocking review hints ("Patikrinkite prieš publikavimą"). */
+  reviewHints?: DraftReviewHint[];
 }
 
 export function buildPrePublishCardPayload(
@@ -101,6 +104,7 @@ export function buildPrePublishCardPayload(
       description: draft.description,
     }),
     ...(vatLabelNet ? { vatLabelNet, vatLabelGross } : {}),
+    reviewHints: buildDraftReviewHints(draft, readiness),
   };
 }
 

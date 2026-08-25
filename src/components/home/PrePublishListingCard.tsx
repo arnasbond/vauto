@@ -213,6 +213,27 @@ export function PrePublishListingCard({
           </p>
         ) : null}
 
+        {card.reviewHints && card.reviewHints.length > 0 ? (
+          <div
+            className="rounded-xl border border-amber-300/40 bg-amber-50/60 p-2.5"
+            data-prepublish-review-hints
+          >
+            <p className="text-xs font-bold text-amber-900">
+              Patikrinkite prieš publikavimą
+            </p>
+            <ul className="mt-1 space-y-1">
+              {card.reviewHints.map((hint) => (
+                <li
+                  key={hint.id}
+                  className="text-[11px] leading-snug text-amber-900/80"
+                >
+                  {hint.text}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <div className="rounded-xl border border-[var(--vauto-primary)]/15 bg-[var(--vauto-surface-muted)]/30 p-2.5">
           <p className="text-xs font-bold text-[var(--vauto-text)]">
             {PRE_PUBLISH_VISIBILITY_HEADLINE}
