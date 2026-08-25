@@ -79,6 +79,19 @@ const ELECTRONICS_ONLY_ATTR_KEYS = new Set([
   "mileageKm",
 ]);
 
+/**
+ * Legacy untrusted edit-marker keys (B3). Superseded by the trusted typed
+ * `editedByUser` state; these attribute strings could be forged by
+ * AI/provider/document/import/hydration payloads, so they are stripped
+ * everywhere attributes are sanitized.
+ */
+const LEGACY_EDIT_MARKER_KEYS = new Set([
+  "titleEditedByUser",
+  "priceEditedByUser",
+  "locationEditedByUser",
+  "descriptionEditedByUser",
+]);
+
 const ELECTRONICS_PRODUCT_VALUE_RE =
   /\b(macbook|imac|iphone|ipad|airpods|thinkpad|surface\s*pro|playstation|xbox|galaxy\s*(s|z|tab|note|watch)|pixel\s*\d|kindle|nintendo\s*switch)\b/i;
 
@@ -253,6 +266,7 @@ export function sanitizeAttributesForCategory(
   const out: CategoryAttributes = {};
 
   for (const [key, value] of Object.entries(merged)) {
+    if (LEGACY_EDIT_MARKER_KEYS.has(key)) continue; // untrusted, never kept (B3)
     if (foreign.has(key) && !allowed.has(key)) continue;
     if (!allowed.has(key)) continue;
     if (value === undefined || value === null) continue;

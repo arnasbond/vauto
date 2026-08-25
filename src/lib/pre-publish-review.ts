@@ -126,33 +126,64 @@ export const REVIEW_HINT_LOW_CONFIDENCE_THRESHOLD = LOW_CONFIDENCE_THRESHOLD;
  * PROVENANCE != AUTHORITY (certified Phase A semantics):
  * - A value being present/editable on the PrePublish surface is NOT evidence of
  *   human authorship. Human authority (`USER_ENTERED` / `HUMAN_CONFIRMED`)
- *   originates ONLY from an explicit human event: the user actually edited the
- *   field in the PrePublish modal, which records a canonical marker attribute
- *   (`titleEditedByUser` / `priceEditedByUser` / `locationEditedByUser` /
- *   `descriptionEditedByUser`) — the same established pattern as
- *   `locationEditedByUser` in profile-listing-sync.
- * - Unknown-origin values (no edit evidence) are conservatively classified as
- *   AI_INFERRED / AI_SUGGESTED with the draft's real normalized confidence —
- *   NEVER upgraded to human authority by high confidence or by UI display.
+ *   originates ONLY from an explicit human event through the TRUSTED boundary:
+ *   the `editedByUser` typed state, which is set exclusively by trusted local
+ *   input handlers (`updateAiDraft({ …, editedByUser: { title: true } })`) —
+ *   never from `attributes`.
+ * - Legacy `*EditedByUser` attribute markers (titleEditedByUser /
+ *   priceEditedByUser / locationEditedByUser / descriptionEditedByUser) are
+ *   treated as untrusted DATA: they can arrive from AI/provider/document/
+ *   import/hydration payloads and MUST NOT manufacture human authority. They
+ *   are stripped from the canonical attribute projection and ignored by the
+ *   authority decision (see `stripLegacyEditMarkerAttributes`).
+ * - Unknown-origin values (no trusted edit evidence) are conservatively
+ *   classified as AI_INFERRED / AI_SUGGESTED with the draft's real normalized
+ *   confidence — NEVER upgraded to human authority by high confidence, by UI
+ *   display, or by any attribute marker.
  * - Legacy document attributes surface as DOCUMENT provenance.
  * - Draft-level `requiresReview` is derived through the canonical Phase A
  *   `draftNeedsReview()` policy — one review policy, never a second one.
  * - The function is pure and never publishes.
  */
+
+/** Untrusted legacy edit-marker keys — stripped from the attribute projection. */
+const LEGACY_EDIT_MARKER_KEYS = new Set([
+  "titleEditedByUser",
+  "priceEditedByUser",
+  "locationEditedByUser",
+  "descriptionEditedByUser",
+]);
+
+export function stripLegacyEditMarkerAttributes(
+  attributes: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  if (!attributes) return {};
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(attributes)) {
+    if (LEGACY_EDIT_MARKER_KEYS.has(key)) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
 export function buildCanonicalDraftFromListing(
   draft: AiExtractedListing
 ): ListingIntelDraft {
   const fields: Record<string, ListingIntelField<unknown>> = {};
 
-  const attrs = (draft.attributes ?? {}) as Record<string, unknown>;
+  // Trusted boundary: only the typed `editedByUser` state may prove human
+  // authorship. Attribute markers are never trusted authority.
+  const rawAttrs = (draft.attributes ?? {}) as Record<string, unknown>;
+  const attrs = stripLegacyEditMarkerAttributes(rawAttrs);
   const hasDocumentEvidence =
     Array.isArray(attrs.documentImageUrls) || Array.isArray(attrs.documentUrls) ||
     (typeof attrs.documentImageUrls === "string" && attrs.documentImageUrls.length > 0) ||
     (typeof attrs.documentUrls === "string" && attrs.documentUrls.length > 0);
 
   const confidence = normalizeIntelConfidence(draft.confidence);
+  const humanEdited = draft.editedByUser ?? {};
 
-  const humanEdited = (value: unknown): ListingIntelField<unknown> =>
+  const humanEntered = (value: unknown): ListingIntelField<unknown> =>
     createIntelField({
       value: value ?? null,
       provenance: "USER_ENTERED",
@@ -167,28 +198,25 @@ export function buildCanonicalDraftFromListing(
       confidence,
     });
 
-  const editedByUser = (key: string): boolean =>
-    String(attrs[key] ?? "").trim() === "true";
-
   if (draft.title) {
-    fields.title = editedByUser("titleEditedByUser")
-      ? humanEdited(draft.title)
+    fields.title = humanEdited.title
+      ? humanEntered(draft.title)
       : aiSuggested(draft.title);
   }
   if (draft.price > 0) {
-    fields.price = editedByUser("priceEditedByUser")
-      ? humanEdited(draft.price)
+    fields.price = humanEdited.price
+      ? humanEntered(draft.price)
       : aiSuggested(draft.price);
   }
   if (draft.location) {
-    fields.location = editedByUser("locationEditedByUser")
-      ? humanEdited(draft.location)
+    fields.location = humanEdited.location
+      ? humanEntered(draft.location)
       : aiSuggested(draft.location);
   }
   if (draft.category) fields.category = aiSuggested(draft.category);
   if (draft.description) {
-    fields.description = editedByUser("descriptionEditedByUser")
-      ? humanEdited(draft.description)
+    fields.description = humanEdited.description
+      ? humanEntered(draft.description)
       : aiSuggested(draft.description);
   }
 
@@ -196,11 +224,7 @@ export function buildCanonicalDraftFromListing(
     if (
       key === "documentImageUrls" ||
       key === "documentUrls" ||
-      key === "documentOcrSoftNote" ||
-      key === "titleEditedByUser" ||
-      key === "priceEditedByUser" ||
-      key === "locationEditedByUser" ||
-      key === "descriptionEditedByUser"
+      key === "documentOcrSoftNote"
     ) {
       continue;
     }

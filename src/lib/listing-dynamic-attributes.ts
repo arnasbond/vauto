@@ -67,6 +67,9 @@ const EXTRA_INTERNAL_KEYS = new Set([
   "omnivaLockerBlockReason",
   "omnivaBoxSize",
   "_canonicalVertical",
+  // Legacy untrusted edit markers (B3) — kept in the internal set so they can
+  // never render as public specs even if a stale payload still carries them;
+  // canonical authority uses the trusted typed `editedByUser` state instead.
   "locationEditedByUser",
   "titleEditedByUser",
   "priceEditedByUser",

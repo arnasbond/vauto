@@ -1578,11 +1578,20 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           : prev.listingFlowState
       );
 
+      // Trusted human-edit evidence (B3): carried as top-level typed state, merged
+      // from the local human-event boundary. Untrusted attribute markers are never
+      // promoted here.
+      const editedByUser =
+        patch.editedByUser != null
+          ? { ...(prev.editedByUser ?? {}), ...patch.editedByUser }
+          : prev.editedByUser;
+
       return syncDraftWithProfile({
         ...prev,
         ...patch,
         category: nextCategory,
         attributes,
+        editedByUser,
         ...(lockedFlowState ? { listingFlowState: lockedFlowState } : {}),
       });
     });

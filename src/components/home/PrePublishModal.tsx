@@ -69,6 +69,10 @@ export interface PrePublishFieldPatch {
   category?: ListingCategory;
   location?: string;
   attributes?: Record<string, string>;
+  /** Trusted human-edit evidence set by real input onChange events (B3). */
+  editedByUser?: Partial<
+    Record<"title" | "price" | "location" | "description", boolean>
+  >;
   /** Omniva locker opt-in when eligible. */
   allowPastomatas?: boolean;
 }
@@ -607,7 +611,7 @@ export function PrePublishModal({
                 onChange={(e) =>
                   patchField({
                     title: e.target.value,
-                    attributes: { titleEditedByUser: "true" },
+                    editedByUser: { title: true },
                   })
                 }
                 className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] px-3 py-2.5 text-sm font-semibold text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
@@ -629,7 +633,7 @@ export function PrePublishModal({
                   const n = Number(e.target.value);
                   patchField({
                     price: Number.isFinite(n) && n >= 0 ? n : 0,
-                    attributes: { priceEditedByUser: "true" },
+                    editedByUser: { price: true },
                   });
                 }}
                 className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] px-3 py-2.5 text-sm font-bold text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
@@ -703,7 +707,7 @@ export function PrePublishModal({
                   onChange={(e) =>
                     patchField({
                       location: e.target.value,
-                      attributes: { locationEditedByUser: "true" },
+                      editedByUser: { location: true },
                     })
                   }
                   className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] py-2.5 pl-9 pr-3 text-sm font-medium text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70 placeholder:font-normal placeholder:text-[var(--vauto-text-muted)]"
@@ -722,7 +726,7 @@ export function PrePublishModal({
                 onChange={(e) =>
                   patchField({
                     description: e.target.value,
-                    attributes: { descriptionEditedByUser: "true" },
+                    editedByUser: { description: true },
                   })
                 }
                 className="w-full resize-y rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] px-3 py-2.5 text-[13px] leading-relaxed text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"

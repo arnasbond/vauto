@@ -138,7 +138,20 @@ export interface AiExtractedListing {
   orderedImageUrls?: string[];
   coverImageId?: string;
   /**
-   * Strict conversational listing state machine:
+   * TRUSTED human-edit evidence — the ONLY source of USER_ENTERED / HUMAN_CONFIRMED
+   * authority for the client PrePublish review path (Phase B remediation B3).
+   *
+   * Trust boundary: this field is NOT part of `attributes` (which flows from
+   * untrusted AI/provider/document/import/hydration payloads) and is set ONLY by
+   * trusted local human-event handlers (input `onChange`) that call
+   * `updateAiDraft({ title, price, location, description, editedByUser: { … } })`.
+   * Untrusted payloads may not forge it; legacy `*EditedByUser` attribute markers
+   * are treated as data and stripped from canonical authority.
+   */
+  editedByUser?: Partial<
+    Record<"title" | "price" | "location" | "description", boolean>
+  >;
+  /** Strict conversational listing state machine:
    * DRAFTING_TEXT → AWAITING_PHOTOS → DRAFT_READY → AWAITING_CONFIRMATION
    */
   listingFlowState?:

@@ -94,6 +94,9 @@ export function applyProfileToListingDraft(
 
   const profile = buildProfileListingContact(user);
   const onlyIfEmpty = opts?.onlyIfEmpty !== false;
+  // Legacy untrusted marker (B3) — read for backward compat with persisted drafts,
+  // but never treated as human authority; the trusted typed `editedByUser` state
+  // is the canonical authority source. Stripped from attributes downstream.
   const locationEditedByUser =
     String(draft.attributes?.locationEditedByUser ?? "").trim() === "true";
   const draftLocation = isPlaceholderCity(draft.location)
@@ -156,6 +159,11 @@ export function applyProfileToListingDraft(
     location,
     contact,
     attributes: attrs,
+    // Mirror the legacy marker into the trusted typed state (B3) so persisted
+    // drafts keep their authority only through the trusted boundary.
+    ...(locationEditedByUser
+      ? { editedByUser: { ...(draft.editedByUser ?? {}), location: true } }
+      : {}),
   };
 }
 

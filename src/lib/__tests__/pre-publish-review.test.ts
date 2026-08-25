@@ -236,13 +236,14 @@ test("remediation: rendering PrePublish is pure — provenance unchanged", () =>
   }
 });
 
-// 5. Explicit user edit CAN create human authority — only via the canonical
-//    marker recorded by the real PrePublish transformation path.
-test("remediation: explicit user edit creates human authority via canonical marker", () => {
+// 5. Explicit user edit CAN create human authority — only through the TRUSTED
+//    boundary: the typed `editedByUser` state set by the real PrePublish input
+//    onChange handler (never via attributes).
+test("remediation: explicit user edit creates human authority via trusted editedByUser", () => {
   const canonical = buildCanonicalDraftFromListing(
     baseDraft({
       title: "Mano iPhone 15",
-      attributes: { titleEditedByUser: "true" },
+      editedByUser: { title: true },
     })
   );
   assert.equal(canonical.fields.title!.provenance, "USER_ENTERED");
@@ -409,11 +410,7 @@ test("remediation: all fields genuinely HUMAN_CONFIRMED => no review required", 
     title: "Tikras pavadinimas",
     price: 2400,
     location: "Vilnius",
-    attributes: {
-      titleEditedByUser: "true",
-      priceEditedByUser: "true",
-      locationEditedByUser: "true",
-    },
+    editedByUser: { title: true, price: true, location: true },
   });
   const canonical = buildCanonicalDraftFromListing(listing);
   assert.equal(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
@@ -447,11 +444,7 @@ test("remediation: mixed human + AI fields derive review from the AI fields", ()
     location: "Vilnius",
     description: "AI sugeneruotas aprašymas",
     confidence: 0.4,
-    attributes: {
-      titleEditedByUser: "true",
-      priceEditedByUser: "true",
-      locationEditedByUser: "true",
-    },
+    editedByUser: { title: true, price: true, location: true },
   });
   const canonical = buildCanonicalDraftFromListing(listing);
   assert.equal(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
@@ -460,20 +453,194 @@ test("remediation: mixed human + AI fields derive review from the AI fields", ()
   assert.equal(canonical.requiresReview, true);
 });
 
-// Explicit user edit of price/location also creates authority (marker path).
+// Explicit user edit of price/location also creates authority (trusted path).
 test("remediation: explicit price and location edits create human authority", () => {
   const canonical = buildCanonicalDraftFromListing(
     baseDraft({
       price: 3100,
       location: "Klaipėda",
-      attributes: {
-        priceEditedByUser: "true",
-        locationEditedByUser: "true",
-      },
+      editedByUser: { price: true, location: true },
     })
   );
   assert.equal(canonical.fields.price!.reviewState, "HUMAN_CONFIRMED");
   assert.equal(canonical.fields.price!.provenance, "USER_ENTERED");
   assert.equal(canonical.fields.location!.reviewState, "HUMAN_CONFIRMED");
   assert.equal(canonical.fields.location!.provenance, "USER_ENTERED");
+});
+
+/* -------------------------------------------------------------------------- */
+/* B3 — TRUST BOUNDARY: edit markers are untrusted DATA, not authority         */
+/* -------------------------------------------------------------------------- */
+/* The legacy `*EditedByUser` attribute markers can arrive from untrusted AI / */
+/* provider / document / import / hydration payloads. They must NEVER create   */
+/* HUMAN_CONFIRMED / USER_ENTERED. Only the trusted typed `editedByUser`       */
+/* state (set by real local input onChange handlers) proves human authorship.  */
+/* -------------------------------------------------------------------------- */
+
+// Negative spoofing: an AI/untrusted draft containing the exact marker string
+// "true" must NOT obtain human authority.
+test("B3 spoof: AI payload with titleEditedByUser='true' cannot forge human authority", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      title: "AI generated title",
+      attributes: { titleEditedByUser: "true" },
+    })
+  );
+  assert.equal(canonical.fields.title!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.title!.provenance, "AI_INFERRED");
+  assert.notEqual(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
+});
+
+// Same negative spoof for price / location / description.
+test("B3 spoof: price/location/description markers cannot forge human authority", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      price: 999,
+      location: "Vilnius",
+      description: "AI aprašymas",
+      attributes: {
+        priceEditedByUser: "true",
+        locationEditedByUser: "true",
+        descriptionEditedByUser: "true",
+      },
+    })
+  );
+  assert.equal(canonical.fields.price!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.price!.provenance, "AI_INFERRED");
+  assert.equal(canonical.fields.location!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.location!.provenance, "AI_INFERRED");
+  assert.equal(canonical.fields.description!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.description!.provenance, "AI_INFERRED");
+});
+
+// Legacy markers are stripped from the canonical attribute projection entirely.
+test("B3: legacy edit-marker attributes are stripped from canonical attributes", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      attributes: {
+        titleEditedByUser: "true",
+        priceEditedByUser: "true",
+        locationEditedByUser: "true",
+        descriptionEditedByUser: "true",
+        registrationYear: "2020",
+      },
+    })
+  );
+  assert.equal(canonical.fields["attributes.titleEditedByUser"], undefined);
+  assert.equal(canonical.fields["attributes.priceEditedByUser"], undefined);
+  assert.equal(canonical.fields["attributes.locationEditedByUser"], undefined);
+  assert.equal(canonical.fields["attributes.descriptionEditedByUser"], undefined);
+  // Real attributes survive.
+  assert.ok(canonical.fields["attributes.registrationYear"]);
+});
+
+// DOCUMENT/VISION/AI_INFERRED/imported/hydrated values cannot forge evidence —
+// markers carried alongside document content stay non-authoritative.
+test("B3: document/VISION/hydrated values with markers cannot forge human authority", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      title: "Hydrated title",
+      location: "Kaunas",
+      attributes: {
+        documentImageUrls: ["https://cdn.example/doc.jpg"],
+        titleEditedByUser: "true",
+        locationEditedByUser: "true",
+      },
+    })
+  );
+  assert.equal(canonical.fields.title!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.location!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.title!.provenance, "AI_INFERRED");
+});
+
+// Opening/rendering/rehydrating PrePublish cannot create human authority: a pure
+// transform of a marker-bearing draft never produces HUMAN_CONFIRMED, and the
+// marker does not survive the strip.
+test("B3: rehydrating a marker-bearing draft cannot create human authority", () => {
+  const rehydrated = baseDraft({
+    title: "Pavadinimas iš localStorage",
+    attributes: { titleEditedByUser: "true" },
+  });
+  const canonical = buildCanonicalDraftFromListing(rehydrated);
+  assert.equal(canonical.fields.title!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.title!.provenance, "AI_INFERRED");
+  const again = buildCanonicalDraftFromListing(rehydrated);
+  assert.deepEqual(again, canonical);
+});
+
+// A real user onChange event still produces canonical human authority — through
+// the trusted typed state, exactly as the modal now emits it.
+test("B3: real user onChange (trusted editedByUser) produces human authority", () => {
+  // This mirrors PrePublishModal's title onChange:
+  //   patchField({ title: e.target.value, editedByUser: { title: true } })
+  const modalPatch = { title: "Mano ranka įvesta antraštė", editedByUser: { title: true } };
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({ ...modalPatch })
+  );
+  assert.equal(canonical.fields.title!.provenance, "USER_ENTERED");
+  assert.equal(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.title!.requiresReview, false);
+});
+
+// Trusted human state survives legitimate subsequent UI transformations: a later
+// AI attribute patch cannot erase it (top-level state is preserved through
+// updateAiDraft merges).
+test("B3: trusted editedByUser survives subsequent AI attribute patch", () => {
+  const humanDraft = baseDraft({
+    title: "Žmogaus antraštė",
+    editedByUser: { title: true },
+  });
+  const afterAiPatch: AiExtractedListing = {
+    ...humanDraft,
+    attributes: { ...(humanDraft.attributes ?? {}), deviceModel: "iPhone 15" },
+  };
+  const canonical = buildCanonicalDraftFromListing(afterAiPatch);
+  assert.equal(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields["attributes.deviceModel"]!.reviewState, "AI_SUGGESTED");
+});
+
+// AI suggestion after human edit cannot overwrite human authority (canonical
+// merge semantics — Phase A invariant, re-proven at the trusted boundary).
+test("B3: AI suggestion cannot overwrite trusted human edit authority", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      title: "Žmogaus antraštė",
+      editedByUser: { title: true },
+    })
+  );
+  const merged = mergeAiSuggestion(
+    "title",
+    canonical.fields.title!,
+    createIntelField({ value: "AI siūloma antraštė", provenance: "AI_INFERRED", confidence: 1 })
+  );
+  assert.equal(merged.field.value, "Žmogaus antraštė");
+  assert.equal(merged.field.reviewState, "HUMAN_CONFIRMED");
+});
+
+// No marker leaks into the canonical attribute projection (they are stripped).
+test("B3: legacy markers never leak into persisted/public canonical attributes", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      attributes: { titleEditedByUser: "true", condition: "Naujas" },
+    })
+  );
+  const attributeKeys = Object.keys(canonical.fields).filter((k) =>
+    k.startsWith("attributes.")
+  );
+  assert.ok(!attributeKeys.some((k) => k.endsWith("EditedByUser")));
+  assert.ok(attributeKeys.includes("attributes.condition"));
+});
+
+// draftNeedsReview invariant remains unchanged: the draft-level policy still
+// derives from canonical field state, and a spoofed marker cannot suppress it.
+test("B3: draftNeedsReview invariant unchanged under spoofed markers", () => {
+  const spoofed = baseDraft({
+    title: "x",
+    confidence: 0.3,
+    attributes: { titleEditedByUser: "true" },
+  });
+  const canonical = buildCanonicalDraftFromListing(spoofed);
+  assert.equal(canonical.fields.title!.requiresReview, true);
+  assert.equal(canonical.requiresReview, true);
+  assert.equal(draftNeedsReview(canonical), true);
 });

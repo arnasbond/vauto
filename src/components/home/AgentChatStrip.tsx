@@ -310,6 +310,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         ? { category: patch.category as ListingCategory }
         : {}),
       ...(patch.location != null ? { location: patch.location } : {}),
+      ...(patch.editedByUser != null ? { editedByUser: patch.editedByUser } : {}),
       ...(patch.allowPastomatas != null
         ? { allowPastomatas: patch.allowPastomatas }
         : {}),
