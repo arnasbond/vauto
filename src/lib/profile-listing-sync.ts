@@ -94,11 +94,13 @@ export function applyProfileToListingDraft(
 
   const profile = buildProfileListingContact(user);
   const onlyIfEmpty = opts?.onlyIfEmpty !== false;
-  // Legacy untrusted marker (B3) — read for backward compat with persisted drafts,
-  // but never treated as human authority; the trusted typed `editedByUser` state
-  // is the canonical authority source. Stripped from attributes downstream.
-  const locationEditedByUser =
-    String(draft.attributes?.locationEditedByUser ?? "").trim() === "true";
+
+  // B4: trusted authority comes ONLY from the trusted typed state, which is set
+  // exclusively by real local input onChange events. The legacy
+  // `locationEditedByUser` attribute is UNTRUSTED DATA (an attacker/provider/
+  // hydration payload can forge it) and must NEVER be read here, re-emitted, or
+  // promoted into `editedByUser` / human authority.
+  const locationEditedByUser = Boolean(draft.editedByUser?.location);
   const draftLocation = isPlaceholderCity(draft.location)
     ? ""
     : String(draft.location ?? "").trim();
@@ -120,6 +122,11 @@ export function applyProfileToListingDraft(
 
   const prevAttrs = draft.attributes ?? {};
   const attrs: CategoryAttributes = { ...prevAttrs };
+  // B4: legacy edit-marker attributes are purged at the trust boundary.
+  delete attrs.titleEditedByUser;
+  delete attrs.priceEditedByUser;
+  delete attrs.locationEditedByUser;
+  delete attrs.descriptionEditedByUser;
 
   if (!onlyIfEmpty || isEmptyValue(String(attrs.contact ?? ""))) {
     attrs.contact = contact;
@@ -149,9 +156,6 @@ export function applyProfileToListingDraft(
   if (user.companyName?.trim()) attrs.companyName = user.companyName.trim();
   if (user.companyCode?.trim()) attrs.companyCode = user.companyCode.trim();
   attrs.profileContactSynced = "true";
-  if (locationEditedByUser) {
-    attrs.locationEditedByUser = "true";
-  }
 
   return {
     ...draft,
@@ -159,11 +163,9 @@ export function applyProfileToListingDraft(
     location,
     contact,
     attributes: attrs,
-    // Mirror the legacy marker into the trusted typed state (B3) so persisted
-    // drafts keep their authority only through the trusted boundary.
-    ...(locationEditedByUser
-      ? { editedByUser: { ...(draft.editedByUser ?? {}), location: true } }
-      : {}),
+    // B4: trusted typed state passes through unchanged (set only by trusted
+    // local human-edit events) — never reconstructed from attributes.
+    editedByUser: draft.editedByUser,
   };
 }
 
