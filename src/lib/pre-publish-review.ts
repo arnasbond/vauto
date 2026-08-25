@@ -1,11 +1,22 @@
 import type { AiExtractedListing } from "@/lib/types";
 import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
+import {
+  classifyIntelConfidence,
+  confidenceReviewAdvice,
+  INTEL_LOW_CONFIDENCE_REVIEW_MAX,
+  type IntelConfidenceTier,
+} from "@vauto/shared/listing-intelligence";
 
 /**
  * Non-blocking pre-publish review hints derived from existing draft/readiness
  * data. Purely informational — publishing stays a human decision and is never
  * gated by these hints. This surfaces fact/uncertainty to the reviewer
  * ("Patikrinkite prieš publikavimą") without changing any AI behavior.
+ *
+ * Confidence classification is delegated to the canonical listing-intelligence
+ * contract (@vauto/shared/listing-intelligence) so there is exactly ONE source
+ * of truth for confidence/uncertainty semantics across client, server and
+ * shared policy.
  */
 
 export interface DraftReviewHint {
@@ -13,7 +24,7 @@ export interface DraftReviewHint {
   text: string;
 }
 
-const LOW_CONFIDENCE_THRESHOLD = 0.75;
+const LOW_CONFIDENCE_THRESHOLD = INTEL_LOW_CONFIDENCE_REVIEW_MAX;
 
 function reviewNoticeHints(draft: AiExtractedListing): DraftReviewHint[] {
   const hints: DraftReviewHint[] = [];
@@ -30,7 +41,13 @@ function reviewNoticeHints(draft: AiExtractedListing): DraftReviewHint[] {
 
 function lowConfidenceHints(draft: AiExtractedListing): DraftReviewHint[] {
   if (typeof draft.confidence !== "number") return [];
-  if (Number.isFinite(draft.confidence) && draft.confidence < LOW_CONFIDENCE_THRESHOLD) {
+  // Canonical policy: LOW tier (or below the shared advisory threshold) surfaces
+  // the advisory hint. Unknown confidence is NOT treated as high.
+  const tier: IntelConfidenceTier = classifyIntelConfidence(draft.confidence);
+  if (
+    Number.isFinite(draft.confidence) &&
+    confidenceReviewAdvice(draft.confidence) === "REVIEW"
+  ) {
     return [
       {
         id: "low-confidence",
@@ -38,6 +55,8 @@ function lowConfidenceHints(draft: AiExtractedListing): DraftReviewHint[] {
       },
     ];
   }
+  // Keep explicit tier reference for audit clarity (unused value is intentional).
+  void tier;
   return [];
 }
 
@@ -80,3 +99,6 @@ export function buildDraftReviewHints(
     ...photolessHints(draft, readiness),
   ];
 }
+
+/** Keep threshold import referenced for audit/traceability. */
+export const REVIEW_HINT_LOW_CONFIDENCE_THRESHOLD = LOW_CONFIDENCE_THRESHOLD;
