@@ -604,7 +604,12 @@ export function PrePublishModal({
                 type="text"
                 value={card.title}
                 disabled={busy || !onFieldsChange}
-                onChange={(e) => patchField({ title: e.target.value })}
+                onChange={(e) =>
+                  patchField({
+                    title: e.target.value,
+                    attributes: { titleEditedByUser: "true" },
+                  })
+                }
                 className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] px-3 py-2.5 text-sm font-semibold text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
               />
             </label>
@@ -624,6 +629,7 @@ export function PrePublishModal({
                   const n = Number(e.target.value);
                   patchField({
                     price: Number.isFinite(n) && n >= 0 ? n : 0,
+                    attributes: { priceEditedByUser: "true" },
                   });
                 }}
                 className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] px-3 py-2.5 text-sm font-bold text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
@@ -713,7 +719,12 @@ export function PrePublishModal({
                 value={card.description}
                 rows={8}
                 disabled={busy || !onFieldsChange}
-                onChange={(e) => patchField({ description: e.target.value })}
+                onChange={(e) =>
+                  patchField({
+                    description: e.target.value,
+                    attributes: { descriptionEditedByUser: "true" },
+                  })
+                }
                 className="w-full resize-y rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] px-3 py-2.5 text-[13px] leading-relaxed text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
               />
             </label>

@@ -3,6 +3,8 @@ import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
 import {
   classifyIntelConfidence,
   confidenceReviewAdvice,
+  createIntelField,
+  draftNeedsReview,
   INTEL_LOW_CONFIDENCE_REVIEW_MAX,
   normalizeIntelConfidence,
   type IntelConfidenceTier,
@@ -121,13 +123,20 @@ export const REVIEW_HINT_LOW_CONFIDENCE_THRESHOLD = LOW_CONFIDENCE_THRESHOLD;
 /**
  * Map a client `AiExtractedListing` into the canonical ListingIntelDraft.
  *
- * - Explicit `USER_ENTERED` semantics: the user-visible fields (title, price,
- *   location) on an editable review surface are treated as direct manual
- *   canonical-field entry → HUMAN_CONFIRMED (the same authority the PrePublish
- *   modal grants when the user edits them).
- * - Every other field is an AI suggestion (AI_INFERRED) with the draft's real
- *   confidence — never upgraded to human authority by high confidence.
+ * PROVENANCE != AUTHORITY (certified Phase A semantics):
+ * - A value being present/editable on the PrePublish surface is NOT evidence of
+ *   human authorship. Human authority (`USER_ENTERED` / `HUMAN_CONFIRMED`)
+ *   originates ONLY from an explicit human event: the user actually edited the
+ *   field in the PrePublish modal, which records a canonical marker attribute
+ *   (`titleEditedByUser` / `priceEditedByUser` / `locationEditedByUser` /
+ *   `descriptionEditedByUser`) — the same established pattern as
+ *   `locationEditedByUser` in profile-listing-sync.
+ * - Unknown-origin values (no edit evidence) are conservatively classified as
+ *   AI_INFERRED / AI_SUGGESTED with the draft's real normalized confidence —
+ *   NEVER upgraded to human authority by high confidence or by UI display.
  * - Legacy document attributes surface as DOCUMENT provenance.
+ * - Draft-level `requiresReview` is derived through the canonical Phase A
+ *   `draftNeedsReview()` policy — one review policy, never a second one.
  * - The function is pure and never publishes.
  */
 export function buildCanonicalDraftFromListing(
@@ -143,46 +152,73 @@ export function buildCanonicalDraftFromListing(
 
   const confidence = normalizeIntelConfidence(draft.confidence);
 
-  const humanEntered = (key: string, value: unknown): ListingIntelField<unknown> => ({
-    value: value ?? null,
-    provenance: "USER_ENTERED",
-    confidence: 1,
-    requiresReview: false,
-    conflicts: [],
-    reviewState: "HUMAN_CONFIRMED",
-  });
+  const humanEdited = (value: unknown): ListingIntelField<unknown> =>
+    createIntelField({
+      value: value ?? null,
+      provenance: "USER_ENTERED",
+      confidence,
+      reviewState: "HUMAN_CONFIRMED",
+    });
 
-  const aiSuggested = (key: string, value: unknown): ListingIntelField<unknown> => ({
-    value: value ?? null,
-    provenance: "AI_INFERRED",
-    confidence,
-    requiresReview: confidence === null || confidence < 0.9,
-    conflicts: [],
-    reviewState: "AI_SUGGESTED",
-  });
+  const aiSuggested = (value: unknown): ListingIntelField<unknown> =>
+    createIntelField({
+      value: value ?? null,
+      provenance: "AI_INFERRED",
+      confidence,
+    });
 
-  if (draft.title) fields.title = humanEntered("title", draft.title);
-  if (draft.price > 0) fields.price = humanEntered("price", draft.price);
-  if (draft.location) fields.location = humanEntered("location", draft.location);
-  if (draft.category) fields.category = aiSuggested("category", draft.category);
-  if (draft.description) fields.description = aiSuggested("description", draft.description);
+  const editedByUser = (key: string): boolean =>
+    String(attrs[key] ?? "").trim() === "true";
+
+  if (draft.title) {
+    fields.title = editedByUser("titleEditedByUser")
+      ? humanEdited(draft.title)
+      : aiSuggested(draft.title);
+  }
+  if (draft.price > 0) {
+    fields.price = editedByUser("priceEditedByUser")
+      ? humanEdited(draft.price)
+      : aiSuggested(draft.price);
+  }
+  if (draft.location) {
+    fields.location = editedByUser("locationEditedByUser")
+      ? humanEdited(draft.location)
+      : aiSuggested(draft.location);
+  }
+  if (draft.category) fields.category = aiSuggested(draft.category);
+  if (draft.description) {
+    fields.description = editedByUser("descriptionEditedByUser")
+      ? humanEdited(draft.description)
+      : aiSuggested(draft.description);
+  }
 
   for (const [key, value] of Object.entries(attrs)) {
-    if (key === "documentImageUrls" || key === "documentUrls" || key === "documentOcrSoftNote") {
+    if (
+      key === "documentImageUrls" ||
+      key === "documentUrls" ||
+      key === "documentOcrSoftNote" ||
+      key === "titleEditedByUser" ||
+      key === "priceEditedByUser" ||
+      key === "locationEditedByUser" ||
+      key === "descriptionEditedByUser"
+    ) {
       continue;
     }
     if (value == null || value === "") continue;
     const fieldKey = `attributes.${key}`;
     fields[fieldKey] = hasDocumentEvidence
-      ? { value, provenance: "DOCUMENT", confidence: null, requiresReview: true, conflicts: [], reviewState: "AI_SUGGESTED" }
-      : aiSuggested(fieldKey, value);
+      ? createIntelField({
+          value,
+          provenance: "DOCUMENT",
+          confidence: null,
+          requiresReview: true,
+        })
+      : aiSuggested(value);
   }
 
-  return {
-    fields,
-    requiresReview: draft.requiresReview ?? false,
-    reviewReasons: [],
-  };
+  const canonical = { fields, requiresReview: false, reviewReasons: [] };
+  // Draft-level review is derived from canonical field state (Phase A policy).
+  return { ...canonical, requiresReview: draftNeedsReview(canonical) };
 }
 
 /**

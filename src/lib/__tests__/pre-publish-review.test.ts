@@ -7,6 +7,12 @@ import {
 } from "@/lib/pre-publish-review";
 import type { AiExtractedListing } from "@/lib/types";
 import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
+import {
+  applyHumanValue,
+  createIntelField,
+  draftNeedsReview,
+  mergeAiSuggestion,
+} from "@vauto/shared/listing-intelligence";
 
 function baseDraft(overrides: Partial<AiExtractedListing> = {}): AiExtractedListing {
   return {
@@ -114,14 +120,16 @@ test("hints never gate publish (purely informational contract)", () => {
 /* Phase B — canonical draft consumption on the client review path             */
 /* -------------------------------------------------------------------------- */
 
-test("buildCanonicalDraftFromListing marks user-visible fields HUMAN_CONFIRMED", () => {
+test("buildCanonicalDraftFromListing treats unknown-origin fields as advisory (AI_INFERRED)", () => {
   const canonical = buildCanonicalDraftFromListing(
     baseDraft({ title: "MacBook Pro", price: 2400, location: "Vilnius" })
   );
-  assert.equal(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
-  assert.equal(canonical.fields.price!.reviewState, "HUMAN_CONFIRMED");
-  assert.equal(canonical.fields.location!.reviewState, "HUMAN_CONFIRMED");
-  assert.equal(canonical.fields.title!.provenance, "USER_ENTERED");
+  // Presence on an editable PrePublish surface is NOT human-authority evidence.
+  assert.equal(canonical.fields.title!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.price!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.location!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.title!.provenance, "AI_INFERRED");
+  assert.equal(canonical.fields.title!.confidence, 0.95);
 });
 
 test("buildCanonicalDraftFromListing never upgrades AI fields to human authority", () => {
@@ -173,4 +181,299 @@ test("summarizeCanonicalDraft is advisory and never exposes publish authority", 
 test("summarizeCanonicalDraft returns empty summary for no draft", () => {
   const summary = summarizeCanonicalDraft(null);
   assert.deepEqual(summary, { fields: [], needsReview: false, hasConflicts: false });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Phase B REMEDIATION — provenance/authority + requiresReview invariant        */
+/* -------------------------------------------------------------------------- */
+/* B1: Human authority must originate ONLY from explicit human events/state.   */
+/* Presence/visibility on an editable PrePublish surface is NOT evidence of    */
+/* human authorship. Explicit user edit is recorded as a canonical marker      */
+/* attribute (titleEditedByUser / priceEditedByUser / locationEditedByUser /   */
+/* descriptionEditedByUser) by the real PrePublish transformation path.        */
+/* -------------------------------------------------------------------------- */
+
+// 1. AI-generated title displayed in PrePublish does NOT become HUMAN_CONFIRMED.
+test("remediation: AI-generated title on PrePublish stays AI_SUGGESTED", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({ title: "MacBook Pro M3 Max", attributes: {} })
+  );
+  assert.equal(canonical.fields.title!.provenance, "AI_INFERRED");
+  assert.equal(canonical.fields.title!.reviewState, "AI_SUGGESTED");
+  assert.notEqual(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
+});
+
+// 2. AI-generated price displayed in PrePublish does NOT become HUMAN_CONFIRMED.
+test("remediation: AI-generated price on PrePublish stays AI_SUGGESTED", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({ price: 2400, attributes: {} })
+  );
+  assert.equal(canonical.fields.price!.provenance, "AI_INFERRED");
+  assert.equal(canonical.fields.price!.reviewState, "AI_SUGGESTED");
+  assert.notEqual(canonical.fields.price!.reviewState, "HUMAN_CONFIRMED");
+});
+
+// 3. AI-generated location displayed in PrePublish does NOT become HUMAN_CONFIRMED.
+test("remediation: AI-generated location on PrePublish stays AI_SUGGESTED", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({ location: "Vilnius", attributes: {} })
+  );
+  assert.equal(canonical.fields.location!.provenance, "AI_INFERRED");
+  assert.equal(canonical.fields.location!.reviewState, "AI_SUGGESTED");
+  assert.notEqual(canonical.fields.location!.reviewState, "HUMAN_CONFIRMED");
+});
+
+// 4. Merely opening/rendering PrePublish cannot change provenance — a pure
+//    transform of the same listing yields the identical canonical state.
+test("remediation: rendering PrePublish is pure — provenance unchanged", () => {
+  const listing = baseDraft({ title: "BMW 320d", price: 19000, location: "Kaunas" });
+  const first = buildCanonicalDraftFromListing(listing);
+  const second = buildCanonicalDraftFromListing(listing);
+  assert.deepEqual(second, first);
+  for (const key of ["title", "price", "location"] as const) {
+    assert.equal(second.fields[key]!.reviewState, "AI_SUGGESTED");
+    assert.equal(second.fields[key]!.provenance, "AI_INFERRED");
+  }
+});
+
+// 5. Explicit user edit CAN create human authority — only via the canonical
+//    marker recorded by the real PrePublish transformation path.
+test("remediation: explicit user edit creates human authority via canonical marker", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      title: "Mano iPhone 15",
+      attributes: { titleEditedByUser: "true" },
+    })
+  );
+  assert.equal(canonical.fields.title!.provenance, "USER_ENTERED");
+  assert.equal(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.title!.requiresReview, false);
+});
+
+// 6. Explicit user confirmation CAN create human authority only through the
+//    canonical human-confirmation mechanism (applyHumanValue), and a
+//    subsequent AI suggestion cannot overwrite it.
+test("remediation: explicit confirmation via canonical mechanism survives AI suggestion", () => {
+  const confirmed = applyHumanValue(
+    createIntelField({ value: "2020", provenance: "AI_INFERRED", confidence: 0.99 }),
+    "2020"
+  );
+  const merged = mergeAiSuggestion(
+    "year",
+    confirmed,
+    createIntelField({ value: "2021", provenance: "VISION", confidence: 0.98 })
+  );
+  assert.equal(merged.field.value, "2020");
+  assert.equal(merged.field.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(merged.conflictCreated, false);
+});
+
+// 7. confidence=1 from AI still does NOT imply HUMAN_CONFIRMED.
+test("remediation: confidence=1 from AI does not imply human confirmation", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({ title: "AI Title", confidence: 1, attributes: {} })
+  );
+  assert.equal(canonical.fields.title!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.title!.provenance, "AI_INFERRED");
+});
+
+// 8. UNKNOWN provenance/confidence stays non-authoritative.
+test("remediation: UNKNOWN provenance/confidence stays non-authoritative", () => {
+  const listing = baseDraft({ title: "x", attributes: {} }) as AiExtractedListing;
+  // AiExtractedListing types confidence as number, but the runtime contract
+  // (and normalizeIntelConfidence) accepts null — cast expresses the honest
+  // unknown state that the transform must tolerate.
+  (listing as { confidence: number | null }).confidence = null;
+  const canonical = buildCanonicalDraftFromListing(listing);
+  assert.equal(canonical.fields.title!.reviewState, "AI_SUGGESTED");
+  assert.notEqual(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.title!.requiresReview, true);
+});
+
+// 9. DOCUMENT/VISION/AI_INFERRED never become HUMAN_CONFIRMED due to UI display.
+test("remediation: DOCUMENT/VISION/AI_INFERRED never gain human authority by display", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      title: "Doc-derived",
+      attributes: {
+        documentImageUrls: ["https://cdn.example/doc.jpg"],
+        registrationYear: "2020",
+      },
+    })
+  );
+  const docAttr = canonical.fields["attributes.registrationYear"]!;
+  assert.equal(docAttr.provenance, "DOCUMENT");
+  assert.equal(docAttr.reviewState, "AI_SUGGESTED");
+  assert.equal(docAttr.requiresReview, true);
+
+  // AI_INFERRED title with high confidence still not human-confirmed.
+  assert.equal(canonical.fields.title!.reviewState, "AI_SUGGESTED");
+});
+
+// 10. HUMAN_CONFIRMED survives later AI suggestion.
+test("remediation: HUMAN_CONFIRMED survives later AI suggestion", () => {
+  const confirmed = applyHumanValue(
+    createIntelField({ value: "2400 €", provenance: "USER_ENTERED" }),
+    "2400 €"
+  );
+  const merged = mergeAiSuggestion(
+    "price",
+    confirmed,
+    createIntelField({ value: "1999 €", provenance: "AI_INFERRED", confidence: 0.99 })
+  );
+  assert.equal(merged.field.value, "2400 €");
+  assert.equal(merged.field.reviewState, "HUMAN_CONFIRMED");
+});
+
+// 11. HUMAN_OVERRIDDEN survives later AI suggestion.
+test("remediation: HUMAN_OVERRIDDEN survives later AI suggestion", () => {
+  const overridden = applyHumanValue(
+    createIntelField({ value: "2020", provenance: "AI_INFERRED", confidence: 0.9 }),
+    "2019",
+    { overridden: true }
+  );
+  const merged = mergeAiSuggestion(
+    "year",
+    overridden,
+    createIntelField({ value: "2020", provenance: "VISION", confidence: 1 })
+  );
+  assert.equal(merged.field.value, "2019");
+  assert.equal(merged.field.reviewState, "HUMAN_OVERRIDDEN");
+});
+
+/* -------------------------------------------------------------------------- */
+/* B2 — draft-level requiresReview derived from canonical field state          */
+/* (single Phase A policy via draftNeedsReview)                                */
+/* -------------------------------------------------------------------------- */
+
+// 12. draft.requiresReview is true whenever canonical field state requires review.
+test("remediation: draft requiresReview reflects field state (AI low confidence)", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      title: "x",
+      price: 100,
+      confidence: 0.3,
+      requiresReview: false,
+      attributes: {},
+    })
+  );
+  assert.equal(canonical.fields.title!.requiresReview, true);
+  assert.equal(canonical.requiresReview, true);
+});
+
+test("remediation: draft requiresReview reflects UNKNOWN confidence", () => {
+  const listing = baseDraft({ title: "x", attributes: {} }) as AiExtractedListing;
+  // Runtime-valid unknown confidence (normalizeIntelConfidence accepts null).
+  (listing as { confidence: number | null }).confidence = null;
+  const canonical = buildCanonicalDraftFromListing(listing);
+  assert.equal(canonical.fields.title!.requiresReview, true);
+  assert.equal(canonical.requiresReview, true);
+});
+
+test("remediation: draft requiresReview reflects DOCUMENT provenance", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      attributes: {
+        documentImageUrls: ["https://cdn.example/doc.jpg"],
+        registrationYear: "2020",
+      },
+    })
+  );
+  assert.equal(canonical.fields["attributes.registrationYear"]!.requiresReview, true);
+  assert.equal(canonical.requiresReview, true);
+});
+
+test("remediation: draft requiresReview reflects explicit conflict", () => {
+  const withConflict = buildCanonicalDraftFromListing(
+    baseDraft({ title: "x", location: "Vilnius", attributes: {} })
+  );
+  const merged = mergeAiSuggestion(
+    "location",
+    withConflict.fields.location!,
+    createIntelField({ value: "Kaunas", provenance: "AI_INFERRED", confidence: 0.9 })
+  );
+  const draft = {
+    fields: { ...withConflict.fields, location: merged.field },
+    requiresReview: false,
+    reviewReasons: [] as string[],
+  };
+  assert.ok(merged.conflictCreated);
+  assert.equal(merged.field.requiresReview, true);
+  assert.equal(merged.field.reviewState, "NEEDS_REVIEW");
+  assert.equal(draftNeedsReview(draft), true);
+});
+
+// 13. No review required only when canonical policy actually permits it.
+test("remediation: all fields genuinely HUMAN_CONFIRMED => no review required", () => {
+  const listing = baseDraft({
+    title: "Tikras pavadinimas",
+    price: 2400,
+    location: "Vilnius",
+    attributes: {
+      titleEditedByUser: "true",
+      priceEditedByUser: "true",
+      locationEditedByUser: "true",
+    },
+  });
+  const canonical = buildCanonicalDraftFromListing(listing);
+  assert.equal(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.price!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.location!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.title!.requiresReview, false);
+  assert.equal(canonical.fields.price!.requiresReview, false);
+  assert.equal(canonical.fields.location!.requiresReview, false);
+  assert.equal(canonical.requiresReview, false);
+});
+
+test("remediation: explicit HUMAN_OVERRIDDEN field does not force review", () => {
+  const overridden = applyHumanValue(
+    createIntelField({ value: "2020", provenance: "AI_INFERRED", confidence: 0.7 }),
+    "2019",
+    { overridden: true }
+  );
+  const draft = {
+    fields: { year: overridden },
+    requiresReview: false,
+    reviewReasons: [] as string[],
+  };
+  assert.equal(overridden.requiresReview, false);
+  assert.equal(draftNeedsReview(draft), false);
+});
+
+test("remediation: mixed human + AI fields derive review from the AI fields", () => {
+  const listing = baseDraft({
+    title: "Žmogaus antraštė",
+    price: 2400,
+    location: "Vilnius",
+    description: "AI sugeneruotas aprašymas",
+    confidence: 0.4,
+    attributes: {
+      titleEditedByUser: "true",
+      priceEditedByUser: "true",
+      locationEditedByUser: "true",
+    },
+  });
+  const canonical = buildCanonicalDraftFromListing(listing);
+  assert.equal(canonical.fields.title!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.description!.reviewState, "AI_SUGGESTED");
+  assert.equal(canonical.fields.description!.requiresReview, true);
+  assert.equal(canonical.requiresReview, true);
+});
+
+// Explicit user edit of price/location also creates authority (marker path).
+test("remediation: explicit price and location edits create human authority", () => {
+  const canonical = buildCanonicalDraftFromListing(
+    baseDraft({
+      price: 3100,
+      location: "Klaipėda",
+      attributes: {
+        priceEditedByUser: "true",
+        locationEditedByUser: "true",
+      },
+    })
+  );
+  assert.equal(canonical.fields.price!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.price!.provenance, "USER_ENTERED");
+  assert.equal(canonical.fields.location!.reviewState, "HUMAN_CONFIRMED");
+  assert.equal(canonical.fields.location!.provenance, "USER_ENTERED");
 });
