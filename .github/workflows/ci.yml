@@ -287,6 +287,11 @@ jobs:
         env:
           CI: "true"
 
+      - name: Run MASTER Wave 1 theme semantics E2E
+        run: npx playwright test e2e/master-wave1-theme-semantics.spec.ts
+        env:
+          CI: "true"
+
       - name: Run enterprise business E2E pack
         run: npx playwright test --project=e2e-enterprise
         env:

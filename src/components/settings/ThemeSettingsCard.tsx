@@ -1,12 +1,13 @@
 "use client";
 
-import { Check, Palette } from "lucide-react";
+import { Check, Monitor, Palette } from "lucide-react";
 import { useAppTheme } from "@/context/AppThemeContext";
-import type { AppThemeId } from "@/lib/app-theme";
+import type { AppThemePreference } from "@/lib/app-theme";
 import { cn } from "@/lib/cn";
 import { Panel } from "@/components/ui/surface";
 
-const SWATCH: Record<AppThemeId, string> = {
+const SWATCH: Record<AppThemePreference, string> = {
+  system: "bg-gradient-to-br from-[#F7F8FB] via-white to-[#0B1220]",
   light: "bg-gradient-to-br from-[#F7F8FB] via-white to-[#ECFDF5]",
   dark: "bg-gradient-to-br from-[#0B1220] via-[#121A2B] to-[#182235]",
 };
@@ -16,12 +17,12 @@ const SWATCH: Record<AppThemeId, string> = {
  * picker stays one tap away without occupying a full card.
  */
 export function ThemeSwatchStrip() {
-  const { theme, setTheme, themes } = useAppTheme();
+  const { preference, setTheme, themes } = useAppTheme();
 
   return (
     <div className="flex items-center gap-2" role="radiogroup" aria-label="Programėlės tema">
       {themes.map((item) => {
-        const active = theme === item.id;
+        const active = preference === item.id;
         return (
           <button
             key={item.id}
@@ -39,7 +40,16 @@ export function ThemeSwatchStrip() {
             )}
           >
             <span className="sr-only">{item.label}</span>
-            {active ? (
+            {item.id === "system" ? (
+              <Monitor
+                className={cn(
+                  "absolute inset-0 m-auto h-3.5 w-3.5",
+                  active ? "text-[var(--vauto-primary)]" : "text-[var(--vauto-text-muted)]"
+                )}
+                aria-hidden
+              />
+            ) : null}
+            {active && item.id !== "system" ? (
               <Check
                 className="absolute inset-0 m-auto h-4 w-4 text-[var(--vauto-primary)]"
                 aria-hidden
@@ -54,18 +64,18 @@ export function ThemeSwatchStrip() {
 
 /** Full theme picker with labels — used on the dedicated settings page. */
 export function ThemeSettingsCard({ className }: { className?: string }) {
-  const { theme, setTheme, themes } = useAppTheme();
+  const { preference, setTheme, themes } = useAppTheme();
 
   return (
     <Panel
       icon={<Palette className="h-4 w-4 text-[var(--vauto-primary)]" />}
       title="Programėlės tema"
-      description="Pakeitimas pritaikomas visoje programėlėje akimirksniu."
+      description="Pakeitimas pritaikomas visoje programėlėje akimirksniu. „Sistemos nustatymas“ automatiškai seka jūsų įrenginio šviesią arba tamsią temą."
       className={className}
     >
       <div className="grid gap-2 sm:grid-cols-3">
         {themes.map((item) => {
-          const active = theme === item.id;
+          const active = preference === item.id;
           return (
             <button
               key={item.id}
@@ -81,11 +91,15 @@ export function ThemeSettingsCard({ className }: { className?: string }) {
             >
               <span
                 className={cn(
-                  "mb-2 block h-9 w-full rounded-lg border border-[var(--vauto-border)]",
+                  "relative mb-2 flex h-9 w-full items-center justify-center rounded-lg border border-[var(--vauto-border)]",
                   SWATCH[item.id]
                 )}
                 aria-hidden
-              />
+              >
+                {item.id === "system" ? (
+                  <Monitor className="h-4 w-4 text-[var(--vauto-text-muted)]" aria-hidden />
+                ) : null}
+              </span>
               <span className="block text-xs font-semibold text-[var(--vauto-text-main)]">
                 {item.label}
               </span>

@@ -84,6 +84,26 @@ export const viewport: Viewport = {
   themeColor: "#F4F7FC",
 };
 
+/**
+ * MASTER Wave 1 — zero-FOUC theme bootstrap.
+ *
+ * Runs synchronously in <head>, before the browser paints <body> and before
+ * React hydrates, so the correct theme is applied on the very first frame —
+ * for a returning DARK user, a first-time visitor with OS dark mode, and
+ * every route (this is a route-agnostic <html> attribute, not page state).
+ *
+ * This mirrors the resolution rules in `src/lib/app-theme.ts`
+ * (`normalizeAppThemePreference` + `resolveActiveTheme`) but is intentionally
+ * duplicated as plain JS: it must execute standalone, before any bundled
+ * module loads. Keep both in sync if the theme contract changes.
+ *
+ * Wrapped in try/catch: if localStorage or matchMedia are unavailable
+ * (privacy mode, very old browser, JS partially blocked), it silently no-ops
+ * and the static `data-app-theme="light"` fallback already on <html> below
+ * is used instead — a safe, deterministic default.
+ */
+const THEME_INIT_SCRIPT = `(function(){try{var k="vauto_app_theme_v1";var s=window.localStorage.getItem(k);var pref=(s==="light"||s==="dark")?s:"system";var active;if(pref==="light"||pref==="dark"){active=pref;}else{var mql=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)");active=(mql&&mql.matches)?"dark":"light";}document.documentElement.setAttribute("data-app-theme",active);}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -91,6 +111,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="lt" translate="no" suppressHydrationWarning data-app-theme="light">
+      <head>
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} antialiased`}
       >
