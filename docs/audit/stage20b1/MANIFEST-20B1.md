@@ -163,7 +163,7 @@ savo vaidmenį etape.
 |------------|--------|
 | **Stage 20B.1-only patch (UTF-8, A klasė)** | `stage20b1/stage20b1-only.patch` |
 | Patch generavimo skriptas | `stage20b1/gen-stage20b1-patch-git.py` |
-| Rekonstruotas pre-20B.1 baseline (A klasės before-source) | `stage20b1/baseline-tree/` |
+| Rekonstruotas pre-20B.1 baseline (A klasės before-source) | `stage20b1/baseline-tree.zip` (NESTED ZIP, 128 failai) |
 | Failų ownership klasifikacija (A/B/C) | `docs/audit/stage20b1/STAGE-20B1-FILE-OWNERSHIP.md` |
 | MANIFEST vs snapshot verifikacijos skriptas | `stage20b1/verify-20b1.1.ps1` |
 
@@ -187,9 +187,12 @@ Roundtrip (apply -> compare) : 46/46 files, 0 mismatches vs live
 | Artefaktas | Kelias |
 |------------|--------|
 | Audit docs | `docs/audit/stage20b1/` (įsk. `STAGE-20B1-FILE-OWNERSHIP.md`) |
-| Source snapshot (A klasė, 46 failai, 1:1 su MANIFEST) | `docs/audit/stage20b1/source-snapshot/` |
+| Source snapshot (A klasė, 46 failai, 1:1 su MANIFEST) — **NESTED ZIP** | `docs/audit/stage20b1/source-snapshot.zip` |
 | Stage 20B.1-only patch (UTF-8) | `stage20b1/stage20b1-only.patch` |
-| Rekonstruotas baseline | `stage20b1/baseline-tree/` |
+| Rekonstruotas baseline (128 failai) — **NESTED ZIP** | `stage20b1/baseline-tree.zip` |
 | Visual evidence | `docs/audit/stage20b1/visual/` + `docs/ui-stage18/` |
-| Testų logai | repo root (`stage20b1-*.log`) |
-| Delta zip | `vauto-20b1.1-delta.zip` (repo root) |
+| Testų logai | `logs/` (repo root: `stage20b1-*.log`) |
+| Verifier #1 (MANIFEST ↔ snapshot.zip) | `stage20b1/verify-manifest-zip-20b1.1.py` |
+| Verifier #2 (provenance + roundtrip) | `stage20b1/verify-package-final.py` |
+
+> **Svarbu (R4):** `source-snapshot` ir `baseline-tree` pateikiami kaip **nested ZIP failai** (ne katalogai), kad root `tsconfig.json` / `next build` jų neįtrauktų kaip aktyvaus source tree. Tai sąmoningas audit-packaging sprendimas. A klasės provenance (MANIFEST ↔ patch ↔ after-source ↔ baseline) yra nepriklausomai patikrinama abiem Python verifieriais iš fresh-extracted R4.

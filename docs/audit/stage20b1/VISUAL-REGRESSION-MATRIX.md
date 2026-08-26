@@ -46,10 +46,18 @@ MASTER LIGHT / MASTER DARK lieka vizualinis SOURCE OF TRUTH.
    Screenshot'ai: `docs/ui-stage18/*.png` (šviežiai regeneruoti).
 
 2. **20B.1 targeted visual regression** (`e2e/stage20b1-visual-regression.spec.ts`) —
-   naujai sukurtas, dengia DISCOVER / DEAL ROOM (/sandoriai) / AI SEARCH
-   (/search) LIGHT+DARK × 1440/390. **12/12 PASS** su **0 horizontal overflow**
-   kiekviename kadre (assertintas kode).
+   DISCOVER / DEAL ROOM (/sandoriai) / AI SEARCH (/search) LIGHT+DARK × 1440/390. **12/12 PASS**
+   su **0 horizontal overflow** kiekviename kadre (assertintas kode).
+   Dark tema įjungiama per kanoninį `vauto_app_theme_v1` raktą (`AppThemeProvider`).
    Screenshot'ai: `docs/audit/stage20b1/visual/*.png`.
+
+3. **Authenticated Deal Room evidence** (`e2e/stage20b1-deal-room-evidence.spec.ts`) —
+   realus, autentifikuotas Deal Room su seeded transakcija (Stage 12A harness).
+   LIGHT+DARK × 1440/390, **4/4 PASS**: `[data-deal-room]` visible, „Pirkėjo kambarys",
+   stepper, offer forma visible, auth modal = 0, „Prisijungti" NOT visible,
+   **horizontal overflow = 0**. Screenshot'ai:
+   `docs/audit/stage20b1/visual-deal-room/*.png`.
+   Detalės: `docs/audit/stage20b1/DEAL-ROOM-EVIDENCE.md`.
 
 3. **Stage 17 design-system suite** — overflow = 0 across breakpoints
    (390/430/768/1024/1440/1920) **PASS**.
@@ -106,6 +114,12 @@ re-search-dark-390-list.png  / re-search-dark-1440-list.png  / re-search-dark-14
 discover-light-1440.png / discover-light-390.png / discover-dark-1440.png / discover-dark-390.png
 sandoriai-light-1440.png / sandoriai-light-390.png / sandoriai-dark-1440.png / sandoriai-dark-390.png
 search-light-1440.png / search-light-390.png / search-dark-1440.png / search-dark-390.png
+```
+
+### docs/audit/stage20b1/visual-deal-room/ (20B.1 — AUTHENTICATED DEAL ROOM)
+
+```
+deal-room-light-1440.png / deal-room-light-390.png / deal-room-dark-1440.png / deal-room-dark-390.png
 ```
 
 ---

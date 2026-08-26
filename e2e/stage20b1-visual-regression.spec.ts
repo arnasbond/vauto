@@ -24,7 +24,9 @@ const VIEWPORTS = [
 
 async function setTheme(page: Page, theme: "light" | "dark") {
   await page.addInitScript((t) => {
-    localStorage.setItem("vauto_theme_v1", t);
+    // Canonical key read by AppThemeProvider (src/lib/storage.ts):
+    //   appTheme: "vauto_app_theme_v1" — raw string, NOT JSON.
+    localStorage.setItem("vauto_app_theme_v1", t);
     document.documentElement.setAttribute("data-app-theme", t);
   }, theme);
   await page.emulateMedia({ colorScheme: theme });

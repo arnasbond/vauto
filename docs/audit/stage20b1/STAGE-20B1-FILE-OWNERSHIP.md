@@ -23,7 +23,8 @@ Klasifikuoti **kiekvieną pakeistą working-tree failą** pagal priklausomybę:
 Repo neturi atskiro 20B.1 branch'o — paskutinis commit yra `d4b7b41a`
 (2026-08-17, Stage 14 era). Visa 20A/20B/20B.1 yra uncommitted working tree.
 
-Pre-20B.1 baseline buvo rekonstruotas iš dviejų patikimų šaltinių:
+Pre-20B.1 baseline buvo rekonstruotas iš dviejų patikimų šaltinių ir sudėtas į
+`stage20b1/baseline-tree/` (128 failai; R4 pakete — `stage20b1/baseline-tree.zip`):
 
 | Šaltinis | Aprašymas | Naudotas kiek |
 |----------|-----------|---------------|
@@ -171,7 +172,7 @@ Jie saugomi `docs/audit/stage20b1/` ir repo root, į patch neįtraukti.
 - `VISUAL-REGRESSION-MATRIX.md`
 - `FINDINGS-20B1.md`
 - `STATUS-20B1.md`
-- `source-snapshot/` (46 failai — A klasės after-source)
+- `source-snapshot.zip` — **NESTED ZIP** (46 failai — A klasės after-source, plokšti `_` pavadinimai; 1:1 su MANIFEST — tikrina `verify-manifest-zip-20b1.1.py`)
 - `visual/*.png` (12 screenshot'ų)
 
 ### 5.2 Dokumentacija (kita)
@@ -197,8 +198,10 @@ Jie saugomi `docs/audit/stage20b1/` ir repo root, į patch neįtraukti.
 
 - `stage20b1/stage20b1-only.patch` — **švarus UTF-8 A klasės patch**
 - `stage20b1/verify-20b1.1.ps1` — MANIFEST vs snapshot automatinė verifikacija
+- `stage20b1/verify-manifest-zip-20b1.1.py` — **verifier #1**: MANIFEST ↔ `source-snapshot.zip` (46/46) — self-contained iš fresh-extracted R4
+- `stage20b1/verify-package-final.py` — **verifier #2**: pilna provenance (MANIFEST ↔ patch ↔ after-source ↔ baseline) + `git apply` roundtrip — self-contained iš fresh-extracted R4
 - `stage20b1/gen-stage20b1-patch-git.py` — patch generavimo skriptas (reprodukuojamas)
-- `stage20b1/baseline-tree/` — rekonstruotas pre-20B.1 baseline (A klasės before-source)
+- `stage20b1/baseline-tree.zip` — **NESTED ZIP**: rekonstruotas pre-20B.1 baseline (A klasės before-source, 128 failai — 42 A klasės + 86 kiti 20B-era failai)
 
 ---
 
