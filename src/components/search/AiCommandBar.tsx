@@ -53,6 +53,7 @@ import { splitComposerAttachments } from "@/lib/chat-document-extract";
 import { pickAndSendChatPhotos } from "@/lib/chat-photo-upload-flow";
 import { prepareChatImagesForAgent } from "@/lib/prepare-chat-images-for-agent";
 import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
+import { PhotoSearchScanOverlay } from "@/components/search/PhotoSearchScanOverlay";
 import { peekPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
 import {
   inferListingFlowState,
@@ -1196,6 +1197,8 @@ export function AiCommandBar({
         onClose={() => setPhotoSourceSheetOpen(false)}
         onSelect={handlePhotoSourceSelect}
       />
+
+      <PhotoSearchScanOverlay active={isPhotoSearching} />
     </>
   );
 }

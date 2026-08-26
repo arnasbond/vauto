@@ -1,7 +1,16 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { MapPin, Loader2, Phone, X, Star } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronDown,
+  MapPin,
+  Loader2,
+  Phone,
+  Sparkles,
+  X,
+  Star,
+} from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
 import { LISTING_CATEGORY_LABELS } from "@vauto/shared/category-registry";
 import { cn } from "@/lib/cn";
@@ -33,6 +42,68 @@ function categoryLabel(category?: string): string {
   );
 }
 
+/* -------------------------------------------------------------------------- */
+/* AI Maturity Phase C — canonical listing-intelligence surfacing (advisory).   */
+/* Pure presentation: never mutates the draft, never gates/authorizes publish. */
+/* -------------------------------------------------------------------------- */
+
+const INTEL_FIELD_LABELS: Record<string, string> = {
+  title: "Pavadinimas",
+  price: "Kaina",
+  location: "Vietovė",
+  category: "Kategorija",
+  description: "Aprašymas",
+};
+
+function intelFieldLabel(fieldKey: string): string {
+  if (INTEL_FIELD_LABELS[fieldKey]) return INTEL_FIELD_LABELS[fieldKey]!;
+  if (fieldKey.startsWith("attributes.")) {
+    const attr = fieldKey.slice("attributes.".length);
+    return attr.charAt(0).toUpperCase() + attr.slice(1);
+  }
+  return fieldKey;
+}
+
+const INTEL_SOURCE_LABELS: Record<string, string> = {
+  USER_TEXT: "jūsų žinutė",
+  USER_ENTERED: "jūsų įvestis",
+  VISION: "nuotrauka",
+  DOCUMENT: "dokumentas",
+  SCHEMA: "šablonas",
+  CONTEXT: "kontekstas",
+  AI_INFERRED: "AI",
+  UNKNOWN: "nežinoma",
+};
+
+function intelSourceLabel(source: string): string {
+  return INTEL_SOURCE_LABELS[source] ?? source;
+}
+
+const INTEL_CONFIDENCE_LABELS: Record<string, string> = {
+  HIGH: "aukštas",
+  MEDIUM: "vidutinis",
+  LOW: "žemas",
+  UNKNOWN: "nežinomas",
+};
+
+function intelConfidenceLabel(tier: string): string {
+  return INTEL_CONFIDENCE_LABELS[tier] ?? tier;
+}
+
+function dedupeConflictCandidates(
+  candidates: Array<{ value: unknown; source: string }>
+): Array<{ value: unknown; source: string }> {
+  const seen = new Set<string>();
+  const out: Array<{ value: unknown; source: string }> = [];
+  for (const candidate of candidates) {
+    const key = `${candidate.source}::${JSON.stringify(candidate.value)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(candidate);
+  }
+  return out;
+}
+
 export function PrePublishListingCard({
   card,
   publishing = false,
@@ -43,6 +114,7 @@ export function PrePublishListingCard({
   const [visibilityId, setVisibilityId] =
     useState<PrePublishVisibilityId>("standard");
   const [descExpanded, setDescExpanded] = useState(false);
+  const [intelExpanded, setIntelExpanded] = useState(false);
   const publishButtonRef = useRef<HTMLButtonElement>(null);
   const submitLockRef = useRef(false);
   const selected = getPrePublishVisibilityOption(visibilityId);
@@ -54,6 +126,20 @@ export function PrePublishListingCard({
   const cover = gallery[0] ?? null;
   const description = card.description?.trim() ?? "";
   const longDesc = description.length > 220;
+
+  const conflictFields = (card.intelSummary?.hasConflicts
+    ? card.intelSummary.fields.filter(
+        (f) => (f.detail?.conflictSources.length ?? 0) > 0
+      )
+    : []);
+  // Fields already surfaced in the conflict panel above are excluded here to
+  // avoid duplicate messaging for the same field.
+  const qualityFields =
+    card.intelSummary?.fields.filter(
+      (f) =>
+        (f.state === "SUGGESTED" || f.state === "REVIEW") &&
+        (f.detail?.conflictSources.length ?? 0) === 0
+    ) ?? [];
 
   const submitPublish = () => {
     if (submitLockRef.current || publishing) return;
@@ -231,6 +317,97 @@ export function PrePublishListingCard({
                 </li>
               ))}
             </ul>
+          </div>
+        ) : null}
+
+        {conflictFields.length > 0 ? (
+          <div
+            className="rounded-xl border border-red-300/50 bg-red-50/70 p-2.5"
+            data-prepublish-intel-conflicts
+          >
+            <p className="flex items-center gap-1.5 text-xs font-bold text-red-900">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              Šaltiniai nesutampa
+            </p>
+            <ul className="mt-1.5 space-y-1.5">
+              {conflictFields.map((f) => (
+                <li
+                  key={f.fieldKey}
+                  className="text-[11px] leading-snug text-red-900/80"
+                >
+                  <span className="font-semibold">
+                    {intelFieldLabel(f.fieldKey)}:
+                  </span>{" "}
+                  {dedupeConflictCandidates(f.detail?.conflictSources ?? [])
+                    .map(
+                      (c) => `${intelSourceLabel(c.source)} — „${String(c.value)}"`
+                    )
+                    .join(" vs. ")}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5 text-[10px] leading-snug text-red-900/60">
+              Galutinę reikšmę patikslinkite pokalbyje su AI prieš publikavimą.
+            </p>
+          </div>
+        ) : null}
+
+        {qualityFields.length > 0 ? (
+          <div
+            className="rounded-xl border border-[var(--vauto-border)]/60 bg-[var(--vauto-surface-muted)]/40 p-2.5"
+            data-prepublish-intel-quality
+          >
+            <button
+              type="button"
+              onClick={() => setIntelExpanded((v) => !v)}
+              className="flex w-full items-center justify-between gap-2 text-left"
+              aria-expanded={intelExpanded}
+            >
+              <span className="flex items-center gap-1.5 text-xs font-bold text-[var(--vauto-text)]">
+                <Sparkles
+                  className="h-3.5 w-3.5 shrink-0 text-[var(--vauto-primary)]"
+                  aria-hidden
+                />
+                AI kokybės pastabos
+              </span>
+              <ChevronDown
+                className={cn(
+                  "h-3.5 w-3.5 shrink-0 text-[var(--vauto-text-muted)] transition-transform",
+                  intelExpanded && "rotate-180"
+                )}
+                aria-hidden
+              />
+            </button>
+            {card.intelSummary?.advisory ? (
+              <p className="mt-1 text-[11px] leading-snug text-[var(--vauto-text-muted)]">
+                {card.intelSummary.advisory}
+              </p>
+            ) : null}
+            {intelExpanded ? (
+              <ul className="mt-2 space-y-1.5 border-t border-[var(--vauto-border)]/50 pt-2">
+                {qualityFields.map((f) => (
+                  <li
+                    key={f.fieldKey}
+                    className="flex items-center justify-between gap-2 text-[11px]"
+                  >
+                    <span className="text-[var(--vauto-text-muted)]">
+                      {intelFieldLabel(f.fieldKey)}
+                    </span>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                        f.state === "REVIEW"
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-slate-100 text-slate-600"
+                      )}
+                    >
+                      {f.state === "REVIEW" ? "Peržiūrėti" : "AI pasiūlymas"} ·{" "}
+                      {intelConfidenceLabel(f.confidenceTier)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         ) : null}
 

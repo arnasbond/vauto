@@ -17,7 +17,12 @@ import {
 import { coerceListingCategoryForDb } from "@vauto/shared/category-registry";
 import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
-import { buildDraftReviewHints, type DraftReviewHint } from "@/lib/pre-publish-review";
+import {
+  buildDraftReviewHints,
+  summarizeCanonicalDraft,
+  type DraftReviewHint,
+} from "@/lib/pre-publish-review";
+import type { IntelDraftSummary } from "@vauto/shared/intelligence-projection";
 import {
   dedupeListingImageUrls,
   filterSessionListingImages,
@@ -46,6 +51,12 @@ export interface PrePublishCardPayload {
   vatLabelGross?: string;
   /** Non-blocking review hints ("Patikrinkite prieš publikavimą"). */
   reviewHints?: DraftReviewHint[];
+  /**
+   * Canonical listing-intelligence summary (Phase C) — progressive-disclosure
+   * per-field confidence/conflict view. Purely advisory: never gates or alters
+   * publishing, never mutates the draft.
+   */
+  intelSummary?: IntelDraftSummary;
 }
 
 export function buildPrePublishCardPayload(
@@ -105,6 +116,7 @@ export function buildPrePublishCardPayload(
     }),
     ...(vatLabelNet ? { vatLabelNet, vatLabelGross } : {}),
     reviewHints: buildDraftReviewHints(draft, readiness),
+    intelSummary: summarizeCanonicalDraft(draft),
   };
 }
 
