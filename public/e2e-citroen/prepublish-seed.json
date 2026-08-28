@@ -1,0 +1,81 @@
+{
+  "createdAt": "2026-07-21T12:33:05.711Z",
+  "reply": "Štai jūsų skelbimo peržiūra — patikrinkite antraštę, kainą ir nuotraukas. Publikavimas vyksta TIK paspaudus „Patvirtinti ir publikuoti“.",
+  "quickReplies": [
+    "Parduoti citroën C4 Picasso automobilis",
+    "Parduoti automobilio registracijos liudijimas"
+  ],
+  "uploadedMeta": [
+    {
+      "name": "c1.png",
+      "bytes": 302023,
+      "kind": "tech_pasas"
+    },
+    {
+      "name": "c2.png",
+      "bytes": 196994,
+      "kind": "car"
+    },
+    {
+      "name": "c5.png",
+      "bytes": 184055,
+      "kind": "car"
+    },
+    {
+      "name": "c6.png",
+      "bytes": 233128,
+      "kind": "car"
+    },
+    {
+      "name": "c7.png",
+      "bytes": 247219,
+      "kind": "car"
+    },
+    {
+      "name": "c8.png",
+      "bytes": 154117,
+      "kind": "car"
+    },
+    {
+      "name": "c9.png",
+      "bytes": 208103,
+      "kind": "car"
+    }
+  ],
+  "draft": {
+    "title": "Citroën C4 Picasso automobilis",
+    "description": "Nuotraukoje matau kelis objektus: Citroën C4 Picasso automobilis, Automobilio registracijos liudijimas. Ar teisingai suprantu, kad ruošiame skelbimą „Citroën C4 Picasso automobilis\"? Pasirinkite objektą žemiau.",
+    "price": 2250,
+    "location": "Prienai",
+    "category": "vehicles",
+    "contact": "+37060000002",
+    "attributes": {
+      "year": "2007",
+      "seats": "7",
+      "engine": "2.0 HDi"
+    },
+    "orderedImageUrls": [
+      "/e2e-citroen/c6.png",
+      "/e2e-citroen/c2.png",
+      "/e2e-citroen/c5.png",
+      "/e2e-citroen/c7.png",
+      "/e2e-citroen/c8.png",
+      "/e2e-citroen/c9.png"
+    ],
+    "listingFlowState": "AWAITING_CONFIRMATION"
+  },
+  "coverUrl": "/e2e-citroen/c6.png",
+  "techPasasExcluded": true,
+  "visionDescription": "Nuotraukoje matau kelis objektus: Citroën C4 Picasso automobilis, Automobilio registracijos liudijimas. Ar teisingai suprantu, kad ruošiame skelbimą „Citroën C4 Picasso automobilis\"? Pasirinkite objektą žemiau.",
+  "visionAttributes": {},
+  "prePublishCard": {
+    "title": "Citroën C4 Picasso automobilis",
+    "description": "Nuotraukoje matau kelis objektus: Citroën C4 Picasso automobilis, Automobilio registracijos liudijimas. Ar teisingai suprantu, kad ruošiame skelbimą „Citroën C4 Picasso automobilis\"? Pasirinkite objektą žemiau.",
+    "price": 2250,
+    "location": "Prienai",
+    "phone": "+37060000002",
+    "imageUrl": null,
+    "category": "vehicles"
+  },
+  "visionNotes": "scanListingPhotos saw car + registration_document; seller chose car. Cover forced to c6 exterior; tech pasas excluded from gallery."
+}

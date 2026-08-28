@@ -99,7 +99,7 @@ import {
 import {
   notifyNegotiationDealClosed,
 } from "../services/push-service.js";
-import { AUTH_SESSION_EXPIRED_MESSAGE, requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
+import { AUTH_SESSION_EXPIRED_MESSAGE, optionalAuth, requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
@@ -428,6 +428,31 @@ apiRouter.get("/listings/mine", requireAuth, async (req: AuthedRequest, res) => 
   }
 });
 
+/** Single listing by id — public if active; pending-review visible to owner/admin. */
+apiRouter.get("/listings/:id", optionalAuth, async (req: AuthedRequest, res) => {
+  try {
+    const id = String(req.params.id ?? "").trim();
+    if (!id) {
+      res.status(400).json({ error: "Missing listing id" });
+      return;
+    }
+    const listing = await getListingForEmbedding(id);
+    if (!listing || listing.banned) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    const isOwner = Boolean(req.authUserId && listing.sellerId === req.authUserId);
+    const admin = await userIsAdmin(req);
+    if (listing.requiresReview && !isOwner && !admin) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.json(listing);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 apiRouter.get("/listings", async (req, res) => {
   try {
     const page = await fetchListingsFeed({
@@ -465,6 +490,12 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
     }
     if (resolveConductorRequiresReviewForListing(listing)) {
       listing = { ...listing, requiresReview: true };
+    } else if (
+      String(listing.attributes?.prePublishConfirmed ?? "")
+        .trim()
+        .toLowerCase() === "true"
+    ) {
+      listing = { ...listing, requiresReview: false };
     }
     const clientDraftId =
       typeof listing.attributes?.clientDraftId === "string"

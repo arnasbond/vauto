@@ -15,6 +15,7 @@ export interface ListingDraftContext {
   category?: string;
   attributes?: Record<string, string>;
   allowPastomatas?: boolean;
+  orderedImageUrls?: string[];
   listingFlowState?:
     | "DRAFTING_TEXT"
     | "AWAITING_PHOTOS"
@@ -117,9 +118,15 @@ export function normalizeListingDraftForAction(
   confidence: number;
   attributes?: Record<string, string>;
   allowPastomatas?: boolean;
+  orderedImageUrls?: string[];
   listingFlowState?: ListingDraftContext["listingFlowState"];
 } {
   const listingFlowState = opts?.listingFlowState ?? draft.listingFlowState;
+  const orderedImageUrls = (draft.orderedImageUrls ?? [])
+    .map((u) => String(u ?? "").trim())
+    .filter(Boolean)
+    .filter((u, i, arr) => arr.indexOf(u) === i)
+    .slice(0, 6);
   return {
     title: draft.title?.trim() || "Naujas skelbimas",
     description: draft.description,
@@ -131,6 +138,7 @@ export function normalizeListingDraftForAction(
     attributes: draft.attributes,
     allowPastomatas:
       draft.allowPastomatas === undefined ? undefined : draft.allowPastomatas,
+    ...(orderedImageUrls.length ? { orderedImageUrls } : {}),
     ...(listingFlowState ? { listingFlowState } : {}),
   };
 }

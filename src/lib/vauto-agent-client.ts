@@ -559,11 +559,18 @@ export function mapAgentDraftToListing(draft: {
   confidence: number;
   attributes?: Record<string, string | string[]>;
   allowPastomatas?: boolean;
+  orderedImageUrls?: string[];
   listingFlowState?: AiExtractedListing["listingFlowState"];
 }): AiExtractedListing {
   const category = VALID.includes(draft.category as ListingCategory)
     ? (draft.category as ListingCategory)
     : "other";
+
+  const orderedImageUrls = (draft.orderedImageUrls ?? [])
+    .map((u) => String(u ?? "").trim())
+    .filter(Boolean)
+    .filter((u, i, arr) => arr.indexOf(u) === i)
+    .slice(0, 6);
 
   return {
     title: draft.title,
@@ -575,6 +582,7 @@ export function mapAgentDraftToListing(draft: {
     confidence: draft.confidence,
     attributes: safeDraftAttributes(draft.attributes),
     allowPastomatas: typeof draft.allowPastomatas === "boolean" ? draft.allowPastomatas : true,
+    ...(orderedImageUrls.length ? { orderedImageUrls } : {}),
     ...(draft.listingFlowState ? { listingFlowState: draft.listingFlowState } : {}),
   };
 }
@@ -685,7 +693,7 @@ export function registerAgentPendingImagesHost(fn: ((urls: string[]) => void) | 
 }
 
 export function notifyAgentPendingImages(urls: string[]): void {
-  const clean = urls.filter(Boolean).slice(0, 6);
+  const clean = urls.filter(Boolean).slice(0, 7);
   if (!clean.length) return;
   agentPendingImagesHost?.(clean);
 }

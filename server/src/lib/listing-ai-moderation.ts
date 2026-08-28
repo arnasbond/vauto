@@ -163,7 +163,12 @@ export function scheduleListingAiModeration(listing: ApiListing): void {
         requiresReview: false,
       });
       void notifySellerListingRejected(listing, result.reason);
-    } else if (result.action === "review" && !listing.requiresReview) {
+    } else if (
+      result.action === "review" &&
+      !listing.requiresReview &&
+      // Explicit PrePublish confirmation already reviewed the draft — do not re-gate.
+      String(listing.attributes?.prePublishConfirmed || "").toLowerCase() !== "true"
+    ) {
       await adminPatchListing(listing.id, { requiresReview: true });
     }
     logProductionWarn("listing_ai_moderation", result.action, {

@@ -33,12 +33,12 @@ const STATE_ORDER: ListingFlowState[] = [
 ];
 
 const EVENT_TARGET: Record<ListingFlowEvent, ListingFlowState | null> = {
-  /** Text draft ready — photos optional; ask photos vs PrePublish */
+  /** Text draft ready — stay in chat for review/edits */
   DRAFT_SAVED: "DRAFT_READY",
-  /** Vision finished — same DRAFT_READY gate */
+  /** Vision finished — stream description into chat; PrePublish only on explicit finalize */
   PHOTOS_SCANNED: "DRAFT_READY",
-  /** Multi-object chip pick — lock straight to PrePublish */
-  OBJECT_SELECTED: "AWAITING_CONFIRMATION",
+  /** Multi-object chip pick — draft in chat first, not PrePublish */
+  OBJECT_SELECTED: "DRAFT_READY",
   READY_TO_PUBLISH: "AWAITING_CONFIRMATION",
   CONFIRMATION_SHOWN: "AWAITING_CONFIRMATION",
   FLOW_RESET: null,
@@ -52,11 +52,14 @@ export const AWAITING_PHOTOS_PROMPT =
   "Puiku — įkelkite iki 6 nuotraukų čia pokalbyje. Gera nuotrauka dažnai atneša kelis kartus daugiau dėmesio.";
 
 export const AWAITING_PHOTOS_NUDGE =
-  "Kai būsite pasiruošę — įkelkite nuotraukas čia pokalbyje (iki 6 vnt.). Arba parašykite „Judame prie PrePublish“, jei norite peržiūrėti be nuotraukų.";
+  "Kai būsite pasiruošę — įkelkite nuotraukas čia pokalbyje (iki 6 vnt.). Galite ir toliau tobulinti aprašymą tekste.";
 
-/** Shared gate after text OR vision draft is ready (Arnold text-first). */
+/**
+ * After text OR vision draft: keep the conversation in chat.
+ * Never open or pitch PrePublish here — only after explicit finalize.
+ */
 export const POST_VISION_PUBLISH_GATE =
-  "Aprašymas paruoštas! Ar norite dabar prisegti nuotraukas, ar judame tiesiai prie PrePublish kortelės peržiūros?";
+  "Štai pilnas skelbimo juodraštis pagal nuotraukas. Peržiūrėkite aprašymą ir specifikacijas čia pokalbyje — parašykite, ką pataisyti. Kai viskas tinka, parašykite „Tinka“ arba „Publikuok“.";
 
 /** Alias — same universal gate copy. */
 export const TEXT_DRAFT_READY_GATE = POST_VISION_PUBLISH_GATE;
@@ -65,7 +68,9 @@ export const POST_VISION_MORE_PHOTOS_NUDGE =
   "Gerai — įkelkite nuotraukas čia pokalbyje (iki 6 vnt.). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
 
 export const POST_VISION_PUBLISH_CHIPS = [
-  "Judame prie PrePublish",
+  "Tinka — publikuok",
+  "Pataisyti aprašymą",
+  "Pataisyti kainą",
   "Prisegti nuotraukas",
 ] as const;
 
@@ -98,13 +103,16 @@ export function nounFromVisionObjectSellChip(text: string): string {
     .trim();
 }
 
-/** „viskas / publikuojam / PrePublish / nenoriu“ → lock PrePublish */
+/** „tinka / publikuok / Rodyk PrePublish / viskas“ → lock PrePublish (explicit only) */
 export function isPublishReadyIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
   if (/^nenoriu(\b|$)/i.test(t)) return true;
   if (/^viskas\b/i.test(t)) return true;
-  if (/\bpublikuojam\b|\bpublikuoti\b/i.test(t)) return true;
+  if (/^(tinka|tikra|ok|gerai)\b/i.test(t)) return true;
+  if (/tinka\s*[—\-–]?\s*publikuok/i.test(t)) return true;
+  if (/\bpublikuok\b|\bpublikuojam\b|\bpublikuoti\b/i.test(t)) return true;
+  if (/\brodyk\b.*\b(prepublish|pre-publish|kortel)/i.test(t)) return true;
   if (/\bprepublish\b|\bpre-publish\b|\bpre\s*publish\b/i.test(t)) return true;
   if (/\bjudame\b.*\b(prepublish|publik|peržiūr)/i.test(t)) return true;
   if (/\bprie\s+(prepublish|publik|peržiūr)/i.test(t)) return true;
@@ -278,7 +286,11 @@ export function transitionListingFlow(
       return "DRAFT_READY";
     }
     if (
-      event === "OBJECT_SELECTED" ||
+      event === "OBJECT_SELECTED"
+    ) {
+      return "DRAFT_READY";
+    }
+    if (
       event === "READY_TO_PUBLISH" ||
       event === "CONFIRMATION_SHOWN"
     ) {
@@ -314,10 +326,10 @@ export function listingFlowComposerPlaceholder(
   state: ListingFlowState | null
 ): string | null {
   if (state === "AWAITING_PHOTOS") {
-    return "Įkelkite nuotraukas arba „Judame prie PrePublish“…";
+    return "Įkelkite nuotraukas arba patikslinkite aprašymą…";
   }
   if (state === "DRAFT_READY") {
-    return "„Prisegti nuotraukas“ arba „Judame prie PrePublish“…";
+    return "Pataisykite juodraštį arba parašykite „Tinka“ / „Publikuok“…";
   }
   if (state === "AWAITING_CONFIRMATION") {
     return "Spauskite „Patvirtinti ir publikuoti“ ant kortelės";
@@ -377,12 +389,12 @@ export function dispatchListingFlowTurn(input: {
     return { kind: "process_photos" };
   }
 
-  /** Multi-object pick → PrePublish immediately (no photos-nudge / LLM detour). */
+  /** Multi-object pick → draft in chat (description first); PrePublish only on explicit finalize */
   if (isVisionObjectSellChip(text)) {
     return { kind: "object_selected" };
   }
 
-  /** Hero gate: PrePublish / publikuojam — photos NOT required */
+  /** Explicit finalize only: Tinka / Publikuok / Rodyk PrePublish */
   if (
     isPublishReadyIntent(text) &&
     (state === "DRAFT_READY" ||
@@ -401,7 +413,8 @@ export function dispatchListingFlowTurn(input: {
     if (isMorePhotosIntent(text)) {
       return { kind: "nudge_photos", reply: POST_VISION_MORE_PHOTOS_NUDGE };
     }
-    return { kind: "show_draft_gate", reply: POST_VISION_PUBLISH_GATE };
+    // Stay in chat — let the agent iterate on the draft (never auto-pitch PrePublish).
+    return { kind: "allow_drafting" };
   }
 
   if (state === "AWAITING_PHOTOS") {
@@ -418,7 +431,7 @@ export function dispatchListingFlowTurn(input: {
   return { kind: "allow_drafting" };
 }
 
-/** After text draft: show description + Arnold gate (photos optional). */
+/** After text draft: show full description in chat — no PrePublish pitch. */
 export function buildDraftingCompletePhotosPrompt(draft: {
   title?: string;
   description?: string;
@@ -433,9 +446,9 @@ export function buildDraftingCompletePhotosPrompt(draft: {
   const bits = [title, price, loc].filter(Boolean).join(" · ");
   const preview =
     desc && desc.length >= 40
-      ? `\n\n${desc.length > 320 ? `${desc.slice(0, 320).trim()}…` : desc}`
+      ? `\n\n${desc}`
       : "";
-  return `Paruošiau skelbimą: ${bits}.${preview}\n\n${POST_VISION_PUBLISH_GATE}`;
+  return `Paruošiau skelbimo juodraštį: ${bits}.${preview}\n\n${POST_VISION_PUBLISH_GATE}`;
 }
 
 /** Alias for text-first complete draft bubble. */
@@ -448,7 +461,7 @@ export function buildTextDraftReadyMessage(draft: {
   return buildDraftingCompletePhotosPrompt(draft);
 }
 
-/** Beautiful completed listing bubble after Vision — then publish gate question. */
+/** Completed listing bubble after Vision — full description in chat for review/edits. */
 export function buildPostVisionHeroMessage(draft: {
   title?: string;
   description?: string;
@@ -471,7 +484,7 @@ export function buildPostVisionHeroMessage(draft: {
         ? "Patarimas: metai, rida ir komplektacija kelia pasitikėjimą labiau nei ilgas tekstas be faktų."
         : "Patarimas: konkretus aprašymas parduoda greičiau — nuotraukas galite pridėti dabar arba vėliau.";
   const lines = [
-    `Paruošiau gražų skelbimą:`,
+    `Paruošiau skelbimo juodraštį pagal nuotraukas:`,
     ``,
     title,
     desc ? `\n${desc}` : "",

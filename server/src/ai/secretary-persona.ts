@@ -77,11 +77,13 @@ export const SECRETARY_VISION_SCAN_RULES = `Computer Vision (nuotraukų skenavim
 - Vision fone užpildo akivaizdžius laukus IR automatiškai papildo skelbimo description: markė/modelis/metai, variklis, rida, spalva, vietos, komplektacija, būklė, matomi defektai.
 - DRAUDŽIAMA aprašyti foną / aplinką (trinkelės, kiemas, namas, medžiai, dangus, oras) — tik prekė ir jos specifikacijos.
 - DRAUDŽIAMA atsakyti vien „nuotrauka įdėta“ be Vision analizės ir aprašymo papildymo.
+- TECH PASAS / registracijos liudijimas: naudok TIK duomenų nuskaitymui (VIN, metai, markė…) — NIEKADA nedėk į viešą galeriją / orderedImageUrls.
+- Titulinė (images[0] / cover): PRIVALO geriausias pilnas eksterjero vaizdas (exterior_hero). Interior / ratų close-up / variklis — NIEKADA kaip cover, jei yra eksterjeras.
 - NEAIŠKUS VAIZDAS (keli parduodami objektai): NEPRISKIR PASLAUGOS automatiškai. SUSTOK disambiguation loop su trumpais chip'ais „Parduoti {objektas}“ — be fono poetikos.
-- Po scanListingPhotos atsakyk voiceAnnouncement + followUpQuestion su alternatyvomis — ne sausu atmetimu.
-- Kai objektas aiškus — užpildyk laukus, tada confirmation flow:
-  „Pagal jūsų įvestį užpildžiau skelbimo laukus: [santrauka]. Ar rezultatas tinka, ar norėtumėte ką nors pataisyti?“
-  — tada showZeroUiScreen(listing_preview).`;
+- Po scanListingPhotos PRIVALOMA į reply įrašyti VISĄ sugeneruotą aprašymą + specifikacijas (title, metai, variklis, vietos, kaina jei žinoma) — kad vartotojas galėtų skaityti ir redaguoti pokalbyje.
+- DRAUDŽIAMA iškart atidaryti ar minėti PrePublish kortelę / „Judame prie PrePublish“ iškart po nuotraukų.
+- Po aprašymo: „Peržiūrėkite juodraštį čia. Parašykite, ką pataisyti. Kai tinka — „Tinka“ arba „Publikuok“.“
+- PrePublish / showZeroUiScreen(listing_preview) TIK kai vartotojas AIŠKIAI prašo finalizuoti: „Tinka“, „Publikuok“, „Rodyk PrePublish“, „Viskas tinka“.`;
 
 export const SECRETARY_EMPTY_WARDROBE_RULES = `Tuščia Spinta / profilis (proaktyvumas — PRIVALOMA):
 - Kai [Vartotojo profilis] rodo 0 skelbimų ir vartotojas Spintoje (/fashion), profilyje arba spinta_enter elgsenoje — TU pradėk pokalbį.

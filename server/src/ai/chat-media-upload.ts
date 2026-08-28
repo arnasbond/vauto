@@ -91,7 +91,8 @@ function uniqueImageUrls(urls: string[]): string[] {
     const u = String(raw ?? "").trim();
     if (u && !out.includes(u)) out.push(u);
   }
-  return out.slice(0, 6);
+  // 6 public car photos + 1 registration doc (filtered out of gallery later).
+  return out.slice(0, 7);
 }
 
 type MediaListingDraft = {
@@ -101,6 +102,7 @@ type MediaListingDraft = {
   location?: string;
   category?: string;
   attributes?: Record<string, string>;
+  orderedImageUrls?: string[];
   listingFlowState?: ListingFlowState;
 };
 
@@ -164,6 +166,9 @@ async function resolveListingPhotoScan(input: {
     ])
   );
 
+  const galleryUrls =
+    parsed.orderedImageUrls.length > 0 ? parsed.orderedImageUrls : imageUrls;
+
   const visionDraft = {
     title: parsed.listing.title,
     description: mergeVisionDescription(
@@ -174,6 +179,7 @@ async function resolveListingPhotoScan(input: {
     location: parsed.listing.location || input.listingDraft?.location || "",
     category: parsed.listing.category,
     attributes: listingAttrs,
+    orderedImageUrls: galleryUrls,
   };
 
   const nextState =
@@ -189,6 +195,7 @@ async function resolveListingPhotoScan(input: {
             ...(input.listingDraft.attributes ?? {}),
             ...visionDraft.attributes,
           },
+          orderedImageUrls: galleryUrls,
           listingFlowState: nextState,
         }
       : { ...visionDraft, listingFlowState: nextState },
@@ -225,16 +232,18 @@ async function resolveListingPhotoScan(input: {
           ok: true,
           message: reply,
           draft: mergedDraft,
-          imageUrls,
+          imageUrls: galleryUrls,
+          orderedImageUrls: galleryUrls,
+          excludedImageUrls: parsed.excludedImageUrls,
           listingFlowState: nextState,
         },
       },
     ],
     actions: {
       type: "listing_draft",
-      listingDraft: mergedDraft,
-      imageUrl: imageUrls[0],
-      imageUrls,
+      listingDraft: { ...mergedDraft, orderedImageUrls: galleryUrls },
+      imageUrl: galleryUrls[0],
+      imageUrls: galleryUrls,
     },
   };
 }

@@ -1,20 +1,51 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Barcode, Camera, MessageCircle, Sparkles } from "lucide-react";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
 import { BarcodeScanSheet } from "@/components/product/BarcodeScanSheet";
+import { PrePublishListingCard } from "@/components/home/PrePublishListingCard";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useLayoutMode } from "@/context/LayoutModeContext";
 import { useBarcodeScanFlow } from "@/hooks/useBarcodeScanFlow";
-import { pickAndSendChatPhotos } from "@/lib/chat-photo-upload-flow";
+import {
+  MAX_CHAT_COMPOSER_ATTACHMENTS,
+} from "@/lib/chat-composer-media";
+import { compressForAiVision } from "@/lib/native-media";
 import { applyProfileToListingDraft } from "@/lib/profile-listing-sync";
 import { createManualFallbackDraft } from "@/lib/ai-safeguards";
 import { transitionListingFlow } from "@/lib/listing-conversational-flow";
+import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
+import type { AiExtractedListing } from "@/lib/types";
+import { useSellerFlow } from "@/context/SellerFlowContext";
+
+async function filesToPendingImageUrls(files: File[]): Promise<string[]> {
+  const limited = files.slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS);
+  const urls: string[] = [];
+  for (const file of limited) {
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () =>
+        reject(reader.error ?? new Error("FileReader failed"));
+      reader.readAsDataURL(file);
+    });
+    const compressed = await compressForAiVision(dataUrl);
+    if (compressed) urls.push(compressed);
+  }
+  return urls;
+}
 
 /**
  * Constitution: /add is a thin shell into the agent listing organism.
@@ -24,6 +55,9 @@ function AddPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isFashion = searchParams.get("vertical") === "fashion";
+  const e2eParam = searchParams.get("e2ePrepublish") ?? searchParams.get("e2e");
+  const e2ePrepublish = e2eParam === "1" || e2eParam === "seed";
+  const e2eSeedMode = e2eParam === "seed";
   const {
     isAuthenticated,
     authHydrated,
@@ -35,16 +69,28 @@ function AddPageInner() {
     showToast,
   } = useVauto();
   const { sendAgentMessage, setOpen } = useVautoAgent();
+  const { publishListing, isPublishingListing } = useSellerFlow();
   const { applyScannedBarcode } = useBarcodeScanFlow();
   const { isDesktop } = useLayoutMode();
   const [busy, setBusy] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [e2eCard, setE2eCard] = useState<PrePublishCardPayload | null>(null);
+  const [e2eDraftMeta, setE2eDraftMeta] = useState<AiExtractedListing | null>(null);
   const bootstrappedRef = useRef(false);
+  const e2eRanRef = useRef(false);
 
   useEffect(() => {
     if (!authHydrated) return;
     if (!isAuthenticated) {
-      requireAuthForListing(isFashion ? "/add?vertical=fashion" : "/add");
+      requireAuthForListing(
+        isFashion
+          ? "/add?vertical=fashion"
+            : e2ePrepublish
+            ? e2eSeedMode
+              ? "/add?e2e=seed"
+              : "/add?e2e=1"
+            : "/add"
+      );
       return;
     }
     if (bootstrappedRef.current) return;
@@ -61,8 +107,15 @@ function AddPageInner() {
         ...base,
         title: isFashion ? "Drabužių skelbimas" : "Naujas skelbimas",
         description: "",
-        category: isFashion ? "clothing" : base.category,
+        category: isFashion ? "clothing" : e2ePrepublish ? "vehicles" : base.category,
         listingFlowState: "DRAFTING_TEXT",
+        ...(e2ePrepublish
+          ? {
+              price: 2250,
+              location: "Prienai",
+              attributes: { ...(base.attributes ?? {}), year: "2007", seats: "7" },
+            }
+          : {}),
       },
       user,
       true,
@@ -76,6 +129,73 @@ function AddPageInner() {
       listingFlowState: nextState,
     });
     setOpen(true);
+
+    if (e2ePrepublish) {
+      // Real Vision path: load public/e2e-citroen PNGs → pendingImageUrls → agent scan.
+      // Or apply pre-computed seed from scripts/e2e-citroen-vision-seed.mjs
+      if (e2eRanRef.current) return;
+      e2eRanRef.current = true;
+      setBusy(true);
+      void (async () => {
+        try {
+          const seedMode = e2eSeedMode;
+          if (seedMode) {
+            const res = await fetch("/e2e-citroen/prepublish-seed.json", {
+              cache: "no-store",
+            });
+            if (!res.ok) throw new Error(`seed missing (${res.status}) — run vision script first`);
+            const seed = (await res.json()) as {
+              draft: AiExtractedListing;
+              reply?: string;
+              coverUrl?: string;
+              techPasasExcluded?: boolean;
+            };
+            const draft: AiExtractedListing = {
+              ...seed.draft,
+              listingFlowState: "AWAITING_CONFIRMATION",
+            };
+            applyAgentListingDraft(draft);
+            setE2eDraftMeta(draft);
+            setE2eCard({
+              title: draft.title,
+              description: draft.description,
+              price: draft.price ?? 2250,
+              location: draft.location || "Prienai",
+              phone: draft.contact || user.phone,
+              imageUrl: draft.orderedImageUrls?.[0] || seed.coverUrl || null,
+              imageUrls: draft.orderedImageUrls ?? [],
+              category: draft.category || "vehicles",
+            });
+            setOpen(true);
+            showToast("E2E seed: PrePublish kortelė ant /add (Vision paleidimas).", "info");
+            return;
+          }
+
+          const {
+            loadE2eCitroenPendingImageUrls,
+            E2E_CITROEN_LISTING_MESSAGE,
+          } = await import("@/lib/e2e-citroen-prepublish-run");
+          const pendingImageUrls = await loadE2eCitroenPendingImageUrls();
+          router.replace("/");
+          await sendAgentMessage(E2E_CITROEN_LISTING_MESSAGE, {
+            pendingImageUrls,
+          });
+          showToast(
+            `E2E: išsiųsta ${pendingImageUrls.length} nuotraukų Vision (tech pasas + auto).`,
+            "info"
+          );
+        } catch (err) {
+          showToast(
+            `E2E Vision nepavyko: ${err instanceof Error ? err.message : String(err)}`,
+            "error"
+          );
+        } finally {
+          setBusy(false);
+        }
+      })();
+      return;
+    }
+
     void sendAgentMessage(
       isFashion
         ? "Noriu kelti drabužių skelbimą Spintoje — naudoju profilio kontaktus. Prašau paprašyti nuotraukų."
@@ -86,25 +206,60 @@ function AddPageInner() {
     authHydrated,
     isAuthenticated,
     isFashion,
+    e2ePrepublish,
+    e2eSeedMode,
     requireAuthForListing,
     activateWardrobeSpinta,
     applyAgentListingDraft,
     sendAgentMessage,
     setOpen,
     user,
+    router,
+    showToast,
   ]);
+
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoInputChange = useCallback(
+    (event: ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(event.target.files ?? []);
+      event.target.value = "";
+      if (!files.length || busy) return;
+
+      requestMediaConsent(() => {
+        setBusy(true);
+        void (async () => {
+          try {
+            const pendingImageUrls = await filesToPendingImageUrls(files);
+            if (!pendingImageUrls.length) return;
+            router.replace(isFashion ? "/fashion" : "/");
+            setOpen(true);
+            await sendAgentMessage("", { pendingImageUrls });
+          } catch (err) {
+            showToast(
+              `Nuotraukų įkėlimas nepavyko: ${err instanceof Error ? err.message : String(err)}`,
+              "error"
+            );
+          } finally {
+            setBusy(false);
+          }
+        })();
+      });
+    },
+    [
+      busy,
+      isFashion,
+      requestMediaConsent,
+      router,
+      sendAgentMessage,
+      setOpen,
+      showToast,
+    ]
+  );
 
   const startWithPhotos = () => {
     if (busy) return;
-    pickAndSendChatPhotos({
-      requestMediaConsent,
-      sendAgentMessage,
-      setOpen,
-      navigateBeforeSend: () => {
-        router.replace(isFashion ? "/fashion" : "/");
-      },
-      onBusyChange: setBusy,
-    });
+    photoInputRef.current?.click();
   };
 
   const startWithText = () => {
@@ -167,6 +322,18 @@ function AddPageInner() {
               asistentas nuskenuos vaizdą, papildys aprašymą ir parodys patvirtinimo kortelę.
             </p>
             <div className="mt-4 flex w-full max-w-sm flex-col gap-2">
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                data-vauto-photo-upload="1"
+                data-vauto-photo-upload-v="2"
+                className="sr-only"
+                tabIndex={-1}
+                aria-hidden
+                onChange={handlePhotoInputChange}
+              />
               <button
                 type="button"
                 disabled={busy}

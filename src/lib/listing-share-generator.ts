@@ -1,6 +1,7 @@
 import type { Listing } from "@/lib/types";
 import { isAiProxyAvailable } from "@/lib/api/config";
 import { getDataApiBaseUrl } from "@/lib/api/config";
+import { listingPath } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site-url";
 
 export interface ListingShareCopy {
@@ -12,10 +13,7 @@ export interface ListingShareCopy {
 
 function fallbackShareCopy(listing: Listing): ListingShareCopy {
   const origin = SITE_URL;
-  // Pretty URL is fine for external hard-loads (Vercel rewrite → /listing/?slug=).
-  const path = listing.slug
-    ? `/listing/${listing.slug}/`
-    : `/listing/?id=${encodeURIComponent(listing.id)}`;
+  const path = listingPath(listing);
   const url = `${origin}${path}`;
   const price =
     listing.price > 0 ? `${listing.price.toFixed(0)} €` : "Kaina derinama";

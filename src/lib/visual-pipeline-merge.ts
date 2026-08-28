@@ -1,4 +1,9 @@
 import type { AiExtractedListing } from "@/lib/types";
+import {
+  orderPublicListingGallery,
+  parseExcludedGalleryImageUrls,
+  parseListingPhotoClassifications,
+} from "@vauto/shared/listing-gallery-order";
 
 export interface VisualPipelineConversationalHints {
   hasVisibleDefects: boolean;
@@ -44,22 +49,76 @@ export function applyVisualPipelineToDraft(
   if (hints.plateNumber && !attrs.plateNumber) attrs.plateNumber = hints.plateNumber;
   if (hints.modelCode && !attrs.modelCode) attrs.modelCode = hints.modelCode;
 
+  const orderedImageUrls = resolveSellerGalleryImages(pipeline, draft.orderedImageUrls ?? [], {
+    attributes: attrs,
+  });
+
   return {
     ...draft,
     description: description || draft.description,
     attributes: attrs,
-    orderedImageUrls: pipeline.orderedImageUrls?.length
-      ? pipeline.orderedImageUrls
-      : draft.orderedImageUrls,
+    orderedImageUrls: orderedImageUrls.length ? orderedImageUrls : draft.orderedImageUrls,
     coverImageId: pipeline.coverImageId ?? draft.coverImageId,
     conversationalHints: pipeline.conversationalHints ?? draft.conversationalHints,
   };
 }
 
+/**
+ * Public listing gallery: prefer Vision-ordered URLs; never reintroduce tech-pasas;
+ * ensure images[0] is best exterior when photoRoles are present.
+ */
 export function resolveSellerGalleryImages(
   pipeline: VisualPipelinePayload | null | undefined,
-  fallback: string[]
+  fallback: string[],
+  opts?: { attributes?: Record<string, string | string[] | undefined> | null }
 ): string[] {
-  if (pipeline?.orderedImageUrls?.length) return pipeline.orderedImageUrls;
-  return fallback;
+  const attrs = opts?.attributes ?? {};
+  const classifications = parseListingPhotoClassifications(attrs.photoRoles);
+  const excluded = parseExcludedGalleryImageUrls(attrs.excludedGalleryImageUrls);
+  const preferred = (pipeline?.orderedImageUrls?.length
+    ? pipeline.orderedImageUrls
+    : fallback
+  )
+    .map((u) => String(u ?? "").trim())
+    .filter(Boolean);
+
+  if (!preferred.length) return [];
+
+  if (classifications.length || excluded.length) {
+    return orderPublicListingGallery(preferred, classifications, {
+      excludedUrls: excluded,
+    });
+  }
+
+  return preferred
+    .filter((u, i, arr) => arr.indexOf(u) === i)
+    .slice(0, 6);
+}
+
+/** Merge draft + extras into a public gallery (docs excluded, cover-first). */
+export function mergePublicListingGallery(input: {
+  preferredOrdered?: string[] | null;
+  extras?: string[] | null;
+  attributes?: Record<string, string | string[] | undefined> | null;
+}): string[] {
+  const attrs = input.attributes ?? {};
+  const classifications = parseListingPhotoClassifications(attrs.photoRoles);
+  const excluded = parseExcludedGalleryImageUrls(attrs.excludedGalleryImageUrls);
+  const preferred = (input.preferredOrdered ?? [])
+    .map((u) => String(u ?? "").trim())
+    .filter(Boolean);
+  const extras = (input.extras ?? [])
+    .map((u) => String(u ?? "").trim())
+    .filter(Boolean)
+    .filter((u) => !excluded.includes(u));
+
+  // Vision-ordered preferred list wins; only append new extras not already present.
+  const merged = [
+    ...preferred,
+    ...extras.filter((u) => !preferred.includes(u)),
+  ];
+
+  return orderPublicListingGallery(merged, classifications, {
+    excludedUrls: excluded,
+  });
 }

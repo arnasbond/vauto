@@ -55,11 +55,18 @@ export function resolveConductorRequiresReview(
   return hasAutomated && !hasManual;
 }
 
-/** Apply conductor review flag unless vision/anti-fraud already set it. */
+/**
+ * Apply conductor review flag unless:
+ * - vision/anti-fraud already set it, OR
+ * - seller explicitly confirmed via PrePublish („Patvirtinti ir publikuoti“) → go LIVE.
+ */
 export function resolveListingRequiresReview(
   draft: AiExtractedListing,
-  snapshot: ConductorPublishSnapshot
+  snapshot: ConductorPublishSnapshot,
+  opts?: { prePublishConfirmed?: boolean }
 ): boolean {
+  // Explicit PrePublish confirm is the human review gate — publish live.
+  if (opts?.prePublishConfirmed) return false;
   if (draft.requiresReview === true) return true;
   return resolveConductorRequiresReview(snapshot);
 }

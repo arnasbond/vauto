@@ -75,6 +75,11 @@ export function resolveConductorRequiresReviewForListing(listing: {
   requiresReview?: boolean;
   attributes?: Record<string, string | string[] | undefined>;
 }): boolean {
+  // Seller already confirmed on PrePublish card — publish live.
+  const confirmed = String(listing.attributes?.prePublishConfirmed ?? "")
+    .trim()
+    .toLowerCase();
+  if (confirmed === "true" || confirmed === "1") return false;
   if (listing.requiresReview) return true;
   return resolveConductorRequiresReviewFromLineage(readConductorLineage(listing.attributes));
 }

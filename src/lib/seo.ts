@@ -1,5 +1,6 @@
 import type { Listing } from "@/lib/types";
 import { regionalizeTitle } from "@/lib/local-seo";
+import { publicListingImageUrls } from "@/lib/listing-public-gallery";
 import { SITE_URL } from "@/lib/site-url";
 
 export { SITE_URL } from "@/lib/site-url";
@@ -84,8 +85,8 @@ export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
     og: {
       title: ogTitle,
       description: `${description} ${city} regionas.`,
-      image: listing.images[0] ?? "",
-      url: `${SITE_URL}${listingPrettyPath(listing)}`,
+      image: publicListingImageUrls(listing)[0] ?? listing.images[0] ?? "",
+      url: `${SITE_URL}${listingPath(listing)}`,
       type: "website",
       siteName: "VAUTO",
     },
@@ -93,12 +94,14 @@ export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
 }
 
 export function listingPath(listing: Listing): string {
+  // Prefer stable id — works with static export + next dev (no per-slug HTML / no Vercel rewrite needed).
+  const id = String(listing.id ?? "").trim();
+  if (id) return `/listing/?id=${encodeURIComponent(id)}`;
   const slug = listing.slug ?? generateListingSlug(listing.title, listing.location);
-  // Query-based path works for statically exported app (no per-slug HTML file required).
   return `/listing/?slug=${encodeURIComponent(slug)}`;
 }
 
-/** Pretty path for legacy/static slugs — requires Vercel rewrite to /listing/?slug= */
+/** Pretty path for external SEO / Vercel rewrite → /listing/?slug= */
 export function listingPrettyPath(listing: Listing): string {
   const slug = listing.slug ?? generateListingSlug(listing.title, listing.location);
   return `/listing/${slug}/`;

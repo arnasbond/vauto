@@ -289,7 +289,7 @@ export async function runVisualPipeline(
   const orderedImageUrls =
     smartSort?.data?.ordered.map((p) => p.url) ??
     images.map((i) => i.processedUrl ?? i.sourceUrl);
-  const coverImageId = smartSort?.data?.coverImageId ?? images[0]?.id ?? "0";
+  const coverImageId = smartSort?.data?.coverImageId || images[0]?.id || "0";
 
   const ocrData = ocr?.data;
   const visionData = visionExtract?.data;

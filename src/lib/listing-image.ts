@@ -1,5 +1,6 @@
 import type { LegacyListingInput, Listing, ListingCategory } from "@/lib/types";
 import { getSafeImageUrl } from "@/lib/utils";
+import { publicListingImageUrls } from "@/lib/listing-public-gallery";
 
 const UNSPLASH = (id: string) =>
   `https://images.unsplash.com/${id}?w=800&h=600&fit=crop&auto=format`;
@@ -77,7 +78,10 @@ export function isValidListingImageUrl(url: unknown): url is string {
   return /^https?:\/\/.+/i.test(trimmed);
 }
 
-type ListingImageFields = Pick<Listing, "title" | "category" | "description" | "images">;
+type ListingImageFields = Pick<
+  Listing,
+  "title" | "category" | "description" | "images" | "attributes"
+>;
 
 function uniqueUrls(urls: string[]): string[] {
   const seen = new Set<string>();
@@ -92,8 +96,8 @@ function uniqueUrls(urls: string[]): string[] {
 }
 
 export function resolveListingImage(listing: ListingImageFields): string {
-  const valid = listing.images?.filter(isValidListingImageUrl);
-  if (valid?.length) return valid[0]!.trim();
+  const publicUrls = publicListingImageUrls(listing);
+  if (publicUrls.length) return publicUrls[0]!;
 
   const haystack = `${listing.title} ${listing.description ?? ""}`;
   for (const [pattern, url] of CONTENT_IMAGES) {
@@ -105,7 +109,7 @@ export function resolveListingImage(listing: ListingImageFields): string {
 
 /** Full gallery for detail swipe — expands single cover into 2–4 demo angles when needed */
 export function resolveListingImages(listing: ListingImageFields): string[] {
-  const fromListing = uniqueUrls(listing.images ?? []);
+  const fromListing = publicListingImageUrls(listing);
   if (fromListing.length > 1) return fromListing.slice(0, 6);
 
   const cover = fromListing[0] ?? resolveListingImage({ ...listing, images: [] });

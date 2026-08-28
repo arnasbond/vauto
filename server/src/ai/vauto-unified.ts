@@ -20,6 +20,14 @@ import {
   runVisualPipelineForExtract,
   visualPipelineResponseSlice,
 } from "../services/visual-pipeline.js";
+import {
+  collectExcludedGalleryUrls,
+  galleryOrderAttributes,
+  normalizeListingPhotoRole,
+  orderPublicListingGallery,
+  type ListingPhotoClassification,
+} from "../shared/listing-gallery-order.js";
+import { runSmartSort } from "../services/visual-pipeline/providers/smart-sort.js";
 
 export const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
@@ -32,7 +40,14 @@ export const VAUTO_UNIFIED_SCHEMA = `{
   "confidence": "number 0-1",
   "sceneContext": "string — aplinkos kontekstas (pvz. svetainė, virtuvė, gatvė)",
   "detectedObjects": [{ "label": "string — objekto pavadinimas lietuviškai", "category": "string — kategorija", "confidence": "number 0-1" }],
-  "choiceChips": ["string — mygtukų etiketės, pvz. Parduoti televizorių, Parduoti stalą"]
+  "choiceChips": ["string — mygtukų etiketės, pvz. Parduoti televizorių, Parduoti stalą"],
+  "photos": [
+    {
+      "index": 0,
+      "role": "exterior_hero|exterior|interior|engine|wheels|detail|damage|registration_document|other",
+      "heroScore": 0.0
+    }
+  ]
 }`;
 
 const SYSTEM_RULES = `Tu esi VAUTO — išmanus lietuviškas skelbimų portalo AI asistentas.
@@ -56,7 +71,14 @@ KATEGORIJŲ TAISYKLĖS (griežtai):
 - Jei negali tiksliai nustatyti vieno objekto — confidence < 0.5, choiceChips privalomi, clarificationPrompt — disambiguation klausimas (ar teisingai suprantu, kurį objektą ruošiame?), ne išgalvotas skelbimas.
 
 Automobiliams technicalFields: make, model, year, fuelType, mileage, bodyType (jei žinoma).
-NT: propertyType (butas/namas/sklypas/patalpos), area, rooms, floor, heating. Elektronikai: brand, model, condition.`;
+NT: propertyType (butas/namas/sklypas/patalpos), area, rooms, floor, heating. Elektronikai: brand, model, condition.
+
+GALERIJA / VIRŠELIS (photos[] — PRIVALOMAS kai yra ≥1 nuotrauka):
+- Kiekvienai nuotraukai (index = eilės nr. nuo 0) nurodyk role + heroScore.
+- registration_document = registracijos liudijimas / tech pasas / techninis pasas / dokumentas — TIK duomenų nuskaitymui, NIEKADA viešai galerijai.
+- exterior_hero = geriausias pilnas automobilio eksterjero vaizdas (titulinė / cover).
+- interior, engine, wheels — NIEKADA neskirk aukščiausio heroScore jei yra bent vienas exterior/exterior_hero.
+- Duomenis iš tech paso (VIN, metai, markė…) įrašyk į technicalFields; pačios dokumento nuotraukos viešame skelbime nerodyk.`;
 
 const CATEGORY_TO_INTERNAL: Record<string, string> = {
   AUTOMOBILIAI: "vehicles",
@@ -195,9 +217,34 @@ Aprašymas (description) — PRIVALOMAS pilnas skelbimo tekstas lietuviškai (4�
 - komplektaciją ar įrangą (jei matoma);
 - būklę;
 - bet kokius matomus defektus (įbrėžimai, įlenkimai, dėmės, trūkumai). Jei defektų nesimato — parašyk tai aiškiai.
-DRAUDŽIAMA atsakyti tik „nuotrauka įkelta“ ar panašia tuščia fraze — aprašymas turi būti naudingas pirkėjui.${textNote}${extra}
+DRAUDŽIAMA atsakyti tik „nuotrauka įkelta“ ar panašia tuščia fraze — aprašymas turi būti naudingas pirkėjui.
+
+photos[] — PRIVALOMA: kiekvienai nuotraukai (index 0…n-1) role + heroScore.
+Tech pasas / registracijos liudijimas → role=registration_document (duomenys į technicalFields, NĖRA galerijai).
+Titulinė (aukščiausias heroScore tarp viešų) — exterior_hero / exterior, NIEKADA interior/engine/wheels jei yra eksterjeras.${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
+}
+
+function parsePhotoClassificationsFromVision(
+  raw: Record<string, unknown>,
+  imageCount: number
+): ListingPhotoClassification[] {
+  const rows = Array.isArray(raw.photos) ? raw.photos : [];
+  const out: ListingPhotoClassification[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const rec = row as Record<string, unknown>;
+    const index = Number(rec.index ?? rec.id);
+    if (!Number.isFinite(index) || index < 0 || index >= imageCount) continue;
+    const heroScore = Number(rec.heroScore);
+    out.push({
+      index: Math.floor(index),
+      role: normalizeListingPhotoRole(rec.role ?? rec.angleTag),
+      heroScore: Number.isFinite(heroScore) ? heroScore : 0.5,
+    });
+  }
+  return out;
 }
 
 export type VautoServerAction =
@@ -350,6 +397,9 @@ export async function parseListingImagesForAgent(params: {
   choiceChips: string[];
   clarificationPrompt: string;
   needsClarification: boolean;
+  orderedImageUrls: string[];
+  excludedImageUrls: string[];
+  photoClassifications: ListingPhotoClassification[];
 }> {
   const images = normalizeImageInputList(params.imageDataUrls);
   if (!images.length) {
@@ -366,6 +416,69 @@ export async function parseListingImagesForAgent(params: {
     ? enrichSellerListingFromText(combinedText, rawParsed)
     : rawParsed;
   const listing = toListingPayload(raw, city, contact);
+
+  let photoClassifications = parsePhotoClassificationsFromVision(raw, images.length);
+  if (!photoClassifications.length && images.length >= 1) {
+    try {
+      const sorted = await runSmartSort(
+        images.map((url, id) => ({ id: String(id), sourceUrl: url })),
+        { category: listing.category }
+      );
+      photoClassifications = sorted.ordered.map((p, index) => ({
+        index: Number(p.id) || index,
+        role: normalizeListingPhotoRole(
+          p.angleTag === "hero_front" || p.angleTag === "hero_three_quarter"
+            ? "exterior_hero"
+            : p.angleTag === "hero_side"
+              ? "exterior"
+              : p.angleTag
+        ),
+        heroScore: p.heroScore,
+      }));
+      // Rebuild classifications aligned to original image order when smart-sort
+      // returned a subset (docs excluded from ordered).
+      if (sorted.ordered.length < images.length) {
+        const byUrl = new Map(sorted.ordered.map((p) => [p.url, p]));
+        photoClassifications = images.map((url, index) => {
+          const hit = byUrl.get(url);
+          if (hit) {
+            return {
+              index,
+              role: normalizeListingPhotoRole(
+                hit.angleTag === "hero_front" || hit.angleTag === "hero_three_quarter"
+                  ? "exterior_hero"
+                  : hit.angleTag === "hero_side"
+                    ? "exterior"
+                    : hit.angleTag
+              ),
+              heroScore: hit.heroScore,
+            };
+          }
+          return {
+            index,
+            role: "registration_document" as const,
+            heroScore: 0,
+          };
+        });
+      }
+    } catch {
+      /* keep empty — gallery stays upload order */
+    }
+  }
+
+  const excludedImageUrls = collectExcludedGalleryUrls(images, photoClassifications);
+  const orderedImageUrls = orderPublicListingGallery(images, photoClassifications, {
+    excludedUrls: excludedImageUrls,
+  });
+  const galleryAttrs = galleryOrderAttributes({
+    classifications: photoClassifications,
+    excludedUrls: excludedImageUrls,
+    coverUrl: orderedImageUrls[0],
+  });
+  listing.attributes = {
+    ...listing.attributes,
+    ...galleryAttrs,
+  };
 
   const detectedObjects = parseDetectedObjects(raw.detectedObjects);
   let choiceChips = parseChoiceChips(
@@ -390,5 +503,8 @@ export async function parseListingImagesForAgent(params: {
     choiceChips,
     clarificationPrompt,
     needsClarification,
+    orderedImageUrls,
+    excludedImageUrls,
+    photoClassifications,
   };
 }

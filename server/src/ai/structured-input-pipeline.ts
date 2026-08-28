@@ -80,7 +80,7 @@ export const LISTING_CONTACT_CAPTURE_RULES = `KONTAKTŲ LAUKŲ GAVIMAS (blokavim
 export const STRUCTURED_INPUT_AGENT_TOOL_RULES = `FUNKCIJŲ KVIEČIMAS (sąsaja su pipeline):
 - scanListingPhotos → jei multi-object ar žema confidence: reply + followUpQuestion + choiceChips, NE updateListingDraft.
 - updateListingDraft / postNewListing → tik po disambiguation loop arba aiškaus vieno objekto.
-- Po sėkmingo updateListingDraft → natūrali juodraščio santrauka (Kelrodės tonas) + showZeroUiScreen(listing_preview).`;
+- Po sėkmingo updateListingDraft / scanListingPhotos → natūrali VISĄ juodraščio santrauka pokalbyje (Kelrodės tonas). DRAUDŽIAMA showZeroUiScreen(listing_preview) / PrePublish, kol vartotojas nesako „Tinka“ / „Publikuok“ / „Rodyk PrePublish“.`;
 
 /** Greiti atsakymai po sėkmingo laukų užpildymo (agentas + klientas). */
 export const POST_VALIDATION_QUICK_REPLIES = [

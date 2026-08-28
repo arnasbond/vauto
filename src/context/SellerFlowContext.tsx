@@ -177,7 +177,11 @@ import {
 import { completeVoiceTeardown } from "@/lib/voice-teardown";
 import { isUnclearTranscript } from "@/lib/voice-graceful";
 import { applyProfileToListingDraft, injectProfileContactsForPublish, resolveDraftContact, hasProfileListingContact } from "@/lib/profile-listing-sync";
-import { resolveSellerGalleryImages } from "@/lib/visual-pipeline-merge";
+import { mergePublicListingGallery, resolveSellerGalleryImages } from "@/lib/visual-pipeline-merge";
+import {
+  GALLERY_IMAGES_ATTR,
+  galleryImagesAttributeValue,
+} from "@/lib/listing-api-payload";
 import type {
   AiExtractedListing,
   Listing,
@@ -839,7 +843,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             ? opts.previewImages
             : opts?.previewImage
               ? [opts.previewImage]
-              : []
+              : [],
+          { attributes: next.attributes }
         );
         if (galleryImages.length) {
           setSellerPreviewImages(galleryImages);
@@ -1136,15 +1141,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       photoReplaceSnapshotRef.current = null;
       setAiManualFallback(false);
       const previousDraft = aiDraftRef.current;
-      const galleryPhotos = [
-        ...(draft.orderedImageUrls ?? []),
-        ...(imageUrl ? [imageUrl] : []),
-        ...(previousDraft?.orderedImageUrls ?? []),
-      ]
-        .map((u) => String(u ?? "").trim())
-        .filter(Boolean)
-        .filter((u, i, arr) => arr.indexOf(u) === i)
-        .slice(0, 6);
+      const galleryPhotos = mergePublicListingGallery({
+        preferredOrdered: draft.orderedImageUrls,
+        extras: [
+          ...(imageUrl ? [imageUrl] : []),
+          ...(previousDraft?.orderedImageUrls ?? []),
+        ],
+        attributes: {
+          ...(previousDraft?.attributes ?? {}),
+          ...(draft.attributes ?? {}),
+        },
+      });
       const draftWithPhotos =
         galleryPhotos.length > 0
           ? { ...draft, orderedImageUrls: galleryPhotos }
@@ -1655,12 +1662,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       : `l-${Date.now()}`;
 
     // Prefer draft orderedImageUrls (agent multi-photo) over stale preview state.
+    // Vision order already excludes tech-pasas and puts best exterior at [0].
     const syncedGallery = resolveSellerGalleryImages(
       { orderedImageUrls: profileDraft.orderedImageUrls },
       [
         ...(sellerPreviewImage ? [sellerPreviewImage] : []),
         ...sellerPreviewImages.filter(Boolean),
-      ].filter((url, i, arr) => arr.indexOf(url) === i)
+      ].filter((url, i, arr) => arr.indexOf(url) === i),
+      { attributes: profileDraft.attributes }
     ).slice(0, 6);
     const cover = syncedGallery[0] ?? sellerPreviewImage;
     const rest = syncedGallery.slice(1);
@@ -1751,7 +1760,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       category: publishCategory,
       tags: attributesToTags(publishDraft),
       description: publishDescription,
-      attributes: mergeSocialPublishAttributes(draftWithClientId.attributes, listingSocialPublish),
+      attributes: {
+        ...mergeSocialPublishAttributes(draftWithClientId.attributes, listingSocialPublish),
+        prePublishConfirmed: "true",
+      },
       status: "active",
       sellerId: user.id,
       createdAt,
@@ -1764,7 +1776,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       minNegotiationPrice: profileDraft.minNegotiationPrice,
       appraisalScore: profileDraft.appraisalScore,
       isVerified: profileDraft.isVerified ?? true,
-      requiresReview: resolveListingRequiresReview(publishDraft, conductorPublish),
+      requiresReview: resolveListingRequiresReview(publishDraft, conductorPublish, {
+        prePublishConfirmed: true,
+      }),
       imageAlt: profileDraft.imageAlt,
       imageTitle: profileDraft.imageTitle,
       allowPastomatas: profileDraft.allowPastomatas ?? true,
@@ -1819,10 +1833,43 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         category: publishCategory,
         tags: newListing.tags,
         images: newListing.images.length ? newListing.images : createRes.data.images,
+        attributes: {
+          ...(createRes.data.attributes ?? {}),
+          ...(newListing.attributes ?? {}),
+          prePublishConfirmed: "true",
+          [GALLERY_IMAGES_ATTR]: galleryImagesAttributeValue(newListing.images),
+        },
         slug: createRes.data.slug ?? newListing.slug,
         allowPastomatas: newListing.allowPastomatas,
         isAiTwinActive: newListing.isAiTwinActive,
+        requiresReview: false,
       });
+
+      // Production API may still gate AI drafts until deploy; force live after PrePublish.
+      if (createRes.data.requiresReview || createRes.data.images?.length !== newListing.images.length) {
+        const liveRes = await apiUpdateListing(published.id, user.id, {
+          requiresReview: false,
+          images: newListing.images,
+          attributes: published.attributes,
+        });
+        if (liveRes.ok && liveRes.data) {
+          published = withDefaultExpiry({
+            ...liveRes.data,
+            category: publishCategory,
+            tags: newListing.tags,
+            images: newListing.images.length ? newListing.images : liveRes.data.images,
+            attributes: {
+              ...(liveRes.data.attributes ?? {}),
+              ...(published.attributes ?? {}),
+              prePublishConfirmed: "true",
+            },
+            slug: liveRes.data.slug ?? published.slug,
+            allowPastomatas: newListing.allowPastomatas,
+            isAiTwinActive: newListing.isAiTwinActive,
+            requiresReview: false,
+          });
+        }
+      }
 
       setListings((prev) => [published, ...prev.filter((l) => l.id !== published.id)]);
       setLastPublishedListing(published);

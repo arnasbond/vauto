@@ -64,12 +64,11 @@ export async function apiVautoAgentStream(
   const timeoutMs = trimmed.includeAdminContext ? 45_000 : AI_VISION_FETCH_TIMEOUT_MS;
   const renderBase = getDataApiBaseUrl();
 
+  // Prefer Render data API first — localhost Next has no /api/vauto-agent/stream (404).
   const bases: string[] = [];
-  if (typeof window !== "undefined") {
+  if (renderBase) bases.push(renderBase);
+  if (typeof window !== "undefined" && !bases.includes(window.location.origin)) {
     bases.push(window.location.origin);
-  }
-  if (renderBase && !bases.includes(renderBase)) {
-    bases.push(renderBase);
   }
 
   if (!bases.length) {

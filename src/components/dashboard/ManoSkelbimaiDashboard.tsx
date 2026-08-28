@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import {
   BarChart3,
   ExternalLink,
@@ -21,6 +20,11 @@ import {
   dashboardStateLabel,
   togglePauseStatus,
 } from "@/lib/listing-visibility";
+import {
+  imageLooksLikeRegistrationDocument,
+  publicListingImageUrls,
+  resolveBestPublicCoverUrl,
+} from "@/lib/listing-public-gallery";
 import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
@@ -38,6 +42,7 @@ function ManoSkelbimaiCard({
   onStats,
   onEdit,
   onActivateAiTwin,
+  onRepairGallery,
 }: {
   listing: Listing;
   onPause: () => void;
@@ -45,17 +50,65 @@ function ManoSkelbimaiCard({
   onStats: () => void;
   onEdit: () => void;
   onActivateAiTwin: () => void;
+  onRepairGallery: (nextImages: string[], excluded: string[]) => void;
 }) {
   const state = dashboardListingState(listing);
   const isPaused = listing.status === "paused";
-  // Static export cannot soft-navigate /listing/[slug] for new listings — use query path.
+  // id-based query path — works on next dev + static export (no /listing/[slug] HTML).
   const publicHref = listingPath(listing);
+  const [coverSrc, setCoverSrc] = useState(() => getListingCoverImage(listing));
+  const repairedRef = useRef(false);
+  const onRepairRef = useRef(onRepairGallery);
+  onRepairRef.current = onRepairGallery;
+
+  useEffect(() => {
+    let cancelled = false;
+    repairedRef.current = false;
+    setCoverSrc(getListingCoverImage(listing));
+
+    void (async () => {
+      const best = await resolveBestPublicCoverUrl(listing);
+      if (cancelled || !best) return;
+      setCoverSrc(best);
+
+      const raw = (listing.images ?? []).map((u) => String(u).trim()).filter(Boolean);
+      if (listing.category !== "vehicles" || raw.length < 2) return;
+      if (raw[0] === best || repairedRef.current) return;
+
+      const firstIsDoc = raw[0]
+        ? await imageLooksLikeRegistrationDocument(raw[0])
+        : false;
+      if (!firstIsDoc || cancelled) return;
+
+      repairedRef.current = true;
+      const publicUrls = publicListingImageUrls({
+        ...listing,
+        attributes: {
+          ...(listing.attributes ?? {}),
+          excludedGalleryImageUrls: JSON.stringify([raw[0]!]),
+          coverImageUrl: best,
+        },
+      });
+      const nextImages =
+        publicUrls.length > 0
+          ? publicUrls
+          : [best, ...raw.filter((u) => u !== best && u !== raw[0])];
+      onRepairRef.current(nextImages, [raw[0]!]);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [listing]);
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-[var(--anonser-border)] bg-[var(--anonser-card)] shadow-sm transition hover:shadow-md">
-      <Link href={publicHref} className="relative block aspect-[4/3] overflow-hidden bg-[var(--anonser-surface-muted)]">
+      <a
+        href={publicHref}
+        className="relative block aspect-[4/3] overflow-hidden bg-[var(--anonser-surface-muted)]"
+      >
         <Image
-          src={getListingCoverImage(listing)}
+          src={coverSrc}
           alt={listing.title}
           fill
           sizes="(max-width: 768px) 50vw, 25vw"
@@ -69,7 +122,7 @@ function ManoSkelbimaiCard({
         >
           {dashboardStateLabel(state)}
         </span>
-      </Link>
+      </a>
 
       <div className="p-3">
         <h3 className="line-clamp-2 text-sm font-semibold text-[var(--anonser-text)]">
@@ -80,13 +133,13 @@ function ManoSkelbimaiCard({
         </p>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
-          <Link
+          <a
             href={publicHref}
             className="col-span-2 flex items-center justify-center gap-1 rounded-xl border border-[var(--anonser-border)] py-2 text-xs font-semibold text-[var(--anonser-primary)] transition hover:bg-[var(--anonser-surface-muted)]"
           >
             <ExternalLink className="h-3.5 w-3.5" />
             Peržiūrėti skelbimą
-          </Link>
+          </a>
           {!listing.isAiTwinActive ? (
             <button
               type="button"
@@ -270,6 +323,17 @@ export function ManoSkelbimaiDashboard({
               onStats={() => handleStats(listing)}
               onEdit={() => startEditListingFlow(listing, { stayOnPage: true })}
               onActivateAiTwin={() => void handleActivateAiTwin(listing)}
+              onRepairGallery={(nextImages, excluded) => {
+                if (!nextImages.length) return;
+                updateListing(listing.id, {
+                  images: nextImages,
+                  attributes: {
+                    ...(listing.attributes ?? {}),
+                    coverImageUrl: nextImages[0]!,
+                    excludedGalleryImageUrls: JSON.stringify(excluded),
+                  },
+                });
+              }}
             />
           ))}
         </div>

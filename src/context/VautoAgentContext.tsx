@@ -185,6 +185,7 @@ import {
   parseListingContactFromText,
 } from "@/lib/listing-contact-parse";
 import { logHeroContactReask } from "@/lib/hero-kpis";
+import { mergePublicListingGallery } from "@/lib/visual-pipeline-merge";
 const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
 
 export interface AgentSendOptions {
@@ -589,15 +590,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           showToast(sessionCheck.message, "error");
           return;
         }
-        const photoUrls = [
-          ...(actions.imageUrls ?? []),
-          ...(actions.imageUrl ? [actions.imageUrl] : []),
-          ...(aiDraft?.orderedImageUrls ?? []),
-        ]
-          .map((u) => String(u ?? "").trim())
-          .filter(Boolean)
-          .filter((u, i, arr) => arr.indexOf(u) === i)
-          .slice(0, 6);
+        const mappedDraft = mapAgentDraftToListing(actions.listingDraft);
+        const photoUrls = mergePublicListingGallery({
+          preferredOrdered:
+            mappedDraft.orderedImageUrls?.length
+              ? mappedDraft.orderedImageUrls
+              : actions.imageUrls ?? [],
+          extras: [
+            ...(actions.imageUrl ? [actions.imageUrl] : []),
+            ...(aiDraft?.orderedImageUrls ?? []),
+          ],
+          attributes: {
+            ...(aiDraft?.attributes ?? {}),
+            ...(mappedDraft.attributes ?? {}),
+          },
+        });
         const proposedFlow =
           actions.listingDraft.listingFlowState ??
           (photoUrls.length || actions.listingDraft.title
@@ -607,7 +614,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           resolveLockedListingFlowState(aiDraft?.listingFlowState, proposedFlow) ??
           proposedFlow;
         const draft = {
-          ...mapAgentDraftToListing(actions.listingDraft),
+          ...mappedDraft,
           ...(photoUrls.length ? { orderedImageUrls: photoUrls } : {}),
           listingFlowState: flowState,
         } as import("@/lib/types").AiExtractedListing;
@@ -988,10 +995,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   }, [resetPublishSession]);
 
   /**
-   * Brutal deterministic path: „Parduoti …“ chip → AWAITING_CONFIRMATION + PrePublish.
-   * No server, no LLM, no photos-nudge. Local state only.
+   * „Parduoti …“ chip → draft description in chat (DRAFT_READY).
+   * PrePublish only when the user later says Tinka / Publikuok.
    */
-  const commitVisionObjectSellToPrePublish = useCallback(
+  const commitVisionObjectSellToDraft = useCallback(
     (chip: string): WakeWordAgentResult => {
       const trimmed = chip.trim();
       const noun = nounFromVisionObjectSellChip(trimmed);
@@ -1012,7 +1019,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         .filter((u, i, arr) => arr.indexOf(u) === i)
         .slice(0, 6);
 
-      const baseDraft = {
+      const draftingDraft = {
         title,
         description: aiDraft?.description ?? "",
         price: aiDraft?.price ?? 0,
@@ -1032,98 +1039,26 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         ...(photos.length ? { orderedImageUrls: photos } : {}),
         choiceChips: undefined,
         clarificationPrompt: undefined,
+        listingFlowState: "DRAFT_READY" as const,
         ...(aiDraft?.priceLabel ? { priceLabel: aiDraft.priceLabel } : {}),
         ...(aiDraft?.allowPastomatas != null
           ? { allowPastomatas: aiDraft.allowPastomatas }
           : {}),
       } as import("@/lib/types").AiExtractedListing;
 
-      const readiness = evaluatePrePublishReadiness({
-        isAuthenticated,
-        user,
-        draft: baseDraft,
-        previewImage: sellerPreviewImage ?? photos[0] ?? null,
-        pendingImageUrls: sessionPendingImageUrls,
-        orderedImageUrls: photos,
-        geoCoords: buyerCoords,
-      });
+      applyAgentListingDraft(draftingDraft, photos[0]);
+      setListingPublishConfirmed(false);
+      setHidePrePublishCard(true);
+      updateAiDraft(draftingDraft);
 
-      /**
-       * Lock PrePublish ONLY when the card can actually render.
-       * Missing price/city/phone → stay DRAFT_READY so the seller can type.
-       */
-      if (!readiness.ok) {
-        const draftingDraft = {
-          ...(readiness.syncedDraft ?? baseDraft),
-          listingFlowState: "DRAFT_READY" as const,
-          choiceChips: undefined,
-          clarificationPrompt: undefined,
-          ...(photos.length ? { orderedImageUrls: photos } : {}),
-        };
-        applyAgentListingDraft(draftingDraft, photos[0]);
-        setListingPublishConfirmed(false);
-        setHidePrePublishCard(true);
-        updateAiDraft(draftingDraft);
-        const reply = buildConversationalMissingPrompt(readiness);
-        setMessages((prev) => [
-          ...prev,
-          { role: "user" as const, text: trimmed },
-          { role: "assistant" as const, text: reply, quickReplies: undefined },
-        ]);
-        touchAgentSessionActivity();
-        return { ok: true, reply };
-      }
-
-      const card = buildPrePublishCardPayload(
-        readiness,
-        sellerPreviewImage ?? photos[0] ?? null,
-        { vatCode: user.vatCode, pendingImageUrls: sessionPendingImageUrls }
-      );
-      if (!card) {
-        const draftingDraft = {
-          ...(readiness.syncedDraft ?? baseDraft),
-          listingFlowState: "DRAFT_READY" as const,
-          choiceChips: undefined,
-          clarificationPrompt: undefined,
-          ...(photos.length ? { orderedImageUrls: photos } : {}),
-        };
-        applyAgentListingDraft(draftingDraft, photos[0]);
-        setListingPublishConfirmed(false);
-        setHidePrePublishCard(true);
-        updateAiDraft(draftingDraft);
-        const reply = buildConversationalMissingPrompt(readiness);
-        setMessages((prev) => [
-          ...prev,
-          { role: "user" as const, text: trimmed },
-          { role: "assistant" as const, text: reply, quickReplies: undefined },
-        ]);
-        touchAgentSessionActivity();
-        return { ok: true, reply };
-      }
-
-      const patchedDraft = {
-        ...(readiness.syncedDraft ?? baseDraft),
-        listingFlowState: "AWAITING_CONFIRMATION" as const,
-        choiceChips: undefined,
-        clarificationPrompt: undefined,
-        ...(photos.length ? { orderedImageUrls: photos } : {}),
-      } as import("@/lib/types").AiExtractedListing;
-
-      applyAgentListingDraft(patchedDraft, photos[0]);
-      setListingPublishConfirmed(true);
-      setHidePrePublishCard(false);
-      updateAiDraft(patchedDraft);
-
-      const reply = PRE_PUBLISH_CARD_INTRO;
-
+      const reply = buildPostVisionHeroMessage(draftingDraft);
       setMessages((prev) => [
         ...prev,
         { role: "user" as const, text: trimmed },
         {
           role: "assistant" as const,
           text: reply,
-          prePublishCard: card,
-          quickReplies: undefined,
+          quickReplies: [...POST_VISION_PUBLISH_CHIPS],
         },
       ]);
       touchAgentSessionActivity();
@@ -1132,8 +1067,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     [
       aiDraft,
       applyAgentListingDraft,
-      buyerCoords,
-      isAuthenticated,
       sellerPreviewImage,
       sessionPendingImageUrls,
       updateAiDraft,
@@ -1154,7 +1087,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       // Hard local lock — never let „Parduoti …“ hit the server photos-nudge loop.
       if (trimmed && isVisionObjectSellChip(trimmed) && !hasIncomingImages) {
-        return commitVisionObjectSellToPrePublish(trimmed);
+        return commitVisionObjectSellToDraft(trimmed);
       }
 
       const drainAgentQueue = () => {
@@ -1294,7 +1227,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       /** Merge photos + price from this turn BEFORE SM so PrePublish can open with media+price. */
       const incomingImagesEarly =
-        options?.pendingImageUrls?.filter(Boolean).slice(0, 6) ?? [];
+        options?.pendingImageUrls?.filter(Boolean).slice(0, 7) ?? [];
       const priceFromTurn = trimmed ? parsePriceFromChatInput(trimmed) : null;
       let draftForTurn = aiDraft
         ? priceFromTurn != null && !(aiDraft.price > 0)
@@ -1381,20 +1314,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           photoCount > 0 &&
           flowDecision.reply === AWAITING_PHOTOS_NUDGE
         ) {
+          // Photos already present — fall through so the agent can iterate on the draft.
           if (draftForTurn && draftForTurn.listingFlowState !== "DRAFT_READY") {
             updateAiDraft({ listingFlowState: "DRAFT_READY" });
           }
-          setMessages((prev) => [
-            ...prev,
-            { role: "user" as const, text: trimmed },
-            {
-              role: "assistant" as const,
-              text: POST_VISION_PUBLISH_GATE,
-              quickReplies: [...POST_VISION_PUBLISH_CHIPS],
-            },
-          ]);
-          touchAgentSessionActivity();
-          return { ok: true, reply: POST_VISION_PUBLISH_GATE };
         } else {
           setMessages((prev) => [
             ...prev,
@@ -1407,22 +1330,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       if (flowDecision.kind === "show_draft_gate") {
+        // Legacy path: show draft review in chat — never auto-open PrePublish.
+        const draftReply =
+          draftForTurn
+            ? buildPostVisionHeroMessage(draftForTurn)
+            : flowDecision.reply || POST_VISION_PUBLISH_GATE;
         setMessages((prev) => [
           ...prev,
           { role: "user" as const, text: trimmed },
           {
             role: "assistant" as const,
-            text: flowDecision.reply || POST_VISION_PUBLISH_GATE,
+            text: draftReply,
             quickReplies: [...POST_VISION_PUBLISH_CHIPS],
           },
         ]);
         touchAgentSessionActivity();
-        return { ok: true, reply: flowDecision.reply || POST_VISION_PUBLISH_GATE };
+        return { ok: true, reply: draftReply };
       }
 
-      /** Multi-object pick → PrePublish immediately (local only). */
+      /** Multi-object pick → draft in chat first (local). */
       if (flowDecision.kind === "object_selected") {
-        return commitVisionObjectSellToPrePublish(trimmed);
+        return commitVisionObjectSellToDraft(trimmed);
       }
 
       if (flowDecision.kind === "show_confirmation" && draftForTurn) {
@@ -1476,15 +1404,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           clarificationPrompt: undefined,
         };
 
-        const cardPhotos = [
-          ...(patchedDraft.orderedImageUrls ?? []),
-          ...pendingForTurn,
-          ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-        ]
-          .map((u) => String(u ?? "").trim())
-          .filter(Boolean)
-          .filter((u, i, arr) => arr.indexOf(u) === i)
-          .slice(0, 6);
+        const cardPhotos = mergePublicListingGallery({
+          preferredOrdered: patchedDraft.orderedImageUrls,
+          extras: [
+            ...pendingForTurn,
+            ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+          ],
+          attributes: patchedDraft.attributes,
+        });
         const card = buildPrePublishCardPayload(
           readiness,
           sellerPreviewImage ?? cardPhotos[0] ?? null,
@@ -2251,7 +2178,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setOpen,
       setMessages,
       setSearchQuery,
-      commitVisionObjectSellToPrePublish,
+      commitVisionObjectSellToDraft,
     ]
   );
 
@@ -2483,7 +2410,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       // „Parduoti mobilųjį telefoną“ etc. — hard local PrePublish, never server.
       if (isVisionObjectSellChip(trimmed)) {
-        commitVisionObjectSellToPrePublish(trimmed);
+        commitVisionObjectSellToDraft(trimmed);
         return true;
       }
 
@@ -2660,7 +2587,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       updateAiDraft,
       enterListingEditMode,
       sessionPendingImageUrls,
-      commitVisionObjectSellToPrePublish,
+      commitVisionObjectSellToDraft,
     ]
   );
 

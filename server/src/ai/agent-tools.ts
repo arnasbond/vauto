@@ -1589,7 +1589,7 @@ export async function executeAgentTool(
 
     case "scanListingPhotos": {
       const imageUrls = Array.isArray(args.imageUrls)
-        ? args.imageUrls.map(String).filter(Boolean).slice(0, 6)
+        ? args.imageUrls.map(String).filter(Boolean).slice(0, 7)
         : [];
       const categoryHint = args.category ? String(args.category) : ctx.listingDraft?.category;
       const prior = ctx.listingDraft;
@@ -1602,6 +1602,7 @@ export async function executeAgentTool(
           extraContext: [
             categoryHint ? `category hint: ${categoryHint}` : "",
             "Vision: enrich listing description with color, condition, equipment, and visible defects from ALL photos.",
+            "Gallery: exclude registration_document / tech pasas from public images; cover must be best exterior_hero.",
           ]
             .filter(Boolean)
             .join("; "),
@@ -1613,6 +1614,11 @@ export async function executeAgentTool(
             Array.isArray(v) ? v.join(", ") : String(v),
           ])
         );
+
+        const galleryUrls =
+          parsed.orderedImageUrls.length > 0
+            ? parsed.orderedImageUrls
+            : imageUrls;
 
         const priorDesc = String(prior?.description ?? "").trim();
         const visionDesc = String(parsed.listing.description ?? "").trim();
@@ -1635,7 +1641,8 @@ export async function executeAgentTool(
             ...(prior?.attributes ?? {}),
             ...listingAttrs,
           },
-          listingFlowState: "AWAITING_CONFIRMATION" as const,
+          orderedImageUrls: galleryUrls,
+          listingFlowState: "DRAFT_READY" as const,
         };
 
         if (parsed.needsClarification) {
@@ -1673,13 +1680,15 @@ export async function executeAgentTool(
             voiceAnnouncement: message,
             message,
             quickReplies,
-            imageUrls,
+            imageUrls: galleryUrls,
+            orderedImageUrls: galleryUrls,
+            excludedImageUrls: parsed.excludedImageUrls,
           },
           sideEffect: {
             type: "listing_draft",
             listingDraft: draft,
-            imageUrl: imageUrls[0],
-            imageUrls,
+            imageUrl: galleryUrls[0],
+            imageUrls: galleryUrls,
           },
         };
       } catch (e) {
@@ -2625,6 +2634,8 @@ export type AgentSideEffect =
         confidence: number;
         attributes?: Record<string, string>;
         allowPastomatas?: boolean;
+        /** Vision-ordered public gallery (tech-pasas excluded; [0] = cover). */
+        orderedImageUrls?: string[];
         listingFlowState?:
           | "DRAFTING_TEXT"
           | "AWAITING_PHOTOS"

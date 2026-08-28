@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -27,6 +27,7 @@ import { SimilarListingsSection } from "@/components/listing/SimilarListingsSect
 import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
+import { apiFetchListingById, apiFetchMyListings } from "@/lib/api/client";
 import { getSimilarListings } from "@/lib/similar-listings";
 import { sellerDisplayName } from "@/lib/seller-display";
 import { sellerPath } from "@/lib/seo";
@@ -41,6 +42,7 @@ import {
 } from "@/lib/listing-display";
 import { filterPublicListingTags } from "@/lib/listing-attributes";
 import { LISTING_DWELL_MS } from "@/lib/offer-engine-client";
+import type { Listing } from "@/lib/types";
 
 interface ListingDetailPageProps {
   slug?: string;
@@ -91,12 +93,61 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   } = useVauto();
   const { trackEvent } = useUserBehavior();
   const dwellFiredRef = useRef(false);
+  const [remoteListing, setRemoteListing] = useState<Listing | null>(null);
+  const [remoteLoading, setRemoteLoading] = useState(false);
 
-  const listing = slug
-    ? findListing(slug)
-    : id
-      ? findListing(id)
-      : undefined;
+  const catalogListing =
+    (id ? findListing(id) : undefined) ??
+    (slug ? findListing(slug) : undefined);
+  const listing = catalogListing ?? remoteListing ?? undefined;
+
+  useEffect(() => {
+    if (catalogListing || (!id && !slug)) {
+      setRemoteListing(null);
+      setRemoteLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setRemoteLoading(true);
+
+    void (async () => {
+      try {
+        if (id) {
+          const byId = await apiFetchListingById(
+            id,
+            user.id !== "guest" ? user.id : undefined
+          );
+          if (!cancelled && byId.ok) {
+            setRemoteListing(byId.data);
+            return;
+          }
+        }
+
+        // Pending-review owner listings may only appear in /mine until approved.
+        if (user.id && user.id !== "guest") {
+          const mine = await apiFetchMyListings(user.id);
+          if (!cancelled && mine.ok) {
+            const hit = mine.data.find(
+              (l) => l.id === id || l.slug === slug || l.id === slug || l.slug === id
+            );
+            if (hit) {
+              setRemoteListing(hit);
+              return;
+            }
+          }
+        }
+
+        if (!cancelled) setRemoteListing(null);
+      } finally {
+        if (!cancelled) setRemoteLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [catalogListing, id, slug, user.id]);
 
   useEffect(() => {
     if (listing?.id && !listing.banned) {
@@ -132,6 +183,16 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     }, LISTING_DWELL_MS);
     return () => window.clearTimeout(timer);
   }, [listing?.id, listing?.banned, listing?.title, listing?.category, listing?.price, wardrobeContext, trackEvent]);
+
+  if (remoteLoading && !listing) {
+    return (
+      <AppShell variant="plain" hideNav>
+        <div className="px-4 py-12 text-center">
+          <p className="text-slate-500">Kraunama skelbimas…</p>
+        </div>
+      </AppShell>
+    );
+  }
 
   if (!listing || listing.banned) {
     return (

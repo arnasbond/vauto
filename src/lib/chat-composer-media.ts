@@ -3,7 +3,8 @@ import {
   pickMultipleFromGallery,
 } from "@/lib/native-media";
 
-export const MAX_CHAT_COMPOSER_ATTACHMENTS = 6;
+/** Intake cap: 6 public gallery slots + 1 tech-pasas / registration doc for extraction. */
+export const MAX_CHAT_COMPOSER_ATTACHMENTS = 7;
 
 /** Opens the OS/browser native media picker — no custom Fotografuoti/Galerija sheet. */
 export async function pickNativeChatMedia(

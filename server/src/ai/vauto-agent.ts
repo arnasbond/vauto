@@ -53,7 +53,6 @@ import {
   buildPostVisionHeroMessage,
   dispatchListingFlowTurn,
   inferListingFlowState,
-  isHeroFlowLocked,
   isVisionObjectSellChip,
   nounFromVisionObjectSellChip,
   POST_VISION_PUBLISH_CHIPS,
@@ -466,16 +465,9 @@ async function runVautoAgentInner(
   if (flowTurn.kind === "nudge_photos") {
     // Text-first generate/sell — never hard-block; continue to Gemini tools below.
     if (shouldBypassPhotosNudge(lastUserText) && !pendingChatImages?.length) {
-      // fall through
-    } else if (draftPhotoCount > 0 || isHeroFlowLocked(listingDraft?.listingFlowState)) {
-      return {
-        ok: true,
-        reply: POST_VISION_PUBLISH_GATE,
-        quickReplies: [...POST_VISION_PUBLISH_CHIPS],
-        toolCalls: [],
-        actions: { type: "none" },
-      };
+      // fall through — let Gemini iterate on the draft in chat
     } else {
+      // Real photo invite (e.g. „Prisegti nuotraukas“) — never hijack into PrePublish.
       return {
         ok: true,
         reply: flowTurn.reply || AWAITING_PHOTOS_NUDGE,
@@ -509,7 +501,7 @@ async function runVautoAgentInner(
           | null
           | undefined) ?? flowState,
         "OBJECT_SELECTED"
-      ) ?? "AWAITING_CONFIRMATION";
+      ) ?? "DRAFT_READY";
     const patched = normalizeListingDraftForAction(
       {
         ...listingDraft,
@@ -524,20 +516,11 @@ async function runVautoAgentInner(
         listingFlowState: nextState,
       }
     );
-    const gateway = resolvePrePublishGatewayResponse({
-      isAuthenticated: req.context.isAuthenticated,
-      profilePhone: req.context.profilePhone,
-      profileEmail: req.context.profileEmail,
-      userCity: req.context.userCity,
-      contact: req.context.contact,
-      listingDraft: patched,
-      pendingImageUrls: req.context.pendingImageUrls,
-      geoCityHint: req.context.geoCityHint,
-    });
+    // Chat-first: stream draft description for review — PrePublish only on explicit finalize.
     return {
       ok: true,
-      reply: gateway.reply || PRE_PUBLISH_CARD_INTRO,
-      ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
+      reply: buildPostVisionHeroMessage(patched),
+      quickReplies: [...POST_VISION_PUBLISH_CHIPS],
       toolCalls: [],
       actions: {
         type: "listing_draft",
@@ -717,12 +700,16 @@ async function runVautoAgentInner(
       flowState === "DRAFT_READY" ||
       (flowState === "AWAITING_PHOTOS" && draftPhotoCount > 0)
     ) {
+      // Stay in chat for draft edits — do not re-pitch PrePublish on workflow chips.
       return {
         ok: true,
-        reply: POST_VISION_PUBLISH_GATE,
+        reply: buildPostVisionHeroMessage(listingDraft),
         quickReplies: [...POST_VISION_PUBLISH_CHIPS],
         toolCalls: [],
-        actions: { type: "none" },
+        actions: {
+          type: "listing_draft",
+          listingDraft,
+        },
       };
     }
   }
@@ -951,7 +938,7 @@ async function runVautoAgentInner(
       role: "user",
       parts: [
         {
-          text: `[Nuotraukos įkeltos — PRIVALOMA scanListingPhotos]\nimageUrls: ${JSON.stringify(req.context.pendingImageUrls.slice(0, 6))}`,
+          text: `[Nuotraukos įkeltos — PRIVALOMA scanListingPhotos]\nimageUrls: ${JSON.stringify(req.context.pendingImageUrls.slice(0, 7))}`,
         },
       ],
     });

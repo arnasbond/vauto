@@ -395,6 +395,18 @@ export async function apiFetchMyListings(userId: string): Promise<ApiResult<List
   return dataFetch<Listing[]>("/api/listings/mine", { userId });
 }
 
+export async function apiFetchListingById(
+  id: string,
+  userId?: string
+): Promise<ApiResult<Listing>> {
+  const res = await dataFetch<LegacyListingInput>(
+    `/api/listings/${encodeURIComponent(id)}`,
+    userId ? { userId } : undefined
+  );
+  if (!res.ok) return res;
+  return { ok: true, data: normalizeListing(res.data) };
+}
+
 export async function apiCreateListing(
   listing: Listing,
   userId: string

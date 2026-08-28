@@ -160,7 +160,7 @@ export function buildConsultantFollowUpQuestion(
     return "Kurioje vietoje skelbiame — kokį miestą rodyti pirkėjams?";
   }
 
-  return "Ar šis aprašymas skamba gerai, ar dar ką nors patikslinsime prieš nuotraukas?";
+  return "Ar šis aprašymas skamba gerai? Parašykite pataisymus čia — kai tinka, parašykite „Tinka“ arba „Publikuok“.";
 }
 
 export function buildDraftGapAnalysis(draft: ListingDraftPreviewInput): string | null {

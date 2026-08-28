@@ -2,9 +2,43 @@ import { resolveListingCity } from "@/lib/city-resolve";
 import type { ListingEditPatch } from "@/lib/listing-edit";
 import type { LegacyListingInput, Listing } from "@/lib/types";
 
-/** Server API expects singular `image`; client models use `images[]`. */
-export function listingToApiPayload(listing: Listing): Omit<Listing, "images"> & { image: string } {
+export const GALLERY_IMAGES_ATTR = "galleryImages";
+
+function uniqueImageUrls(urls: string[]): string[] {
+  const out: string[] = [];
+  for (const raw of urls) {
+    const u = String(raw ?? "").trim();
+    if (u && !out.includes(u)) out.push(u);
+  }
+  return out.slice(0, 6);
+}
+
+/** Persist full public gallery in attributes (DB has singular `image` column only). */
+export function galleryImagesAttributeValue(images: string[] | undefined): string {
+  return JSON.stringify(uniqueImageUrls(images ?? []));
+}
+
+export function parseGalleryImagesAttribute(
+  attributes?: Record<string, string | string[] | undefined> | null
+): string[] {
+  const raw = attributes?.[GALLERY_IMAGES_ATTR];
+  if (!raw) return [];
+  if (Array.isArray(raw)) return uniqueImageUrls(raw.map(String));
+  try {
+    const parsed = JSON.parse(String(raw));
+    if (Array.isArray(parsed)) return uniqueImageUrls(parsed.map(String));
+  } catch {
+    /* ignore */
+  }
+  return [];
+}
+
+/** Server API expects singular `image`; full gallery lives in attributes.galleryImages. */
+export function listingToApiPayload(
+  listing: Listing
+): Omit<Listing, "images"> & { image: string } {
   const { images, ...rest } = listing;
+  const gallery = uniqueImageUrls(images ?? []);
   const attributes =
     typeof rest.attributes === "object" && rest.attributes
       ? { ...rest.attributes }
@@ -13,11 +47,14 @@ export function listingToApiPayload(listing: Listing): Omit<Listing, "images"> &
   if (listing.isAiTwinActive === true) {
     attributes.isAiTwinActive = "true";
   }
+  if (gallery.length) {
+    attributes[GALLERY_IMAGES_ATTR] = galleryImagesAttributeValue(gallery);
+  }
   return {
     ...rest,
     attributes,
     location: resolveListingCity(listing.location),
-    image: images?.[0]?.trim() ?? "",
+    image: gallery[0] ?? "",
     allowPastomatas: listing.allowPastomatas ?? true,
   };
 }
@@ -28,7 +65,16 @@ export function listingPatchToApiPayload(
   const { images, ...rest } = patch;
   const out: Record<string, unknown> = { ...rest };
   if (images !== undefined) {
-    out.image = images[0]?.trim() ?? "";
+    const gallery = uniqueImageUrls(images);
+    out.image = gallery[0] ?? "";
+    const attrs =
+      out.attributes && typeof out.attributes === "object"
+        ? (out.attributes as Record<string, unknown>)
+        : {};
+    out.attributes = {
+      ...attrs,
+      [GALLERY_IMAGES_ATTR]: galleryImagesAttributeValue(gallery),
+    };
   }
   if ((patch as Listing).isAiTwinActive === true) {
     const attrs =
