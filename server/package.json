@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "build": "node ./scripts/run-marketplace-domain-sync.mjs && tsc",
+    "build": "node ./scripts/run-marketplace-domain-sync.mjs && node ./scripts/run-category-registry-sync.mjs && tsc",
     "test:ai-foundation": "tsx --test src/ai/foundation/*.test.ts",
     "test:ai-intent": "tsx --test src/ai/intent/__tests__/*.test.ts",
     "test:ai-search": "tsx --test src/ai/search/__tests__/*.test.ts",
@@ -35,7 +35,7 @@
     "test:dispute-resolution": "tsx --test src/disputes/__tests__/dispute-resolution.test.ts",
     "test:reputation-engine": "tsx --test src/reputation/__tests__/reputation-engine.test.ts",
     "test:universal-core": "tsx --test src/transaction/__tests__/universal-transaction-core.test.ts src/transaction/__tests__/universal-core-postgres-pool.test.ts",
-    "test:category-domain": "tsx --test ../shared/marketplace-domain/category-domain.test.ts",
+    "test:category-domain": "tsx --test ../shared/marketplace-domain/category-domain.test.ts ../shared/marketplace-domain/domain-parity.test.ts",
     "test:faceted-search": "tsx --test ../shared/marketplace-domain/facet-query.test.ts src/marketplace/__tests__/facet-http.test.ts",
     "test:deal-room-13c": "tsx --test ../shared/marketplace-domain/deal-actions.test.ts src/marketplace/__tests__/universal-deal-room.test.ts",
     "test:deal-room-13c-pg": "tsx --test src/marketplace/__tests__/universal-deal-room-postgres.test.ts",

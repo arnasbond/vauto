@@ -3,18 +3,8 @@
  * Use with Drizzle/Prisma/raw SQL when backend is added.
  */
 
-export type ListingCategory =
-  | "electronics"
-  | "vehicles"
-  | "transport"
-  | "services"
-  | "jobs"
-  | "home"
-  | "clothing"
-  | "real_estate"
-  | "tools"
-  | "rental"
-  | "other";
+import type { RegistryListingCategory as ListingCategory } from "@vauto/shared/category-registry";
+export type { ListingCategory };
 
 export type ListingStatus = "draft" | "active" | "sold" | "archived";
 export type SellerInputMode = "upload" | "voice";

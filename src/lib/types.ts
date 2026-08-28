@@ -79,18 +79,13 @@ export type LegacyListingInput = Omit<Listing, "images"> & {
   images?: string[];
 };
 
-export type ListingCategory =
-  | "electronics"
-  | "vehicles"
-  | "transport"
-  | "services"
-  | "jobs"
-  | "home"
-  | "clothing"
-  | "real_estate"
-  | "tools"
-  | "rental"
-  | "other";
+/**
+ * Canonical listing category — single source is `@vauto/shared/category-registry`.
+ * Imported + re-exported here (not a second hand-maintained union) so every
+ * consumer keeps the same 11 persisted slugs (DB TEXT contract + AI/API routing).
+ */
+import type { RegistryListingCategory as ListingCategory } from "@vauto/shared/category-registry";
+export type { ListingCategory };
 
 export type CategoryAttributes = Record<string, string | string[] | undefined>;
 

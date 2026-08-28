@@ -54,7 +54,7 @@ export function WardrobeCabinetSection({
 
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-light tracking-wide text-[var(--vauto-text-main)]">
-          <LayoutGrid className="h-4 w-4 text-[var(--chameleon-accent,#09b1a8)]" />
+          <LayoutGrid className="h-4 w-4 text-[var(--vauto-accent)]" />
           {cabinetSectionTitle(profileType ?? user.profileType)}
           {clothingCount > 0 && (
             <span className="text-xs text-[var(--vauto-text-muted)]">({clothingCount})</span>
