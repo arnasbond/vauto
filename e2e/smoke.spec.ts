@@ -43,7 +43,14 @@ test.describe("VAUTO smoke", () => {
   test("chats gate shows login CTA for guests", async ({ page }) => {
     await page.goto("/chats/");
     await expect(page.getByRole("heading", { name: "Pokalbiai" })).toBeVisible();
-    await expect(page.getByText(/Prisijungti/i).first()).toBeVisible();
+    // Unlike /profile/, this page renders inside VautoAdaptiveLayout, whose
+    // shared AppHeader always mounts a "Prisijungti" account-menu trigger for
+    // guests (hidden via `hidden md:block` at this phone viewport, but still
+    // present earlier in the DOM). Filter to the one actually-visible match —
+    // the real in-page guest-gate CTA — instead of relying on DOM order.
+    await expect(
+      page.getByText(/Prisijungti/i).filter({ visible: true }).first()
+    ).toBeVisible();
   });
 
   test("listing detail page renders", async ({ page }) => {
