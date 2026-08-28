@@ -329,6 +329,17 @@
   --radius-lg: var(--radius);
 }
 
+/* Reserve the vertical scrollbar's track unconditionally so the root layout
+   width never shifts between "scrollbar present" and "scrollbar absent"
+   states. Without this, pages whose content height straddles the viewport
+   height at a given width can flip in/out of a scrollbar right at a
+   responsive breakpoint boundary (e.g. Tailwind `md` = 768px), causing a
+   several-pixel horizontal reflow that is purely an artifact of scrollbar
+   presence, not of theme, content, or intentional layout. */
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   font-family: var(--font-geist-sans), var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
