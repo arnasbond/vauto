@@ -1,4 +1,13 @@
-import { adminPatchListing, getListings, searchListingsFiltered, updateListing } from "../repository.js";
+import { getListings, searchListingsFiltered } from "../repository.js";
+import {
+  getConfirmationBoundaryState,
+  getDefaultPendingActionStore,
+  proposeConsequentialAction,
+} from "./confirmation/consequential-action-policy.js";
+
+/** Shared fail-closed guard for both consequential-action tool proposals below (2nd audit, remediation B). */
+const CONFIRMATION_BOUNDARY_UNAVAILABLE_MESSAGE =
+  "Patvirtinimo sistema laikinai nepasiekiama — pabandykite po kelių sekundžių.";
 import { buildBrowseAllReply, isBrowseAllIntent, resolveBrowseAllIntent } from "../lib/browse-all-intent.js";
 import { normalizeProductSearchQuery, inferSearchCategory, extractProductSearchIntent } from "./product-search-query.js";
 import {
@@ -2067,11 +2076,23 @@ export async function executeAgentTool(
     }
 
     case "blockListing": {
+      // Fast-fail on the proposal-time role snapshot (cheap UX guard only).
+      // Authorization is RE-CHECKED against the live DB role at confirmation
+      // time in the /api/consequential-actions/confirm handler — this tool
+      // call never mutates anything, regardless of role.
       if (ctx.userRole !== "admin") {
         return {
           result: {
             ok: false,
             message: "Tik administratorius gali blokuoti skelbimus.",
+          },
+        };
+      }
+      if (!ctx.authUserId) {
+        return {
+          result: {
+            ok: false,
+            message: "Administratoriaus sesija nerasta — prisijunkite iš naujo.",
           },
         };
       }
@@ -2082,40 +2103,47 @@ export async function executeAgentTool(
           result: { ok: false, message: "Nenurodytas skelbimo ID." },
         };
       }
-      try {
-        const updated = await adminPatchListing(listingId, { banned: true });
-        if (!updated) {
-          return {
-            result: {
-              ok: false,
-              message: `Skelbimas ${listingId} nerastas.`,
-            },
-          };
-        }
+      if (getConfirmationBoundaryState() !== "READY") {
         return {
-          result: {
-            ok: true,
-            listingId,
-            reason,
-            title: updated.title,
-            message: `Skelbimas „${updated.title}" užblokuotas.`,
-          },
-          sideEffect: {
-            type: "block_listing",
-            listingId,
-            reason,
-            listingTitle: updated.title,
-          },
-        };
-      } catch (e) {
-        return {
-          result: {
-            ok: false,
-            message:
-              e instanceof Error ? e.message : "Nepavyko užblokuoti skelbimo.",
-          },
+          result: { ok: false, message: CONFIRMATION_BOUNDARY_UNAVAILABLE_MESSAGE },
         };
       }
+
+      const pending = await proposeConsequentialAction(getDefaultPendingActionStore(), {
+        type: "blockListing",
+        targetId: listingId,
+        userId: ctx.authUserId,
+        explanation: reason
+          ? `Užblokuoti skelbimą ${listingId}. Priežastis: ${reason}.`
+          : `Užblokuoti skelbimą ${listingId}.`,
+      });
+
+      // Audit remediation #4: `pendingActionId` is intentionally OMITTED
+      // from `result` — this object is echoed verbatim into the Gemini
+      // functionResponse content (see vauto-agent.ts responseParts.push),
+      // i.e. it becomes part of what the LLM "sees" on the next turn. The
+      // id carries no authorization by itself (confirmConsequentialAction
+      // always re-validates userId/type/targetId), but the model has no
+      // legitimate use for it — confirmation only ever happens through the
+      // deterministic client-side dialog reading `sideEffect.pendingActionId`
+      // below, never through chat text. Keeping it out of `result` removes
+      // any possibility of the model repeating/leaking it into chat text.
+      return {
+        result: {
+          ok: true,
+          pending: true,
+          listingId,
+          reason,
+          message: `Prašau patvirtinti pokalbio lange: užblokuoti skelbimą ${listingId}${reason ? ` (priežastis: ${reason})` : ""}?`,
+        },
+        sideEffect: {
+          type: "block_listing",
+          listingId,
+          reason,
+          pendingActionId: pending.id,
+          expiresAt: new Date(pending.expiresAt).toISOString(),
+        },
+      };
     }
 
     case "registerWanted": {
@@ -2157,7 +2185,7 @@ export async function executeAgentTool(
       const titleHint = String(args.titleHint ?? "").trim().toLowerCase();
       const pageListingId = ctx.activeListingId?.trim();
       const mine = (ctx.myListings ?? []).filter((l) => l.status !== "sold");
-      let target =
+      const target =
         mine.find((l) => l.id === listingId) ??
         (pageListingId ? mine.find((l) => l.id === pageListingId) : undefined) ??
         (titleHint
@@ -2179,42 +2207,50 @@ export async function executeAgentTool(
 
       const firstName = (ctx.userName ?? "drauge").split(/\s+/)[0];
 
-      if (ctx.authUserId) {
-        try {
-          const updated = await updateListing(target.id, ctx.authUserId, {
-            status: "sold",
-          });
-          if (!updated) {
-            return {
-              result: {
-                ok: false,
-                message: "Nepavyko archyvuoti skelbimo — patikrinkite savininko teises.",
-              },
-            };
-          }
-          target = { ...target, status: "sold" };
-        } catch (e) {
-          return {
-            result: {
-              ok: false,
-              message:
-                e instanceof Error ? e.message : "Nepavyko pažymėti skelbimo parduotu.",
-            },
-          };
-        }
+      // Consequential-action confirmation boundary (VAUTO AI Maturity Phase
+      // 1): this tool call MUST NOT mutate the database. It only proposes a
+      // pending action; ownership is re-checked fresh, atomically, at
+      // confirmation time in /api/consequential-actions/confirm (see
+      // markListingSoldAtomic in ai/confirmation/atomic-listing-ops.ts).
+      if (!ctx.authUserId) {
+        return {
+          result: {
+            ok: false,
+            message: "Norėdami pažymėti skelbimą parduotu, prisijunkite.",
+          },
+        };
+      }
+      if (getConfirmationBoundaryState() !== "READY") {
+        return {
+          result: { ok: false, message: CONFIRMATION_BOUNDARY_UNAVAILABLE_MESSAGE },
+        };
       }
 
+      const pending = await proposeConsequentialAction(getDefaultPendingActionStore(), {
+        type: "markListingSold",
+        targetId: target.id,
+        userId: ctx.authUserId,
+        explanation: `Pažymėti skelbimą „${target.title}" kaip parduotą.`,
+      });
+
+      // Audit remediation #4 — see the matching comment in the blockListing
+      // handler above: pendingActionId stays OUT of `result` (LLM-visible
+      // functionResponse) and lives only in the trusted `sideEffect`
+      // channel consumed directly by the client confirmation dialog.
       return {
         result: {
           ok: true,
+          pending: true,
           listingId: target.id,
           title: target.title,
-          message: `Puiku, ${firstName}, tavo skelbimą „${target.title}" archyvavau!`,
+          message: `${firstName}, prašau patvirtinti pokalbio lange: pažymėti skelbimą „${target.title}" kaip parduotą?`,
         },
         sideEffect: {
           type: "mark_listing_sold",
           listingId: target.id,
           title: target.title,
+          pendingActionId: pending.id,
+          expiresAt: new Date(pending.expiresAt).toISOString(),
         },
       };
     }
@@ -2873,10 +2909,18 @@ export type AgentSideEffect =
       imageUrls?: string[];
     }
   | {
+      /**
+       * Consequential-action confirmation boundary (VAUTO AI Maturity Phase
+       * 1): this is a PROPOSAL only — the DB has NOT been mutated yet.
+       * Execution requires a separate explicit confirmation carrying the
+       * exact `pendingActionId` (see server/src/routes/consequential-actions.ts).
+       */
       type: "block_listing";
       listingId: string;
       reason: string;
       listingTitle?: string;
+      pendingActionId: string;
+      expiresAt: string;
     }
   | {
       type: "empty_search";
@@ -2893,9 +2937,17 @@ export type AgentSideEffect =
       query: string;
     }
   | {
+      /**
+       * Consequential-action confirmation boundary (VAUTO AI Maturity Phase
+       * 1): this is a PROPOSAL only — the DB has NOT been mutated yet.
+       * Execution requires a separate explicit confirmation carrying the
+       * exact `pendingActionId` (see server/src/routes/consequential-actions.ts).
+       */
       type: "mark_listing_sold";
       listingId: string;
       title: string;
+      pendingActionId: string;
+      expiresAt: string;
     }
   | {
       type: "navigate";

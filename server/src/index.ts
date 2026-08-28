@@ -10,6 +10,9 @@ import { apiRouter } from "./routes/api.js";
 import { aiRouter } from "./routes/ai.js";
 import { vautoServerRouter } from "./routes/vauto-server.js";
 import { vautoAgentRouter } from "./routes/vauto-agent.js";
+import { consequentialActionsRouter } from "./routes/consequential-actions.js";
+import { markConfirmationBoundaryReady } from "./ai/confirmation/consequential-action-policy.js";
+import { createPostgresPendingActionStore } from "./ai/confirmation/consequential-action-store-postgres.js";
 import { handleStripeWebhook } from "./routes/billing.js";
 import { handleVautoStripeWebhook } from "./routes/webhooks.js";
 import { paymentMethodsRouter } from "./routes/payment-methods.js";
@@ -174,6 +177,15 @@ app.use("/api/stage10", aiRateLimiter, stage10Router);
 app.use("/api/vauto-server", aiRateLimiter, requireAuth, vautoServerRouter);
 /** Stage 0 cost abuse: agent requires JWT (guest text spend closed). */
 app.use("/api/vauto-agent", aiRateLimiter, requireAuth, vautoAgentRouter);
+/** AI Maturity Phase 1 — deterministic confirmation boundary for
+ *  markListingSold / blockListing. Never reachable from LLM tool-call text;
+ *  requires the exact opaque pendingActionId minted by the proposal. */
+app.use(
+  "/api/consequential-actions",
+  actionRateLimiter,
+  requireAuth,
+  consequentialActionsRouter
+);
 /** Stage 11F.6 — legacy /api/billing + /api/escrow-billing routers REMOVED (C-01).
  *  Deal payments MUST use paymentIntentRouter / fundsTransferRouter / webhooks / reconciliation only.
  *  Subscription billing webhook remains at POST /api/billing/webhook (raw) above. */
@@ -280,6 +292,21 @@ app.listen(port, async () => {
 
   try {
     await runMigrations();
+    // AI Maturity Phase 1 (audit remediation #3, 2nd audit remediation B) —
+    // durable pending-action store. Until THIS call, the confirmation
+    // boundary is UNAVAILABLE by construction (no store installed at all —
+    // never an in-memory fallback in production): every /confirm, /cancel,
+    // and tool-proposal call fails safely with a typed 503 /
+    // "boundary unavailable" tool result. This is the ONE place, called
+    // ONLY after migrations succeed, that atomically installs the durable
+    // PostgreSQL-backed store AND marks the boundary READY — there is no
+    // intermediate "live but wrong store" state, so nothing accepted during
+    // bootstrap can ever be orphaned by a later swap (nothing is ever
+    // accepted during bootstrap in the first place). If `runMigrations()`
+    // above throws, this line never runs and the boundary stays
+    // UNAVAILABLE for the lifetime of this process — fail closed, not
+    // fail open onto a non-durable store.
+    markConfirmationBoundaryReady(createPostgresPendingActionStore(pool));
     const { startAiWatchOutboxWorker } = await import("./ai-watch/outbox.js");
     startAiWatchOutboxWorker(5000);
     const { startScheduledReconciliationWorker } = await import(

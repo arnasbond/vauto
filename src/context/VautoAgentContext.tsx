@@ -14,6 +14,10 @@ import {
 } from "react";
 import { createThrottleLeading } from "@/lib/throttle-leading";
 import { useVauto } from "@/context/VautoContext";
+import {
+  apiCancelConsequentialAction,
+  apiConfirmConsequentialAction,
+} from "@/lib/consequential-action-confirm";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useChat } from "@/context/ChatContext";
@@ -358,6 +362,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setListingBanned,
     markListingSold,
     showToast,
+    showConfirm,
     requestMediaConsent,
     isAuthenticated,
     openAuthModal,
@@ -808,14 +813,47 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           });
         }
       }
-      if (actions.type === "block_listing" && actions.listingId) {
-        setListingBanned(actions.listingId, true);
-        showToast(
-          actions.listingTitle
-            ? `AI užblokavo: ${actions.listingTitle}`
-            : `Skelbimas užblokuotas (${actions.listingId})`,
-          "success"
-        );
+      if (actions.type === "block_listing" && actions.listingId && actions.pendingActionId) {
+        // Consequential-action confirmation boundary (AI Maturity Phase 1):
+        // the tool call above only PROPOSED this — nothing is blocked yet.
+        // Execution requires this explicit, deterministic (non-LLM) confirm
+        // dialog + the exact pendingActionId minted server-side.
+        const listingId = actions.listingId;
+        const pendingActionId = actions.pendingActionId;
+        const listingTitle = actions.listingTitle;
+        const reason = actions.reason;
+        void (async () => {
+          const confirmed = await showConfirm({
+            title: "Patvirtinti skelbimo blokavimą",
+            message: listingTitle
+              ? `Užblokuoti skelbimą „${listingTitle}"?${reason ? ` Priežastis: ${reason}.` : ""}`
+              : `Užblokuoti skelbimą ${listingId}?${reason ? ` Priežastis: ${reason}.` : ""}`,
+            confirmLabel: "Taip, blokuoti",
+            cancelLabel: "Atšaukti",
+            variant: "danger",
+          });
+          if (!confirmed) {
+            void apiCancelConsequentialAction(pendingActionId).catch(() => {});
+            return;
+          }
+          const res = await apiConfirmConsequentialAction(
+            pendingActionId,
+            "blockListing",
+            listingId
+          );
+          if (res.ok && res.data.result.ok) {
+            setListingBanned(listingId, true);
+            showToast(
+              listingTitle ? `AI užblokavo: ${listingTitle}` : `Skelbimas užblokuotas (${listingId})`,
+              "success"
+            );
+          } else {
+            showToast(
+              res.ok ? "Nepavyko užblokuoti — patikrinkite teises." : res.error,
+              "error"
+            );
+          }
+        })();
       }
       if (actions.type === "empty_search") {
         // P0 — Never turn a fresh seller listing session into marketplace wishlist/search.
@@ -874,14 +912,45 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           onError: (msg) => showToast(msg, "error"),
         });
       }
-      if (actions.type === "mark_listing_sold" && actions.listingId) {
-        markListingSold(actions.listingId);
-        showToast(
-          actions.title
-            ? `Skelbimas archyvuotas: ${actions.title}`
-            : "Skelbimas pažymėtas parduotu",
-          "success"
-        );
+      if (actions.type === "mark_listing_sold" && actions.listingId && actions.pendingActionId) {
+        // Consequential-action confirmation boundary (AI Maturity Phase 1):
+        // the tool call above only PROPOSED this — nothing is archived yet.
+        // Execution requires this explicit, deterministic (non-LLM) confirm
+        // dialog + the exact pendingActionId minted server-side.
+        const listingId = actions.listingId;
+        const pendingActionId = actions.pendingActionId;
+        const title = actions.title;
+        void (async () => {
+          const confirmed = await showConfirm({
+            title: "Patvirtinti pardavimą",
+            message: title
+              ? `Pažymėti skelbimą „${title}" kaip parduotą?`
+              : "Pažymėti skelbimą kaip parduotą?",
+            confirmLabel: "Taip, pažymėti parduotu",
+            cancelLabel: "Atšaukti",
+          });
+          if (!confirmed) {
+            void apiCancelConsequentialAction(pendingActionId).catch(() => {});
+            return;
+          }
+          const res = await apiConfirmConsequentialAction(
+            pendingActionId,
+            "markListingSold",
+            listingId
+          );
+          if (res.ok && res.data.result.ok) {
+            markListingSold(listingId);
+            showToast(
+              title ? `Skelbimas archyvuotas: ${title}` : "Skelbimas pažymėtas parduotu",
+              "success"
+            );
+          } else {
+            showToast(
+              res.ok ? "Nepavyko archyvuoti — patikrinkite savininko teises." : res.error,
+              "error"
+            );
+          }
+        })();
       }
       if (actions.type === "toggle_favorite" && actions.listingId) {
         toggleSave(actions.listingId);
@@ -1119,6 +1188,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setSearchInputMode,
       setSearchQuery,
       showToast,
+      showConfirm,
       subscribeWishlist,
       recordSearchFilters,
       clearSearchFilters,

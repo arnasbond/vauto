@@ -326,10 +326,19 @@ export type VautoAgentAction =
       imageUrls?: string[];
     }
   | {
+      /**
+       * Consequential-action confirmation boundary (VAUTO AI Maturity Phase
+       * 1): PROPOSAL only — nothing has been mutated server-side yet.
+       * `pendingActionId` must be echoed back to
+       * `/api/consequential-actions/confirm` after EXPLICIT user
+       * confirmation (see confirmConsequentialAction in src/lib/api/client.ts).
+       */
       type: "block_listing";
       listingId: string;
       reason: string;
       listingTitle?: string;
+      pendingActionId: string;
+      expiresAt: string;
     }
   | {
       type: "empty_search";
@@ -362,9 +371,18 @@ export type VautoAgentAction =
       voiceConfirmPhrase?: string;
     }
   | {
+      /**
+       * Consequential-action confirmation boundary (VAUTO AI Maturity Phase
+       * 1): PROPOSAL only — nothing has been mutated server-side yet.
+       * `pendingActionId` must be echoed back to
+       * `/api/consequential-actions/confirm` after EXPLICIT user
+       * confirmation (see confirmConsequentialAction in src/lib/api/client.ts).
+       */
       type: "mark_listing_sold";
       listingId: string;
       title?: string;
+      pendingActionId: string;
+      expiresAt: string;
     }
   | {
       type: "toggle_favorite";
