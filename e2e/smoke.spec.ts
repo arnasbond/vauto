@@ -22,9 +22,11 @@ test.describe("VAUTO smoke", () => {
 
   test("home page loads with listings", async ({ page }) => {
     await waitForHomeReady(page);
-    await expect(
-      page.getByRole("heading", { name: /Žmogus sprendžia/i })
-    ).toBeVisible({ timeout: 10_000 });
+    // MASTER Wave 2 correction: "AI padeda. Žmogus sprendžia." moved out of
+    // the H1 into the hero subtitle (still visible, first-viewport).
+    await expect(page.getByText(/Žmogus sprendžia/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
     await expect(page.getByText(/Naujausi skelbimai/i).first()).toBeVisible({
       timeout: 10_000,
     });

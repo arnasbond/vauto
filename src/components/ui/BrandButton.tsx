@@ -11,7 +11,7 @@ const VARIANT_CLASS: Record<BrandButtonVariant, string> = {
   primary:
     "bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)] hover:opacity-90",
   secondary:
-    "border border-[var(--vauto-border-input)] bg-white text-[var(--vauto-ink)] hover:bg-[var(--vauto-surface-page)]",
+    "border border-[var(--vauto-border-input)] bg-[var(--vauto-card-bg)] text-[var(--vauto-ink)] hover:bg-[var(--vauto-surface-page)]",
   ghost:
     "border border-[var(--vauto-border-input)] bg-transparent text-[var(--vauto-ink)] hover:bg-[var(--vauto-surface-page)]",
 };

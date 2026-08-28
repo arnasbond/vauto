@@ -36,9 +36,9 @@ export default function InstallPage() {
         </div>
 
         {native ? (
-          <div className="card-shadow mb-6 rounded-2xl bg-green-50 p-5 text-center">
-            <CheckCircle2 className="mx-auto h-10 w-10 text-green-600" />
-            <p className="mt-3 font-semibold text-green-800">
+          <div className="card-shadow mb-6 rounded-2xl bg-green-50 p-5 text-center dark:bg-green-400/10">
+            <CheckCircle2 className="mx-auto h-10 w-10 text-green-600 dark:text-green-400" />
+            <p className="mt-3 font-semibold text-green-800 dark:text-green-300">
               VAUTO jau įdiegta šiame įrenginyje
             </p>
             <Link
@@ -49,7 +49,7 @@ export default function InstallPage() {
             </Link>
           </div>
         ) : installedPwa ? (
-          <div className="card-shadow mb-6 rounded-2xl bg-white p-5 text-center">
+          <div className="card-shadow mb-6 rounded-2xl bg-[var(--vauto-card-bg)] p-5 text-center">
             <CheckCircle2 className="mx-auto h-10 w-10 text-[var(--vauto-blue)]" />
             <p className="mt-3 font-semibold text-[var(--vauto-text)]">
               VAUTO jau pridėta į pradžios ekraną
@@ -129,13 +129,13 @@ export default function InstallPage() {
         )}
 
         {!android && !ios && !native && (
-          <div className="card-shadow mb-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="card-shadow mb-6 rounded-2xl bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-400/10 dark:text-amber-200">
             Atidarykite šį puslapį <strong>telefono</strong> naršyklėje — parodysime
             tinkamas instrukcijas Android arba iPhone.
           </div>
         )}
 
-        <div className="card-shadow space-y-4 rounded-2xl bg-white p-5">
+        <div className="card-shadow space-y-4 rounded-2xl bg-[var(--vauto-card-bg)] p-5">
           <h2 className="flex items-center gap-2 font-semibold text-[var(--vauto-text)]">
             <Download className="h-5 w-5 text-[var(--vauto-blue)]" />
             Android (APK) — 4 žingsniai
@@ -148,7 +148,7 @@ export default function InstallPage() {
           </ol>
         </div>
 
-        <div className="mt-4 card-shadow space-y-4 rounded-2xl bg-white p-5">
+        <div className="mt-4 card-shadow space-y-4 rounded-2xl bg-[var(--vauto-card-bg)] p-5">
           <h2 className="flex items-center gap-2 font-semibold text-[var(--vauto-text)]">
             <Apple className="h-5 w-5 text-[var(--vauto-blue)]" />
             iPhone (Safari) — 4 žingsniai

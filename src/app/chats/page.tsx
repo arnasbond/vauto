@@ -15,7 +15,7 @@ export default function ChatsPage() {
     <Suspense
       fallback={
         <VautoAdaptiveLayout variant="plain">
-          <p className="py-16 text-center text-sm text-slate-500">Kraunama…</p>
+          <p className="py-16 text-center text-sm text-[var(--vauto-text-muted)]">Kraunama…</p>
         </VautoAdaptiveLayout>
       }
     >
@@ -61,7 +61,7 @@ function ChatsPageContent() {
   if (!authHydrated) {
     return (
       <VautoAdaptiveLayout variant="plain">
-        <p className="py-16 text-center text-sm text-slate-500">Kraunama…</p>
+        <p className="py-16 text-center text-sm text-[var(--vauto-text-muted)]">Kraunama…</p>
       </VautoAdaptiveLayout>
     );
   }
@@ -71,8 +71,8 @@ function ChatsPageContent() {
       <VautoAdaptiveLayout variant="plain">
         <div className="flex min-h-[50dvh] flex-col items-center justify-center px-6 text-center">
           <MessageCircle className="mb-4 h-12 w-12 text-[var(--vauto-teal)]" />
-          <h1 className="text-xl font-bold text-slate-900">Pokalbiai</h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <h1 className="text-xl font-bold text-[var(--vauto-text-heading)]">Pokalbiai</h1>
+          <p className="mt-2 text-sm text-[var(--vauto-text-muted)]">
             Prisijunkite, kad galėtumėte rašyti pardavėjams ir sekti pokalbius.
           </p>
           <button
@@ -92,11 +92,11 @@ function ChatsPageContent() {
     return (
       <VautoAdaptiveLayout variant="plain">
         <div className="mx-auto w-full max-w-7xl px-4 md:px-0">
-          <h1 className="mb-4 font-display text-xl font-bold text-slate-900">
+          <h1 className="mb-4 font-display text-xl font-bold text-[var(--vauto-text-heading)]">
             Pokalbiai
           </h1>
           <div className="grid min-h-[calc(100dvh-12rem)] gap-4 md:grid-cols-3">
-            <aside className="md:col-span-1 md:max-h-[calc(100dvh-12rem)] md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200/80 md:bg-white md:p-3 md:shadow-sm">
+            <aside className="md:col-span-1 md:max-h-[calc(100dvh-12rem)] md:overflow-y-auto md:rounded-2xl md:border md:border-[var(--vauto-border)] md:bg-[var(--vauto-card-bg)] md:p-3 md:shadow-sm">
               <ChatsListPanel
                 chats={myChats}
                 userId={user.id}
@@ -104,13 +104,13 @@ function ChatsPageContent() {
                 onSelectChat={handleSelectChat}
               />
             </aside>
-            <section className="md:col-span-2 md:rounded-2xl md:border md:border-slate-200/80 md:bg-slate-50/80 md:p-2 md:shadow-sm">
+            <section className="md:col-span-2 md:rounded-2xl md:border md:border-[var(--vauto-border)] md:bg-[var(--vauto-surface-muted)] md:p-2 md:shadow-sm">
               {activeChatId ? (
                 <ChatThreadView chatId={activeChatId} embedded />
               ) : (
-                <div className="flex h-full min-h-[320px] flex-col items-center justify-center rounded-2xl bg-white p-8 text-center">
-                  <MessageCircle className="mb-3 h-10 w-10 text-slate-300" />
-                  <p className="text-sm text-slate-500">
+                <div className="flex h-full min-h-[320px] flex-col items-center justify-center rounded-2xl bg-[var(--vauto-card-bg)] p-8 text-center">
+                  <MessageCircle className="mb-3 h-10 w-10 text-[var(--vauto-border)]" />
+                  <p className="text-sm text-[var(--vauto-text-muted)]">
                     Pasirinkite pokalbį iš sąrašo arba atidarykite skelbimą ir
                     spauskite „Rašyti“.
                   </p>
@@ -126,7 +126,7 @@ function ChatsPageContent() {
   return (
     <VautoAdaptiveLayout variant="plain">
       <div className="mx-auto w-full max-w-lg md:max-w-7xl">
-        <h1 className="mb-4 font-display text-xl font-bold text-slate-900">
+        <h1 className="mb-4 font-display text-xl font-bold text-[var(--vauto-text-heading)]">
           Pokalbiai
         </h1>
         <ChatsListPanel
@@ -134,7 +134,7 @@ function ChatsPageContent() {
           userId={user.id}
           linkPrefix="/pokalbiai/?id="
         />
-        <p className="mt-6 text-center text-xs text-slate-400">
+        <p className="mt-6 text-center text-xs text-[var(--vauto-text-muted)]">
           Parašykite „perku“ arba „tinka“ — AI pasiūlys saugų mokėjimą.
         </p>
       </div>

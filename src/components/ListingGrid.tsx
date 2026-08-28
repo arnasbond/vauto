@@ -162,7 +162,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         <button
           type="button"
           onClick={() => setNativeVisible((n) => n + NATIVE_GRID_STEP)}
-          className="mt-4 w-full rounded-2xl border border-[var(--vauto-border)] bg-white/5 py-3 text-sm font-medium text-[var(--vauto-teal)]"
+          className="mt-4 w-full rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-teal)]/5 py-3 text-sm font-medium text-[var(--vauto-teal)] transition hover:bg-[var(--vauto-teal)]/10"
         >
           Rodyti daugiau ({items.length - visible.length} liko)
         </button>

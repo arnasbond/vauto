@@ -294,8 +294,12 @@ export function UserProfileDropdown({ variant = "desktop" }: UserProfileDropdown
         onClick={handleToggle}
         className={cn(
           "flex items-center gap-2 rounded-xl transition",
+          // Theme-aware tokens (not --anonser-*): --anonser-* only receives a
+          // DARK override inside .vauto-desktop-portal (>=768px), so below
+          // that width this trigger previously flashed a near-white hover
+          // fill in DARK (red-team RT-P1-1, MASTER Wave 2 Final Remediation).
           variant === "desktop"
-            ? "px-2.5 py-2 text-sm font-medium text-[var(--anonser-text)] hover:bg-[var(--anonser-surface-muted)]"
+            ? "px-2.5 py-2 text-sm font-medium text-[var(--vauto-text-main)] hover:bg-[var(--vauto-surface-muted)]"
             : "p-0.5"
         )}
         aria-expanded={open}

@@ -15,6 +15,7 @@ import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
 import { FeedTierBadge, feedTierCardClass } from "@/components/marketplace/FeedTierBadge";
+import { resolveFeedVisibilityTier, feedTierBadgeLabel } from "@/lib/feed-tier";
 import { hasDeliveryCapability } from "@/lib/listing-capabilities";
 import { cardAttributeLinesForListing } from "@/lib/vertical-presentation-contract";
 import { cn } from "@/lib/cn";
@@ -27,6 +28,14 @@ export type ListingCardProps = {
   priceColor?: string;
   className?: string;
   showHeart?: boolean;
+  /**
+   * "compact" is an image-first density used for discovery surfaces (e.g.
+   * the homepage trending strip) where the card's job is to be a quick
+   * visual teaser rather than a full comparison card: image → title → price
+   * only, with category/attributes/omniva/AI-signal/seller-reputation rows
+   * omitted. Does not change "standard" rendering anywhere else.
+   */
+  variant?: "standard" | "compact";
 };
 
 /** AI kainos signalas iš appraisalScore / AI atranda žymos — tik UI. */
@@ -61,7 +70,9 @@ export function ListingCard({
   priceColor,
   className,
   showHeart = true,
+  variant = "standard",
 }: ListingCardProps) {
+  const compact = variant === "compact";
   const { savedIds, toggleSave } = useVauto();
   const isSaved = savedIds.has(listing.id);
   const href = listingPath(listing);
@@ -121,6 +132,27 @@ export function ListingCard({
     </div>
   );
 
+  // Compact (media-first, homepage discovery) density shows at most ONE
+  // trust/quality signal chip — promoted tier > verified > AI signal — so
+  // the small media area never competes with more than one badge.
+  const feedTierLabel = feedTierBadgeLabel(resolveFeedVisibilityTier(listing));
+  const compactBadge = feedTierLabel ? (
+    <FeedTierBadge listing={listing} />
+  ) : verified ? (
+    <Badge tone="success" className="text-[10px]">
+      Patvirtinta
+    </Badge>
+  ) : aiPrice ? (
+    <Badge
+      tone={aiPrice.tone}
+      className="text-[10px]"
+      data-ai-price-signal={aiPrice.label}
+      title="Analitinis kainos signalas — ne garantija ir ne pirkimo rekomendacija"
+    >
+      {aiPrice.label}
+    </Badge>
+  ) : null;
+
   if (layout === "list") {
     return (
       <article
@@ -137,13 +169,13 @@ export function ListingCard({
       >
         <Link
           href={href}
-          className="relative h-24 w-28 shrink-0 overflow-hidden rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)]"
+          className="relative aspect-[4/3] w-[42%] max-w-[158px] shrink-0 self-start overflow-hidden rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)]"
         >
           <ListingImage
             listing={listing}
             alt={listing.title}
             fill
-            sizes="112px"
+            sizes="(max-width: 640px) 42vw, 158px"
             className="object-cover transition-transform duration-[200ms] group-hover:scale-105"
           />
           <div className="absolute left-1 top-1 z-[1]">{badges}</div>
@@ -219,7 +251,12 @@ export function ListingCard({
         className
       )}
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-[var(--ds-surface-muted)]">
+      <div
+        className={cn(
+          "relative overflow-hidden bg-[var(--ds-surface-muted)]",
+          compact ? "aspect-[1/1]" : "aspect-[4/3]"
+        )}
+      >
         <Link href={href} className="block h-full w-full">
           <ListingImage
             listing={listing}
@@ -229,76 +266,92 @@ export function ListingCard({
             className="object-cover transition-transform duration-[200ms] ease-[var(--ds-ease)] group-hover:scale-105"
           />
         </Link>
-        <div className="absolute left-2 top-2 z-[1] max-w-[70%]">{badges}</div>
+        <div className="absolute left-2 top-2 z-[1] max-w-[70%]">
+          {compact ? compactBadge : badges}
+        </div>
         {heart ? (
           <div className="absolute right-2 top-2 z-[1]">{heart}</div>
         ) : null}
         {photoCount > 1 ? (
           <span className="absolute bottom-2 right-2 z-[1] rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-            {photoCount} foto
+            {compact ? photoCount : `${photoCount} foto`}
           </span>
         ) : null}
       </div>
 
-      <Link href={href} className="block space-y-1.5 p-3.5">
-        <p className="text-[length:var(--ds-text-caption-size)] font-medium text-[var(--ds-text-muted)]">
-          {categoryLabel}
-        </p>
-        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug text-[var(--ds-text-primary)]">
-          {listing.title}
-        </h3>
-        <p
-          className="text-lg font-extrabold tracking-tight"
-          style={{ color: resolvedPrice }}
-        >
-          {formatPrice(listing.price, listing.priceLabel)}
-        </p>
-        {cardAttributeLinesForListing(listing, 3).length > 0 ? (
-          <ul
-            className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] leading-tight text-[var(--ds-text-secondary)]"
-            data-listing-card-attributes
-          >
-            {cardAttributeLinesForListing(listing, 3).map((attr) => (
-              <li key={attr.key} className="inline-flex items-center gap-1">
-                <span className="text-[var(--ds-text-muted)]">{attr.label}</span>
-                <span className="font-semibold text-[var(--ds-text-primary)]">
-                  {attr.value}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <div className="flex items-center justify-between gap-2 pt-0.5">
-          <p className="flex min-w-0 items-center gap-1 text-xs text-[var(--ds-text-muted)]">
-            <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span className="truncate">
-              {formatListingPlaceLine(listing.location, listing.distanceKm)}
-            </span>
-          </p>
-          {omniva ? (
-            <span
-              className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ds-success)]"
-              title="Omniva pristatymas"
-            >
-              <Package className="h-3.5 w-3.5" aria-hidden />
-              Omniva
-            </span>
-          ) : null}
-        </div>
-        {aiPrice ? (
+      {compact ? (
+        <Link href={href} className="block space-y-0.5 px-2.5 py-2">
+          <h3 className="line-clamp-1 text-[13px] font-bold leading-snug text-[var(--ds-text-primary)]">
+            {listing.title}
+          </h3>
           <p
-            className="inline-flex items-center gap-1 rounded-full bg-[var(--ds-ai-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--ds-ai-strong)]"
-            data-ai-price-insight
+            className="text-base font-extrabold tracking-tight"
+            style={{ color: resolvedPrice }}
           >
-            {aiPrice.label}
+            {formatPrice(listing.price, listing.priceLabel)}
           </p>
-        ) : null}
-        {listing.sellerId ? (
-          <div className="px-0 pt-1">
-            <VerifiedReputationBadge userId={listing.sellerId} compact />
+        </Link>
+      ) : (
+        <Link href={href} className="block space-y-1.5 p-3.5">
+          <p className="text-[length:var(--ds-text-caption-size)] font-medium text-[var(--ds-text-muted)]">
+            {categoryLabel}
+          </p>
+          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug text-[var(--ds-text-primary)]">
+            {listing.title}
+          </h3>
+          <p
+            className="text-lg font-extrabold tracking-tight"
+            style={{ color: resolvedPrice }}
+          >
+            {formatPrice(listing.price, listing.priceLabel)}
+          </p>
+          {cardAttributeLinesForListing(listing, 3).length > 0 ? (
+            <ul
+              className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] leading-tight text-[var(--ds-text-secondary)]"
+              data-listing-card-attributes
+            >
+              {cardAttributeLinesForListing(listing, 3).map((attr) => (
+                <li key={attr.key} className="inline-flex items-center gap-1">
+                  <span className="text-[var(--ds-text-muted)]">{attr.label}</span>
+                  <span className="font-semibold text-[var(--ds-text-primary)]">
+                    {attr.value}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="flex items-center justify-between gap-2 pt-0.5">
+            <p className="flex min-w-0 items-center gap-1 text-xs text-[var(--ds-text-muted)]">
+              <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="truncate">
+                {formatListingPlaceLine(listing.location, listing.distanceKm)}
+              </span>
+            </p>
+            {omniva ? (
+              <span
+                className="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--ds-success)]"
+                title="Omniva pristatymas"
+              >
+                <Package className="h-3.5 w-3.5" aria-hidden />
+                Omniva
+              </span>
+            ) : null}
           </div>
-        ) : null}
-      </Link>
+          {aiPrice ? (
+            <p
+              className="inline-flex items-center gap-1 rounded-full bg-[var(--ds-ai-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--ds-ai-strong)]"
+              data-ai-price-insight
+            >
+              {aiPrice.label}
+            </p>
+          ) : null}
+          {listing.sellerId ? (
+            <div className="px-0 pt-1">
+              <VerifiedReputationBadge userId={listing.sellerId} compact />
+            </div>
+          ) : null}
+        </Link>
+      )}
     </article>
   );
 }

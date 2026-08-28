@@ -102,42 +102,42 @@ export function ParcelLockerPicker({
   return (
     <div className="mt-3 space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-slate-500">
+        <p className="text-xs font-semibold text-[var(--vauto-text-muted)]">
           Pristatymo paštomatas (pirkėjo)
         </p>
-        <span className="text-[10px] font-medium text-emerald-600">
+        <span className="text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
           {liveSource ? "Omniva · gyvas sąrašas" : NATIONAL_COVERAGE_LABEL}
         </span>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-2">
         <label className="relative block">
-          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[var(--vauto-text-muted)]" />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Ieškoti paštomato…"
-            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-xs text-slate-800"
+            className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] py-2 pl-8 pr-3 text-xs text-[var(--vauto-text-main)]"
           />
         </label>
         <label className="relative block">
-          <MapPin className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+          <MapPin className="pointer-events-none absolute left-2.5 top-2.5 h-3.5 w-3.5 text-[var(--vauto-text-muted)]" />
           <input
             type="search"
             value={cityFilter}
             onChange={(e) => setCityFilter(e.target.value)}
             placeholder="Miestas / rajonas (nebūtina)"
-            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-8 pr-3 text-xs text-slate-800"
+            className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] py-2 pl-8 pr-3 text-xs text-[var(--vauto-text-main)]"
           />
         </label>
       </div>
 
       {loading && (
-        <p className="text-xs text-slate-500">Kraunami Omniva paštomatai…</p>
+        <p className="text-xs text-[var(--vauto-text-muted)]">Kraunami Omniva paštomatai…</p>
       )}
       {loadError && !loading && !remoteLockers && (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+        <p className="rounded-xl border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800 dark:border-amber-400/30 dark:bg-amber-400/10 dark:text-amber-300">
           {loadError} — rodomas atsarginis sąrašas.
         </p>
       )}

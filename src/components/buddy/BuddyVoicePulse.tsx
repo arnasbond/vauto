@@ -180,14 +180,14 @@ export function BuddyVoicePulse({
       </p>
 
       {hint && (
-        <p className="mt-6 max-w-xs text-sm leading-relaxed text-slate-400">{hint}</p>
+        <p className="mt-6 max-w-xs text-sm leading-relaxed text-[var(--vauto-text-muted)]">{hint}</p>
       )}
 
       {onCancel && (
         <button
           type="button"
           onClick={onCancel}
-          className="mt-8 flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white/70 transition duration-500 ease-in-out hover:bg-white/10 hover:text-white"
+          className="mt-8 flex items-center justify-center gap-2 rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)] px-6 py-3 text-sm font-medium text-[var(--vauto-text-muted)] transition duration-500 ease-in-out hover:bg-[var(--vauto-border)]/30 hover:text-[var(--vauto-text-heading)]"
         >
           <Square className="h-4 w-4" />
           {cancelLabel}

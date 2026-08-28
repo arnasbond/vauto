@@ -8,13 +8,13 @@ export function ProUpsellCard() {
     <section className="vauto-dashboard-card mb-4 rounded-2xl border border-[var(--ds-brand)]/25 bg-[var(--ds-brand-soft)] p-4">
       <div className="mb-2 flex items-center gap-2">
         <Building2 className="h-4 w-4 text-[var(--ds-brand)]" />
-        <h3 className="text-sm font-semibold text-slate-900">Verslo paskyra</h3>
+        <h3 className="text-sm font-semibold text-[var(--vauto-text-heading)]">Verslo paskyra</h3>
       </div>
-      <p className="text-xs leading-relaxed text-slate-400">
+      <p className="text-xs leading-relaxed text-[var(--vauto-text-muted)]">
         Kabineto statistika, dalijimosi vizualai ir masinis katalogo įkėlimas.
         Privatus pardavėjas gali bet kada pereiti į Pro.
       </p>
-      <ul className="mt-3 space-y-1 text-xs text-slate-600">
+      <ul className="mt-3 space-y-1 text-xs text-[var(--vauto-text-main)]">
         <li className="flex items-center gap-1.5">
           <Sparkles className="h-3 w-3 text-[var(--vauto-teal)]" />
           Peržiūros ir kontaktai verslo kabinete

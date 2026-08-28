@@ -16,7 +16,7 @@ export function SavedListingsSection() {
 
   return (
     <section className="mb-8">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-slate-400">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
         <Heart className="h-4 w-4 text-[var(--vauto-red)]" />
         Išsaugoti skelbimai
       </h2>
@@ -39,7 +39,7 @@ export function SavedListingsSection() {
               />
             </Link>
             <Link href={listingPath(listing)} className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-slate-900">
+              <p className="truncate text-sm font-medium text-[var(--vauto-text-heading)]">
                 {listing.title}
               </p>
               <p className="text-xs text-[var(--flux-teal)]">

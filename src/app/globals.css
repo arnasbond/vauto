@@ -882,10 +882,18 @@ body.vauto-audio-first .vauto-dashboard-card {
   );
 }
 
+/*
+ * Uses the shared DS danger tokens (already theme-calibrated in
+ * design-system/tokens.css and used consistently by Button/Card/Chip/
+ * Feedback/Overlay/Badge) instead of a locally-invented hardcoded red.
+ * The previous #ef4444/#b91c1c pair had no DARK adjustment, producing a
+ * near-illegible dark-maroon-on-near-black error message in DARK theme
+ * (MASTER Wave 2 Design System Closure — systemic token forensics).
+ */
 .vauto-auth-error {
-  border: 1px solid color-mix(in srgb, #ef4444 28%, var(--vauto-border));
-  background: color-mix(in srgb, #ef4444 8%, var(--vauto-card-bg));
-  color: #b91c1c;
+  border: 1px solid color-mix(in srgb, var(--ds-danger) 32%, var(--vauto-border));
+  background: var(--ds-danger-soft);
+  color: var(--ds-danger);
 }
 
 .vauto-auth-intent-picker {
@@ -917,7 +925,7 @@ body.vauto-audio-first .vauto-dashboard-card {
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.vauto-auth-intent-btn:hover {
+.vauto-auth-intent-btn:hover:not(.vauto-auth-intent-btn--active) {
   color: var(--vauto-text-main);
   background: color-mix(in srgb, var(--vauto-card-bg) 80%, transparent);
 }
@@ -926,6 +934,10 @@ body.vauto-audio-first .vauto-dashboard-card {
   color: var(--vauto-primary-contrast, #fff);
   background: var(--vauto-primary);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--vauto-primary) 35%, transparent);
+}
+
+.vauto-auth-intent-btn--active:hover {
+  background: color-mix(in srgb, var(--vauto-primary) 90%, #000);
 }
 
 .vauto-auth-provider-btn {
@@ -1633,6 +1645,30 @@ body.chameleon-wardrobe .chameleon-wizard-shell button[type="button"].border-\[\
   --portal-text: var(--foreground);
   --portal-wizard-surface: var(--card);
   --portal-wizard-bg: var(--background);
+
+  /*
+   * Redesign kit tokens (src/components/ui) — MASTER Wave 2 Design System
+   * Closure systemic fix. This whole token family previously had ZERO DARK
+   * override anywhere in this file, so every consumer (ListingDetailPage,
+   * dashboard, checkout, billing, escrow, listing cards, map view, wardrobe,
+   * chat, BrandButton, etc. — ~40 files) silently rendered its LIGHT value
+   * under data-app-theme="dark", causing the same "hardcoded-ink-on-dark"
+   * defect class as the P0 logo bug, just spread across the app instead of
+   * isolated to one component. Values mirror the semantic role of their
+   * LIGHT counterpart (see :root ~line 64) using the established dark
+   * palette (--foreground/--card/--muted-foreground/--vauto-surface-muted).
+   */
+  --vauto-ink: var(--foreground);
+  --vauto-ai: #34d399;
+  --vauto-ai-soft: rgba(52, 211, 153, 0.14);
+  --vauto-primary-soft: rgba(52, 211, 153, 0.16);
+  --vauto-border-subtle: rgba(148, 163, 184, 0.16);
+  --vauto-border-input: #2a3548;
+  --vauto-surface-page: var(--background);
+  --vauto-surface-tint: #182235;
+  --vauto-muted: var(--muted-foreground);
+  --vauto-subtle: #6b7690;
+  --vauto-body: #c5ccd9;
 }
 
 [data-app-theme="dark"] body,
@@ -2378,18 +2414,24 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   letter-spacing: -0.01em;
 }
 
+/*
+ * Migrated from hardcoded #111827/#1f2937 (no DARK override) to the shared
+ * theme-aware text tokens — same systemic hardcoded-ink defect class as the
+ * MASTER Wave 2 logo/login-hover fixes, found here in ListingGrid /
+ * SearchEmptyAssistantBanner (search & listings surfaces).
+ */
 .vauto-layout-heading {
-  color: #111827;
+  color: var(--vauto-text-heading);
   font-weight: 700;
 }
 
 .vauto-layout-label {
-  color: #1f2937;
+  color: var(--vauto-text-main);
   font-weight: 600;
 }
 
 .vauto-layout-desc {
-  color: #1f2937;
+  color: var(--vauto-text-muted);
 }
 
 /* Light theme: crisp placeholders (gray-600) */

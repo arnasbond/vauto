@@ -8,13 +8,13 @@ export function SyncErrorBanner() {
   if (!syncError) return null;
 
   return (
-    <div className="mb-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-800">
+    <div className="mb-3 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-800 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300">
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
       <p className="flex-1">{syncError}</p>
       <button
         type="button"
         onClick={clearSyncError}
-        className="shrink-0 rounded p-0.5 hover:bg-red-100"
+        className="shrink-0 rounded p-0.5 hover:bg-red-100 dark:hover:bg-red-400/20"
         aria-label="Uždaryti"
       >
         <X className="h-3.5 w-3.5" />

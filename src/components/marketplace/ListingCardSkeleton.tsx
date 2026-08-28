@@ -21,7 +21,10 @@ export function ListingCardSkeleton({
         )}
         aria-hidden
       >
-        <Skeleton rounded="control" className="h-24 w-28 shrink-0" />
+        <Skeleton
+          rounded="control"
+          className="aspect-[4/3] w-[42%] max-w-[158px] shrink-0 self-start"
+        />
         <div className="flex min-w-0 flex-1 flex-col gap-2 py-0.5">
           <Skeleton className="h-3 w-16" />
           <Skeleton className="h-4 w-[80%]" />

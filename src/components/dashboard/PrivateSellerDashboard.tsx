@@ -61,11 +61,11 @@ export function PrivateSellerDashboard({
       <section>
         {!hideListingSection && (
           <>
-        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
           Mano skelbimai
         </h2>
         {listings.length === 0 ? (
-          <p className="vauto-dashboard-card rounded-2xl py-10 text-center text-sm text-slate-500">
+          <p className="vauto-dashboard-card rounded-2xl py-10 text-center text-sm text-[var(--vauto-text-muted)]">
             Dar neturite skelbimų. Paspauskite + ir sukurkite pirmąjį.
           </p>
         ) : (

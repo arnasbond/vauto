@@ -87,7 +87,7 @@ export function ProListingCard({
           </Link>
           <div className="min-w-0 flex-1">
             <Link href={listingPath(listing)} className="block">
-              <p className="truncate font-semibold text-slate-900">{listing.title}</p>
+              <p className="truncate font-semibold text-[var(--vauto-text-heading)]">{listing.title}</p>
             </Link>
             <p className="text-lg font-bold text-[var(--vauto-ink)]">
               {formatPrice(listing.price, listing.priceLabel)}
@@ -101,13 +101,15 @@ export function ProListingCard({
             {expiryLabel && (
               <p
                 className={`mt-0.5 text-[10px] font-medium ${
-                  expired ? "text-red-700" : "text-amber-700"
+                  expired
+                    ? "text-red-700 dark:text-red-400"
+                    : "text-amber-700 dark:text-amber-400"
                 }`}
               >
                 {expiryLabel}
               </p>
             )}
-            <div className="mt-1 flex gap-3 text-[10px] text-slate-400">
+            <div className="mt-1 flex gap-3 text-[10px] text-[var(--vauto-text-muted)]">
               <span>{metrics.views} perž.</span>
               <span>{metrics.callClicks} skamb.</span>
               <span>{metrics.chatStarts} pok.</span>

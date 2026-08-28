@@ -34,7 +34,7 @@ export function ChatsListPanel({
 
   if (chats.length === 0) {
     return (
-      <p className="py-8 text-center text-sm text-slate-500">
+      <p className="py-8 text-center text-sm text-[var(--vauto-text-muted)]">
         Dar neturite pokalbių. Atidarykite skelbimą ir spauskite „Rašyti“.
       </p>
     );
@@ -59,16 +59,16 @@ export function ChatsListPanel({
         const active = selectedChatId === chat.id;
 
         const cardClass = cn(
-          "block rounded-2xl border bg-white p-3 shadow-sm transition hover:border-slate-300",
+          "block rounded-2xl border bg-[var(--vauto-card-bg)] p-3 shadow-sm transition hover:border-[var(--vauto-primary)]/40",
           active
             ? "border-orange-300 ring-2 ring-orange-200/60"
-            : "border-slate-200/80",
+            : "border-[var(--vauto-border)]",
           unread && !active && "ring-2 ring-[var(--vauto-teal)]/20"
         );
 
         const inner = (
           <div className="flex items-start gap-3">
-            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-[var(--vauto-surface-muted)]">
               {thumb ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -79,11 +79,11 @@ export function ChatsListPanel({
                   height={56}
                 />
               ) : (
-                <span className="flex h-full w-full items-center justify-center text-xs text-slate-400">
+                <span className="flex h-full w-full items-center justify-center text-xs text-[var(--vauto-text-muted)]">
                   —
                 </span>
               )}
-              <div className="absolute -bottom-1 -right-1 h-6 w-6 overflow-hidden rounded-full border-2 border-white bg-slate-200">
+              <div className="absolute -bottom-1 -right-1 h-6 w-6 overflow-hidden rounded-full border-2 border-[var(--vauto-card-bg)] bg-[var(--vauto-surface-muted)]">
                 {peerAvatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -94,7 +94,7 @@ export function ChatsListPanel({
                     height={24}
                   />
                 ) : (
-                  <span className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-slate-500">
+                  <span className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-[var(--vauto-text-muted)]">
                     {peerLabel.slice(0, 1).toUpperCase()}
                   </span>
                 )}
@@ -103,12 +103,12 @@ export function ChatsListPanel({
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-slate-900">
+                  <p className="truncate font-semibold text-[var(--vauto-text-heading)]">
                     {listing?.title || chat.listingTitle}
                   </p>
-                  <p className="truncate text-xs font-medium text-slate-700">
+                  <p className="truncate text-xs font-medium text-[var(--vauto-text-main)]">
                     {priceLabel || "Kaina nenurodyta"}
-                    <span className="font-normal text-slate-500">
+                    <span className="font-normal text-[var(--vauto-text-muted)]">
                       {" "}
                       · {peerLabel}
                     </span>
@@ -120,7 +120,7 @@ export function ChatsListPanel({
                   </span>
                 )}
               </div>
-              <p className="mt-1 line-clamp-1 text-sm text-slate-600">
+              <p className="mt-1 line-clamp-1 text-sm text-[var(--vauto-text-muted)]">
                 {last?.text}
               </p>
               {chat.escrowOffered && (

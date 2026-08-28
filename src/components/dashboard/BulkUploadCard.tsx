@@ -29,7 +29,7 @@ export function BulkUploadCard() {
             Demo importas imituoja XML/CSV feed iš auto aikštelės, sandėlio ar
             e-shop sistemos. Realus API ingestion gali naudoti tą patį kontraktą.
           </p>
-          <pre className="mt-3 max-h-24 overflow-auto rounded-xl bg-black/30 p-3 text-[10px] text-slate-600">
+          <pre className="mt-3 max-h-24 overflow-auto rounded-xl bg-black/30 p-3 text-[10px] text-slate-300">
             {SAMPLE_XML}
           </pre>
           <button

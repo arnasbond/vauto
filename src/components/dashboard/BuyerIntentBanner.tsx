@@ -13,11 +13,11 @@ export function BuyerIntentBanner({ intentCount }: BuyerIntentBannerProps) {
     <div className="vauto-dashboard-card mb-4 flex items-start gap-3 rounded-2xl border border-[var(--flux-teal)]/20 p-4">
       <Search className="mt-0.5 h-5 w-5 shrink-0 text-[var(--flux-teal)]" />
       <div>
-        <p className="text-sm font-semibold text-slate-900">
+        <p className="text-sm font-semibold text-[var(--vauto-text-heading)]">
           VAUTO brokeris rado {intentCount} pirkėj
           {intentCount === 1 ? "ą" : "us"} jūsų skelbimų kategorijoms
         </p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
           Tuščios ir silpnos paieškos paverčiamos paklausa — laikykite skelbimus
           aktyvius ir greitai atsakykite į žinutes.
         </p>

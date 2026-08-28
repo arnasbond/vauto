@@ -10,6 +10,19 @@
   --ds-glass-strong: color-mix(in srgb, var(--ds-surface-elevated) 88%, transparent);
   --ds-ai-glow: 0 0 0 1px color-mix(in srgb, var(--ds-ai) 24%, transparent),
     0 8px 24px -12px color-mix(in srgb, var(--ds-ai) 35%, transparent);
+  /* Category object-card perceived depth — restrained tonal hierarchy, not
+     glow/glass/heavy shadow. LIGHT stays clean (small mixes); DARK carries
+     slightly stronger perceived depth (larger mixes) per MASTER DARK. */
+  --cc-top-mix: 5%;
+  --cc-floor-mix: 6%;
+  --cc-contact-shadow: rgba(15, 23, 42, 0.16);
+  --cc-inset-highlight: rgba(255, 255, 255, 0.5);
+  /* Homepage hero atmosphere — VAUTO-owned photorealistic plate, swapped per
+     theme so LIGHT and DARK never share one photograph (see
+     HomeHeroAtmosphere.tsx + scripts/process-hero-atmosphere.mjs). Reading
+     this through a token (not a JS theme check) avoids any hydration flash,
+     matching this codebase's existing `[data-app-theme]`-driven theming. */
+  --hero-atmosphere-bg: url("/images/hero/hero-atmosphere-light.webp");
 }
 
 html[data-app-theme="dark"],
@@ -19,6 +32,11 @@ html[data-ds-theme="dark"],
   --ds-glass-strong: color-mix(in srgb, var(--ds-surface-elevated) 84%, transparent);
   --ds-ai-glow: 0 0 0 1px color-mix(in srgb, var(--ds-ai) 32%, transparent),
     0 10px 28px -10px color-mix(in srgb, var(--ds-ai) 42%, transparent);
+  --cc-top-mix: 10%;
+  --cc-floor-mix: 16%;
+  --cc-contact-shadow: rgba(0, 0, 0, 0.6);
+  --cc-inset-highlight: rgba(255, 255, 255, 0.06);
+  --hero-atmosphere-bg: url("/images/hero/hero-atmosphere-dark.webp");
 }
 
 /* Glass surfaces — sticky chrome / drawers / modals */

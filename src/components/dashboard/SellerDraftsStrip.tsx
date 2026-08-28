@@ -38,18 +38,18 @@ export function SellerDraftsStrip() {
       data-seller-drafts="1"
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
           Juodraščiai ({drafts.length}/{MAX_MULTI_LISTING_DRAFTS})
         </h2>
-        <p className="text-[11px] text-slate-400">Tęskite per agentą</p>
+        <p className="text-[11px] text-[var(--vauto-text-muted)]">Tęskite per agentą</p>
       </div>
       <ul className="space-y-2">
         {drafts.map((entry) => (
           <li
             key={entry.id}
-            className="flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2"
+            className="flex items-center gap-3 rounded-xl bg-[var(--vauto-surface-muted)] px-3 py-2"
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-slate-200">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[var(--vauto-border)]/40">
               {entry.previewImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -58,14 +58,14 @@ export function SellerDraftsStrip() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <FileText className="h-4 w-4 text-slate-500" aria-hidden />
+                <FileText className="h-4 w-4 text-[var(--vauto-text-muted)]" aria-hidden />
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-800">
+              <p className="truncate text-sm font-semibold text-[var(--vauto-text-heading)]">
                 {entry.draft.title || "Be pavadinimo"}
               </p>
-              <p className="truncate text-[11px] text-slate-500">
+              <p className="truncate text-[11px] text-[var(--vauto-text-muted)]">
                 {entry.draft.price > 0
                   ? `${entry.draft.price} €`
                   : "Kaina nenurodyta"}
@@ -95,7 +95,7 @@ export function SellerDraftsStrip() {
             </button>
             <button
               type="button"
-              className="shrink-0 rounded-full p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+              className="shrink-0 rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-border)]/40 hover:text-[var(--vauto-text-main)]"
               aria-label="Ištrinti juodraštį"
               onClick={() => {
                 removeMultiListingDraft(entry.id);

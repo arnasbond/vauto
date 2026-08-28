@@ -195,6 +195,18 @@ export function categoryButtons(page: Page): Locator {
   return page.locator("[data-home-category-grid] button");
 }
 
+/**
+ * The canonical, always-present "add listing" nav affordance (MASTER Wave 2
+ * correction — the hero no longer carries a dedicated seller button; the
+ * persistent header/bottom-nav "Įdėti" control is the discoverable sell path).
+ * Multiple responsive variants can share this hook (desktop header text
+ * button, mobile header icon button, mobile bottom-nav tab) — `:visible`
+ * plus `.first()` picks the one actually rendered at the current viewport.
+ */
+export function navAddListingCta(page: Page): Locator {
+  return page.locator("[data-nav-add-listing]:visible").first();
+}
+
 export const EMPTY_SEARCH_HINT_RE =
   /Įveskite, ko ieškote, arba pasirinkite vieną iš pavyzdžių/i;
 

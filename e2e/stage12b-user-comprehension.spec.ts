@@ -11,6 +11,7 @@ import {
   EMPTY_SEARCH_HINT_RE,
   homeSearchbox,
   horizontalOverflowPx,
+  navAddListingCta,
   openHome,
   submitBlankSearch,
   tabUntilFocused,
@@ -25,31 +26,46 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
 
     const h1 = page.locator("[data-home-h1]");
     const subtitle = page.locator("[data-home-subtitle]");
-    const buyerCta = page.locator("[data-buyer-cta]");
-    const sellerCta = page.locator("[data-seller-cta]");
-    const howItWorks = page.locator("[data-home-how-it-works]");
+    const search = homeSearchbox(page);
+    // MASTER Wave 2 correction: the hero's buyer/seller button row was
+    // removed (natural-language search is now the dominant hero CTA, matching
+    // the MASTER reference). Selling remains discoverable via the persistent
+    // canonical navigation "Įdėti" control (desktop header / mobile bottom
+    // nav) rather than a hero-level button — see stage12b Test 4/11/12 for
+    // the downstream /add/ funnel certification.
+    const sellNavCta = navAddListingCta(page);
+    // The compact hero "how it works" strip was removed to eliminate
+    // duplication with the full downstream "Kaip tai veikia" section — that
+    // section is the current home for this comprehension content.
+    const howItWorks = page.locator(
+      "section[aria-labelledby='home-visual-flow-heading']"
+    );
 
     await expect(h1).toContainText(/VAUTO/);
-    await expect(h1).toContainText(/AI padeda/i);
-    await expect(h1).toContainText(/Žmogus sprendžia/i);
     await expect(subtitle).toContainText(/pirkimas ir pardavimas/i);
     await expect(subtitle).toContainText(/NT/);
     await expect(subtitle).toContainText(/paslaug/);
     await expect(subtitle).toContainText(/transporto/i);
     await expect(subtitle).toContainText(/AI paruošia/i);
     await expect(subtitle).toContainText(/jūs tvirtinate/i);
+    await expect(subtitle).toContainText(/AI padeda/i);
+    await expect(subtitle).toContainText(/Žmogus sprendžia/i);
 
-    await expect(buyerCta).toHaveText(/Ieškoti skelbimų/);
-    await expect(sellerCta).toHaveText(/Parduoti su AI/);
-    await expect(howItWorks).toContainText(/Rask \/ Paruošk/);
-    await expect(howItWorks).toContainText(/Susitark/);
-    await expect(howItWorks).toContainText(/Sandorio eiga/);
+    await expect(search).toBeVisible();
+    await expect(sellNavCta).toBeVisible();
 
     await expectInFirstViewport(h1, page);
     await expectInFirstViewport(subtitle, page);
-    await expectInFirstViewport(buyerCta, page);
-    await expectInFirstViewport(sellerCta, page);
-    await expectInFirstViewport(howItWorks, page);
+    await expectInFirstViewport(search, page);
+    await expectInFirstViewport(sellNavCta, page);
+
+    // Full "how it works" comprehension content lives in the downstream
+    // section now (not first-viewport by design, matching MASTER) — verify
+    // it is present and reachable rather than requiring hero placement.
+    await howItWorks.scrollIntoViewIfNeeded();
+    await expect(howItWorks).toContainText(/Rask \/ Paruošk/);
+    await expect(howItWorks).toContainText(/Susitark/);
+    await expect(howItWorks).toContainText(/Sandorio eiga/);
 
     const title = await page.title();
     expect(title).toMatch(/VAUTO/i);
@@ -113,7 +129,9 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
       /butas|objekt|parduodate|120 000/i
     );
 
-    await page.locator("[data-buyer-cta]").click();
+    // The natural-language search surface is the dominant hero CTA itself
+    // (MASTER Wave 2 correction) — clicking it directly is the buyer flow.
+    await search.click();
     await expect(search).toBeFocused();
 
     const query = "MacBook Pro M3 Max naudotas, puikios būklės";
@@ -132,9 +150,12 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
   test("Test 4 — Sell flow is universal (Elektronika, no vehicle fields)", async ({
     page,
   }) => {
-    await openHome(page, { width: 1280, height: 800 });
-    await page.locator("[data-seller-cta]").click();
-    await page.waitForURL(/\/add\/?/, { timeout: 15_000 });
+    // Reached via the canonical add-listing route directly — the hero no
+    // longer carries a dedicated seller button (MASTER Wave 2 correction);
+    // selling is discoverable via the persistent nav "Įdėti" control (Test 1)
+    // and always reachable at /add/.
+    await page.goto("/add/");
+    await dismissGdpr(page);
 
     const funnel = page.locator("[data-seller-funnel]");
     await expect(funnel).toBeVisible({ timeout: 15_000 });
@@ -165,7 +186,7 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
 
   test("Test 5 — AI role boundary is discoverable", async ({ page }) => {
     await openHome(page, { width: 1280, height: 800 });
-    const hero = `${await page.locator("[data-home-h1]").innerText()} ${await page.locator("[data-home-subtitle]").innerText()} ${await page.locator("[data-home-how-it-works]").innerText()}`;
+    const hero = `${await page.locator("[data-home-h1]").innerText()} ${await page.locator("[data-home-subtitle]").innerText()}`;
     expect(hero).toMatch(/AI padeda/i);
     expect(hero).toMatch(/Žmogus sprendžia/i);
     expect(hero).toMatch(/jūs tvirtinate|Sandorį tvirtinate jūs/i);
@@ -211,7 +232,10 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     page,
   }) => {
     await openHome(page, { width: 1280, height: 800 });
-    const how = page.locator("[data-home-how-it-works]");
+    // Downstream "Kaip tai veikia" section — the compact hero strip was
+    // removed as a duplicate of this full section (MASTER Wave 2 correction).
+    const how = page.locator("section[aria-labelledby='home-visual-flow-heading']");
+    await how.scrollIntoViewIfNeeded();
     await expect(how).toContainText(/Rask \/ Paruošk/);
     await expect(how).toContainText(/Susitark/);
     await expect(how).toContainText(/Sandorio eiga/);
@@ -403,14 +427,16 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     await openHome(page, { width: 375, height: 812 });
     expect(await horizontalOverflowPx(page)).toBeLessThanOrEqual(1);
 
-    const buyer = page.locator("[data-buyer-cta]");
-    const seller = page.locator("[data-seller-cta]");
-    await expect(buyer).toBeVisible();
-    await expect(seller).toBeVisible();
-    await buyer.scrollIntoViewIfNeeded();
-    await seller.scrollIntoViewIfNeeded();
-    await expect(buyer).toBeInViewport();
-    await expect(seller).toBeInViewport();
+    // Buyer capability is the dominant natural-language search surface
+    // itself; selling is discoverable via the persistent mobile bottom-nav
+    // "Įdėti" control (MASTER Wave 2 correction — no hero button row).
+    const search = homeSearchbox(page);
+    const sellNavCta = navAddListingCta(page);
+    await expect(search).toBeVisible();
+    await expect(sellNavCta).toBeVisible();
+    await search.scrollIntoViewIfNeeded();
+    await expect(search).toBeInViewport();
+    await expect(sellNavCta).toBeInViewport();
 
     const grid = page.locator("[data-home-category-grid]");
     await grid.scrollIntoViewIfNeeded();
@@ -419,13 +445,14 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
       await expect(page.locator("[data-home-category-grid]").getByText(label)).toBeVisible();
     }
 
-    await expect(homeSearchbox(page)).toBeVisible();
-    await expect(page.locator("[data-home-how-it-works]")).toContainText(
-      /Sandorio eiga|lėšos laikomos/i
-    );
+    const how = page.locator("section[aria-labelledby='home-visual-flow-heading']");
+    await how.scrollIntoViewIfNeeded();
+    await expect(how).toContainText(/Sandorio eiga|lėšos laikomos/i);
+    expect(await horizontalOverflowPx(page)).toBeLessThanOrEqual(1);
 
-    await seller.click();
-    await page.waitForURL(/\/add\/?/, { timeout: 15_000 });
+    // Canonical add-listing route — always reachable regardless of hero layout.
+    await page.goto("/add/");
+    await dismissGdpr(page);
     expect(await horizontalOverflowPx(page)).toBeLessThanOrEqual(1);
     await expect(page.locator("[data-seller-funnel]")).toBeVisible();
     await expect(page.locator("[data-seller-funnel]")).not.toContainText(
@@ -463,14 +490,20 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     await page.keyboard.press("Enter");
     await expect(homeSearchbox(page)).toHaveValue(/.+/);
 
-    const seller = page.locator("[data-seller-cta]");
-    await seller.focus();
-    await expect(seller).toBeFocused();
-    await expect(seller).toHaveAttribute("href", /\/add\/?/);
-    await expect(seller).toHaveText(/Parduoti su AI/);
-    await expect(seller).not.toHaveText(/automobil/i);
-    await page.keyboard.press("Enter");
-    await page.waitForURL(/\/add\/?/, { timeout: 15_000 });
+    // Selling is discoverable via the persistent nav "Įdėti" control (MASTER
+    // Wave 2 correction — no hero button row). Verify it is keyboard-reachable
+    // with a correct, non-vehicle-specific accessible name, then certify the
+    // downstream /add/ funnel directly via the canonical route.
+    const sellNavCta = navAddListingCta(page);
+    await sellNavCta.focus();
+    await expect(sellNavCta).toBeFocused();
+    const sellName =
+      (await sellNavCta.getAttribute("aria-label")) ||
+      (await sellNavCta.innerText());
+    expect(sellName).not.toMatch(/automobil/i);
+
+    await page.goto("/add/");
+    await dismissGdpr(page);
     await expect(page.locator("[data-seller-funnel]")).toBeVisible();
   });
 });

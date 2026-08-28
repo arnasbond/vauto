@@ -25,10 +25,10 @@ export function CallAndSellWidget({
   return (
     <div className="vauto-dashboard-card mb-4 rounded-2xl border border-[var(--ds-brand)]/20 p-4">
       <div className="mb-3">
-        <h3 className="font-display text-sm font-bold text-slate-900">
+        <h3 className="font-display text-sm font-bold text-[var(--vauto-text-heading)]">
           Paskambink ir parduok
         </h3>
-        <p className="mt-0.5 text-[10px] text-slate-500">
+        <p className="mt-0.5 text-[10px] text-[var(--vauto-text-muted)]">
           Statistika atnaujinama realiu laiku
         </p>
       </div>
@@ -36,11 +36,11 @@ export function CallAndSellWidget({
         {stats.map((s) => (
           <div
             key={s.label}
-            className="rounded-xl bg-slate-50 p-2.5 text-center"
+            className="rounded-xl bg-[var(--vauto-surface-muted)] p-2.5 text-center"
           >
             <s.icon className={`mx-auto mb-1 h-3.5 w-3.5 ${s.color}`} />
-            <p className="text-base font-bold text-slate-900">{s.value}</p>
-            <p className="text-[9px] text-slate-500">{s.label}</p>
+            <p className="text-base font-bold text-[var(--vauto-text-heading)]">{s.value}</p>
+            <p className="text-[9px] text-[var(--vauto-text-muted)]">{s.label}</p>
           </div>
         ))}
       </div>

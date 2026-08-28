@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { isNativeApp } from "@/lib/mobile-install";
 import { resolveListingImage, LISTING_PLACEHOLDER_IMAGE } from "@/lib/listing-image";
+import { ListingImagePlaceholder } from "@/components/listing/ListingImagePlaceholder";
 import type { Listing } from "@/lib/types";
 
 type ListingImageProps = {
@@ -29,9 +30,11 @@ export function ListingImage({
 }: ListingImageProps) {
   const primary = resolveListingImage(listing);
   const [src, setSrc] = useState(primary);
+  const [broken, setBroken] = useState(false);
 
   useEffect(() => {
     setSrc(primary);
+    setBroken(false);
   }, [primary]);
 
   const handleError = () => {
@@ -41,8 +44,16 @@ export function ListingImage({
         src,
       });
     }
-    if (src !== LISTING_PLACEHOLDER_IMAGE) setSrc(LISTING_PLACEHOLDER_IMAGE);
+    setBroken(true);
   };
+
+  // No real seller photo (resolveListingImage already fell back to the
+  // neutral placeholder marker) or the real photo failed to load: render an
+  // intentional, local, theme-aware "no photo" state instead of attempting
+  // an external placeholder image request that can itself fail/flash empty.
+  if (src === LISTING_PLACEHOLDER_IMAGE || broken) {
+    return <ListingImagePlaceholder fill={fill} className={className} />;
+  }
 
   if (isNativeApp()) {
     return (

@@ -160,7 +160,13 @@ export function AiInterpretationChips({
         : chip.field === "priceMin"
           ? "Kaina nuo"
           : chip.label;
-    const display = chip.value;
+    // Vertical chips already carry the human-readable category name in
+    // `fieldLabel` (chip.label). `chip.value` there is the raw canonical
+    // enum id (e.g. "real_estate") used internally to write/read the facet —
+    // showing it alongside the label would duplicate the same category as
+    // "Nekilnojamasis turtas real_estate". Presentation-only: the canonical
+    // value is untouched and still drives filtering/editing.
+    const display = chip.kind === "vertical" ? null : chip.value;
 
     return (
       <li key={chip.id} className="inline-flex items-center">
@@ -187,8 +193,16 @@ export function AiInterpretationChips({
             className="focus-visible:outline-none"
           >
             <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <span className="opacity-80">{fieldLabel}</span>
-              <span className="font-semibold text-[var(--ds-text-primary)]">{display}</span>
+              {display === null ? (
+                <span className="font-semibold text-[var(--ds-text-primary)]">
+                  {fieldLabel}
+                </span>
+              ) : (
+                <>
+                  <span className="opacity-80">{fieldLabel}</span>
+                  <span className="font-semibold text-[var(--ds-text-primary)]">{display}</span>
+                </>
+              )}
             </span>
           </button>
 
@@ -215,7 +229,11 @@ export function AiInterpretationChips({
           <button
             type="button"
             data-ai-chip-remove
-            aria-label={`Pašalinti filtro kriterijų: ${fieldLabel} ${display}`}
+            aria-label={
+              display === null
+                ? `Pašalinti filtro kriterijų: ${fieldLabel}`
+                : `Pašalinti filtro kriterijų: ${fieldLabel} ${display}`
+            }
             onClick={() => {
               // Always hide the chip locally on this query (18A — a removed
               // criterion stays gone). Keyword chips also clear the search box.
@@ -226,7 +244,7 @@ export function AiInterpretationChips({
                 // Keyword chips (make/model) edit/clear the search query itself.
                 if (onQueryChange) {
                   const next = query
-                    .replace(new RegExp(`\\b${escapeRegExp(display)}\\b`, "gi"), " ")
+                    .replace(new RegExp(`\\b${escapeRegExp(chip.value)}\\b`, "gi"), " ")
                     .replace(/\s+/g, " ")
                     .trim();
                   onQueryChange(next);

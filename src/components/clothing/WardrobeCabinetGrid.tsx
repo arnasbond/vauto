@@ -30,8 +30,8 @@ function WardrobeShelfCard({
   const chips = [size, brand].filter(Boolean);
 
   return (
-    <article className="group overflow-hidden rounded-2xl border border-[#e8e4df] bg-[#fffdf9] shadow-sm transition hover:border-[#b8ebe8] hover:shadow-md">
-      <div className="relative aspect-[3/4] overflow-hidden bg-[#eceae6]">
+    <article className="group overflow-hidden rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] shadow-sm transition hover:border-[var(--vauto-primary)]/40 hover:shadow-md">
+      <div className="relative aspect-[3/4] overflow-hidden bg-[var(--vauto-surface-muted)]">
         <Link href={listingPath(listing)} className="block h-full w-full">
           <Image
             src={getListingCoverImage(listing)}
@@ -53,7 +53,7 @@ function WardrobeShelfCard({
           <button
             type="button"
             onClick={onEdit}
-            className="rounded-full bg-white/95 p-1.5 text-[#374151] shadow-sm"
+            className="rounded-full bg-[color-mix(in_srgb,var(--ds-surface-card)_92%,transparent)] p-1.5 text-[var(--vauto-text-main)] shadow-sm backdrop-blur-sm"
             aria-label="Redaguoti"
           >
             <Pencil className="h-3.5 w-3.5" />
@@ -62,7 +62,7 @@ function WardrobeShelfCard({
             <button
               type="button"
               onClick={onMarkSold}
-                className="rounded-full bg-white/95 p-1.5 text-[var(--vauto-primary,#10b981)] shadow-sm"
+              className="rounded-full bg-[color-mix(in_srgb,var(--ds-surface-card)_92%,transparent)] p-1.5 text-[var(--vauto-primary,#10b981)] shadow-sm backdrop-blur-sm"
               aria-label="Pažymėti parduota"
             >
               <Heart className="h-3.5 w-3.5" />
@@ -72,14 +72,14 @@ function WardrobeShelfCard({
       </div>
       <Link href={listingPath(listing)} className="block px-3 py-3">
         {chips.length > 0 && (
-          <p className="text-[10px] uppercase tracking-wide text-[#9ca3af]">
+          <p className="text-[10px] uppercase tracking-wide text-[var(--vauto-text-muted)]">
             {chips.join(" · ")}
           </p>
         )}
-        <h3 className="mt-0.5 line-clamp-2 text-sm font-light leading-snug text-[#374151]">
+        <h3 className="mt-0.5 line-clamp-2 text-sm font-light leading-snug text-[var(--vauto-text-heading)]">
           {listing.title}
         </h3>
-        <p className="mt-1 text-base font-medium text-[#374151]">
+        <p className="mt-1 text-base font-medium text-[var(--vauto-text-heading)]">
           {formatPrice(listing.price, listing.priceLabel)}
         </p>
       </Link>
@@ -96,9 +96,9 @@ export function WardrobeCabinetGrid({
 
   if (clothing.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
+      <div className="rounded-3xl border border-dashed border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)] px-6 py-14 text-center">
         <Sparkles className="mx-auto mb-3 h-8 w-8 text-[var(--vauto-primary,#10b981)]" />
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-[var(--vauto-text-muted)]">
           Dar neturite skelbimų — pradėkite pokalbį pagrindiniame puslapyje.
         </p>
       </div>

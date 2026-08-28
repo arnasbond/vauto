@@ -105,41 +105,41 @@ export function BusinessHoursEditor() {
 
   return (
     <div
-      className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3"
+      className="mt-3 rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)] p-3"
       data-business-hours-editor="1"
     >
-      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--vauto-text-main)]">
         <Clock className="h-3.5 w-3.5 text-[var(--ds-brand)]" aria-hidden />
         Darbo laikas (Europe/Vilnius)
       </p>
-      <p className="mb-2 text-[11px] leading-snug text-slate-500">
+      <p className="mb-2 text-[11px] leading-snug text-[var(--vauto-text-muted)]">
         Ne darbo metu pirkėjams automatiškai siunčiamas trumpas FAQ atsakymas.
       </p>
       <div className="grid grid-cols-2 gap-2">
         <label className="block space-y-1">
-          <span className="text-[10px] font-semibold uppercase text-slate-500">
+          <span className="text-[10px] font-semibold uppercase text-[var(--vauto-text-muted)]">
             I–V nuo
           </span>
           <input
             type="time"
             value={open}
             onChange={(e) => setOpen(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"
+            className="w-full rounded-lg border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-2 py-1.5 text-xs text-[var(--vauto-text-main)]"
           />
         </label>
         <label className="block space-y-1">
-          <span className="text-[10px] font-semibold uppercase text-slate-500">
+          <span className="text-[10px] font-semibold uppercase text-[var(--vauto-text-muted)]">
             I–V iki
           </span>
           <input
             type="time"
             value={close}
             onChange={(e) => setClose(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"
+            className="w-full rounded-lg border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-2 py-1.5 text-xs text-[var(--vauto-text-main)]"
           />
         </label>
       </div>
-      <label className="mt-2 flex items-center gap-2 text-xs text-slate-700">
+      <label className="mt-2 flex items-center gap-2 text-xs text-[var(--vauto-text-main)]">
         <input
           type="checkbox"
           checked={weekendOpen}
@@ -151,30 +151,30 @@ export function BusinessHoursEditor() {
       {weekendOpen ? (
         <div className="mt-2 grid grid-cols-2 gap-2">
           <label className="block space-y-1">
-            <span className="text-[10px] font-semibold uppercase text-slate-500">
+            <span className="text-[10px] font-semibold uppercase text-[var(--vauto-text-muted)]">
               VI nuo
             </span>
             <input
               type="time"
               value={satOpen}
               onChange={(e) => setSatOpen(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"
+              className="w-full rounded-lg border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-2 py-1.5 text-xs text-[var(--vauto-text-main)]"
             />
           </label>
           <label className="block space-y-1">
-            <span className="text-[10px] font-semibold uppercase text-slate-500">
+            <span className="text-[10px] font-semibold uppercase text-[var(--vauto-text-muted)]">
               VI iki
             </span>
             <input
               type="time"
               value={satClose}
               onChange={(e) => setSatClose(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs"
+              className="w-full rounded-lg border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-2 py-1.5 text-xs text-[var(--vauto-text-main)]"
             />
           </label>
         </div>
       ) : null}
-      <p className="mt-2 text-[11px] text-slate-500">{summary}</p>
+      <p className="mt-2 text-[11px] text-[var(--vauto-text-muted)]">{summary}</p>
       <button
         type="button"
         disabled={saving}

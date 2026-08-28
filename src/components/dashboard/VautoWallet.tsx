@@ -30,7 +30,7 @@ export function VautoWallet({
   };
 
   return (
-    <div className="vauto-dashboard-card mb-4 overflow-hidden rounded-2xl border border-[var(--vauto-border-subtle)] bg-white p-5">
+    <div className="vauto-dashboard-card mb-4 overflow-hidden rounded-2xl border border-[var(--vauto-border-subtle)] bg-[var(--vauto-card-bg)] p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--vauto-primary-soft)]">

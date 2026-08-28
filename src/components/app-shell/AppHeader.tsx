@@ -7,6 +7,7 @@ import { Menu, Plus, Search, Sparkles } from "lucide-react";
 import { BrandLogo } from "@/components/ui/BrandLogo";
 import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { ThemeQuickControl } from "@/components/app-shell/ThemeQuickControl";
 import { Button, IconButton, Badge } from "@/design-system";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
@@ -153,6 +154,7 @@ export function AppHeader({
 
           <div className="hidden md:block">
             <Button
+              data-nav-add-listing
               variant={zone === "marketplace" ? "ai" : "primary"}
               size="sm"
               leftIcon={
@@ -169,6 +171,7 @@ export function AppHeader({
           </div>
           <div className="md:hidden">
             <Button
+              data-nav-add-listing
               variant="primary"
               size="sm"
               iconOnly
@@ -179,8 +182,14 @@ export function AppHeader({
             </Button>
           </div>
 
+          <ThemeQuickControl />
           <NotificationBell />
-          <UserProfileDropdown variant="desktop" />
+          <div className="hidden md:block">
+            <UserProfileDropdown variant="desktop" />
+          </div>
+          <div className="md:hidden">
+            <UserProfileDropdown variant="mobile" />
+          </div>
         </div>
       </div>
     </header>

@@ -73,9 +73,9 @@ export function SellerProfilePage({ sellerId: sellerIdProp }: SellerProfilePageP
               className="h-16 w-16 shrink-0 rounded-full object-cover ring-2 ring-white shadow"
             />
             <div className="min-w-0 flex-1">
-              <h1 className="font-display text-xl font-bold text-slate-900">{name}</h1>
+              <h1 className="font-display text-xl font-bold text-[var(--vauto-text-heading)]">{name}</h1>
               {memberSince && (
-                <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-[var(--vauto-text-muted)]">
                   <Calendar className="h-3.5 w-3.5 shrink-0" />
                   Narys nuo {memberSince}
                 </p>
@@ -87,8 +87,8 @@ export function SellerProfilePage({ sellerId: sellerIdProp }: SellerProfilePageP
               <div className="mt-1">
                 <VerifiedReputationBadge userId={sellerId} />
               </div>
-              <p className="mt-3 flex items-center gap-1.5 text-sm text-slate-600">
-                <Package className="h-4 w-4 shrink-0 text-slate-400" />
+              <p className="mt-3 flex items-center gap-1.5 text-sm text-[var(--vauto-text-main)]">
+                <Package className="h-4 w-4 shrink-0 text-[var(--vauto-text-muted)]" />
                 {active.length} aktyvūs skelbim{active.length === 1 ? "as" : "ai"}
               </p>
             </div>

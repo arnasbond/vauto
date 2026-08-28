@@ -96,7 +96,7 @@ export function WardrobeBulkReviewPanel({ className }: { className?: string }) {
     <section
       id="wardrobe-bulk-review"
       className={cn(
-        "mt-3 rounded-2xl border border-[var(--vauto-primary)]/20 bg-white p-3 shadow-sm sm:p-4",
+        "mt-3 rounded-2xl border border-[var(--vauto-primary)]/20 bg-[var(--vauto-card-bg)] p-3 shadow-sm sm:p-4",
         className
       )}
       aria-labelledby="wardrobe-bulk-review-heading"
@@ -117,7 +117,7 @@ export function WardrobeBulkReviewPanel({ className }: { className?: string }) {
         <button
           type="button"
           onClick={dismiss}
-          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+          className="rounded-lg p-1.5 text-[var(--vauto-text-muted)] transition hover:bg-[var(--vauto-surface-muted)] hover:text-[var(--vauto-text-main)]"
           aria-label="Uždaryti masinę peržiūrą"
         >
           <X className="h-4 w-4" />
@@ -131,7 +131,7 @@ export function WardrobeBulkReviewPanel({ className }: { className?: string }) {
           return (
             <li
               key={item.id}
-              className="flex items-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50/80 px-2.5 py-2"
+              className="flex items-center gap-2.5 rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)] px-2.5 py-2"
             >
               {thumb ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -141,19 +141,19 @@ export function WardrobeBulkReviewPanel({ className }: { className?: string }) {
                   className="h-12 w-12 shrink-0 rounded-lg object-cover"
                 />
               ) : (
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-slate-200 text-[10px] font-semibold text-slate-500">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[var(--vauto-border)]/40 text-[10px] font-semibold text-[var(--vauto-text-muted)]">
                   AI
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-slate-900">
+                <p className="truncate text-sm font-semibold text-[var(--vauto-text-heading)]">
                   {item.title}
                 </p>
-                <p className="truncate text-[11px] text-slate-500">
+                <p className="truncate text-[11px] text-[var(--vauto-text-muted)]">
                   {[item.size, item.color, item.brand].filter(Boolean).join(" · ")}
                 </p>
                 {isEditing ? (
-                  <label className="mt-1 flex items-center gap-1 text-xs text-slate-600">
+                  <label className="mt-1 flex items-center gap-1 text-xs text-[var(--vauto-text-main)]">
                     €
                     <input
                       type="number"
@@ -164,12 +164,12 @@ export function WardrobeBulkReviewPanel({ className }: { className?: string }) {
                         updateItemPrice(item.id, Number(e.target.value))
                       }
                       onBlur={() => setEditingId(null)}
-                      className="w-20 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-sm font-semibold"
+                      className="w-20 rounded-md border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-1.5 py-0.5 text-sm font-semibold text-[var(--vauto-text-main)]"
                       autoFocus
                     />
                   </label>
                 ) : (
-                  <p className="mt-0.5 text-sm font-bold text-slate-800">
+                  <p className="mt-0.5 text-sm font-bold text-[var(--vauto-text-heading)]">
                     {item.suggestedPrice} €
                   </p>
                 )}
@@ -180,7 +180,7 @@ export function WardrobeBulkReviewPanel({ className }: { className?: string }) {
                   onClick={() =>
                     setEditingId((prev) => (prev === item.id ? null : item.id))
                   }
-                  className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white hover:text-slate-800"
+                  className="rounded-lg p-1.5 text-[var(--vauto-text-muted)] transition hover:bg-[var(--vauto-card-bg)] hover:text-[var(--vauto-text-heading)]"
                   aria-label={`Redaguoti kainą: ${item.title}`}
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -188,7 +188,7 @@ export function WardrobeBulkReviewPanel({ className }: { className?: string }) {
                 <button
                   type="button"
                   onClick={() => removeItem(item.id)}
-                  className="rounded-lg p-1.5 text-slate-500 transition hover:bg-white hover:text-red-600"
+                  className="rounded-lg p-1.5 text-[var(--vauto-text-muted)] transition hover:bg-[var(--vauto-card-bg)] hover:text-red-600"
                   aria-label={`Pašalinti: ${item.title}`}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -199,9 +199,9 @@ export function WardrobeBulkReviewPanel({ className }: { className?: string }) {
         })}
       </ul>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3">
-        <p className="text-xs text-slate-500">
-          Suma ~ <span className="font-semibold text-slate-800">{total} €</span>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--vauto-border)] pt-3">
+        <p className="text-xs text-[var(--vauto-text-muted)]">
+          Suma ~ <span className="font-semibold text-[var(--vauto-text-heading)]">{total} €</span>
         </p>
         <button
           type="button"

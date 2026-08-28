@@ -14,16 +14,16 @@ export function ServiceCalendar({ bookings }: { bookings: ServiceBooking[] }) {
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-[var(--ds-brand)]" />
-          <h3 className="text-sm font-semibold text-slate-900">Artimiausi užsakymai</h3>
+          <h3 className="text-sm font-semibold text-[var(--vauto-text-heading)]">Artimiausi užsakymai</h3>
         </div>
-        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase text-amber-300">
+        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-300">
           Demo
         </span>
       </div>
       <div className="space-y-3">
         {Object.entries(grouped).map(([date, items]) => (
           <div key={date}>
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-500">
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-[var(--vauto-text-muted)]">
               {new Date(date).toLocaleDateString("lt-LT", {
                 weekday: "short",
                 month: "short",
@@ -33,16 +33,16 @@ export function ServiceCalendar({ bookings }: { bookings: ServiceBooking[] }) {
             {items.map((b) => (
               <div
                 key={b.id}
-                className="mb-1.5 flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2.5"
+                className="mb-1.5 flex items-center gap-3 rounded-xl bg-[var(--vauto-surface-muted)] px-3 py-2.5"
               >
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--ds-brand-soft)]">
                   <Clock className="h-3.5 w-3.5 text-[var(--ds-brand)]" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">
+                  <p className="truncate text-sm font-medium text-[var(--vauto-text-heading)]">
                     {b.clientName}
                   </p>
-                  <p className="truncate text-xs text-slate-400">{b.service}</p>
+                  <p className="truncate text-xs text-[var(--vauto-text-muted)]">{b.service}</p>
                 </div>
                 <span className="shrink-0 font-mono text-xs text-[var(--vauto-teal)]">
                   {b.time}

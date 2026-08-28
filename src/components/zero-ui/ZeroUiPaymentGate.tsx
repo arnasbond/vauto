@@ -79,7 +79,7 @@ export function ZeroUiPaymentGate({
 
   const cardClass = embedded
     ? "w-full"
-    : "w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl";
+    : "w-full max-w-md rounded-3xl bg-[var(--ds-surface-card)] p-6 shadow-2xl";
 
   return (
     <div className={shellClass} role="dialog" aria-label="Mokėjimo patvirtinimas">

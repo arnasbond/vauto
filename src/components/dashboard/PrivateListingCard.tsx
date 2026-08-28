@@ -21,10 +21,20 @@ interface PrivateListingCardProps {
 
 function statusLabel(listing: Listing): { text: string; className: string } {
   if (listing.status === "sold")
-    return { text: "Parduota", className: "bg-slate-500/30 text-slate-600" };
+    return {
+      text: "Parduota",
+      className: "bg-slate-500/30 text-slate-700 dark:text-slate-300",
+    };
   if (!isListingActive(listing))
-    return { text: "Pasibaigęs", className: "bg-red-100 text-red-800" };
-  return { text: "Aktyvus", className: "bg-emerald-100 text-emerald-800" };
+    return {
+      text: "Pasibaigęs",
+      className: "bg-red-100 text-red-800 dark:bg-red-400/10 dark:text-red-300",
+    };
+  return {
+    text: "Aktyvus",
+    className:
+      "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300",
+  };
 }
 
 export function PrivateListingCard({
@@ -56,7 +66,7 @@ export function PrivateListingCard({
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="truncate font-semibold text-sm text-slate-900">
+            <p className="truncate font-semibold text-sm text-[var(--vauto-text-heading)]">
               {listing.title}
             </p>
             <span
@@ -68,11 +78,13 @@ export function PrivateListingCard({
           <p className="text-sm font-bold text-[var(--vauto-ink)]">
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
-          <p className="text-xs text-slate-500">{listing.location}</p>
+          <p className="text-xs text-[var(--vauto-text-muted)]">{listing.location}</p>
           {expiryLabel && listing.status !== "sold" && (
             <p
               className={`mt-0.5 text-[10px] font-medium ${
-                expired ? "text-red-700" : "text-amber-700"
+                expired
+                  ? "text-red-700 dark:text-red-400"
+                  : "text-amber-700 dark:text-amber-400"
               }`}
             >
               {expiryLabel}
@@ -81,7 +93,7 @@ export function PrivateListingCard({
         </div>
       </div>
       {listing.status !== "sold" && (
-        <div className="mt-2 flex gap-3 text-[10px] text-slate-500">
+        <div className="mt-2 flex gap-3 text-[10px] text-[var(--vauto-text-muted)]">
           <span className="inline-flex items-center gap-0.5">
             <Eye className="h-3 w-3" /> {metrics.views}
           </span>
@@ -110,7 +122,7 @@ export function PrivateListingCard({
         <button
           type="button"
           onClick={onEdit}
-          className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-slate-100 py-2 text-xs font-medium text-slate-900"
+          className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-[var(--vauto-surface-muted)] py-2 text-xs font-medium text-[var(--vauto-text-heading)]"
         >
           <Pencil className="h-3 w-3" />
           Redaguoti
@@ -119,7 +131,7 @@ export function PrivateListingCard({
           <button
             type="button"
             onClick={onMarkSold}
-            className="flex items-center justify-center gap-1 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800"
+            className="flex items-center justify-center gap-1 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300"
           >
             <CheckCircle className="h-3 w-3" />
             Parduota
@@ -128,7 +140,7 @@ export function PrivateListingCard({
         <button
           type="button"
           onClick={onDelete}
-          className="flex items-center justify-center rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700"
+          className="flex items-center justify-center rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700 dark:bg-red-400/10 dark:text-red-300"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>

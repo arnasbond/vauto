@@ -58,20 +58,20 @@ export function ReviewModal({
       <div className="vauto-glass-card w-full max-w-md rounded-3xl p-6">
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-bold text-white">
+            <h2 className="text-lg font-bold text-[var(--vauto-text-heading)]">
               Kaip vertinate patirtį?
             </h2>
             <p className="mt-1 text-sm text-[var(--vauto-text-muted)]">
               {listingTitle}
             </p>
-            <p className="mt-1 text-[11px] text-amber-200/90">
+            <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-300">
               Už atsiliepimą — 1 nemokamas TOP skelbimo iškėlimas.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-white/50 hover:bg-white/10"
+            className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-surface-muted)]"
           >
             <X className="h-5 w-5" />
           </button>
@@ -89,7 +89,7 @@ export function ReviewModal({
                 className={`h-8 w-8 ${
                   i < rating
                     ? "fill-amber-400 text-amber-400"
-                    : "text-white/20"
+                    : "text-[var(--vauto-border)]"
                 }`}
               />
             </button>
@@ -107,7 +107,7 @@ export function ReviewModal({
                 className={`rounded-full px-3 py-1.5 text-[11px] font-semibold transition ${
                   active
                     ? "bg-[var(--flux-teal)] text-[var(--flux-bg)]"
-                    : "bg-white/10 text-white/80 hover:bg-white/15"
+                    : "bg-[var(--vauto-surface-muted)] text-[var(--vauto-text-main)] hover:bg-[var(--vauto-border)]/30"
                 }`}
               >
                 {tag}
@@ -121,7 +121,7 @@ export function ReviewModal({
           onChange={(e) => setComment(e.target.value)}
           placeholder="Trumpas komentaras (nebūtina)..."
           rows={3}
-          className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30"
+          className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)] px-4 py-3 text-sm text-[var(--vauto-text-main)] outline-none placeholder:text-[var(--vauto-text-muted)]"
         />
 
         <button

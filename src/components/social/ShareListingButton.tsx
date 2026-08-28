@@ -40,7 +40,7 @@ export function ShareListingButton({
           type="button"
           onClick={() => void quickShare()}
           className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-lg bg-white/10 text-slate-300",
+            "flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--vauto-surface-muted)] text-[var(--vauto-text-muted)]",
             className
           )}
           aria-label="Dalintis"
@@ -62,7 +62,7 @@ export function ShareListingButton({
         type="button"
         onClick={() => void quickShare()}
         className={cn(
-          "flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50",
+          "flex items-center justify-center gap-1 rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-3 py-2 text-xs font-medium text-[var(--vauto-text-main)] hover:bg-[var(--vauto-surface-muted)]",
           className
         )}
       >

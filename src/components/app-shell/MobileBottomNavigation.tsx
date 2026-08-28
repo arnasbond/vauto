@@ -111,6 +111,7 @@ export function MobileBottomNavigation() {
               <li key={tab.id} className="flex flex-1 justify-center">
                 <button
                   type="button"
+                  data-nav-add-listing
                   onClick={handleAdd}
                   className={cn(
                     "flex min-h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-full px-2",

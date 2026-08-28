@@ -29,7 +29,7 @@ export function ListingBuyerTipsModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+        className="w-full max-w-md rounded-2xl bg-[var(--vauto-card-bg)] p-5 shadow-xl"
         role="dialog"
         aria-labelledby="buyer-tips-title"
         onClick={(e) => e.stopPropagation()}
@@ -54,7 +54,7 @@ export function ListingBuyerTipsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-[var(--vauto-text-muted)] hover:bg-slate-100"
+            className="rounded-lg p-1 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-surface-muted)]"
             aria-label="Uždaryti"
           >
             <X className="h-5 w-5" />
@@ -82,7 +82,7 @@ export function ListingBuyerTipsModal({
         </ul>
 
         {omniva ? (
-          <p className="flex items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-800">
+          <p className="flex items-start gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-xs leading-relaxed text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-300">
             <Package className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             Šis skelbimas leidžia užsakyti su Omniva paštomatu — mygtukas
             „Užsakyti su siuntimu“ juostoje.

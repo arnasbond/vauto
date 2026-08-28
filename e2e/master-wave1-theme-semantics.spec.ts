@@ -214,7 +214,13 @@ test.describe("MASTER Wave 1 — Theme Authority Contract", () => {
   });
 
   test("14. zero horizontal overflow at required viewports (both themes)", async ({ page }) => {
-    test.setTimeout(90_000); // 2 themes x 6 viewports x full navigation each
+    // 2 themes x 6 viewports x full navigation each. A standalone repro
+    // (scripts/_verify-no-overflow.mjs) proves overflow is 0px at every one
+    // of these 12 combinations, so failures here have consistently been
+    // `page.goto` timeouts (browser/OS setup under load), never a real
+    // overflow assertion failure — this budget gives the 12 navigations
+    // enough headroom to complete without weakening the overflow check.
+    test.setTimeout(180_000);
     for (const theme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme: theme });
       for (const width of [390, 430, 768, 1024, 1440, 1920]) {
@@ -236,6 +242,27 @@ test.describe("MASTER Wave 1 — Theme Authority Contract", () => {
       await page.goto("/");
       await dismissGdpr(page);
       await expect.poll(() => appTheme(page)).toBe(theme);
+
+      // Base page structure: the home H1 is always present and theme-independent
+      // — wait for it before fingerprinting anything.
+      await expect(page.locator("[data-home-h1]")).toBeVisible({ timeout: 15_000 });
+
+      // The homepage catalog ("Naujausi skelbimai rinkoje" trending strip, whose
+      // <h2> + per-card <h3>s make up the bulk of this fingerprint) loads
+      // asynchronously after first paint. Fingerprinting before it settles is
+      // exactly what previously produced a "0 headings" LIGHT sample racing a
+      // "~135 headings" DARK sample — a test-readiness race, not a real
+      // LIGHT/DARK DOM difference. Wait for the strip to actually contain a
+      // rendered listing card — the concrete, semantic signal that the async
+      // catalog state has resolved for THIS load — before taking the
+      // fingerprint. (Deliberately not a fixed sleep: this resolves as soon as
+      // the real condition is true, and still times out loudly if the catalog
+      // never settles.)
+      await page
+        .locator("[data-home-trending-strip] [data-listing-card]")
+        .first()
+        .waitFor({ state: "visible", timeout: 15_000 });
+
       return page.evaluate(() => ({
         headings: Array.from(document.querySelectorAll("h1,h2,h3")).map((n) => n.tagName),
         navLinks: Array.from(document.querySelectorAll("nav a")).length,

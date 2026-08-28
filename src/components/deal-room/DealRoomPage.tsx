@@ -87,7 +87,10 @@ function DealList({
   }
   if (error) {
     return (
-      <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+      <p
+        className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300"
+        role="alert"
+      >
         {error}
       </p>
     );
@@ -315,12 +318,15 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
       </Card>
 
       {error ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700" role="alert">
+        <p
+          className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300"
+          role="alert"
+        >
           {error}
         </p>
       ) : null}
       {notice ? (
-        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800 dark:border-emerald-400/30 dark:bg-emerald-400/10 dark:text-emerald-300">
           {notice}
         </p>
       ) : null}
@@ -368,7 +374,7 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
             inputMode="numeric"
             value={offerCents}
             onChange={(e) => setOfferCents(e.target.value)}
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] px-3 py-2 text-sm text-[var(--ds-text-primary)]"
             placeholder={String(room.listing.askingPriceCents ?? "")}
           />
           <Button
@@ -464,7 +470,7 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
             id="omniva-track"
             value={trackCode}
             onChange={(e) => setTrackCode(e.target.value)}
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] px-3 py-2 text-sm text-[var(--ds-text-primary)]"
             minLength={4}
           />
           <label htmlFor="omniva-term" className="mt-2 block text-xs font-semibold">
@@ -474,7 +480,7 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
             id="omniva-term"
             value={terminalId}
             onChange={(e) => setTerminalId(e.target.value)}
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] px-3 py-2 text-sm text-[var(--ds-text-primary)]"
           />
           <Button
             className="mt-3"
@@ -677,7 +683,7 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
               onChange={(e) =>
                 setDisputeReason(e.target.value as (typeof DISPUTE_REASONS)[number]["id"])
               }
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] px-3 py-2 text-sm text-[var(--ds-text-primary)]"
             >
               {DISPUTE_REASONS.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -693,7 +699,7 @@ function DealRoomBody({ transactionId }: { transactionId: string }) {
               value={disputeText}
               onChange={(e) => setDisputeText(e.target.value)}
               rows={4}
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] px-3 py-2 text-sm text-[var(--ds-text-primary)]"
             />
             <div className="mt-4 flex gap-2">
               <Button variant="secondary" onClick={() => setDisputeOpen(false)}>
@@ -797,7 +803,7 @@ export function DealRoomPage() {
           {id ? "Visi sandoriai" : "Atgal"}
         </Link>
         {bootError ? (
-          <p className="mb-4 text-sm text-red-700" role="alert">{bootError}</p>
+          <p className="mb-4 text-sm text-red-700 dark:text-red-400" role="alert">{bootError}</p>
         ) : null}
         {id ? (
           <DealRoomBody transactionId={id} />

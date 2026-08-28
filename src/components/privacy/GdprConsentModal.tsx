@@ -25,15 +25,15 @@ export function GdprConsentModal({
           <button
             type="button"
             onClick={onDecline}
-            className="text-slate-400"
+            className="text-[var(--vauto-text-muted)]"
             aria-label="Uždaryti"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <h2 className="text-lg font-semibold text-white">Privatumo sutikimas</h2>
-        <p className="mt-3 text-sm leading-relaxed text-slate-300">
+        <h2 className="text-lg font-semibold text-[var(--vauto-text-heading)]">Privatumo sutikimas</h2>
+        <p className="mt-3 text-sm leading-relaxed text-[var(--vauto-text-main)]">
           VAUTO naudoja jūsų balsą ir vaizdą tik skelbimo turinio analizei pagal
           BDAR reikalavimus. Duomenys apdorojami įrenginyje arba saugiai perduodami
           AI analizei ir nėra naudojami reklamai.
@@ -42,7 +42,7 @@ export function GdprConsentModal({
           VAUTO fone analizuoja tik raktažodį &ldquo;VAUTO&rdquo; ir jokių kitų jūsų pokalbių
           neįrašinėja. Budintis režimas reikalauja nuolatinės mikrofono prieigos.
         </p>
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-[var(--vauto-text-muted)]">
           Galite bet kada atšaukti sutikimą profilio nustatymuose.
         </p>
 
@@ -50,7 +50,7 @@ export function GdprConsentModal({
           <button
             type="button"
             onClick={onDecline}
-            className="flex-1 rounded-2xl bg-white/10 py-3 text-sm font-medium text-slate-300"
+            className="flex-1 rounded-2xl bg-[var(--vauto-surface-muted)] py-3 text-sm font-medium text-[var(--vauto-text-main)]"
           >
             Atmesti
           </button>

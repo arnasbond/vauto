@@ -28,9 +28,9 @@ export function VisibilityPricingCard({
     <section className="vauto-dashboard-card mb-4 rounded-2xl p-4">
       <div className="mb-3 flex items-center gap-2">
         <Shield className="h-4 w-4 text-[var(--vauto-teal)]" />
-        <h3 className="text-sm font-semibold text-slate-900">Matomumo kainodara</h3>
+        <h3 className="text-sm font-semibold text-[var(--vauto-text-heading)]">Matomumo kainodara</h3>
       </div>
-      <p className="mb-3 text-xs leading-relaxed text-slate-400">
+      <p className="mb-3 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
         {VISIBILITY_POLICY_SUMMARY.join(" ")}
       </p>
 
@@ -39,7 +39,7 @@ export function VisibilityPricingCard({
           const plans = getVisibilityPlans(sampleListing, allListings, user);
           return (
             <div key={category}>
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
                 {getCategoryLabel(sampleListing)} · pavyzdys: {sampleListing.title.slice(0, 36)}
               </p>
               <div className="space-y-2">
@@ -48,13 +48,13 @@ export function VisibilityPricingCard({
                     key={`${category}-${plan.id}`}
                     className={`rounded-xl border p-3 ${
                       plan.available
-                        ? "border-slate-200 bg-white/[0.03]"
-                        : "border-white/5 bg-white/[0.02] opacity-70"
+                        ? "border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)]"
+                        : "border-[var(--vauto-border)]/50 bg-[var(--vauto-surface-muted)]/50 opacity-70"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <p className="text-xs font-semibold text-slate-900">
+                        <p className="text-xs font-semibold text-[var(--vauto-text-heading)]">
                           {plan.label}
                           {plan.recommended && (
                             <span className="ml-1.5 text-[9px] font-normal text-[var(--ds-warning)]">
@@ -62,7 +62,7 @@ export function VisibilityPricingCard({
                             </span>
                           )}
                         </p>
-                        <p className="mt-0.5 text-[10px] text-slate-500">
+                        <p className="mt-0.5 text-[10px] text-[var(--vauto-text-muted)]">
                           {plan.durationDays} d. · {plan.feedPosition}
                           {plan.maxSlotsPerRegion !== "unlimited" &&
                             ` · max ${plan.maxSlotsPerRegion} vietos`}

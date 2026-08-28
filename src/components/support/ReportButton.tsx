@@ -29,7 +29,7 @@ export function ReportButton({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--vauto-text-muted)] hover:bg-gray-100"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-surface-muted)]"
           aria-label="Pranešti apie pažeidimą"
         >
           <Flag className="h-4 w-4" />
@@ -38,7 +38,7 @@ export function ReportButton({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-amber-200/60 bg-amber-50 py-3 text-sm font-medium text-amber-800"
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--ds-warning)]/30 bg-[var(--ds-warning-soft)] py-3 text-sm font-medium text-[var(--ds-warning)]"
         >
           <Flag className="h-4 w-4" />
           Pranešti apie pažeidimą

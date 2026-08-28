@@ -34,7 +34,7 @@ interface ShareListingPanelProps {
 }
 
 const NEUTRAL_SHARE_BTN =
-  "border border-slate-200 bg-white text-slate-700 font-medium rounded-xl hover:bg-slate-50";
+  "border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] text-[var(--ds-text-primary)] font-medium rounded-xl hover:bg-[var(--ds-surface-muted)]";
 
 export function ShareListingPanel({
   listing,
@@ -111,7 +111,7 @@ export function ShareListingPanel({
   return (
     <div className={cn("space-y-3", className)}>
       {showVautoPromo && !compact && (
-        <p className="text-xs leading-relaxed text-slate-500">
+        <p className="text-xs leading-relaxed text-[var(--ds-text-muted)]">
           Pasidalykite skelbimu socialiniuose tinkluose — papildoma reklama jūsų prekei
           ar paslaugai ir didesnis VAUTO žinomumas.
         </p>
@@ -180,14 +180,14 @@ export function ShareListingPanel({
       </div>
 
       {!compact && (
-        <p className="flex items-start gap-1.5 text-[10px] text-slate-500">
+        <p className="flex items-start gap-1.5 text-[10px] text-[var(--ds-text-muted)]">
           <Link2 className="mt-0.5 h-3 w-3 shrink-0" />
           <span className="break-all">{payload.url}</span>
         </p>
       )}
 
       {captionPlatform === "instagram" && (
-        <p className="rounded-lg border border-slate-200 bg-slate-50 p-2 text-[10px] text-slate-600">
+        <p className="rounded-lg border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-muted)] p-2 text-[10px] text-[var(--ds-text-secondary,var(--ds-text-muted))]">
           Instagram: nuoroda nukopijuota. Įklijuokite į Stories, postą ar bio. Tekstas:{" "}
           {shareCaptionForPlatform("instagram", listing)}
         </p>

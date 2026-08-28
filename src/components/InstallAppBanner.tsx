@@ -32,7 +32,7 @@ export function InstallAppBanner() {
 
   return (
     <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 mx-3">
-      <div className="card-shadow flex items-center gap-3 rounded-2xl border border-[var(--vauto-blue)]/20 bg-white p-3">
+      <div className="card-shadow flex items-center gap-3 rounded-2xl border border-[var(--vauto-blue)]/20 bg-[var(--vauto-card-bg)] p-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-blue)]/10 text-[var(--vauto-blue)]">
           <Download className="h-5 w-5" />
         </div>

@@ -39,7 +39,7 @@ export function SearchEmptyAssistantBanner({
     return (
       <div
         id="search-empty-assistant"
-        className="vauto-layout-desc mt-3 scroll-mt-20 rounded-2xl border border-dashed border-gray-300 bg-white p-4 text-center text-sm text-gray-800"
+        className="vauto-layout-desc mt-3 scroll-mt-20 rounded-2xl border border-dashed border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] p-4 text-center text-sm"
       >
         {buildEmptySearchBannerMessage(searchQuery)}
       </div>

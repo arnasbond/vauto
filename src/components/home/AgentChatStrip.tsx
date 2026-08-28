@@ -63,13 +63,13 @@ function UserMessageMedia({
           key={`${url.slice(0, 48)}-${imgIdx}`}
           src={url}
           alt={`Nuotrauka ${imgIdx + 1}`}
-          className="h-20 w-20 rounded-lg border border-white/25 object-cover shadow-sm sm:h-24 sm:w-24"
+          className="h-20 w-20 rounded-lg border border-[var(--vauto-border)] object-cover shadow-sm sm:h-24 sm:w-24"
         />
       ))}
       {docs.map((doc, docIdx) => (
         <div
           key={`${doc.fileName}-${docIdx}`}
-          className="flex max-w-full items-center rounded-lg border border-white/30 bg-white/15 px-2.5 py-1.5 text-[12px] font-medium leading-snug shadow-sm"
+          className="flex max-w-full items-center rounded-lg border border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)] px-2.5 py-1.5 text-[12px] font-medium leading-snug text-[var(--vauto-text-main)] shadow-sm"
         >
           📄 Dokumentas įkeltas: {doc.fileName}
         </div>
