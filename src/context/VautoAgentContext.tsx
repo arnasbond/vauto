@@ -15,9 +15,9 @@ import {
 import { createThrottleLeading } from "@/lib/throttle-leading";
 import { useVauto } from "@/context/VautoContext";
 import {
-  apiCancelConsequentialAction,
-  apiConfirmConsequentialAction,
-} from "@/lib/consequential-action-confirm";
+  handleBlockListingSideEffect,
+  handleMarkListingSoldSideEffect,
+} from "@/lib/consequential-action-dialog-handler";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useChat } from "@/context/ChatContext";
@@ -817,43 +817,24 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         // Consequential-action confirmation boundary (AI Maturity Phase 1):
         // the tool call above only PROPOSED this — nothing is blocked yet.
         // Execution requires this explicit, deterministic (non-LLM) confirm
-        // dialog + the exact pendingActionId minted server-side.
-        const listingId = actions.listingId;
-        const pendingActionId = actions.pendingActionId;
-        const listingTitle = actions.listingTitle;
-        const reason = actions.reason;
-        void (async () => {
-          const confirmed = await showConfirm({
-            title: "Patvirtinti skelbimo blokavimą",
-            message: listingTitle
-              ? `Užblokuoti skelbimą „${listingTitle}"?${reason ? ` Priežastis: ${reason}.` : ""}`
-              : `Užblokuoti skelbimą ${listingId}?${reason ? ` Priežastis: ${reason}.` : ""}`,
-            confirmLabel: "Taip, blokuoti",
-            cancelLabel: "Atšaukti",
-            variant: "danger",
-          });
-          if (!confirmed) {
-            void apiCancelConsequentialAction(pendingActionId).catch(() => {});
-            return;
+        // dialog + the exact pendingActionId minted server-side. The actual
+        // dialog/confirm/cancel wiring lives in
+        // consequential-action-dialog-handler.ts (Phase 2A) so it can be
+        // integration-tested outside this provider.
+        void handleBlockListingSideEffect(
+          {
+            listingId: actions.listingId,
+            pendingActionId: actions.pendingActionId,
+            listingTitle: actions.listingTitle,
+            reason: actions.reason,
+          },
+          {
+            showConfirm,
+            onBanned: (listingId) => setListingBanned(listingId, true),
+            onSuccess: (message) => showToast(message, "success"),
+            onError: (message) => showToast(message, "error"),
           }
-          const res = await apiConfirmConsequentialAction(
-            pendingActionId,
-            "blockListing",
-            listingId
-          );
-          if (res.ok && res.data.result.ok) {
-            setListingBanned(listingId, true);
-            showToast(
-              listingTitle ? `AI užblokavo: ${listingTitle}` : `Skelbimas užblokuotas (${listingId})`,
-              "success"
-            );
-          } else {
-            showToast(
-              res.ok ? "Nepavyko užblokuoti — patikrinkite teises." : res.error,
-              "error"
-            );
-          }
-        })();
+        );
       }
       if (actions.type === "empty_search") {
         // P0 — Never turn a fresh seller listing session into marketplace wishlist/search.
@@ -916,41 +897,23 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         // Consequential-action confirmation boundary (AI Maturity Phase 1):
         // the tool call above only PROPOSED this — nothing is archived yet.
         // Execution requires this explicit, deterministic (non-LLM) confirm
-        // dialog + the exact pendingActionId minted server-side.
-        const listingId = actions.listingId;
-        const pendingActionId = actions.pendingActionId;
-        const title = actions.title;
-        void (async () => {
-          const confirmed = await showConfirm({
-            title: "Patvirtinti pardavimą",
-            message: title
-              ? `Pažymėti skelbimą „${title}" kaip parduotą?`
-              : "Pažymėti skelbimą kaip parduotą?",
-            confirmLabel: "Taip, pažymėti parduotu",
-            cancelLabel: "Atšaukti",
-          });
-          if (!confirmed) {
-            void apiCancelConsequentialAction(pendingActionId).catch(() => {});
-            return;
+        // dialog + the exact pendingActionId minted server-side. The actual
+        // dialog/confirm/cancel wiring lives in
+        // consequential-action-dialog-handler.ts (Phase 2A) so it can be
+        // integration-tested outside this provider.
+        void handleMarkListingSoldSideEffect(
+          {
+            listingId: actions.listingId,
+            pendingActionId: actions.pendingActionId,
+            title: actions.title,
+          },
+          {
+            showConfirm,
+            onMarkedSold: (listingId) => markListingSold(listingId),
+            onSuccess: (message) => showToast(message, "success"),
+            onError: (message) => showToast(message, "error"),
           }
-          const res = await apiConfirmConsequentialAction(
-            pendingActionId,
-            "markListingSold",
-            listingId
-          );
-          if (res.ok && res.data.result.ok) {
-            markListingSold(listingId);
-            showToast(
-              title ? `Skelbimas archyvuotas: ${title}` : "Skelbimas pažymėtas parduotu",
-              "success"
-            );
-          } else {
-            showToast(
-              res.ok ? "Nepavyko archyvuoti — patikrinkite savininko teises." : res.error,
-              "error"
-            );
-          }
-        })();
+        );
       }
       if (actions.type === "toggle_favorite" && actions.listingId) {
         toggleSave(actions.listingId);

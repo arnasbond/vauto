@@ -19,6 +19,7 @@ import {
   shouldShowDemoCatalog,
 } from "@/lib/demo-catalog";
 import { sanitizeSearchQuery } from "@/lib/vertical-listing-filter";
+import { createConfirmDialogController } from "@/lib/confirm-dialog-queue";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { generateDynamicFilters } from "@/lib/scoring";
 import {
@@ -804,7 +805,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [visualRankScores, setVisualRankScores] = useState<Record<string, number>>({});
   const [visualSearchRefining, setVisualSearchRefining] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
-  const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
+  // Phase 2A — required scenario 7 (intent pivot): a single-slot controller
+  // that resolves a superseded confirm prompt `false` instead of silently
+  // stranding it. See src/lib/confirm-dialog-queue.ts for the full rationale.
+  const confirmControllerRef = useRef(createConfirmDialogController<ConfirmDialogState>());
   const [chameleonTheme, setChameleonTheme] = useState<ChameleonThemeId>("flux");
   const [wardrobeSpintaForced, setWardrobeSpintaForced] = useState(false);
   const [detectedAdaptiveKey, setDetectedAdaptiveKey] =
@@ -1719,16 +1723,18 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const clearToast = useCallback(() => setToast(null), []);
 
   const dismissConfirm = useCallback((confirmed: boolean) => {
-    setConfirmDialog(null);
-    confirmResolverRef.current?.(confirmed);
-    confirmResolverRef.current = null;
+    confirmControllerRef.current.dismiss(confirmed);
+    setConfirmDialog(confirmControllerRef.current.current());
   }, []);
 
   const showConfirm = useCallback((opts: ConfirmDialogState) => {
-    return new Promise<boolean>((resolve) => {
-      confirmResolverRef.current = resolve;
-      setConfirmDialog(opts);
-    });
+    // If a prior confirm is still outstanding (intent pivot), `show()`
+    // resolves it `false` here — synchronously, before returning — so the
+    // caller awaiting that earlier promise runs its own cancellation branch
+    // immediately instead of being stranded until server-side TTL expiry.
+    const promise = confirmControllerRef.current.show(opts);
+    setConfirmDialog(confirmControllerRef.current.current());
+    return promise;
   }, []);
 
   const requestMediaConsent = useCallback((onGranted: () => void) => {
