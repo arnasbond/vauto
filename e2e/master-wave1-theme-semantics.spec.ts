@@ -353,4 +353,94 @@ test.describe("MASTER Wave 1 — Theme Authority Contract", () => {
     expect(dark.navLinks).toBe(light.navLinks);
     expect(dark.buttons).toBe(light.buttons);
   });
+
+  test("16. header has zero overflow at 768px even under the fallback font (no fonts.ready wait)", async ({
+    page,
+  }) => {
+    // Deterministic regression proof for the real CI root cause: Linux
+    // Chromium briefly paints the header with the CSS fallback font
+    // (system-ui/-apple-system/Segoe UI/sans-serif) before the Geist
+    // webfont subset for Lithuanian diacritics finishes loading. That
+    // fallback renders wider than Geist, and at the tight `md` (768px)
+    // breakpoint — where the desktop nav first appears — it used to push
+    // the right-aligned header controls past the viewport (observed on CI:
+    // documentElement.scrollWidth 783 vs window.innerWidth 768, i.e. a real
+    // +15px product overflow, not a scrollbar artifact).
+    //
+    // Rather than race `document.fonts.ready` (which only hides the
+    // symptom for however long the real webfont takes to load), this test
+    // makes the fallback font PERMANENT by blocking the webfont network
+    // requests outright, then asserts zero overflow anyway using the same
+    // synchronous `horizontalOverflowPx` helper the rest of this suite
+    // uses (unmodified — it must keep detecting genuine first-paint
+    // overflow, never wait for fonts). This proves the AppHeader
+    // responsive fix (icon-only nav labels + icon-only "Įdėti" between
+    // `md` and `lg`) makes the header intrinsically fit at 768px
+    // regardless of which font is active — the actual fix, not a timing
+    // workaround. The rest of this suite (tests 1-15, including #14)
+    // intentionally does NOT wait for `document.fonts.ready` either.
+    const FONT_URL_RE = /\/_next\/static\/media\/.*\.woff2?$/i;
+    let blockedFontRequests = 0;
+    await page.route(FONT_URL_RE, (route) => {
+      blockedFontRequests += 1;
+      return route.abort();
+    });
+
+    try {
+      for (const theme of ["light", "dark"] as const) {
+        await page.emulateMedia({ colorScheme: theme });
+        await page.setViewportSize({ width: 768, height: 900 });
+        await page.goto("/");
+        await dismissGdpr(page);
+
+        // Two independent signals that the real webfont is genuinely NOT
+        // active — the declared `font-family` alone only proves the CSS
+        // *stack*, not which font actually resolved/rendered. Cross-check
+        // against the Font Loading API: with the network blocked, no
+        // Geist FontFace can ever reach "loaded" status.
+        const fontState = await page.evaluate(() => {
+          const declared = getComputedStyle(document.body).fontFamily;
+          const geistLoaded = Array.from(document.fonts).some(
+            (f) => f.family.toLowerCase().includes("geist") && f.status === "loaded"
+          );
+          return { declared, geistLoaded };
+        });
+        expect(
+          fontState.declared.toLowerCase(),
+          `${theme}: expected the CSS fallback font declared (webfont blocked), got "${fontState.declared}"`
+        ).not.toContain("geist");
+        expect(
+          fontState.geistLoaded,
+          `${theme}: a Geist FontFace reached "loaded" status even though its network requests were blocked — the fallback-font scenario was not actually reproduced`
+        ).toBe(false);
+
+        const overflow = await horizontalOverflowPx(page);
+        expect(
+          overflow,
+          `${theme} @ 768px overflow under fallback font "${fontState.declared}"`
+        ).toBeLessThanOrEqual(0);
+
+        // The tablet header hierarchy stays fully usable: every control is
+        // present, visible and reachable — icon-only or not.
+        await expect(page.locator("[data-theme-quick-control]")).toBeVisible();
+        await expect(page.getByRole("button", { name: "Pranešimai" })).toBeVisible();
+        await expect(page.getByRole("button", { name: "Prisijungti" })).toBeVisible();
+        await expect(
+          page.getByRole("navigation", { name: "Pagrindinė navigacija" })
+        ).toBeVisible();
+        await expect(page.getByRole("link", { name: "Skelbimai" })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Paieška" })).toBeVisible();
+        await expect(page.locator("[data-nav-add-listing]:visible").first()).toBeVisible();
+      }
+
+      // Prove this test actually exercised the fallback-font scenario —
+      // not a false-positive pass because nothing was ever blocked.
+      expect(
+        blockedFontRequests,
+        "expected at least one Geist webfont network request to be intercepted and aborted; zero means this test never reproduced the fallback-font condition it claims to prove"
+      ).toBeGreaterThan(0);
+    } finally {
+      await page.unroute(FONT_URL_RE);
+    }
+  });
 });

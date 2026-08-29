@@ -112,7 +112,7 @@ export function AppHeader({
           </p>
         ) : (
           <nav
-            className="hidden flex-1 items-center justify-center gap-1 md:flex"
+            className="hidden min-w-0 flex-1 items-center justify-center gap-1 md:flex"
             aria-label="Pagrindinė navigacija"
           >
             {links.map((item) => {
@@ -124,7 +124,7 @@ export function AppHeader({
                   href={item.href}
                   onClick={item.href === "/" ? handleHomeNav : undefined}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-[var(--ds-radius-control)] px-3 py-2 text-[length:var(--ds-text-body-sm-size)] font-semibold transition-colors duration-[var(--ds-duration-normal)]",
+                    "inline-flex items-center gap-2 rounded-[var(--ds-radius-control)] px-2 py-2 text-[length:var(--ds-text-body-sm-size)] font-semibold transition-colors duration-[var(--ds-duration-normal)] lg:px-3",
                     active
                       ? "bg-[var(--ds-brand-soft)] text-[var(--ds-brand)]"
                       : "text-[var(--ds-text-muted)] hover:bg-[var(--ds-surface-muted)] hover:text-[var(--ds-text-primary)]"
@@ -132,7 +132,20 @@ export function AppHeader({
                   aria-current={active ? "page" : undefined}
                 >
                   <Icon className="h-4 w-4" aria-hidden />
-                  {item.label}
+                  {/*
+                    Compact tablet density (MASTER Wave 1 CI overflow fix):
+                    between `md` (768px, where this nav first appears) and
+                    `lg` (1024px) the nav shows icons only. `sr-only` keeps
+                    the label in the accessibility tree (screen readers,
+                    aria) at every width — it is never removed from the DOM
+                    or from assistive tech, only hidden visually below `lg` —
+                    so keyboard/AT behavior and accessible names are
+                    unchanged. This removes the intrinsic text width that
+                    made the header's combined desktop geometry unable to
+                    tolerate the wider fallback-font metrics briefly used
+                    before the Geist webfont finishes loading.
+                  */}
+                  <span className="sr-only lg:not-sr-only">{item.label}</span>
                 </Link>
               );
             })}
@@ -152,7 +165,15 @@ export function AppHeader({
             </div>
           ) : null}
 
-          <div className="hidden md:block">
+          {/*
+            Compact tablet density (MASTER Wave 1 CI overflow fix): the
+            full-text "Įdėti" control only fits reliably from `lg` (1024px)
+            onward — at `md` (768px) it stays icon-only, same as the mobile
+            control below, so the header's total content width has slack
+            for the fallback-font-metrics window before the Geist webfont
+            swaps in. Text and icon are unchanged from `lg` upward.
+          */}
+          <div className="hidden lg:block">
             <Button
               data-nav-add-listing
               variant={zone === "marketplace" ? "ai" : "primary"}
@@ -169,7 +190,7 @@ export function AppHeader({
               Įdėti
             </Button>
           </div>
-          <div className="md:hidden">
+          <div className="lg:hidden">
             <Button
               data-nav-add-listing
               variant="primary"
