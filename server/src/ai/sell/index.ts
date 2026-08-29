@@ -30,3 +30,16 @@ export {
   type ImageSafetyResult,
 } from "./image-validation.js";
 export { normalizeSellVoiceText, spokenDigitsToNumber } from "./voice-normalize.js";
+export {
+  selectNextQuestion,
+  normalizeCategory,
+  debugPriorityOrder,
+  factsFromAttributes,
+  deriveUniversalBlockers,
+  type NextQuestionCategory,
+  type FactState,
+  type NextQuestionFacts,
+  type NextQuestionReason,
+  type NextQuestionResult,
+  type UniversalBlockers,
+} from "./next-question-policy.js";

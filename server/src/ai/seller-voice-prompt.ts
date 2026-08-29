@@ -1,4 +1,5 @@
 /** Opening follow-up after create_listing_draft — active consultant, not a form checklist. */
+import { factsFromAttributes, selectNextQuestion } from "./sell/next-question-policy.js";
 
 function clothingWarmOpener(title: string): string {
   const lower = title.toLowerCase();
@@ -64,39 +65,35 @@ export function buildCreateListingDraftFollowUp(
   return `Puiku — imamės „${item}“. Parašysiu turtingą aprašymą, kad skelbimas išsiskirtų.\n\nPapasakokite svarbiausią detalę pirkėjui (būklė, komplektacija ar kodėl parduodate)?`;
 }
 
+/**
+ * Phase 2B — single highest-value missing-fact question policy.
+ *
+ * Vertical facts (make, model, mileage, area, size, salary, …) AND the universal
+ * publish blockers (`sellerType`, `city`) are now selected together inside one
+ * deterministic decision (`selectNextQuestion`) — see that module's documented
+ * priority contract. `missingFields` (computed upstream by `postNewListing` from
+ * the authoritative city/sellerType checks) is the small normalized blocker signal
+ * this function passes in; it is never re-derived here. The post-policy fallback
+ * below is only reached for a category the policy does not recognize at all.
+ */
 export function buildSellerContextualVoiceFollowUp(
   category: string,
   attributes: Record<string, string>,
   missingFields: string[]
 ): string | null {
-  if (!missingFields.length) return null;
+  const facts = factsFromAttributes(category, attributes, {
+    // Only presence matters to the policy — missingFields is already the source of truth for price.
+    price: missingFields.includes("price") ? null : 1,
+  });
+  const blockers = {
+    sellerType: { value: missingFields.includes("sellerType") ? undefined : 1 },
+    city: { value: missingFields.includes("city") ? undefined : 1 },
+  };
+  const next = selectNextQuestion({ category, facts, blockers });
+  if (next) return next.question;
 
-  // Product consulting first — city/phone last, never as a checklist dump.
-  if (category === "electronics") {
-    if (
-      missingFields.includes("model") ||
-      !attributes.memory?.trim() ||
-      !attributes.color?.trim()
-    ) {
-      return "Kokia spalva ir vidinė atmintis? Jei turite — ar pridedate įkroviklį?";
-    }
-  }
-
-  if (category === "vehicles") {
-    if (missingFields.includes("year") || missingFields.includes("make") || missingFields.includes("model")) {
-      const bits: string[] = [];
-      if (missingFields.includes("make")) bits.push("markė");
-      if (missingFields.includes("model")) bits.push("modelis");
-      if (missingFields.includes("year")) bits.push("metai");
-      if (bits.length) {
-        return `Patikslinkime: ${bits.join(", ")}? Tada sudėliosiu stipresnį aprašymą.`;
-      }
-    }
-    if (missingFields.includes("vin")) {
-      return "Ar turite VIN — galiu padėti greičiau užpildyti techninius laukus?";
-    }
-  }
-
+  // Unreached for any recognized NextQuestionCategory (blockers/price are already
+  // covered above) — kept only as a safety net for an unmapped category string.
   if (missingFields.includes("price")) {
     return "Kokią kainą nustatome eurais — norite greitesnio pardavimo ar aukštesnės kainos?";
   }
@@ -105,7 +102,6 @@ export function buildSellerContextualVoiceFollowUp(
     return "Skelbiate kaip privatus asmuo ar kaip įmonė?";
   }
 
-  // City only after product + price questions are done.
   if (missingFields.includes("city")) {
     return "Kurį miestą rodyti pirkėjams skelbime?";
   }

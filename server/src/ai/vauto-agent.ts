@@ -350,6 +350,67 @@ function isRetriableAgentError(e: unknown): boolean {
 const sleepMs = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Phase 2B — real year-conflict resolution state machine (not just detection).
+ *
+ * While a conflict is pending (`yearConflict === "true"` from a prior turn), the
+ * one-question-per-turn policy guarantees the assistant's last question was this
+ * exact clarification — so a new year mention this turn IS the user's answer to
+ * it, never an arbitrary unrelated fact. Only an explicit choice of one of the two
+ * disputed values (A = prior canonical, B = prior candidate) resolves the
+ * conflict; a genuinely different third year is discarded (never silently
+ * accepted) and the conflict stays open. An unrelated turn (no year mentioned)
+ * leaves the pending conflict markers completely untouched.
+ *
+ * Returns only the attribute keys that must change. `yearConflict` /
+ * `yearConflictCandidate` set to `""` are resolution tombstones — the caller
+ * strips them to a genuinely absent key so `factsFromAttributes` reads "no
+ * conflict" (an empty string would otherwise still count as a present value).
+ */
+export function resolveYearConflictPatch(input: {
+  priorAttributes?: Record<string, string | undefined>;
+  incomingYear?: string;
+}): Record<string, string> {
+  const priorAttrs = input.priorAttributes ?? {};
+  const priorYearConflict = String(priorAttrs.yearConflict ?? "") === "true";
+  const priorCanonicalYear = String(priorAttrs.year ?? "").trim();
+  const priorCandidateYear = String(priorAttrs.yearConflictCandidate ?? "").trim();
+  const incomingYear = String(input.incomingYear ?? "").trim();
+
+  if (priorYearConflict) {
+    if (!incomingYear) {
+      // Unrelated field/message update this turn — preserve the pending conflict verbatim.
+      return {};
+    }
+    if (incomingYear === priorCanonicalYear || incomingYear === priorCandidateYear) {
+      // Explicit choice of A or B — resolve and clear both markers.
+      return { year: incomingYear, yearConflict: "", yearConflictCandidate: "" };
+    }
+    // Ambiguous third year — remain unresolved safely; discard the stray value
+    // rather than silently overwriting either disputed candidate.
+    return {
+      year: priorCanonicalYear,
+      yearConflict: "true",
+      yearConflictCandidate: priorCandidateYear,
+    };
+  }
+
+  // No conflict pending — detect a fresh one instead of silently overwriting.
+  const freshConflict =
+    Boolean(priorCanonicalYear) &&
+    Boolean(incomingYear) &&
+    priorCanonicalYear !== incomingYear;
+  if (freshConflict) {
+    return {
+      year: priorCanonicalYear,
+      yearConflict: "true",
+      yearConflictCandidate: incomingYear,
+    };
+  }
+
+  return {};
+}
+
 export async function runVautoAgent(
   req: VautoAgentRequest,
   options?: RunVautoAgentOptions
@@ -994,11 +1055,18 @@ async function runVautoAgentInner(
 
     if (priceToApply != null || negotiable || hasSpecs || hasDescEdit) {
       const negoPatch = negotiable ? negotiablePricePatch() : null;
+      const yearResolution = resolveYearConflictPatch({
+        priorAttributes: listingDraft.attributes,
+        incomingYear: specPatch.year,
+      });
       const mergedAttrs: Record<string, string> = {
         ...(listingDraft.attributes ?? {}),
         ...specPatch,
         ...(negoPatch?.attributes ?? {}),
+        ...yearResolution,
       };
+      if (mergedAttrs.yearConflict === "") delete mergedAttrs.yearConflict;
+      if (mergedAttrs.yearConflictCandidate === "") delete mergedAttrs.yearConflictCandidate;
       delete mergedAttrs.awaitingSpecs;
       let nextDescription = hasSpecs
         ? buildVehicleDescriptionFromAttributes(mergedAttrs, {

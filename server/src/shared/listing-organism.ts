@@ -19,6 +19,12 @@ export {
   looksLikeVehicleSalesDraft,
 } from "./ensure-rich-sales-copy.js";
 
+import {
+  factsFromAttributes,
+  selectNextQuestion,
+  deriveUniversalBlockers,
+} from "../ai/sell/next-question-policy.js";
+
 export const LISTING_FLOW_STATES = {
   DRAFTING_TEXT: "DRAFTING_TEXT",
   AWAITING_PHOTOS: "AWAITING_PHOTOS",
@@ -594,39 +600,67 @@ export function buildDraftReadyChatReply(draft: {
   return `${ready} Galite patikrinti PrePublish kortelėje arba parašyti, ką norite pakeisti.`;
 }
 
+/**
+ * Phase 2B — single highest-value missing-fact gap, not a checklist dump.
+ * Delegates field/priority selection to the deterministic policy module
+ * (`ai/sell/next-question-policy.ts`); only the warm noun-phrase labels used in
+ * this specific sentence style ("parašykite: X") stay local to this function.
+ */
+const GAP_LABELS: Record<string, string> = {
+  price: "kainą",
+  sellerType: "ar skelbiate kaip privatus asmuo, ar kaip įmonė",
+  city: "miestą",
+  model: "tikslų modelį",
+  mileage: "ridą (km)",
+  techInspection: "TA galiojimą",
+  transmission: "pavarų dėžę",
+  year: "pagaminimo metus",
+  yearConflict: "kuriuos pagaminimo metus laikyti teisingais",
+  fuelType: "kuro tipą",
+  area: "plotą (m²)",
+  heatingType: "šildymo tipą",
+  rooms: "kambarių skaičių",
+  roomsConflict: "kuris kambarių skaičius teisingas",
+  yearBuilt: "statybos metus",
+  floor: "aukštą",
+  location: "miestą ar rajoną",
+  deviceModel: "tikslų modelį",
+  storage: "atmintį / konfigūraciją",
+  warranty: "garantijos informaciją",
+  size: "dydį",
+  material: "medžiagą",
+  color: "spalvą",
+  serviceLocation: "aptarnavimo vietą",
+  duration: "paslaugos terminą / prieinamumą",
+  salaryMin: "atlyginimo dydį",
+  workType: "darbo formatą (biuras / nuotoliu / hibridas)",
+  workTypeConflict: "kurios darbo sąlygos teisingos",
+};
+
 function collectDraftFollowUpGaps(draft: {
   price?: number;
+  location?: string;
   category?: string;
   attributes?: Record<string, string | string[] | undefined>;
 }): string[] {
-  const attrs = draft.attributes ?? {};
-  const pick = (...keys: string[]) => {
-    for (const key of keys) {
-      const raw = attrs[key];
-      const value = Array.isArray(raw)
-        ? raw.map(String).join(", ")
-        : String(raw ?? "");
-      if (value.trim()) return value.trim();
-    }
-    return "";
-  };
-  const cat = String(draft.category ?? "").toLowerCase();
-  const isVehicle =
-    cat === "vehicles" ||
-    cat === "transport" ||
-    cat === "automobiliai" ||
-    Boolean(pick("vin", "plate", "licensePlate", "make"));
-
-  const gaps: string[] = [];
-  if (!(Number(draft.price) > 0)) gaps.push("kainą");
-  if (isVehicle) {
-    if (!pick("mileage", "odometer", "rida")) gaps.push("ridą (km)");
-    if (!pick("techInspection", "ta", "inspectionValidUntil", "taValidUntil")) {
-      gaps.push("TA galiojimą");
-    }
-    if (!pick("transmission", "gearbox")) gaps.push("pavarų dėžę");
-  }
-  return gaps.slice(0, 3);
+  const facts = factsFromAttributes(draft.category, draft.attributes ?? {}, {
+    price: draft.price,
+  });
+  const sellerTypeRaw = draft.attributes?.sellerType;
+  const sellerType = Array.isArray(sellerTypeRaw)
+    ? sellerTypeRaw.join(", ")
+    : sellerTypeRaw;
+  const blockers = deriveUniversalBlockers({
+    location: draft.location,
+    sellerType,
+  });
+  const next = selectNextQuestion({ category: draft.category, facts, blockers });
+  if (!next) return [];
+  const label =
+    next.reason === "conflict"
+      ? (GAP_LABELS[`${next.field}Conflict`] ?? GAP_LABELS[next.field])
+      : GAP_LABELS[next.field];
+  return label ? [label] : [];
 }
 
 /**
