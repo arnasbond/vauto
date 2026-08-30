@@ -122,6 +122,10 @@ import { listingPublishRateLimiter } from "../middleware/rate-limit.js";
 import { capListingGalleryUrls } from "../shared/listing-photo-policy.js";
 import { sanitizeListingAttributesForPersistence } from "../shared/listing-attributes-sanitize.js";
 import {
+  finalizeCreateVinAuthority,
+  finalizePatchVinAuthority,
+} from "../vehicle/vin-confirmation.js";
+import {
   logConductorPublishLineage,
   resolveConductorRequiresReviewForListing,
 } from "../lib/conductor-publish.js";
@@ -936,7 +940,14 @@ apiRouter.post(
     const parsed = validateListing(body);
     if (badRequest(res, parsed)) return;
     const authUserId = req.authUserId!;
-    let listing = { ...parsed.value, sellerId: authUserId };
+    // Phase 2C Round 4: server-owned VIN authority for creates — the RAW client
+    // attributes feed the authority decision (pending markers must be visible),
+    // and only a valid challenge-bound confirmation receipt persists the VIN.
+    const rawBodyAttrs = (req.body as { attributes?: unknown }).attributes as
+      | Record<string, string | string[] | undefined>
+      | undefined;
+    const createAttributes = finalizeCreateVinAuthority(rawBodyAttrs, authUserId);
+    let listing = { ...parsed.value, sellerId: authUserId, attributes: createAttributes };
     const galleryFromBody = Array.isArray(body.images)
       ? (body.images as unknown[])
           .map((u) => String(u ?? "").trim())
@@ -1127,9 +1138,27 @@ apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) =>
         : null;
     if (patchValue.attributes !== undefined) {
       if (existingForReview && existingForReview.sellerId === sellerId) {
-        const mergedAttributes = sanitizeListingAttributesForPersistence({
+        // Phase 2C Round 4: server-owned VIN authority. The final decision uses
+        // ONLY (a) the original persisted DB VIN (unchanged) or (b) a valid
+        // challenge-bound confirmation receipt. The RAW merged attributes feed
+        // the decision so pending candidate/conflict markers are visible — an
+        // incoming replacement VIN can never inherit existing_confirmed.
+        const rawPatchAttrs = (req.body as { attributes?: Record<string, unknown> })
+          .attributes;
+        const vinClearedByPatch =
+          Boolean(rawPatchAttrs) &&
+          typeof rawPatchAttrs === "object" &&
+          "vin" in rawPatchAttrs &&
+          (rawPatchAttrs.vin === "" || rawPatchAttrs.vin == null);
+        const rawMerged = {
           ...existingForReview.attributes,
           ...patchValue.attributes,
+        } as Record<string, string | string[] | undefined>;
+        const mergedAttributes = finalizePatchVinAuthority(rawMerged, {
+          userId: sellerId,
+          listingId: req.params.id,
+          existingVin: existingForReview.attributes?.vin,
+          vinClearedByPatch,
         });
         patchValue = { ...patchValue, attributes: mergedAttributes };
         if (resolveConductorRequiresReviewForListing({
@@ -1141,7 +1170,12 @@ apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) =>
       } else {
         patchValue = {
           ...patchValue,
-          attributes: sanitizeListingAttributesForPersistence(patchValue.attributes),
+          attributes: finalizeCreateVinAuthority(
+            (req.body as { attributes?: unknown }).attributes as
+              | Record<string, string | string[] | undefined>
+              | undefined,
+            sellerId
+          ),
         };
       }
     }

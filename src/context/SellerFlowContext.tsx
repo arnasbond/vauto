@@ -2715,6 +2715,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             "info"
           );
         }
+        // Phase 2C Round 3: the client sanitizer is SHAPE-ONLY for VIN. The
+        // SERVER owns the authority decision at PATCH time (original persisted
+        // DB VIN unchanged, or a valid server-minted confirmation receipt) —
+        // this local preparation is never treated as final authority.
         const sanitizedAttributes = sanitizeListingAttributesForPersistence({
           ...(existing.attributes ?? {}),
           ...(patch.attributes ?? {}),

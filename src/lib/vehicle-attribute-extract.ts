@@ -9,6 +9,7 @@ import {
   isVehicleQuery,
   VEHICLE_BRAND_PATTERN,
 } from "@/lib/vehicle-keywords";
+import { applyVinExtractionCandidate, type VinAttributes } from "@vauto/shared/vin-review";
 
 export interface VehicleAttributePatch {
   make?: string;
@@ -143,6 +144,26 @@ export function normalizeVehicleModel(make: string, raw: string): string {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export type VinCandidateSource = "photo_ocr" | "document_ocr" | "unknown";
+
+/**
+ * Phase 2C — apply a freshly extracted VIN to a client-side draft's attribute map
+ * as an unconfirmed candidate only. This is a thin adapter over the SINGLE
+ * authoritative state machine in `@vauto/shared/vin-review` (client and server run
+ * byte-identical logic — see server/src/vehicle/__tests__/vin-contract-parity.test.ts).
+ * This function must NEVER write `attrs.vin` directly: only `confirmVin`, driven by
+ * an explicit trusted confirm action, may promote a candidate to canonical.
+ */
+export function applyVinCandidateToAttrs<
+  T extends Record<string, string | string[] | undefined>,
+>(attrs: T, vin: string | undefined, source: VinCandidateSource = "unknown"): T & VinAttributes {
+  if (!String(vin ?? "").trim()) return attrs as T & VinAttributes;
+  return applyVinExtractionCandidate(
+    attrs as Record<string, string>,
+    { value: String(vin), source }
+  ) as unknown as T & VinAttributes;
 }
 
 export function extractVehicleAttributesFromText(text: string): VehicleAttributePatch {
@@ -318,7 +339,11 @@ export function enrichVehicleListingDraft<T extends VehicleDraftLike>(
   }
 
   for (const [key, value] of Object.entries(extracted)) {
+    if (key === "vin") continue; // Phase 2C: candidate-only, never a direct canonical write
     if (value && !attrs[key]?.trim()) attrs[key] = value;
+  }
+  if (extracted.vin) {
+    Object.assign(attrs, applyVinCandidateToAttrs(attrs, extracted.vin, "unknown"));
   }
 
   if (attrs.make) attrs.make = normalizeVehicleMake(attrs.make) ?? attrs.make;

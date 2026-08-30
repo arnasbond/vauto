@@ -29,6 +29,16 @@ import {
   mergeVehicleToolArgs,
 } from "./vehicle-attribute-extract.js";
 import {
+  applyVinExtractionCandidate,
+  buildVinReviewDisplayChips,
+  buildVinReviewSideEffect,
+  pickVinStateAttributes,
+  redactVinReviewForModel,
+  stripUntrustedVinMarkers,
+  vinReviewRequiresHumanAttention,
+} from "../vehicle/vin-review.js";
+import { ensureVinReviewChallenge } from "../vehicle/vin-challenge.js";
+import {
   LT_LOCATION_AGENT_HINT,
   normCityForFilter,
   resolveLtCityNominative,
@@ -284,6 +294,7 @@ async function runVisionListingScan(
     city?: string;
     userCity: string;
     existingDraft?: AgentToolContext["listingDraft"];
+    authUserId?: string;
   }
 ): Promise<{
   draft: {
@@ -352,19 +363,34 @@ JSON: ${VISION_LISTING_SCHEMA}. Miestas: ${city}. Kategorija hint: ${opts.catego
 
   const visionAttrs = parseVisionAttributes(raw.attributes);
   const base = opts.existingDraft ?? {};
+  // Phase 2C: a VIN read off a photo is never trusted straight into canonical
+  // `attributes.vin` — pull it out of the vision payload and pass it separately as
+  // a fresh candidate signal, so the prior draft's confirmed/pending VIN state
+  // (carried via `base.attributes`) is never silently overwritten by this scan.
+  // Vision JSON is fully untrusted: strip EVERY vin* authority marker it may emit.
+  const { vin: visionVin, ...visionAttrsRest } = parseVisionAttributes(
+    stripUntrustedVinMarkers(visionAttrs)
+  );
   const mergedAttrs = {
     ...(base.attributes ?? {}),
-    ...visionAttrs,
+    ...visionAttrsRest,
   };
 
   const enriched = enrichVehicleListingDraftFromArgs(
     String(raw.title ?? base.title ?? "Skelbimas"),
     String(raw.description ?? base.description ?? ""),
     String(raw.category ?? base.category ?? opts.category ?? "other"),
-    mergedAttrs
+    mergedAttrs,
+    { vinSource: "photo_ocr", freshVinExtraction: visionVin }
   );
 
   const filledFieldLabels = collectFilledVisionLabels(visionAttrs);
+
+  // Round 4: server-generated candidates receive a SERVER-REGISTERED challenge.
+  const attributes = ensureVinReviewChallenge(enriched.attributes, {
+    userId: opts.authUserId,
+    provenance: "photo_ocr",
+  });
 
   const draft = {
     title: enriched.title,
@@ -374,7 +400,7 @@ JSON: ${VISION_LISTING_SCHEMA}. Miestas: ${city}. Kategorija hint: ${opts.catego
     contact: "",
     category: enriched.category,
     confidence: Number(raw.confidence) || 0.88,
-    attributes: enriched.attributes,
+    attributes,
   };
 
   return {
@@ -1484,17 +1510,36 @@ export async function executeAgentTool(
         : args.location
           ? String(args.location).trim()
           : "";
-      const attributes = {
-        ...(args.attributes && typeof args.attributes === "object"
+      // Phase 2C: tool-call attributes are fully untrusted — strip EVERY vin*
+      // authority marker the model may emit, and route any fresh `vin` value
+      // through the candidate state machine (never a direct canonical write).
+      const rawArgsAttrs =
+        args.attributes && typeof args.attributes === "object"
           ? Object.fromEntries(
               Object.entries(args.attributes as Record<string, unknown>).map(([k, v]) => [
                 k,
                 String(v),
               ])
             )
-          : {}),
+          : {};
+      const { vin: freshVin, ...strippedArgsAttrs } = stripUntrustedVinMarkers(
+        rawArgsAttrs
+      ) as Record<string, string>;
+      let attributes: Record<string, string> = {
+        ...strippedArgsAttrs,
         ...(negoPatch?.attributes ?? {}),
       };
+      if (freshVin) {
+        attributes = applyVinExtractionCandidate(attributes, {
+          value: freshVin,
+          source: "unknown",
+        });
+      }
+      // Round 4: server-registered challenge for any freshly created candidate.
+      attributes = ensureVinReviewChallenge(attributes, {
+        userId: ctx.authUserId,
+        provenance: "unknown",
+      });
 
       const draft = {
         title,
@@ -1523,24 +1568,34 @@ export async function executeAgentTool(
         allowPastomatas: gatedDraft.allowPastomatas,
       });
 
+      const vinReviewSideEffect = buildVinReviewSideEffect(gatedDraft.attributes);
       return {
-        result: {
-          ok: true,
-          message: photosPrompt,
-          draft: gatedDraft,
-          voiceFollowUp: gate.oversized
-            ? `${photosPrompt}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
-            : photosPrompt,
-          suggestedQuestions: [
-            gate.oversized
+        // Model-visible tool result carries the REDACTED draft; the trusted
+        // side-effect below alone carries the full VIN review state.
+        result: appendVinReviewHint(
+          {
+            ok: true,
+            message: photosPrompt,
+            draft: {
+              ...gatedDraft,
+              attributes: redactVinReviewForModel(gatedDraft.attributes),
+            },
+            voiceFollowUp: gate.oversized
               ? `${photosPrompt}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
               : photosPrompt,
-          ],
-          listingFlowState: "DRAFT_READY",
-        },
+            suggestedQuestions: [
+              gate.oversized
+                ? `${photosPrompt}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
+                : photosPrompt,
+            ],
+            listingFlowState: "DRAFT_READY",
+          },
+          attributes
+        ),
         sideEffect: {
           type: "listing_draft",
           listingDraft: gatedDraft,
+          ...(vinReviewSideEffect ? { vinReview: vinReviewSideEffect } : {}),
         },
       };
     }
@@ -1567,12 +1622,26 @@ export async function executeAgentTool(
       const imageUrls = Array.isArray(args.imageUrls)
         ? args.imageUrls.map(String)
         : [];
-      const mergedAttrs = mergeVehicleToolArgs(args);
+      const rawMergedAttrs = mergeVehicleToolArgs(args);
+      // Phase 2C: `mergeVehicleToolArgs` builds attrs from THIS turn's tool args only
+      // (no prior-draft merge) — so any `vin` in there is a fresh, untrusted signal,
+      // never the prior draft's confirmed/candidate state. Tool arguments are fully
+      // untrusted: strip EVERY vin* authority marker the model may emit, then carry
+      // the prior VIN-review markers from `ctx.listingDraft`, and pass this turn's
+      // raw value (if any) as the fresh extraction to reconcile against them.
+      const { vin: freshArgVin, ...mergedAttrsRest } = stripUntrustedVinMarkers(
+        rawMergedAttrs
+      ) as Record<string, string>;
+      const mergedAttrs = {
+        ...pickVinStateAttributes(ctx.listingDraft?.attributes),
+        ...mergedAttrsRest,
+      };
       const enriched = enrichVehicleListingDraftFromArgs(
         title,
         description,
         category,
-        mergedAttrs
+        mergedAttrs,
+        { vinSource: "unknown", freshVinExtraction: freshArgVin }
       );
 
       const missingFields: string[] = [];
@@ -1593,7 +1662,11 @@ export async function executeAgentTool(
           missingFields.push("price");
         }
       }
-      const attributes = enriched.attributes;
+      // Round 4: server-registered challenge for any freshly created candidate.
+      const attributes = ensureVinReviewChallenge(enriched.attributes, {
+        userId: ctx.authUserId,
+        provenance: "unknown",
+      });
       const sellerType = String(attributes.sellerType ?? "").trim();
       if (!sellerType) missingFields.push("sellerType");
       if (enriched.category === "vehicles") {
@@ -1663,9 +1736,12 @@ export async function executeAgentTool(
         attributes,
         missingFields
       );
-      const voiceFollowUpWithGate = gate.oversized
-        ? `${voiceFollowUp}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
+      const voiceFollowUpWithVinHint = vinReviewRequiresHumanAttention(attributes)
+        ? `${voiceFollowUp ? `${voiceFollowUp}\n\n` : ""}${VIN_REVIEW_MODEL_HINT}`
         : voiceFollowUp;
+      const voiceFollowUpWithGate = gate.oversized
+        ? `${voiceFollowUpWithVinHint}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
+        : voiceFollowUpWithVinHint;
 
       let marketAnalysis = null;
       let proactivePricingMessage: string | null = null;
@@ -1690,23 +1766,27 @@ export async function executeAgentTool(
       }
 
       return {
-        result: {
-          ok: true,
-          message: "Skelbimo juodraštis paruoštas patvirtinimui.",
-          draft,
-          missingFields,
-          suggestedQuestions,
-          voiceFollowUp: voiceFollowUpWithGate,
-          marketAnalysis,
-          proactivePricingMessage,
-          marketAnalysisDeferred,
-        },
-        sideEffect: {
-          type: "listing_draft",
-          listingDraft: draft,
+        // Model-visible tool result carries a REDACTED draft (no VIN value,
+        // reviewId or confirmation provenance — only a generic review-required flag).
+        // The trusted side-effect alone carries the full review payload.
+        result: appendVinReviewHint(
+          {
+            ok: true,
+            message: "Skelbimo juodraštis paruoštas patvirtinimui.",
+            draft: { ...draft, attributes: redactVinReviewForModel(attributes) },
+            missingFields,
+            suggestedQuestions,
+            voiceFollowUp: voiceFollowUpWithGate,
+            marketAnalysis,
+            proactivePricingMessage,
+            marketAnalysisDeferred,
+          },
+          attributes
+        ),
+        sideEffect: buildListingDraftSideEffect(draft, attributes, {
           imageUrl: imageUrls[0],
           imageUrls: imageUrls.slice(0, 6),
-        },
+        }),
       };
     }
 
@@ -1828,9 +1908,18 @@ export async function executeAgentTool(
         ).trim();
         const deferredSalesDescription =
           mergedDescription.slice(0, 4000) || priorDeferred.slice(0, 4000);
-        const draftAttrs: Record<string, string> = {
+        // Phase 2C: a VIN read off a scanned photo/technical passport is never
+        // trusted straight into canonical `attributes.vin` — pull it out of the
+        // vision payload before the generic attribute spread, and reconcile it
+        // against the prior draft's confirmed/candidate VIN state via the VIN
+        // review state machine instead of a silent overwrite. Vision JSON is
+        // fully untrusted: strip EVERY vin* authority marker it may emit.
+        const { vin: scannedVin, ...listingAttrsWithoutVin } = stripUntrustedVinMarkers(
+          listingAttrs
+        ) as Record<string, string>;
+        let draftAttrs: Record<string, string> = {
           ...(prior?.attributes ?? {}),
-          ...listingAttrs,
+          ...listingAttrsWithoutVin,
           ...(evidenceDocs.length
             ? {
                 documentImageUrls: evidenceDocs.join("|"),
@@ -1842,6 +1931,18 @@ export async function executeAgentTool(
             : {}),
           salesCopyGenerated: "false",
         };
+        if (scannedVin) {
+          draftAttrs = applyVinExtractionCandidate(draftAttrs, {
+            value: scannedVin,
+            source: "photo_ocr",
+            confidence: parsed.listing.confidence,
+          });
+        }
+        // Round 4: server-registered challenge for vision/OCR candidates.
+        draftAttrs = ensureVinReviewChallenge(draftAttrs, {
+          userId: ctx.authUserId,
+          provenance: "photo_ocr",
+        });
         const draft = {
           title: parsed.listing.title || prior?.title || "",
           // Step 2 — keep sales copy deferred until „Paruošti skelbimą“.
@@ -1872,7 +1973,7 @@ export async function executeAgentTool(
               voiceAnnouncement: message,
               documentUrls: evidenceDocs,
               galleryUrls: publicGallery,
-              draft,
+              draft: { ...draft, attributes: redactVinReviewForModel(draftAttrs) },
             },
             // Keep sell session alive even while asking which object.
             sideEffect: {
@@ -1927,28 +2028,34 @@ export async function executeAgentTool(
             attributes: draftAttrs as Record<string, unknown>,
           })
         );
-        const quickReplies: string[] = [...POST_VISION_PUBLISH_CHIPS];
+        // Phase 2C: an unconfirmed/conflicting VIN outranks the generic publish
+        // chips — the human must review it before anything else on this draft.
+        const quickReplies: string[] = vinReviewRequiresHumanAttention(draftAttrs)
+          ? (buildVinReviewDisplayChips(draftAttrs) ?? [])
+          : [...POST_VISION_PUBLISH_CHIPS];
 
         return {
-          result: {
-            ok: true,
-            needsClarification: false,
-            draft,
-            voiceAnnouncement: message,
-            message,
-            quickReplies,
-            imageUrls: publicGallery,
-            documentUrls: evidenceDocs,
-            // Lazy Upload: draft gallery stays as in-memory URLs until Publikuoti.
-            lazyUpload: true,
-            persist: false,
-          },
-          sideEffect: {
-            type: "listing_draft",
-            listingDraft: draft,
+          result: appendVinReviewHint(
+            {
+              ok: true,
+              needsClarification: false,
+              // Model-visible tool result carries the REDACTED draft; the trusted
+              // side-effect below alone carries the full VIN review payload.
+              draft: { ...draft, attributes: redactVinReviewForModel(draftAttrs) },
+              voiceAnnouncement: message,
+              message,
+              quickReplies,
+              imageUrls: publicGallery,
+              documentUrls: evidenceDocs,
+              lazyUpload: true,
+              persist: false,
+            },
+            draftAttrs
+          ),
+          sideEffect: buildListingDraftSideEffect(draft, draftAttrs, {
             imageUrl: publicGallery[0],
             imageUrls: publicGallery,
-          },
+          }),
         };
       } catch (e) {
         const { isImageSafetyBlockedError, IMAGE_SAFETY_REJECT_NOTICE } =
@@ -2264,15 +2371,33 @@ export async function executeAgentTool(
       if (args.city != null) patch.location = resolveAgentDefaultCity(String(args.city));
       if (args.category != null) patch.category = String(args.category);
       if (args.attributes && typeof args.attributes === "object") {
+        const incomingAttrs = Object.fromEntries(
+          Object.entries(args.attributes as Record<string, unknown>).map(([k, v]) => [
+            k,
+            String(v),
+          ])
+        );
+        // Phase 2C: tool-call attributes are fully untrusted — strip EVERY vin*
+        // authority marker the model may emit. A raw `vin` is a fresh, untrusted
+        // signal reconciled against the prior draft's VIN state, never a direct write.
+        const { vin: freshVin, ...incomingAttrsRest } = stripUntrustedVinMarkers(
+          incomingAttrs
+        ) as Record<string, string>;
         patch.attributes = {
           ...(base.attributes ?? {}),
-          ...Object.fromEntries(
-            Object.entries(args.attributes as Record<string, unknown>).map(([k, v]) => [
-              k,
-              String(v),
-            ])
-          ),
+          ...incomingAttrsRest,
         };
+        if (freshVin) {
+          patch.attributes = applyVinExtractionCandidate(patch.attributes, {
+            value: freshVin,
+            source: "unknown",
+          });
+        }
+        // Round 4: server-registered challenge for freshly created candidates.
+        patch.attributes = ensureVinReviewChallenge(patch.attributes, {
+          userId: ctx.authUserId,
+          provenance: "unknown",
+        });
       }
 
       const draft = {
@@ -2295,17 +2420,21 @@ export async function executeAgentTool(
         attributes: draft.attributes,
       });
 
+      const vinDisplayChips = buildVinReviewDisplayChips(draft.attributes);
       return {
-        result: {
-          ok: true,
-          message,
-          draft,
-          quickReplies: [...POST_VALIDATION_QUICK_REPLIES],
-        },
-        sideEffect: {
-          type: "listing_draft",
-          listingDraft: draft,
-        },
+        result: appendVinReviewHint(
+          {
+            ok: true,
+            message,
+            draft: {
+              ...draft,
+              attributes: redactVinReviewForModel(draft.attributes ?? {}),
+            },
+            quickReplies: vinDisplayChips ?? [...POST_VALIDATION_QUICK_REPLIES],
+          },
+          draft.attributes ?? {}
+        ),
+        sideEffect: buildListingDraftSideEffect(draft, draft.attributes ?? {}),
       };
     }
 
@@ -2907,6 +3036,8 @@ export type AgentSideEffect =
       imageUrl?: string;
       /** All uploaded photos for this draft (multi-image, max 6). */
       imageUrls?: string[];
+      /** Trusted client-only VIN review payload — never echoed to the LLM. */
+      vinReview?: import("../shared/vin-review.js").VinReviewSideEffectPayload;
     }
   | {
       /**
@@ -3043,3 +3174,38 @@ export type AgentSideEffect =
       imageUrl?: string;
       voiceAnnouncement?: string;
     };
+
+const VIN_REVIEW_MODEL_HINT =
+  "VIN kodas reikalauja žmogaus patvirtinimo prieš publikavimą.";
+
+type ListingDraftSideEffectBody = Extract<AgentSideEffect, { type: "listing_draft" }>;
+
+function buildListingDraftSideEffect(
+  listingDraft: ListingDraftSideEffectBody["listingDraft"],
+  attrs: Record<string, string>,
+  extras?: Pick<ListingDraftSideEffectBody, "imageUrl" | "imageUrls">
+): ListingDraftSideEffectBody {
+  const vinReview = buildVinReviewSideEffect(attrs);
+  return {
+    type: "listing_draft",
+    listingDraft,
+    ...extras,
+    ...(vinReview ? { vinReview } : {}),
+  };
+}
+
+/**
+ * Phase 2C: a pending VIN review is APPENDED as a separate concern — the main
+ * assistant message/summary is never replaced by the generic hint.
+ */
+function appendVinReviewHint<T extends Record<string, unknown>>(
+  result: T,
+  attrs: Record<string, string>
+): T {
+  if (!vinReviewRequiresHumanAttention(attrs)) return result;
+  const message = typeof result.message === "string" ? result.message : "";
+  return {
+    ...result,
+    message: message ? `${message}\n\n${VIN_REVIEW_MODEL_HINT}` : VIN_REVIEW_MODEL_HINT,
+  };
+}

@@ -52,6 +52,34 @@ import {
   LAUNCH_PROMO_LISTING_NOTE,
 } from "@vauto/shared/launch-promo";
 import { listingCategoryAllowsPhotoless, listingPhotoLimitForCategory } from "@vauto/shared/listing-photo-policy";
+import {
+  applyVinManualEntryCandidate,
+  applyVinStructuredReviewAction,
+  deriveVinReviewState,
+  VIN_CONFIRMATION_ATTR_KEYS,
+  type VinAttributes,
+  type VinReviewStructuredAction,
+} from "@vauto/shared/vin-review";
+import { apiConfirmVinReview, apiRegisterVinReview, apiRejectVinReview } from "@/lib/api/client";
+
+/** Keys owned by the VIN review state machine — diff/clear targets for field edits. */
+const VIN_REVIEW_PATCH_KEYS = [
+  "vin",
+  "vinCandidate",
+  "vinCandidateSource",
+  "vinCandidateConfidence",
+  "vinConflictValue",
+  "vinConflictSource",
+  "vinConflict",
+  "vinUncertain",
+  "vinReviewId",
+  "vinConfirmed",
+  "vinConfirmedSource",
+  "vinConfirmedReviewId",
+  "vinChallenge",
+  "vinDraftScope",
+  ...VIN_CONFIRMATION_ATTR_KEYS,
+] as const;
 
 const TIER_BADGE: Record<
   PrePublishVisibilityId,
@@ -122,6 +150,8 @@ export function PrePublishModal({
   >({});
   const [priceAdvice, setPriceAdvice] = useState<PriceAdvice | null>(null);
   const [priceAdviceLoading, setPriceAdviceLoading] = useState(false);
+  const [vinConfirmError, setVinConfirmError] = useState<string | null>(null);
+  const [vinConfirmBusy, setVinConfirmBusy] = useState(false);
   const priceAdviceShownKeyRef = useRef("");
   const lastAppraisalRef = useRef<Awaited<
     ReturnType<typeof fetchListingPriceAppraisal>
@@ -392,12 +422,134 @@ export function PrePublishModal({
 
   const patchSpec = useCallback(
     (key: string, value: string) => {
+      // Phase 2C: typing into the VIN field is NEVER confirmation — it creates or
+      // replaces an unconfirmed candidate with a fresh reviewId and clears any
+      // stale confirmation authority (see applyVinManualEntryCandidate). The
+      // separate explicit "Patvirtinti VIN" control below is the only confirm path.
+      if (key === "vin") {
+        const base = localAttrs as Record<string, string | string[] | undefined>;
+        const next = applyVinManualEntryCandidate(base as Record<string, string>, value);
+        const patch: Record<string, string> = {};
+        for (const k of VIN_REVIEW_PATCH_KEYS) {
+          const prev = String(base[k] ?? "");
+          const nextValue = next[k] ?? "";
+          if (prev !== nextValue) patch[k] = nextValue;
+        }
+        // An emptied field is an EXPLICIT clear — it must override any existing
+        // canonical so the server does not resurrect the old value on PATCH.
+        if (value.trim() === "" && String(base.vin ?? "").trim() !== "") {
+          patch.vin = "";
+        }
+        setLocalAttrs((prev) => ({ ...prev, ...patch }));
+        onFieldsChange?.({ attributes: patch });
+        return;
+      }
       setLocalAttrs((prev) => ({ ...prev, [key]: value }));
       onFieldsChange?.({
         attributes: { [key]: value },
       });
     },
-    [onFieldsChange]
+    [localAttrs, onFieldsChange]
+  );
+
+  /** Diff-based patch from a shared-reducer result — sends explicit clears too. */
+  const applyVinReducerPatch = useCallback(
+    (next: Record<string, string>) => {
+      const base = localAttrs as Record<string, string | string[] | undefined>;
+      const patch: Record<string, string> = {};
+      for (const k of VIN_REVIEW_PATCH_KEYS) {
+        const prev = String(base[k] ?? "");
+        const nextValue = next[k] ?? "";
+        if (prev !== nextValue) patch[k] = nextValue;
+      }
+      if (!Object.keys(patch).length) return;
+      setLocalAttrs((prev) => ({ ...prev, ...patch }));
+      onFieldsChange?.({ attributes: patch });
+    },
+    [localAttrs, onFieldsChange]
+  );
+
+  /**
+   * Round 4: confirmation authority is a SERVER-REGISTERED challenge.
+   * Confirm = register (server mints the challenge + generation) → confirm with
+   * that challengeId. Reject goes through the server when a challenge exists;
+   * corrections are draft-state-only (a fresh challenge is registered on the
+   * next confirm).
+   */
+  const emitVinReviewAction = useCallback(
+    async (action: VinReviewStructuredAction) => {
+      const base = localAttrs as Record<string, string | string[] | undefined>;
+      if (action.type !== "confirm") {
+        const plain = base as Record<string, string>;
+        if (action.type === "reject" && String(plain.vinChallenge ?? "").trim()) {
+          const res = await apiRejectVinReview({
+            challengeId: String(plain.vinChallenge).trim(),
+          });
+          if (!res.ok) {
+            setVinConfirmError(res.error || "Nepavyko atmesti VIN — bandykite dar kartą.");
+            return;
+          }
+          applyVinReducerPatch(res.data.attributes);
+          setVinConfirmError(null);
+          return;
+        }
+        const result = applyVinStructuredReviewAction(plain, action);
+        applyVinReducerPatch(result.attrs);
+        setVinConfirmError(null);
+        return;
+      }
+
+      if (vinConfirmBusy) return;
+      setVinConfirmBusy(true);
+      setVinConfirmError(null);
+      try {
+        // Register the CURRENT candidate/conflict choice set server-side — a
+        // fresh challenge each attempt supersedes any previous generation.
+        const currentState = deriveVinReviewState(
+          localAttrs as unknown as VinAttributes
+        );
+        const values =
+          currentState.status === "conflict"
+            ? [currentState.candidate, currentState.conflictValue].filter(
+                (v): v is string => Boolean(v)
+              )
+            : [action.value];
+        const registered = await apiRegisterVinReview({
+          values,
+          draftScope: String(base.vinDraftScope ?? "").trim() || undefined,
+          supersedesChallengeId: String(base.vinChallenge ?? "").trim() || undefined,
+          supersedesReviewId: String(base.vinReviewId ?? "").trim() || undefined,
+        });
+        if (!registered.ok) {
+          setVinConfirmError(
+            registered.error || "Nepavyko užregistruoti VIN — bandykite dar kartą."
+          );
+          return;
+        }
+        const scopeForConfirm =
+          (registered.data.attributes.vinDraftScope as string | undefined) ||
+          String(base.vinDraftScope ?? "").trim() ||
+          undefined;
+        const confirmed = await apiConfirmVinReview({
+          challengeId: registered.data.challenge.challengeId,
+          value: action.value,
+          draftScope: scopeForConfirm,
+        });
+        if (!confirmed.ok) {
+          setVinConfirmError(confirmed.error || "Nepavyko patvirtinti VIN — bandykite dar kartą.");
+          return;
+        }
+        applyVinReducerPatch({
+          ...registered.data.attributes,
+          ...confirmed.data.attributes,
+        });
+      } catch {
+        setVinConfirmError("Nepavyko pasiekti serverio — patvirtinkite VIN vėliau.");
+      } finally {
+        setVinConfirmBusy(false);
+      }
+    },
+    [localAttrs, applyVinReducerPatch, vinConfirmBusy]
   );
 
   const submitPublish = useCallback(async () => {
@@ -447,8 +599,22 @@ export function PrePublishModal({
         attrValue(localAttrs, "colors") || attrValue(localAttrs, "color") || ""
       );
     }
+    if (key === "vin") {
+      // Phase 2C: canonical VIN is only present once confirmed — while pending,
+      // show the candidate so the human can see and approve the proposed value.
+      return (
+        attrValue(localAttrs, "vin") ||
+        attrValue(localAttrs, "vinCandidate") ||
+        ""
+      );
+    }
     return attrValue(localAttrs, key) || "";
   };
+
+  // Phase 2C — modal review state derived from the SAME shared reducer.
+  const vinReviewState = deriveVinReviewState(
+    localAttrs as unknown as VinAttributes
+  );
 
   if (!open || typeof document === "undefined") return null;
 
@@ -775,6 +941,107 @@ export function PrePublishModal({
                   </label>
                 ))}
               </div>
+
+              {vinReviewState.status === "candidate" && vinReviewState.candidate ? (
+                <div
+                  className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/8 p-2.5"
+                  data-vin-modal-review="1"
+                >
+                  <p className="text-[11px] font-semibold text-[var(--vauto-text)]">
+                    VIN patvirtinimas — AI pasiūlė, jūs sprendžiate
+                  </p>
+                  <p className="mt-1 text-[11px] leading-snug text-[var(--vauto-text-muted)]">
+                    Siūlomas VIN:{" "}
+                    <span className="font-mono text-[12px] font-bold tracking-wide text-[var(--vauto-text)]">
+                      {vinReviewState.candidate}
+                    </span>
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      disabled={busy || vinConfirmBusy}
+                      onClick={() =>
+                        void emitVinReviewAction({
+                          type: "confirm",
+                          value: vinReviewState.candidate!,
+                          reviewId: vinReviewState.reviewId ?? "",
+                        })
+                      }
+                      className="rounded-lg bg-[var(--vauto-primary)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--vauto-primary-contrast,#fff)] disabled:opacity-60"
+                    >
+                      Patvirtinti VIN
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || vinConfirmBusy}
+                      onClick={() =>
+                        void emitVinReviewAction({
+                          type: "reject",
+                          reviewId: vinReviewState.reviewId ?? "",
+                        })
+                      }
+                      className="rounded-lg border border-[var(--vauto-border)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--vauto-text-muted)] disabled:opacity-60"
+                    >
+                      Nežinau VIN
+                    </button>
+                  </div>
+                  {vinConfirmError ? (
+                    <p className="mt-1.5 text-[11px] font-medium text-red-500" role="alert">
+                      {vinConfirmError}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {vinReviewState.status === "conflict" ? (
+                <div
+                  className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/8 p-2.5"
+                  data-vin-modal-review="1"
+                >
+                  <p className="text-[11px] font-semibold text-[var(--vauto-text)]">
+                    Skirtingi šaltiniai rodo skirtingus VIN — pasirinkite teisingą:
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {[vinReviewState.candidate, vinReviewState.conflictValue]
+                      .filter((v): v is string => Boolean(v))
+                      .map((choice) => (
+                        <button
+                          key={choice}
+                          type="button"
+                          disabled={busy || vinConfirmBusy}
+                          onClick={() =>
+                            void emitVinReviewAction({
+                              type: "confirm",
+                              value: choice,
+                              reviewId: vinReviewState.reviewId ?? "",
+                            })
+                          }
+                          className="rounded-lg border border-amber-500/50 bg-[var(--vauto-card-bg)] px-2.5 py-1.5 text-[12px] font-mono font-bold tracking-wide text-[var(--vauto-text)] disabled:opacity-60"
+                        >
+                          {choice}
+                        </button>
+                      ))}
+                    <button
+                      type="button"
+                      disabled={busy || vinConfirmBusy}
+                      onClick={() =>
+                        void emitVinReviewAction({
+                          type: "reject",
+                          reviewId: vinReviewState.reviewId ?? "",
+                        })
+                      }
+                      className="rounded-lg border border-[var(--vauto-border)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--vauto-text-muted)] disabled:opacity-60"
+                    >
+                      Nežinau VIN
+                    </button>
+                  </div>
+                  {vinConfirmError ? (
+                    <p className="mt-1.5 text-[11px] font-medium text-red-500" role="alert">
+                      {vinConfirmError}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </section>
           ) : null}
 

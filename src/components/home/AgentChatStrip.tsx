@@ -8,6 +8,7 @@ import { AgentChatMarkdown } from "@/components/home/AgentChatMarkdown";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { PrePublishModal, type PrePublishFieldPatch } from "@/components/home/PrePublishModal";
 import { WardrobeBulkReviewPanel } from "@/components/home/WardrobeBulkReviewPanel";
+import { VinReviewCard } from "@/components/agent/VinReviewCard";
 import { AiCommandBar } from "@/components/search/AiCommandBar";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useAuth } from "@/context/AuthContext";
@@ -32,6 +33,7 @@ import { filterSessionListingImages } from "@/lib/listing-image";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import { isDirectAgentActionChip } from "@/lib/direct-agent-actions";
 import { isVisionObjectSellChip } from "@/lib/vision-choice-chips";
+import { routeVinReviewChip } from "@/lib/vin-review-chips";
 import type { PrePublishVisibilityId } from "@/lib/listing-publish-visibility";
 import { runPublishSuccessCelebration } from "@/lib/publish-success-celebration";
 import {
@@ -95,6 +97,8 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     resetPublishSession,
     beginFreshListingChatSession,
     sessionPendingImageUrls,
+    pendingVinReview,
+    sendVinReviewAction,
   } = useVautoAgent();
   const {
     aiDraft,
@@ -324,6 +328,14 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
       const handled = await handleDirectAgentChip(option);
       if (handled) return;
     }
+    // Phase 2C — VIN review chip labels route to the trusted payload, never to the LLM.
+    if (
+      routeVinReviewChip(option, pendingVinReview, (action) =>
+        void sendVinReviewAction(action)
+      )
+    ) {
+      return;
+    }
     if (isDirectAgentActionChip(option)) {
       const handled = await handleDirectAgentChip(option);
       if (handled) return;
@@ -422,6 +434,15 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         )}
         <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
       </div>
+
+      {pendingVinReview && !busy && !showLivePrePublishCard ? (
+        <VinReviewCard
+          review={pendingVinReview}
+          busy={busy}
+          onAction={(action) => void sendVinReviewAction(action)}
+          className="mx-0.5 mt-2 shrink-0"
+        />
+      ) : null}
 
       {showLivePrePublishCard && livePrePublishCard ? (
         <PrePublishModal

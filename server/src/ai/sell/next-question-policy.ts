@@ -183,6 +183,8 @@ const QUESTION_TEXT: Record<string, string> = {
   transmission: "Kokia transmisija — mechaninė ar automatinė?",
   fuelType: "Koks variklio kuro tipas?",
   vin: "Ar VIN kodas nurodytas teisingai? Patikslinkite, jei ne.",
+  vinConflict:
+    "Skirtingi šaltiniai rodo skirtingus VIN kodus — kurį patvirtinti kaip teisingą?",
   // Real estate
   propertyType: "Koks objekto tipas — butas, namas ar kita?",
   area: "Koks plotas (m²)?",
@@ -390,9 +392,17 @@ export function normalizeCategory(
   return CATEGORY_LEGACY_ALIASES[v] ?? null;
 }
 
-/** Legacy attribute key aliases still written by older live-chat extractors. */
+/**
+ * Legacy attribute key aliases still written by older live-chat extractors, PLUS the
+ * Phase 2C VIN-review fallback: `vin` itself only ever holds a human-confirmed value
+ * (see `vehicle/vin-review.ts`) — while a candidate is pending confirmation, this alias
+ * lets the existing `${key}Uncertain` uncertain-tier convention below still see a
+ * present-but-untrusted value, without this module needing to know anything about the
+ * VIN review state machine's own type contract.
+ */
 const FIELD_ALIASES: Record<string, readonly string[]> = {
   techInspection: ["ta", "inspectionValidUntil", "taValidUntil"],
+  vin: ["vinCandidate"],
 };
 
 function readAttr(

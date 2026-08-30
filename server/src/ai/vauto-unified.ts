@@ -56,6 +56,10 @@ import {
   normalizeVin,
 } from "../shared/vehicle-vision-enrich.js";
 import {
+  applyVinExtractionCandidate,
+  stripUntrustedVinMarkers,
+} from "../shared/vin-review.js";
+import {
   FACTUAL_EXTRACTION_DIRECTIVE,
   NATURAL_SALES_COPY_DIRECTIVE,
   buildHandbookExtractionFewShots,
@@ -240,8 +244,14 @@ function remapCategoryFromContent(
 
 function parseTechnicalFields(raw: unknown): Record<string, string | string[]> {
   if (!raw || typeof raw !== "object") return {};
+  // Phase 2C: model/OCR JSON is fully untrusted — strip EVERY vin* authority
+  // marker it may emit. The bare `vin` value is kept separately and only ever
+  // re-enters the draft through the VIN candidate state machine.
+  const { vin: rawVin, ...strippedRaw } = stripUntrustedVinMarkers(
+    raw as Record<string, unknown>
+  );
   const out: Record<string, string | string[]> = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+  for (const [k, v] of Object.entries(strippedRaw)) {
     if (v == null || v === "") continue;
     if (Array.isArray(v)) out[k] = v.map(String);
     else out[k] = String(v);
@@ -261,8 +271,8 @@ function parseTechnicalFields(raw: unknown): Record<string, string | string[]> {
     }
   }
   if (out.fuelType) out.fuelType = normalizeFuelType(String(out.fuelType));
-  if (out.vin) {
-    const vin = normalizeVin(String(out.vin));
+  if (rawVin != null && String(rawVin).trim()) {
+    const vin = normalizeVin(String(rawVin));
     if (vin) out.vin = vin;
   }
   if (out.powerKw) out.powerKw = normalizePowerKw(String(out.powerKw));
@@ -385,27 +395,37 @@ function toListingPayload(
             ? "unknown"
             : "";
 
+  // Phase 2C: a VIN from photo/document OCR never lands on canonical attributes —
+  // it is routed through the VIN candidate state machine (candidate-only).
+  const { vin: ocrVin, ...technicalFieldsRest } = technicalFields;
+  let draftAttributes: Record<string, string | string[]> = {
+    ...technicalFieldsRest,
+    _intent: String(raw.intent ?? "sell"),
+    _vautoCategory: remapped.vautoCategory,
+    ...(publicCategoryTag ? { skelbiuCategory: publicCategoryTag } : {}),
+    ...(sceneContext ? { sceneContext } : {}),
+    ...(photoStyle ? { photoStyle } : {}),
+    ...(detectedObjects.length
+      ? { detectedObjects: JSON.stringify(detectedObjects) }
+      : {}),
+    ...(choiceChips.length ? { choiceChips: choiceChips.join("|") } : {}),
+    ...(clarificationPrompt ? { clarificationPrompt } : {}),
+    ...(estimatedSize ? { estimatedSize } : {}),
+    ...(fitsOmnivaLocker != null
+      ? { fitsOmnivaLocker: fitsOmnivaLocker ? "true" : "false" }
+      : {}),
+  };
+  if (ocrVin && typeof ocrVin === "string") {
+    draftAttributes = applyVinExtractionCandidate(
+      draftAttributes as Record<string, string>,
+      { value: ocrVin, source: "document_ocr" }
+    );
+  }
   const draftWithGabarit = applyOmnivaEligibilityToDraft({
     title,
     description,
     category: remapped.category,
-    attributes: {
-      ...technicalFields,
-      _intent: String(raw.intent ?? "sell"),
-      _vautoCategory: remapped.vautoCategory,
-      ...(publicCategoryTag ? { skelbiuCategory: publicCategoryTag } : {}),
-      ...(sceneContext ? { sceneContext } : {}),
-      ...(photoStyle ? { photoStyle } : {}),
-      ...(detectedObjects.length
-        ? { detectedObjects: JSON.stringify(detectedObjects) }
-        : {}),
-      ...(choiceChips.length ? { choiceChips: choiceChips.join("|") } : {}),
-      ...(clarificationPrompt ? { clarificationPrompt } : {}),
-      ...(estimatedSize ? { estimatedSize } : {}),
-      ...(fitsOmnivaLocker != null
-        ? { fitsOmnivaLocker: fitsOmnivaLocker ? "true" : "false" }
-        : {}),
-    },
+    attributes: draftAttributes,
   });
 
   // Ground city: user text > GPS/client hint (geoCityHint) > never bare LLM hub invent.

@@ -1,5 +1,6 @@
 import type { AiExtractedListing } from "@/lib/types";
 import { mergeSellerGallerySources } from "@/lib/listing-image";
+import { applyVinCandidateToAttrs } from "@/lib/vehicle-attribute-extract";
 
 export interface VisualPipelineConversationalHints {
   hasVisibleDefects: boolean;
@@ -41,7 +42,9 @@ export function applyVisualPipelineToDraft(
 
   const hints = pipeline.attributeHints ?? {};
   if (hints.barcode && !attrs.barcode) attrs.barcode = hints.barcode;
-  if (hints.vin && !attrs.vin) attrs.vin = hints.vin;
+  // Phase 2C: a VIN read from a photo/document is an unconfirmed candidate only — it must
+  // never be silently written into canonical `attrs.vin` (see applyVinCandidateToAttrs doc).
+  if (hints.vin) Object.assign(attrs, applyVinCandidateToAttrs(attrs, hints.vin, "photo_ocr"));
   if (hints.plateNumber && !attrs.plateNumber) attrs.plateNumber = hints.plateNumber;
   if (hints.modelCode && !attrs.modelCode) attrs.modelCode = hints.modelCode;
 

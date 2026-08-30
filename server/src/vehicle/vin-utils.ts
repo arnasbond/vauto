@@ -1,4 +1,7 @@
 import { isEuropeanWmi } from "./wmi-eu.js";
+import { isPlausibleVin, normalizeVin } from "../shared/vin-utils.js";
+
+export { isPlausibleVin, normalizeVin } from "../shared/vin-utils.js";
 
 const VIN_WEIGHTS = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2];
 const VIN_TRANSLITERATION: Record<string, number> = {
@@ -6,17 +9,6 @@ const VIN_TRANSLITERATION: Record<string, number> = {
   J: 1, K: 2, L: 3, M: 4, N: 5, P: 7, R: 9,
   S: 2, T: 3, U: 4, V: 5, W: 6, X: 7, Y: 8, Z: 9,
 };
-
-export function normalizeVin(raw: string): string {
-  return raw.trim().toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, "");
-}
-
-export function isPlausibleVin(raw: string): boolean {
-  const vin = normalizeVin(raw);
-  if (vin.length !== 17) return false;
-  if (/[IOQ]/.test(vin)) return false;
-  return /^[A-HJ-NPR-Z0-9]{17}$/.test(vin);
-}
 
 /** EU VINs may fail US checksum but remain decodable via WMI / open EU sources. */
 export function isValidVinChecksum(raw: string): boolean {

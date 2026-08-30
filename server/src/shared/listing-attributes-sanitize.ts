@@ -1,7 +1,16 @@
 /**
  * Persist-safe listing attributes: drop ephemeral Vision/social dumps and
  * clamp values so PATCH/POST never fail with "attribute … too long".
+ *
+ * Round 3: this sanitizer is SHAPE-ONLY for VIN. It normalizes a plausible `vin`
+ * and strips draft-state/authority markers, but it never decides VIN authority —
+ * the server (`server/src/vehicle/vin-confirmation.ts`) verifies server-owned
+ * confirmation receipts (or the original persisted DB VIN) at the final
+ * persistence boundary. VIN confirmation receipt fields are deliberately NOT
+ * stripped here so they can reach the server for verification.
  */
+
+import { isPlausibleVin, normalizeVin } from "./vin-utils.js";
 
 /** Keys that must not be round-tripped as seller-editable attribute payloads. */
 export const EPHEMERAL_LISTING_ATTR_KEYS = new Set([
@@ -23,6 +32,26 @@ export const EPHEMERAL_LISTING_ATTR_KEYS = new Set([
   "socialPublishAnonserLt",
   "socialPublishAiAdaptation",
   "socialPublishFacebookGroups",
+  // Phase 2C VIN provenance — internal review-state markers owned by the VIN review
+  // state machine (server/src/vehicle/vin-review.ts). They exist only to drive the
+  // in-conversation confirm/reject/conflict UI and must never be persisted on a listing
+  // record: a persisted listing's canonical `vin` (if any) is always already the
+  // human-confirmed value by the time it reaches this boundary.
+  "vinCandidate",
+  "vinCandidateSource",
+  "vinCandidateConfidence",
+  "vinConflictValue",
+  "vinConflictSource",
+  "vinConflict",
+  "vinUncertain",
+  "vinReviewId",
+  "vinConfirmed",
+  "vinConfirmedSource",
+  // NOTE: `vinConfirmedReviewId`, `vinChallenge` and `vinDraftScope` are
+  // deliberately NOT stripped here — they are server-verification metadata for
+  // the VIN confirmation receipt/challenge/draft scope and must reach the
+  // server persistence boundary, which strips them after verification.
+  "vinReviewState",
 ]);
 
 export const ATTR_STRING_MAX = 500;
@@ -86,9 +115,18 @@ export function sanitizeListingAttributesForPersistence(
 ): Record<string, string | string[] | undefined> {
   if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return {};
   const result: Record<string, string | string[] | undefined> = {};
+  const rawRecord = raw as Record<string, unknown>;
 
-  for (const [key, attr] of Object.entries(raw as Record<string, unknown>)) {
+  for (const [key, attr] of Object.entries(rawRecord)) {
     if (shouldDropKey(key)) continue;
+    if (key === "vin") {
+      // Shape-only: keep a plausible normalized VIN; authority is decided by the
+      // server persistence boundary (confirmation receipt or original DB state).
+      const vin = normalizeVin(String(attr ?? ""));
+      if (!isPlausibleVin(vin)) continue;
+      result[key] = clampString(vin, ATTR_STRING_MAX);
+      continue;
+    }
 
     if (attr === undefined || attr === null || attr === "") {
       continue;

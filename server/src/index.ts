@@ -11,6 +11,7 @@ import { aiRouter } from "./routes/ai.js";
 import { vautoServerRouter } from "./routes/vauto-server.js";
 import { vautoAgentRouter } from "./routes/vauto-agent.js";
 import { consequentialActionsRouter } from "./routes/consequential-actions.js";
+import { vinReviewRouter } from "./routes/vin-review.js";
 import { markConfirmationBoundaryReady } from "./ai/confirmation/consequential-action-policy.js";
 import { createPostgresPendingActionStore } from "./ai/confirmation/consequential-action-store-postgres.js";
 import { handleStripeWebhook } from "./routes/billing.js";
@@ -186,6 +187,10 @@ app.use(
   requireAuth,
   consequentialActionsRouter
 );
+/** AI Maturity Phase 2C Round 3 — server-owned VIN confirmation authority.
+ *  The LLM has no tool for this boundary; only the trusted client UI may
+ *  request a confirmation receipt. */
+app.use("/api/vin-review", actionRateLimiter, requireAuth, vinReviewRouter);
 /** Stage 11F.6 — legacy /api/billing + /api/escrow-billing routers REMOVED (C-01).
  *  Deal payments MUST use paymentIntentRouter / fundsTransferRouter / webhooks / reconciliation only.
  *  Subscription billing webhook remains at POST /api/billing/webhook (raw) above. */

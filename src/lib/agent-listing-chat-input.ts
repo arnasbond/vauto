@@ -26,7 +26,11 @@ import {
   textContainsListingContactSignals,
   type AwaitingContactField,
 } from "@/lib/listing-contact-parse";
-import { extractVehicleAttributesFromText, buildVehicleDescriptionFromAttributes } from "@/lib/vehicle-attribute-extract";
+import {
+  extractVehicleAttributesFromText,
+  buildVehicleDescriptionFromAttributes,
+  applyVinCandidateToAttrs,
+} from "@/lib/vehicle-attribute-extract";
 import {
   isNegotiablePriceChatInput,
   negotiablePricePatch,
@@ -267,13 +271,18 @@ export function tryApplyListingChatInput(
   }
 
   if (hasVehicleSpecs) {
+    const { vin: chatVin, ...vehicleSpecsWithoutVin } = vehicleSpecs;
     const nextAttrs = {
       ...(aiDraft.attributes ?? {}),
       ...Object.fromEntries(
-        Object.entries(vehicleSpecs).filter(([, v]) => Boolean(v))
+        Object.entries(vehicleSpecsWithoutVin).filter(([, v]) => Boolean(v))
       ),
     } as Record<string, string>;
     delete nextAttrs.awaitingSpecs;
+    // Phase 2C: a VIN found in chat text is a candidate only — never a direct canonical write.
+    if (chatVin) {
+      Object.assign(nextAttrs, applyVinCandidateToAttrs(nextAttrs, chatVin, "unknown"));
+    }
     const nextDescription = buildVehicleDescriptionFromAttributes(nextAttrs, {
       location: aiDraft.location,
     });

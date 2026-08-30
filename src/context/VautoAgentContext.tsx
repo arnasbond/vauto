@@ -245,6 +245,11 @@ import {
   listingCategoryForVertical,
   type VerticalId,
 } from "@vauto/shared/marketplace-domain";
+import {
+  buildVinReviewSideEffect,
+  type VinReviewSideEffectPayload,
+  type VinReviewStructuredAction,
+} from "@vauto/shared/vin-review";
 import { listingWizardOpenedChips } from "@/lib/agent-flow-wizard-orchestrator";
 import type { ListingCategory } from "@/lib/types";
 const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
@@ -276,6 +281,8 @@ export interface AgentSendOptions {
   /** New upload / +Įdėti — strip myListings + prior draft from agent context. */
   omitPriorListingDraft?: boolean;
   freshListingSession?: boolean;
+  /** Trusted structured VIN review action from the review UI — never chat text. */
+  vinReviewAction?: import("@vauto/shared/vin-review").VinReviewStructuredAction;
 }
 
 interface VautoAgentContextValue {
@@ -336,6 +343,12 @@ interface VautoAgentContextValue {
     verticalId?: VerticalId | null;
     fashion?: boolean;
   }) => void;
+  /** Trusted VIN review payload currently awaiting human decision (Phase 2C). */
+  pendingVinReview: import("@vauto/shared/vin-review").VinReviewSideEffectPayload | null;
+  /** Emit a structured VIN review action bound to the current reviewId. */
+  sendVinReviewAction: (
+    action: import("@vauto/shared/vin-review").VinReviewStructuredAction
+  ) => Promise<void>;
 }
 
 const VautoAgentContext = createContext<VautoAgentContextValue | null>(null);
@@ -492,6 +505,34 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const [listingPublishConfirmed, setListingPublishConfirmed] = useState(false);
   /** Last 0-result search term for wishlist chip (searchQuery may be cleared by UI). */
   const lastEmptySearchQueryRef = useRef("");
+
+  // Phase 2C — trusted VIN review payload awaiting human decision (from the
+  // `vin_review` side-effect, or rebuilt from a fresh listing_draft's attributes).
+  const [pendingVinReview, setPendingVinReview] =
+    useState<VinReviewSideEffectPayload | null>(null);
+
+  const syncVinReviewFromAttrs = useCallback(
+    (
+      attrs: Record<string, string | string[] | undefined> | undefined
+    ): VinReviewSideEffectPayload | null => {
+      const payload = buildVinReviewSideEffect(
+        (attrs ?? {}) as unknown as Parameters<typeof buildVinReviewSideEffect>[0]
+      );
+      setPendingVinReview(payload);
+      return payload;
+    },
+    []
+  );
+
+  const sendVinReviewAction = useCallback(
+    async (action: VinReviewStructuredAction) => {
+      await sendAgentMessageRef.current("VIN peržiūros veiksmas", {
+        vinReviewAction: action,
+        skipUserBubble: true,
+      });
+    },
+    []
+  );
 
   const [busy, setBusy] = useState(false);
   const busyGateRef = useRef<ReturnType<typeof createAgentBusyGate> | null>(null);
@@ -2664,6 +2705,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                   : undefined,
             supervisorState,
             listingEditSession: listingEditSession ?? undefined,
+            ...(options?.vinReviewAction
+              ? { vinReviewAction: options.vinReviewAction }
+              : {}),
             wizardMode: listingEditSession
               ? ("listing_edit" as const)
               : omitPriorListingDraft
@@ -2822,6 +2866,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                     type: "listing_draft",
                     listingDraft: event.listingDraft,
                   } as Parameters<typeof applyActions>[0]);
+                  syncVinReviewFromAttrs(
+                    (event.listingDraft as { attributes?: Record<string, string | string[] | undefined> })
+                      .attributes
+                  );
                 } catch {
                   /* progressive draft best-effort */
                 }
@@ -3120,6 +3168,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             openMicroPayment(paymentIntent);
           }
         }
+        // Phase 2C — refresh the trusted VIN review payload after every turn that
+        // updates the listing draft (prefer the server-issued side-effect; fall
+        // back to rebuilding it from the fresh draft attributes).
+        if (res.actions.type === "listing_draft") {
+          if (res.actions.vinReview) {
+            setPendingVinReview(res.actions.vinReview);
+          } else {
+            syncVinReviewFromAttrs(res.actions.listingDraft.attributes);
+          }
+        }
         return { ok: true, reply: res.reply || assistantText, actions: res.actions };
       } catch (err) {
         const raw = err instanceof Error ? err.message : String(err ?? "");
@@ -3212,6 +3270,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       pushStreamThinkingLabel,
       setStreamThinkingLabelNow,
       goToMarketplace,
+      syncVinReviewFromAttrs,
     ]
   );
 
@@ -3423,6 +3482,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setOpen(false);
     setBusy(false);
     setStreamThinkingLabelNow("");
+    setPendingVinReview(null);
   }, [setStreamThinkingLabelNow]);
 
   /**
@@ -3947,6 +4007,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       resetSellerChat,
       openAiSellerListingChat,
       startManualListing,
+      pendingVinReview,
+      sendVinReviewAction,
     }),
     [
       open,
@@ -3969,6 +4031,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       resetSellerChat,
       openAiSellerListingChat,
       startManualListing,
+      pendingVinReview,
+      sendVinReviewAction,
     ]
   );
 

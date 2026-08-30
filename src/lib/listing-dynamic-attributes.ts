@@ -88,10 +88,23 @@ const EXTRA_INTERNAL_KEYS = new Set([
   "minNegotiationPrice",
   "marketMedianPrice",
   "optimalPrice",
+  // Phase 2C VIN review markers — internal draft-only state, never public specs.
+  "vinCandidate",
+  "vinCandidateSource",
+  "vinCandidateConfidence",
+  "vinConflictValue",
+  "vinConflictSource",
+  "vinConflict",
+  "vinUncertain",
+  "vinReviewId",
+  "vinConfirmed",
+  "vinConfirmedSource",
+  "vinConfirmedReviewId",
+  "vinReviewState",
 ]);
 
 const INTERNAL_LABEL_RE =
-  /conductor|social\s*publish|seller\s*display|anonser|ai\s*adaptation|facebook\s*groups|merged\s*at|detected\s*objects|document\s*image|scene\s*context|fact\s*notes|preferred\s*sizes|deferred\s*sales|ocr\s*text|choice\s*chips|clarification/i;
+  /conductor|social\s*publish|seller\s*display|anonser|ai\s*adaptation|facebook\s*groups|merged\s*at|detected\s*objects|document\s*image|scene\s*context|fact\s*notes|preferred\s*sizes|deferred\s*sales|ocr\s*text|choice\s*chips|clarification|vin\s*(candidate|conflict|uncertain|review|confirmed)/i;
 
 /** Fold key/label for debug-key matching (spaces, camelCase, underscores). */
 function normalizeAttrDebugToken(raw: string): string {
@@ -114,7 +127,7 @@ export function isPublicDynamicAttributeKey(key: string): boolean {
   const folded = normalizeAttrDebugToken(k);
   // Match camelCase, spaced, and ALL-CAPS labels from vision dumps.
   if (
-    /detected objects|document image(?: urls| count)?|document image|scene context|fact notes|preferred sizes|deferred sales(?: description)?|ocr text|choice chips|clarification prompt/.test(
+    /detected objects|document image(?: urls| count)?|document image|scene context|fact notes|preferred sizes|deferred sales(?: description)?|ocr text|choice chips|clarification prompt|vin candidate|vin conflict|vin uncertain|vin review|vin confirmed/.test(
       folded
     )
   ) {
@@ -181,6 +194,7 @@ export const PREPUBLISH_VEHICLE_ALWAYS_ATTRS: ReadonlyArray<{
   { key: "fuelType", label: "Kuras", placeholder: "Benzinas / Dyzelinas…" },
   { key: "mileage", label: "Rida (km)", placeholder: "pvz. 185 000" },
   { key: "engine", label: "Variklis", placeholder: "pvz. 1.6" },
+  { key: "vin", label: "VIN kodas", placeholder: "17 simbolių VIN" },
 ];
 
 /** Clothing / fashion — keep core inputs visible while editing (empty ≠ gone). */

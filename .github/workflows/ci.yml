@@ -292,6 +292,11 @@ jobs:
         env:
           CI: "true"
 
+      - name: Run Phase 2C VIN confirmation E2E
+        run: npx playwright test e2e/vin-review-confirmation.spec.ts
+        env:
+          CI: "true"
+
       - name: Run enterprise business E2E pack
         run: npx playwright test --project=e2e-enterprise
         env:

@@ -1,5 +1,7 @@
 /** Server-side vehicle attribute normalization (mirrors src/lib/vehicle-attribute-extract.ts). */
 
+import { applyVinExtractionCandidate, type VinProvenance } from "../vehicle/vin-review.js";
+
 const VEHICLE_MAKES = [
   "Audi",
   "BMW",
@@ -316,7 +318,21 @@ export function enrichVehicleListingDraftFromArgs(
   title: string,
   description: string,
   category: string,
-  attributes: Record<string, string>
+  attributes: Record<string, string>,
+  opts?: {
+    /** Provenance to attach to any fresh VIN signal seen this turn. Default: "unknown". */
+    vinSource?: VinProvenance;
+    /**
+     * Phase 2C: a VIN value freshly observed THIS turn from a channel other than the
+     * bare title/description text regex (e.g. a vision/OCR JSON field, or a raw tool
+     * call argument). `attributes.vin` itself is always treated as PRIOR state (the
+     * confirmed/candidate value already on the draft before this turn) — never as a
+     * fresh, untrusted signal — so callers whose "this turn" data and "prior draft"
+     * data both flow through the same flat `attributes.vin` key MUST separate them
+     * before calling this function and pass the fresh value here instead.
+     */
+    freshVinExtraction?: string;
+  }
 ): { title: string; description: string; category: string; attributes: Record<string, string> } {
   const vehicleFamily =
     category === "vehicles" || category === "transport";
@@ -330,8 +346,20 @@ export function enrichVehicleListingDraftFromArgs(
   const attrs = { ...attributes };
 
   for (const [key, value] of Object.entries(extracted)) {
+    if (key === "vin") continue; // handled separately via the VIN review state machine below
     if (value && !attrs[key]?.trim()) attrs[key] = value;
   }
+
+  // Phase 2C — VIN doctrine: a VIN extracted from a photo, document, OCR process or
+  // AI inference must never become a trusted canonical fact merely by appearing this
+  // turn. `attrs.vin`/`attrs.vinCandidate`/etc. here are PRIOR state (untouched above);
+  // any fresh signal — from the bare text regex or an explicit caller-supplied vision/
+  // tool-arg value — is reconciled against that prior state, never passed through.
+  const freshVinValue = opts?.freshVinExtraction?.trim() || extracted.vin;
+  const finalAttrs = freshVinValue
+    ? applyVinExtractionCandidate(attrs, { value: freshVinValue, source: opts?.vinSource ?? "unknown" })
+    : attrs;
+  Object.assign(attrs, finalAttrs);
 
   if (attrs.make) attrs.make = normalizeMake(attrs.make) ?? attrs.make;
   if (attrs.make && attrs.model) attrs.model = normalizeModel(attrs.make, attrs.model);

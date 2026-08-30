@@ -38,6 +38,24 @@ import {
 } from "./sell-intent-fallback.js";
 import { extractVehicleSpecsFromChat, buildVehicleDescriptionFromAttributes } from "./vehicle-attribute-extract.js";
 import {
+  applyVinExtractionCandidate,
+  applyVinStructuredReviewAction,
+  buildVinReviewDisplayChips,
+  buildVinReviewSideEffect,
+  type VinReviewOutcome,
+  type VinReviewStructuredAction,
+} from "../vehicle/vin-review.js";
+import {
+  consumeVinChallenge,
+  ensureVinReviewChallenge,
+  rejectVinChallenge,
+  type VinChallengeOutcome,
+} from "../vehicle/vin-challenge.js";
+import {
+  buildConfirmedVinAttributesPatch,
+} from "../vehicle/vin-confirmation.js";
+import { normalizeVin } from "../vehicle/vin-utils.js";
+import {
   applyNaturalLanguageDescriptionEdits,
   isListingConversationInput,
   normalizeListingDraftForAction,
@@ -203,6 +221,8 @@ export interface VautoAgentRequest {
       text?: string;
       dataUrl?: string;
     }[];
+    /** Trusted structured VIN review action from the client UI — never parsed from chat text. */
+    vinReviewAction?: VinReviewStructuredAction;
     geoCityHint?: string;
     monetization?: {
       tier?: "free" | "business_pro";
@@ -426,6 +446,67 @@ export async function runVautoAgent(
       toolCalls: [],
       actions: { type: "none" },
     };
+  }
+}
+
+/**
+ * Phase 2C — user-facing replies are driven by the reducer's TYPED outcome,
+ * never by the action type alone: a stale/no-op action must never claim success.
+ */
+function vinReviewOutcomeReply(
+  outcome: VinReviewOutcome,
+  action: VinReviewStructuredAction
+): string {
+  switch (outcome) {
+    case "applied":
+      return action.type === "confirm"
+        ? "VIN kodas patvirtintas."
+        : action.type === "reject"
+          ? "Gerai — VIN kodo nefiksuoju šiuo metu."
+          : "VIN kandidatas atnaujintas — patvirtinkite, kai būsite pasiruošę.";
+    case "rejected":
+      return "Gerai — VIN kodo nefiksuoju šiuo metu.";
+    case "stale_review":
+      return "Šis VIN veiksmas nebegalioja — peržiūrėkite naujausią siūlomą variantą.";
+    case "invalid_value":
+      return "Įvestas VIN neatpažintas — patikrinkite simbolius (17 ženklų, be I/O/Q).";
+    case "not_found":
+      return "Šiuo metu nėra laukiančio VIN kandidato.";
+    case "already_applied":
+      return "VIN kodas jau buvo patvirtintas.";
+    default:
+      return "VIN peržiūra atnaujinta.";
+  }
+}
+
+/**
+ * Phase 2C Round 4 — server challenge verification failures are never reported
+ * as success.
+ */
+function vinChallengeOutcomeReply(outcome: VinChallengeOutcome): string {
+  switch (outcome) {
+    case "challenge_not_found":
+      return "VIN peržiūros užklausa nerasta — patvirtinkite iš naujo.";
+    case "challenge_expired":
+      return "VIN peržiūros užklausa nebegalioja — patvirtinkite iš naujo.";
+    case "wrong_user":
+      return "VIN peržiūros užklausa priklauso kitam vartotojui.";
+    case "wrong_listing":
+      return "VIN peržiūros užklausa neatitinka šio skelbimo.";
+    case "wrong_vin":
+      return "Patvirtinamas VIN neatitinka serverio užregistruoto kandidato.";
+    case "choice_not_allowed":
+      return "Pasirinktas VIN neįtrauktas į serverio leidžiamų pasirinkimų sąrašą.";
+    case "stale_generation":
+      return "VIN kandidatas pasikeitė — patvirtinkite naujausią variantą.";
+    case "already_confirmed":
+      return "VIN kodas jau buvo patvirtintas.";
+    case "confirmed":
+      return "VIN kodas patvirtintas.";
+    case "rejected":
+      return "VIN kodas atmestas.";
+    default:
+      return "VIN peržiūra atnaujinta.";
   }
 }
 
@@ -936,6 +1017,7 @@ async function runVautoAgentInner(
         userCity: req.context.userCity,
         contact: req.context.contact,
         userText: lastUserText,
+        authUserId: req.authUserId,
       });
       emitAgentEvent(onEvent, {
         type: "tool_result",
@@ -1035,12 +1117,100 @@ async function runVautoAgentInner(
       flowState === "DRAFT_READY" ||
       flowState === "AWAITING_CONFIRMATION")
   ) {
+    // Phase 2C — structured VIN review action from trusted client UI only.
+    if (req.context.vinReviewAction && listingDraft) {
+      const action = req.context.vinReviewAction;
+      const priorAttrs = (listingDraft.attributes ?? {}) as Record<string, string>;
+      let reduction = applyVinStructuredReviewAction(priorAttrs, action);
+      let nextAttrs = reduction.attrs;
+      let challengeOutcome: import("../vehicle/vin-challenge.js").VinChallengeOutcome | null =
+        null;
+
+      if (reduction.outcome === "applied" && req.authUserId) {
+        if (action.type === "confirm") {
+          // Round 4: confirmation requires a SERVER-REGISTERED challenge. Ensure
+          // the current draft candidate/conflict has a pending challenge (register
+          // one if missing), then consume it — only a verified challenge mints the
+          // confirmation receipt.
+          const ensured = ensureVinReviewChallenge(priorAttrs, {
+            userId: req.authUserId,
+          });
+          const consumed = consumeVinChallenge(
+            {
+              challengeId: String(ensured.vinChallenge ?? "").trim(),
+              userId: req.authUserId,
+              vin: normalizeVin(String(action.value ?? "")),
+              draftScope: String(ensured.vinDraftScope ?? "").trim() || undefined,
+            },
+            ({ userId, vin, reviewId, draftScope, challengeId }) =>
+              buildConfirmedVinAttributesPatch({
+                userId,
+                vin,
+                reviewId,
+                draftScope,
+                challengeId,
+              })
+          );
+          if (consumed.ok && consumed.attrs) {
+            reduction = applyVinStructuredReviewAction(ensured, {
+              type: "confirm",
+              value: action.value,
+              reviewId: String(ensured.vinReviewId ?? ""),
+            });
+            nextAttrs = { ...reduction.attrs, ...consumed.attrs };
+          } else {
+            // Fail closed: no state change, no receipt, typed failure reply.
+            nextAttrs = priorAttrs;
+            challengeOutcome = consumed.outcome;
+          }
+        } else if (action.type === "reject") {
+          const challengeId = String(priorAttrs.vinChallenge ?? "").trim();
+          if (challengeId) rejectVinChallenge(challengeId, req.authUserId);
+        } else if (action.type === "correct") {
+          // A correction replaces the candidate — register a FRESH challenge for
+          // the corrected value (superseding the previous generation).
+          nextAttrs = ensureVinReviewChallenge(reduction.attrs, {
+            userId: req.authUserId,
+          });
+        }
+      }
+
+      const nextDraft = normalizeListingDraftForAction(
+        { ...listingDraft, attributes: nextAttrs },
+        {
+          price: listingDraft.price,
+          contact: req.context.contact,
+          userCity: req.context.userCity,
+          listingFlowState: listingDraft.listingFlowState ?? "DRAFTING_TEXT",
+        }
+      );
+      const vinReview = buildVinReviewSideEffect(nextAttrs);
+      const vinReply = challengeOutcome
+        ? vinChallengeOutcomeReply(challengeOutcome)
+        : vinReviewOutcomeReply(reduction.outcome, action);
+      return {
+        ok: true,
+        reply: `${vinReply} ${buildDraftReadyChatReply(nextDraft)}`,
+        quickReplies: buildVinReviewDisplayChips(nextAttrs) ?? [...TEXT_DRAFT_READY_CHIPS],
+        toolCalls: [],
+        actions: {
+          type: "listing_draft",
+          listingDraft: nextDraft,
+          ...(vinReview ? { vinReview } : {}),
+        },
+      };
+    }
+
     const { isNegotiablePriceChatInput, negotiablePricePatch } = await import(
       "../shared/negotiable-price.js"
     );
     const negotiable = isNegotiablePriceChatInput(lastUserText);
     const price = negotiable ? 0 : parsePriceFromChatInput(lastUserText);
     const specPatch = extractVehicleSpecsFromChat(lastUserText);
+    // Phase 2C: a VIN matched by this bare chat-text regex is never trusted as a
+    // canonical fact — it is reconciled via the VIN review state machine below,
+    // never spread directly into the live draft's attributes.
+    const { vin: chatVinRaw, ...specPatchWithoutVin } = specPatch;
     const hasSpecs = Object.keys(specPatch).length > 0;
     const priceToApply = negotiable
       ? 0
@@ -1059,15 +1229,34 @@ async function runVautoAgentInner(
         priorAttributes: listingDraft.attributes,
         incomingYear: specPatch.year,
       });
+      // Phase 2C: reconcile any fresh chat-text VIN signal against the PRIOR draft's
+      // confirmed/candidate VIN state first — this never writes `vin` directly, only
+      // ever `vinCandidate`/`vinConflictValue`/etc. (or a no-op when it already
+      // matches the confirmed canonical value).
+      const vinAwareAttrs = chatVinRaw
+        ? applyVinExtractionCandidate(listingDraft.attributes ?? {}, {
+            value: chatVinRaw,
+            source: "unknown",
+            confidence: 0.5,
+          })
+        : (listingDraft.attributes ?? {});
       const mergedAttrs: Record<string, string> = {
-        ...(listingDraft.attributes ?? {}),
-        ...specPatch,
+        ...vinAwareAttrs,
+        ...specPatchWithoutVin,
         ...(negoPatch?.attributes ?? {}),
         ...yearResolution,
       };
       if (mergedAttrs.yearConflict === "") delete mergedAttrs.yearConflict;
       if (mergedAttrs.yearConflictCandidate === "") delete mergedAttrs.yearConflictCandidate;
       delete mergedAttrs.awaitingSpecs;
+      // Round 4: register a server challenge when this turn created a candidate.
+      Object.assign(
+        mergedAttrs,
+        ensureVinReviewChallenge(mergedAttrs, {
+          userId: req.authUserId,
+          provenance: "unknown",
+        })
+      );
       let nextDescription = hasSpecs
         ? buildVehicleDescriptionFromAttributes(mergedAttrs, {
             location: listingDraft.location,
@@ -1120,14 +1309,17 @@ async function runVautoAgentInner(
           : hasSpecs || hasDescEdit
             ? `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`
             : "Puiku — atnaujinau kainą!";
+      const vinReviewChips = buildVinReviewDisplayChips(mergedAttrs);
+      const vinReviewPayload = buildVinReviewSideEffect(mergedAttrs);
       return {
         ok: true,
         reply: `${intro} ${buildDraftReadyChatReply(nextDraft)}`,
-        quickReplies: [...TEXT_DRAFT_READY_CHIPS],
+        quickReplies: vinReviewChips ?? [...TEXT_DRAFT_READY_CHIPS],
         toolCalls: [],
         actions: {
           type: "listing_draft",
           listingDraft: nextDraft,
+          ...(vinReviewPayload ? { vinReview: vinReviewPayload } : {}),
         },
       };
     }
@@ -2164,6 +2356,7 @@ async function runVautoAgentInner(
         userCity: req.context.userCity,
         contact: req.context.contact,
         userText: lastUserText,
+        authUserId: req.authUserId,
       });
       if (mediaRetry) {
         console.log("[vision] vauto-agent mediaRetry ok", {

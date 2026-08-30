@@ -1,6 +1,10 @@
 import type { AiExtractedListing, Listing, ListingCategory } from "@/lib/types";
 import type { AppView } from "@/lib/app-views";
 import { safeDraftAttributes } from "@/lib/agent-message-safe";
+import type {
+  VinReviewSideEffectPayload,
+  VinReviewStructuredAction,
+} from "@vauto/shared/vin-review";
 import {
   isListingConversationInput,
   type ListingChatContext,
@@ -95,6 +99,8 @@ export interface VautoAgentContext {
   pendingImageCount?: number;
   /** PDF/DOC/TXT uploads — text extracted client- or server-side into draft facts. */
   pendingDocuments?: import("@/lib/chat-attachment-types").PendingChatDocument[];
+  /** Trusted structured VIN review action from the review UI — never parsed from chat text. */
+  vinReviewAction?: VinReviewStructuredAction;
   /** Nearest LT city from client GPS — lightweight server city hint. */
   geoCityHint?: string;
   monetization?: {
@@ -324,6 +330,11 @@ export type VautoAgentAction =
       imageUrl?: string;
       /** All uploaded photos for this draft (multi-image, max 6). */
       imageUrls?: string[];
+      /**
+       * Trusted client-only VIN review payload — carries the exact candidate,
+       * provenance and current reviewId for the review UI. Never echoed to the LLM.
+       */
+      vinReview?: VinReviewSideEffectPayload;
     }
   | {
       /**

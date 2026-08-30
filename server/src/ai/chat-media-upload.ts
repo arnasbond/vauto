@@ -19,6 +19,11 @@ import {
 } from "../shared/lazy-upload.js";
 import { applyOmnivaEligibilityToDraft } from "../shared/omniva-locker-eligibility.js";
 import {
+  applyVinExtractionCandidate,
+  stripUntrustedVinMarkers,
+} from "../shared/vin-review.js";
+import { ensureVinReviewChallenge } from "../vehicle/vin-challenge.js";
+import {
   buildVisionTextConflictPrompt,
   hasVisionTextCategoryConflict,
   inferChaoticCategoryFamily,
@@ -135,6 +140,7 @@ async function resolveListingPhotoScan(input: {
   userCity?: string;
   contact?: string;
   userText?: string;
+  authUserId?: string;
   flowState: ListingFlowState | null;
 }): Promise<MediaResponse> {
   const imageUrls = uniqueImageUrls(input.imageUrls);
@@ -266,12 +272,19 @@ async function resolveListingPhotoScan(input: {
     confidence: parsed.listing.confidence,
   });
 
-  const listingAttrs = Object.fromEntries(
+  // Phase 2C: vision JSON is fully untrusted — strip EVERY vin* authority marker
+  // it may emit; any `vin` value is reconciled against the prior draft's VIN state
+  // through the candidate state machine (never a direct canonical write).
+  const rawListingAttrs = Object.fromEntries(
     Object.entries(parsed.listing.attributes).map(([k, v]) => [
       k,
       Array.isArray(v) ? v.join(", ") : String(v),
     ])
   );
+  const { vin: visionVin, ...strippedListingAttrs } = stripUntrustedVinMarkers(
+    rawListingAttrs
+  ) as Record<string, string>;
+  const listingAttrs = strippedListingAttrs;
   const evidenceDocs = parsed.documentUrls;
   // NEVER fall back to the full upload set — that re-injects tech passport into Vieša galerija.
   const publicGallery = hardFilterPublicGalleryUrls(
@@ -364,6 +377,25 @@ async function resolveListingPhotoScan(input: {
     return right.length >= left.length ? right : left;
   };
 
+  // Phase 2C: reconcile the fresh vision VIN against the prior draft's
+  // confirmed/candidate VIN state — candidate-only, never a canonical write.
+  let visionMergedAttrs: Record<string, string> = {
+    ...(safePriorAttrs as Record<string, string>),
+    ...(leanVisionDraft.attributes ?? {}),
+  };
+  if (visionVin) {
+    visionMergedAttrs = applyVinExtractionCandidate(visionMergedAttrs, {
+      value: visionVin,
+      source: "photo_ocr",
+      confidence: parsed.listing.confidence,
+    });
+  }
+  // Round 4: register a server challenge for vision/OCR candidates.
+  visionMergedAttrs = ensureVinReviewChallenge(visionMergedAttrs, {
+    userId: input.authUserId,
+    provenance: "photo_ocr",
+  });
+
   const mergedDraftRaw = normalizeListingDraftForAction(
     input.listingDraft
       ? {
@@ -372,10 +404,7 @@ async function resolveListingPhotoScan(input: {
           title: preferTitle(input.listingDraft.title, leanVisionDraft.title),
           description: "",
           orderedImageUrls: mergedGallery,
-          attributes: {
-            ...safePriorAttrs,
-            ...leanVisionDraft.attributes,
-          },
+          attributes: visionMergedAttrs,
           listingFlowState: nextState,
           ...(typeof parsed.listing.allowPastomatas === "boolean"
             ? { allowPastomatas: parsed.listing.allowPastomatas }
@@ -383,6 +412,7 @@ async function resolveListingPhotoScan(input: {
         }
       : {
           ...leanVisionDraft,
+          attributes: visionMergedAttrs,
           listingFlowState: nextState,
           ...(typeof parsed.listing.allowPastomatas === "boolean"
             ? { allowPastomatas: parsed.listing.allowPastomatas }
@@ -565,6 +595,8 @@ export async function resolveChatMediaAttachmentResponse(input: {
   userCity?: string;
   contact?: string;
   userText?: string;
+  /** Authenticated user — enables Round 4 server-registered VIN challenges. */
+  authUserId?: string;
 }): Promise<MediaResponse | null> {
   const imageUrls = uniqueImageUrls(input.imageUrls);
   // Metadata only — never log raw userTextHead.

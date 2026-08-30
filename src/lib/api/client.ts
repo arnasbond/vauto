@@ -648,6 +648,65 @@ export async function apiUpdateListing(
   return { ok: true, data: normalizeListing(res.data) };
 }
 
+export interface VinReviewConfirmResult {
+  ok: true;
+  outcome: "confirmed" | "already_confirmed";
+  attributes: Record<string, string>;
+}
+
+export interface VinReviewRegisterResult {
+  ok: true;
+  outcome: "registered";
+  draftScope: string;
+  challenge: { challengeId: string; expiresAt: number };
+  attributes: Record<string, string>;
+}
+
+/**
+ * Phase 2C Round 5 — server-registered VIN review challenge with a
+ * SERVER-OWNED draft scope. Registration mints the challenge (and a scope when
+ * none is presented); confirmation must present the challenge + scope.
+ */
+export async function apiRegisterVinReview(body: {
+  values: string[];
+  listingId?: string;
+  draftScope?: string;
+  supersedesChallengeId?: string;
+  supersedesReviewId?: string;
+}): Promise<ApiResult<VinReviewRegisterResult>> {
+  const res = await dataFetch<VinReviewRegisterResult>("/api/vin-review/register", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return res;
+}
+
+export async function apiConfirmVinReview(body: {
+  challengeId: string;
+  value: string;
+  listingId?: string;
+  draftScope?: string;
+}): Promise<ApiResult<VinReviewConfirmResult>> {
+  const res = await dataFetch<VinReviewConfirmResult>("/api/vin-review/confirm", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return res;
+}
+
+export async function apiRejectVinReview(body: {
+  challengeId: string;
+}): Promise<ApiResult<{ ok: true; outcome: "rejected"; attributes: Record<string, string> }>> {
+  const res = await dataFetch<{ ok: true; outcome: "rejected"; attributes: Record<string, string> }>(
+    "/api/vin-review/reject",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    }
+  );
+  return res;
+}
+
 export async function apiFetchReports(): Promise<ApiResult<SupportReport[]>> {
   return dataFetch<SupportReport[]>("/api/reports");
 }

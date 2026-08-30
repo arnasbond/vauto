@@ -4,8 +4,10 @@ import { Sparkles } from "lucide-react";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
 import { AgentChatMarkdown } from "@/components/home/AgentChatMarkdown";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
+import { VinReviewCard } from "@/components/agent/VinReviewCard";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { isVisionObjectSellChip } from "@/lib/vision-choice-chips";
+import { routeVinReviewChip } from "@/lib/vin-review-chips";
 import {
   isBlockedFallbackBubble,
   resolveVisibleAgentBubbles,
@@ -48,8 +50,15 @@ export function FlowAgentStrip({
   category,
   className,
 }: FlowAgentStripProps) {
-  const { messages, busy, streamThinkingLabel, sendAgentMessage, handleDirectAgentChip } =
-    useVautoAgent();
+  const {
+    messages,
+    busy,
+    streamThinkingLabel,
+    sendAgentMessage,
+    handleDirectAgentChip,
+    pendingVinReview,
+    sendVinReviewAction,
+  } = useVautoAgent();
   const styles = VARIANT_STYLES[variant];
 
   const assistantCount = messages.filter((m) => m.role === "assistant").length;
@@ -75,6 +84,10 @@ export function FlowAgentStrip({
   const handleQuickReply = (option: string) => {
     if (isVisionObjectSellChip(option)) {
       void handleDirectAgentChip(option);
+      return;
+    }
+    // Phase 2C — VIN review chip labels route to the trusted payload, never to the LLM.
+    if (routeVinReviewChip(option, pendingVinReview, (action) => void sendVinReviewAction(action))) {
       return;
     }
     void sendAgentMessage(option);
@@ -154,6 +167,15 @@ export function FlowAgentStrip({
         {(busy || Boolean(streamThinkingLabel?.trim())) && (
           <AgentTypingIndicator className="text-slate-300" label={streamThinkingLabel} />
         )}
+
+        {pendingVinReview && !busy ? (
+          <VinReviewCard
+            review={pendingVinReview}
+            busy={busy}
+            onAction={(action) => void sendVinReviewAction(action)}
+            className="mx-0.5 mt-1"
+          />
+        ) : null}
       </div>
     </div>
   );
