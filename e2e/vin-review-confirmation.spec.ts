@@ -132,13 +132,16 @@ async function installVinEndpoints(page: Page) {
  * Stub the agent stream with the server contract. The candidate turn returns a
  * vehicle draft in the requested flow state with a server-registered candidate
  * (challenge + review payload); the confirm turn returns the challenge-bound
- * confirmed result.
+ * confirmed result. Payloads are built with JSON.stringify — no hand-written
+ * SSE JSON.
  */
 async function installAgentStreamStub(
   page: Page,
   opts: { candidateFlowState: "DRAFT_READY" | "AWAITING_CONFIRMATION" }
 ) {
   const sentAgentBodies: CapturedCall[] = [];
+  const sse = (body: unknown) => `data: ${JSON.stringify(body)}\n\n`;
+
   await page.route("**/api/vauto-agent/stream", async (route) => {
     const body = route.request().postDataJSON() as Record<string, unknown>;
     sentAgentBodies.push({ url: route.request().url(), body });
@@ -148,35 +151,86 @@ async function installAgentStreamStub(
       | undefined;
 
     if (action && action.type === "confirm") {
+      const result = {
+        ok: true,
+        reply: `VIN kodas patvirtintas. ${String(action.value ?? "")} — paruošta.`,
+        toolCalls: [],
+        actions: {
+          type: "listing_draft",
+          listingDraft: {
+            title: "BMW 320d",
+            description: "",
+            price: 9000,
+            location: "Vilnius",
+            contact: "+37060000000",
+            category: "vehicles",
+            confidence: 0.9,
+            attributes: {
+              vin: String(action.value ?? ""),
+              vinConfirmed: "true",
+              vinConfirmedSource: "user_entered",
+              vinConfirmedReviewId: "vr_agent_1",
+              vinChallenge: "vc_agent_1",
+              vinConfirmationReceipt: "e2e_agent_receipt",
+              vinConfirmationIssuedAt: "1",
+              vinConfirmationExpiresAt: "9999999999",
+            },
+          },
+        },
+      };
       await route.fulfill({
         status: 200,
         contentType: "text/event-stream",
-        body:
-          'data: {"type":"status","message":"Galvoju…"}\n\n' +
-          'data: {"type":"final","result":{' +
-          '"ok":true,' +
-          `"reply":"VIN kodas patvirtintas. ${String(action.value ?? "")} — paruošta."` +
-          ',"toolCalls":[],' +
-          '"actions":{"type":"listing_draft","listingDraft":{"title":"BMW 320d","description":"","price":9000,"location":"Vilnius","contact":"+37060000000","category":"vehicles","confidence":0.9,' +
-          `"attributes":{"vin":"${String(action.value ?? "")}","vinConfirmed":"true","vinConfirmedSource":"user_entered","vinConfirmedReviewId":"vr_agent_1","vinChallenge":"vc_agent_1","vinConfirmationReceipt":"e2e_agent_receipt","vinConfirmationIssuedAt":"1","vinConfirmationExpiresAt":"9999999999"}}}` +
-          "}}\n\n",
+        body: sse({ type: "status", message: "Galvoju…" }) +
+          sse({ type: "final", result }),
       });
       return;
     }
 
+    const result = {
+      ok: true,
+      reply: "Nuotraukoje atpažinau VIN kandidatą.",
+      toolCalls: [],
+      actions: {
+        type: "listing_draft",
+        listingDraft: {
+          title: "BMW 320d",
+          description: "",
+          price: 9000,
+          location: "Vilnius",
+          contact: "+37060000000",
+          category: "vehicles",
+          confidence: 0.9,
+          listingFlowState: opts.candidateFlowState,
+          attributes: {
+            make: "BMW",
+            model: "320d",
+            year: "2015",
+            vinCandidate: VALID_VIN,
+            vinCandidateSource: "photo_ocr",
+            vinUncertain: "true",
+            vinReviewId: "vr_agent_1",
+            vinChallenge: "vc_agent_1",
+          },
+        },
+        vinReview: {
+          type: "vin_review",
+          reviewId: "vr_agent_1",
+          challengeId: "vc_agent_1",
+          status: "candidate",
+          candidate: VALID_VIN,
+          candidateSource: "photo_ocr",
+          choices: [
+            { value: VALID_VIN, source: "photo_ocr", labelLt: "nuskaityta iš nuotraukos" },
+          ],
+        },
+      },
+    };
     await route.fulfill({
       status: 200,
       contentType: "text/event-stream",
-      body:
-        'data: {"type":"status","message":"Galvoju…"}\n\n' +
-        'data: {"type":"final","result":{' +
-        '"ok":true,"reply":"Nuotraukoje atpažinau VIN kandidatą.","toolCalls":[],' +
-        '"actions":{"type":"listing_draft",' +
-        '"listingDraft":{"title":"BMW 320d","description":"","price":9000,"location":"Vilnius","contact":"+37060000000","category":"vehicles","confidence":0.9,' +
-        `"listingFlowState":"${opts.candidateFlowState}",` +
-        `"attributes":{"make":"BMW","model":"320d","year":"2015","vinCandidate":"${VALID_VIN}","vinCandidateSource":"photo_ocr","vinUncertain":"true","vinReviewId":"vr_agent_1","vinChallenge":"vc_agent_1"}}` +
-        `,"vinReview":{"type":"vin_review","reviewId":"vr_agent_1","challengeId":"vc_agent_1","status":"candidate","candidate":"${VALID_VIN}","candidateSource":"photo_ocr","choices":[{"value":"${VALID_VIN}","source":"photo_ocr","labelLt":"nuskaityta iš nuotraukos"}]}` +
-        "}}\n\n",
+      body: sse({ type: "status", message: "Galvoju…" }) +
+        sse({ type: "final", result }),
     });
   });
   return { sentAgentBodies };
@@ -243,6 +297,11 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await composer.fill("Parduodu BMW");
     await composer.press("Enter");
 
+    // The chat message MUST reach the agent (stubbed) — fail otherwise:
+    await expect
+      .poll(() => sentAgentBodies.length, { timeout: 15_000 })
+      .toBeGreaterThan(0);
+
     // The server-registered candidate lands → PrePublish modal appears:
     const modal = page.locator('[data-prepublish-modal="1"]');
     await expect(modal).toBeVisible({ timeout: 20_000 });
@@ -285,7 +344,9 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await seedDemoUser(page);
     const { confirmCalls, state } = await installVinEndpoints(page);
     state.rejectAllConfirms = true;
-    await installAgentStreamStub(page, { candidateFlowState: "AWAITING_CONFIRMATION" });
+    const { sentAgentBodies } = await installAgentStreamStub(page, {
+      candidateFlowState: "AWAITING_CONFIRMATION",
+    });
     const creates = installListingCreateCapture(page);
 
     await page.goto("/");
@@ -296,6 +357,11 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await expect(composer).toBeVisible();
     await composer.fill("Parduodu BMW");
     await composer.press("Enter");
+
+    // The chat message MUST reach the agent (stubbed) — fail otherwise:
+    await expect
+      .poll(() => sentAgentBodies.length, { timeout: 15_000 })
+      .toBeGreaterThan(0);
 
     const modal = page.locator('[data-prepublish-modal="1"]');
     await expect(modal).toBeVisible({ timeout: 20_000 });
@@ -402,6 +468,11 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await expect(composer).toBeVisible();
     await composer.fill("Parduodu BMW");
     await composer.press("Enter");
+
+    // The chat message MUST reach the agent (stubbed) — fail otherwise:
+    await expect
+      .poll(() => sentAgentBodies.length, { timeout: 15_000 })
+      .toBeGreaterThan(0);
 
     // The real VinReviewCard renders from the trusted payload:
     const card = page.locator('[data-vin-review-card="1"]');
