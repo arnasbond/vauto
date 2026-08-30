@@ -16,7 +16,7 @@
  * replaces an unconfirmed candidate that requires its own explicit confirmation.
  */
 
-import { isPlausibleVin, normalizeVin } from "./vin-utils.js";
+import { isPlausibleVin, normalizeVin } from "./vin-utils";
 
 export type VinProvenance =
   | "user_entered"

@@ -10,7 +10,7 @@
  * stripped here so they can reach the server for verification.
  */
 
-import { isPlausibleVin, normalizeVin } from "./vin-utils.js";
+import { isPlausibleVin, normalizeVin } from "./vin-utils";
 
 /** Keys that must not be round-tripped as seller-editable attribute payloads. */
 export const EPHEMERAL_LISTING_ATTR_KEYS = new Set([
