@@ -182,11 +182,13 @@ async function installAgentStreamStub(
   return { sentAgentBodies };
 }
 
-/** Open the agent chat on the home page through the REAL desktop header UI. */
+/** Open the agent chat on the home page through the REAL app-shell UI. */
 async function openAgentChatOnHome(page: Page) {
+  // The app shell (AppHeader) renders exactly one add-listing control per
+  // breakpoint; the other variant stays CSS-hidden. Filter to the visible one.
   const addBtn = page
-    .locator('[data-desktop-header]')
-    .getByRole("button", { name: "Įdėti", exact: true });
+    .locator('[data-app-header] [data-nav-add-listing]')
+    .filter({ visible: true });
   await expect(addBtn).toBeVisible({ timeout: 20_000 });
   await addBtn.click();
   const strip = page.locator(".agent-chat-strip");
