@@ -236,6 +236,47 @@ async function installAgentStreamStub(
   return { sentAgentBodies };
 }
 
+/**
+ * Stub the publish-time media persist endpoint with the REAL server
+ * `upload_media` contract (deterministic Cloudinary HTTPS URL) so the
+ * publish flow completes offline. Non-upload actions pass through untouched.
+ * Returns the captured upload_media calls so tests can assert the stub fired.
+ */
+async function installMediaUploadStub(page: Page) {
+  const uploads: CapturedCall[] = [];
+  await page.route("**/api/vauto-server", async (route) => {
+    let body: Record<string, unknown> | null = null;
+    try {
+      body = route.request().postDataJSON() as Record<string, unknown>;
+    } catch {
+      body = null;
+    }
+    if (!body || body.action !== "upload_media") {
+      await route.continue();
+      return;
+    }
+    uploads.push({ url: route.request().url(), body });
+    const listingId =
+      typeof body.listingId === "string" && body.listingId.trim()
+        ? body.listingId.trim()
+        : "e2e-listing";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        action: "upload_media",
+        url: "https://res.cloudinary.com/dhbrljo8v/image/upload/v1/vauto/e2e/cover-a.jpg",
+        publicId: "e2e/cover-a",
+        listingId,
+        deferred: false,
+        lazyUpload: false,
+      }),
+    });
+  });
+  return uploads;
+}
+
 /** Open the agent chat on the home page through the REAL app-shell UI. */
 async function openAgentChatOnHome(page: Page) {
   // The app shell (AppHeader) renders exactly one add-listing control per
@@ -285,8 +326,11 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await forceOfflineCatalog(page);
     await seedDemoUser(page);
     const { registerCalls, confirmCalls } = await installVinEndpoints(page);
-    await installAgentStreamStub(page, { candidateFlowState: "AWAITING_CONFIRMATION" });
+    const { sentAgentBodies } = await installAgentStreamStub(page, {
+      candidateFlowState: "AWAITING_CONFIRMATION",
+    });
     const creates = installListingCreateCapture(page);
+    const uploads = await installMediaUploadStub(page);
 
     await page.goto("/");
     await acceptGdprConsentIfPrompted(page);
@@ -335,8 +379,16 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await expect.poll(() => creates.length, { timeout: 15_000 }).toBeGreaterThan(0);
     const attrs = (creates[0]!.body.attributes ?? {}) as Record<string, unknown>;
     expect(attrs.vin).toBe(VALID_VIN);
-    expect(attrs.vinConfirmationReceipt).toBeTruthy();
+    // The exact challenge-bound authority envelope must reach the server:
     expect(attrs.vinChallenge).toBeTruthy();
+    expect(attrs.vinDraftScope).toBeTruthy();
+    expect(attrs.vinConfirmedReviewId).toBeTruthy();
+    expect(attrs.vinConfirmationReceipt).toBeTruthy();
+    expect(attrs.vinConfirmationIssuedAt).toBeTruthy();
+    expect(attrs.vinConfirmationExpiresAt).toBeTruthy();
+    // The publish cover upload went through the stub — no real external traffic:
+    await expect.poll(() => uploads.length, { timeout: 10_000 }).toBeGreaterThan(0);
+    expect(uploads[0]!.body.action).toBe("upload_media");
   });
 
   test("failed/forged flow: confirm without a valid challenge shows the typed error and the publish payload omits the VIN", async ({ page }) => {
@@ -348,6 +400,7 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
       candidateFlowState: "AWAITING_CONFIRMATION",
     });
     const creates = installListingCreateCapture(page);
+    const uploads = await installMediaUploadStub(page);
 
     await page.goto("/");
     await acceptGdprConsentIfPrompted(page);
@@ -387,6 +440,14 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await expect.poll(() => creates.length, { timeout: 15_000 }).toBeGreaterThan(0);
     const attrs = (creates[0]!.body.attributes ?? {}) as Record<string, unknown>;
     expect(attrs.vin).toBeUndefined();
+    // No accidental authorization: the rejected confirm must leave NO authority
+    // token in the outgoing payload:
+    expect(attrs.vinConfirmationReceipt).toBeUndefined();
+    expect(attrs.vinConfirmationIssuedAt).toBeUndefined();
+    expect(attrs.vinConfirmationExpiresAt).toBeUndefined();
+    // The publish cover upload went through the stub — no real external traffic:
+    await expect.poll(() => uploads.length, { timeout: 10_000 }).toBeGreaterThan(0);
+    expect(uploads[0]!.body.action).toBe("upload_media");
   });
 
   test("existing listing edit: replacement registers with the REAL listingId, confirms listing-bound, and the PATCH carries the authority", async ({ page }) => {

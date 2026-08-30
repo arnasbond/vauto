@@ -2,7 +2,24 @@
  * Lightweight LLM context slicing — never re-inject data-URLs or bulky drafts.
  */
 
+import {
+  UNTRUSTED_VIN_MARKER_KEYS,
+  VIN_REVIEW_MODEL_STATE_KEY,
+} from "./vin-review.js";
+
 const DATA_URL_RE = /^data:([^;]+);base64,/i;
+
+/**
+ * VIN keys that must never enter a model-visible prompt: every untrusted
+ * value/marker key (canonical vin, candidate/conflict/review state, challenge,
+ * scope, reviewId, confirmation receipt + timestamps) plus the generic
+ * human-review state flag. Server-owned boundary redaction — applies even when
+ * a client already strips some of these.
+ */
+const VIN_MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
+  ...UNTRUSTED_VIN_MARKER_KEYS,
+  VIN_REVIEW_MODEL_STATE_KEY,
+]);
 
 /** Short-lived object handle instead of a full Base64 payload. */
 export function slimImageHandle(url: string): string {
@@ -57,6 +74,7 @@ export function slimListingDraftForLlm(draft: unknown): Record<string, unknown> 
   const attrs = d.attributes && typeof d.attributes === "object" ? d.attributes : {};
   const attrKeys = Object.keys(attrs).filter(
     (k) =>
+      !VIN_MODEL_HIDDEN_ATTR_KEYS.has(k) &&
       !/^(deferredSalesDescription|attachedDocumentText|documentFacts|orderedImageUrls)$/i.test(
         k
       )

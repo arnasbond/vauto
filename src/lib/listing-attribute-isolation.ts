@@ -6,6 +6,7 @@ import {
   type CategoryFieldDef,
 } from "@/lib/adaptive-categories";
 import type { AiExtractedListing, CategoryAttributes, ListingCategory } from "@/lib/types";
+import { VIN_CONFIRMATION_ATTR_KEYS } from "@vauto/shared/vin-review";
 
 /** Keys preserved across category switches (seller identity, geo, publish). */
 const GLOBAL_ATTRIBUTE_KEYS = new Set([
@@ -57,6 +58,22 @@ const VISION_PIPELINE_ATTRIBUTE_KEYS = new Set([
   "catalogModificationLabel",
   "catalogAlternatives",
 ]);
+
+/**
+ * Phase 2C VIN authority transport keys. The client draft may carry the
+ * server-minted confirmation envelope so the create persistence boundary
+ * (`finalizeCreateVinAuthority` on the server) can verify it. TRANSPORT ONLY:
+ * these fields never authorize anything on their own — the server HMAC
+ * receipt/challenge/scope verification remains the sole authority — and they
+ * are redacted before any LLM-visible context (server `slimListingDraftForLlm`)
+ * and stripped after verification.
+ */
+const VIN_SERVER_AUTHORITY_TRANSPORT_KEYS = [
+  "vinChallenge",
+  "vinDraftScope",
+  "vinConfirmedReviewId",
+  ...VIN_CONFIRMATION_ATTR_KEYS,
+] as const;
 
 /** Electronics / tech keys that must never stick on clothing / fashion drafts. */
 const ELECTRONICS_ONLY_ATTR_KEYS = new Set([
@@ -165,6 +182,7 @@ export function allowedAttributeKeysForCategory(category: ListingCategory): Set<
   const allowed = schemaKeysForAdaptiveKey(adaptiveKey);
   for (const key of GLOBAL_ATTRIBUTE_KEYS) allowed.add(key);
   for (const key of VISION_PIPELINE_ATTRIBUTE_KEYS) allowed.add(key);
+  for (const key of VIN_SERVER_AUTHORITY_TRANSPORT_KEYS) allowed.add(key);
   for (const [canonical, aliases] of Object.entries(ATTRIBUTE_ALIASES)) {
     if (allowed.has(canonical)) {
       for (const alias of aliases) allowed.add(alias);
@@ -202,6 +220,7 @@ export function activeAttributeKeysForListing(
 
   for (const key of GLOBAL_ATTRIBUTE_KEYS) allowed.add(key);
   for (const key of VISION_PIPELINE_ATTRIBUTE_KEYS) allowed.add(key);
+  for (const key of VIN_SERVER_AUTHORITY_TRANSPORT_KEYS) allowed.add(key);
   allowed.add("_geoLat");
   allowed.add("_geoLng");
 
