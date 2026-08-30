@@ -571,10 +571,22 @@ export function applyVinStructuredReviewAction(
 }
 
 /**
+ * Phase 2D — deterministic field-conflict markers. They are draft-state only,
+ * never model-visible and never ingestible from untrusted maps: the conflict
+ * resolver (`resolveYearConflictPatch`) is a deterministic reducer, not an LLM
+ * decision, so a model/vision payload must not be able to mint or observe them.
+ */
+const FIELD_CONFLICT_MARKER_KEYS = [
+  "yearConflict",
+  "yearConflictCandidate",
+] as const;
+
+/**
  * Strip every VIN value + authority marker from an UNTRUSTED attribute map
  * (LLM tool arguments, vision JSON, OCR, imports). Only the caller's explicit
  * routing of a fresh value through `applyVinExtractionCandidate` may add VIN
- * state back.
+ * state back. Phase 2D: field-conflict markers are stripped here as well —
+ * untrusted ingress can never mint a conflict.
  */
 export function stripUntrustedVinMarkers(
   raw: Record<string, unknown>
@@ -583,6 +595,7 @@ export function stripUntrustedVinMarkers(
   for (const [key, value] of Object.entries(raw ?? {})) {
     if ((UNTRUSTED_VIN_MARKER_KEYS as readonly string[]).includes(key)) continue;
     if (key === VIN_REVIEW_MODEL_STATE_KEY) continue;
+    if ((FIELD_CONFLICT_MARKER_KEYS as readonly string[]).includes(key)) continue;
     out[key] = value;
   }
   return out;
@@ -590,9 +603,9 @@ export function stripUntrustedVinMarkers(
 
 /**
  * Model-visible projection of a draft attribute map: no VIN value, no reviewId,
- * no confirmation provenance — only a generic flag that human VIN review is
- * required. The trusted client side-effect remains the only channel that carries
- * the exact candidate and reviewId.
+ * no confirmation provenance, no field-conflict markers — only a generic flag
+ * that human VIN review is required. The trusted client side-effect remains the
+ * only channel that carries the exact candidate and reviewId.
  */
 export function redactVinReviewForModel(
   raw: Record<string, unknown> | undefined | null
@@ -602,6 +615,7 @@ export function redactVinReviewForModel(
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
     if ((UNTRUSTED_VIN_MARKER_KEYS as readonly string[]).includes(key)) continue;
     if (key === VIN_REVIEW_MODEL_STATE_KEY) continue;
+    if ((FIELD_CONFLICT_MARKER_KEYS as readonly string[]).includes(key)) continue;
     if (value == null || value === "") continue;
     out[key] = Array.isArray(value) ? value.map(String).join(", ") : String(value);
   }

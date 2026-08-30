@@ -101,6 +101,10 @@ const EXTRA_INTERNAL_KEYS = new Set([
   "vinConfirmedSource",
   "vinConfirmedReviewId",
   "vinReviewState",
+  // Phase 2D field-conflict markers — deterministic clarification state
+  // (resolveYearConflictPatch), never public specs.
+  "yearConflict",
+  "yearConflictCandidate",
 ]);
 
 const INTERNAL_LABEL_RE =

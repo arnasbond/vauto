@@ -75,6 +75,51 @@ const VIN_SERVER_AUTHORITY_TRANSPORT_KEYS = [
   ...VIN_CONFIRMATION_ATTR_KEYS,
 ] as const;
 
+/**
+ * Phase 2D — VIN review DRAFT-STATE keys (10). Unlike the six transport keys
+ * above, these carry NO server authority whatsoever: they are the candidate/
+ * conflict/confirmation markers the VIN review state machine
+ * (`deriveVinReviewState`, `applyVinStructuredReviewAction`) reads to keep a
+ * pending review, a human confirmation or a conflict ALIVE across client draft
+ * round-trips. They are:
+ *   - never persistence inputs (stripped by `sanitizeListingAttributesForPersistence`
+ *     before any POST/PATCH and by the server finalizers after verification);
+ *   - never model-visible (redacted by `slimListingDraftForLlm`);
+ *   - vehicles/transport drafts only.
+ * `vinReviewState` is deliberately NOT here — it is a model-state marker and
+ * must never travel through the draft round-trip.
+ */
+const VIN_REVIEW_DRAFT_STATE_KEYS = [
+  "vinCandidate",
+  "vinCandidateSource",
+  "vinCandidateConfidence",
+  "vinConflict",
+  "vinConflictValue",
+  "vinConflictSource",
+  "vinUncertain",
+  "vinReviewId",
+  "vinConfirmed",
+  "vinConfirmedSource",
+] as const;
+
+/**
+ * Phase 2D — field-conflict DRAFT-STATE keys (2). Deterministic conflict
+ * resolution (`resolveYearConflictPatch` on the server) reads these markers to
+ * decide whether a new year mention is the user's explicit answer to the open
+ * conflict. Draft-state only: stripped at the persistence boundary
+ * (`EPHEMERAL_LISTING_ATTR_KEYS`) and redacted from model-visible context.
+ */
+const YEAR_CONFLICT_DRAFT_STATE_KEYS = [
+  "yearConflict",
+  "yearConflictCandidate",
+] as const;
+
+/** VIN/year review draft state only applies to vehicle drafts (vehicles + transport). */
+function isVinDraftStateCategory(category: ListingCategory): boolean {
+  const key = listingToAdaptiveKey(category);
+  return key === "vehicles" || key === "transport";
+}
+
 /** Electronics / tech keys that must never stick on clothing / fashion drafts. */
 const ELECTRONICS_ONLY_ATTR_KEYS = new Set([
   "deviceModel",
@@ -183,6 +228,10 @@ export function allowedAttributeKeysForCategory(category: ListingCategory): Set<
   for (const key of GLOBAL_ATTRIBUTE_KEYS) allowed.add(key);
   for (const key of VISION_PIPELINE_ATTRIBUTE_KEYS) allowed.add(key);
   for (const key of VIN_SERVER_AUTHORITY_TRANSPORT_KEYS) allowed.add(key);
+  if (isVinDraftStateCategory(category)) {
+    for (const key of VIN_REVIEW_DRAFT_STATE_KEYS) allowed.add(key);
+    for (const key of YEAR_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
+  }
   for (const [canonical, aliases] of Object.entries(ATTRIBUTE_ALIASES)) {
     if (allowed.has(canonical)) {
       for (const alias of aliases) allowed.add(alias);
@@ -221,6 +270,10 @@ export function activeAttributeKeysForListing(
   for (const key of GLOBAL_ATTRIBUTE_KEYS) allowed.add(key);
   for (const key of VISION_PIPELINE_ATTRIBUTE_KEYS) allowed.add(key);
   for (const key of VIN_SERVER_AUTHORITY_TRANSPORT_KEYS) allowed.add(key);
+  if (isVinDraftStateCategory(category)) {
+    for (const key of VIN_REVIEW_DRAFT_STATE_KEYS) allowed.add(key);
+    for (const key of YEAR_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
+  }
   allowed.add("_geoLat");
   allowed.add("_geoLng");
 

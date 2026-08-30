@@ -21,6 +21,21 @@ const VIN_MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
   VIN_REVIEW_MODEL_STATE_KEY,
 ]);
 
+/**
+ * Phase 2D — deterministic field-conflict markers must also stay out of the
+ * model-visible slice: conflict resolution is a deterministic reducer
+ * (`resolveYearConflictPatch`), never an LLM decision.
+ */
+const FIELD_CONFLICT_MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
+  "yearConflict",
+  "yearConflictCandidate",
+]);
+
+const MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
+  ...VIN_MODEL_HIDDEN_ATTR_KEYS,
+  ...FIELD_CONFLICT_MODEL_HIDDEN_ATTR_KEYS,
+]);
+
 /** Short-lived object handle instead of a full Base64 payload. */
 export function slimImageHandle(url: string): string {
   const u = String(url ?? "").trim();
@@ -74,7 +89,7 @@ export function slimListingDraftForLlm(draft: unknown): Record<string, unknown> 
   const attrs = d.attributes && typeof d.attributes === "object" ? d.attributes : {};
   const attrKeys = Object.keys(attrs).filter(
     (k) =>
-      !VIN_MODEL_HIDDEN_ATTR_KEYS.has(k) &&
+      !MODEL_HIDDEN_ATTR_KEYS.has(k) &&
       !/^(deferredSalesDescription|attachedDocumentText|documentFacts|orderedImageUrls)$/i.test(
         k
       )

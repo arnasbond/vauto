@@ -52,6 +52,10 @@ export const EPHEMERAL_LISTING_ATTR_KEYS = new Set([
   // the VIN confirmation receipt/challenge/draft scope and must reach the
   // server persistence boundary, which strips them after verification.
   "vinReviewState",
+  // Phase 2D field-conflict markers — deterministic clarification state
+  // (resolveYearConflictPatch). Draft-only; must never persist on a listing.
+  "yearConflict",
+  "yearConflictCandidate",
 ]);
 
 export const ATTR_STRING_MAX = 500;

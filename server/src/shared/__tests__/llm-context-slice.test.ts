@@ -20,6 +20,17 @@ const VIN_HIDDEN_KEYS = new Set<string>([
   VIN_REVIEW_MODEL_STATE_KEY,
 ]);
 
+/** Phase 2D — deterministic field-conflict markers must stay model-invisible too. */
+const FIELD_CONFLICT_HIDDEN_KEYS = new Set<string>([
+  "yearConflict",
+  "yearConflictCandidate",
+]);
+
+const ALL_HIDDEN_KEYS = new Set<string>([
+  ...VIN_HIDDEN_KEYS,
+  ...FIELD_CONFLICT_HIDDEN_KEYS,
+]);
+
 function draftWithInjectedEnvelope() {
   return {
     title: "BMW 320d",
@@ -55,16 +66,19 @@ function draftWithInjectedEnvelope() {
       vinConfirmationIssuedAt: "1700000000",
       vinConfirmationExpiresAt: "1700003600",
       vinReviewState: "pending_human_review",
+      // Phase 2D — deterministic field-conflict markers:
+      yearConflict: "true",
+      yearConflictCandidate: "2018",
     },
   };
 }
 
-describe("Phase 2C — slimListingDraftForLlm VIN authority redaction", () => {
-  it("removes every UNTRUSTED_VIN_MARKER_KEYS member and vinReviewState", () => {
+describe("Phase 2C/2D — slimListingDraftForLlm VIN authority + conflict-marker redaction", () => {
+  it("removes every UNTRUSTED_VIN_MARKER_KEYS member, vinReviewState and field-conflict markers", () => {
     const slim = slimListingDraftForLlm(draftWithInjectedEnvelope());
     assert.ok(slim, "slice must be produced");
     const attrs = slim.attributes as Record<string, string>;
-    for (const key of VIN_HIDDEN_KEYS) {
+    for (const key of ALL_HIDDEN_KEYS) {
       assert.equal(
         attrs[key],
         undefined,
@@ -116,6 +130,10 @@ describe("Phase 2C — slimListingDraftForLlm VIN authority redaction", () => {
     assert.ok(
       !serialized.includes("pending_human_review"),
       "review-state flag must not appear in the LLM context"
+    );
+    assert.ok(
+      !serialized.includes("yearConflict") && !serialized.includes("2018"),
+      "field-conflict markers must not appear in the LLM context"
     );
   });
 });
