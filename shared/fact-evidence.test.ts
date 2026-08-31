@@ -1,6 +1,6 @@
 /**
  * Universal Fact-Evidence Contract — balanced cross-vertical evaluation +
- * semantic hardening matrix (remediation).
+ * semantic and state-invariant hardening (final remediation).
  *
  * Category-neutral proofs only: the contract has no vertical knowledge, so
  * every scenario here passes category/field names ONLY as test labels.
@@ -13,6 +13,7 @@ import { describe, it } from "node:test";
 
 import {
   evaluateFactEvidence,
+  type FactDecision,
   type FactEvidence,
   type FactEvidenceState,
 } from "./fact-evidence.ts";
@@ -45,6 +46,20 @@ const NON_TRUSTED_SOURCES: readonly FactEvidence["source"][] = [
   "MODEL_INFERENCE",
   "EXISTING_PERSISTED_VALUE",
 ];
+
+/**
+ * Attempt an unsafe mutation of a frozen output. In strict mode it throws; in
+ * sloppy mode the assignment silently has no effect. The essential proof is
+ * that the mutation has NO EFFECT — verified unconditionally afterwards.
+ */
+function assertFrozenMutationRejected(target: object, mutate: (t: never) => void, verify: () => void) {
+  try {
+    mutate(target as never);
+  } catch {
+    /* strict-mode throw = rejection */
+  }
+  verify();
+}
 
 describe("Universal fact-evidence contract — balanced cross-vertical scenarios", () => {
   it("real_estate: document 62 m² vs user claim 64 m² → CONFLICT, neither silently wins", () => {
@@ -105,18 +120,191 @@ describe("Universal fact-evidence contract — balanced cross-vertical scenarios
   });
 });
 
+describe("Correction 1 — same-value trusted verification produces a VALID canonical", () => {
+  it("canonical after verified upgrade is a valid TRUSTED_VERIFICATION + INDEPENDENTLY_VERIFIED record", () => {
+    const r = evalOnce(ev("WBAZZZ8VZM1234567", "USER_CLAIM", "HUMAN_CONFIRMED"), ver("WBAZZZ8VZM1234567"), VERIFIED_OPTIONS);
+    assert.equal(r.decision, "SAME_VALUE");
+    assert.equal(r.state.canonical?.source, "TRUSTED_VERIFICATION");
+    assert.equal(r.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
+  });
+
+  it("the returned state re-validates across a second and third evaluation (multi-turn regression)", () => {
+    // USER_CLAIM → same-value TRUSTED_VERIFICATION → later supporting evidence.
+    const s1 = evalOnce(null, ev("WBAZZZ8VZM1234567", "USER_CLAIM"), { isHumanConfirmation: true });
+    const s2 = evaluateFactEvidence(s1.state, ver("WBAZZZ8VZM1234567"), VERIFIED_OPTIONS);
+    assert.equal(s2.decision, "SAME_VALUE");
+    assert.equal(s2.state.canonical?.source, "TRUSTED_VERIFICATION");
+
+    const s3 = evaluateFactEvidence(s2.state, ev("WBAZZZ8VZM1234567", "DOCUMENT_OBSERVATION", "UNCONFIRMED", "doc.pdf"));
+    assert.equal(s3.decision, "SAME_VALUE", "third evaluation must not reject its own prior state");
+    assert.equal(s3.state.canonical?.source, "TRUSTED_VERIFICATION", "verified canonical preserved");
+    assert.equal(s3.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
+    assert.equal(s3.state.history.length, 3, "cumulative history: claim + verification + document");
+  });
+
+  it("prior claim remains separately in cumulative history after verification", () => {
+    const r = evalOnce(ev("WBAZZZ8VZM1234567", "USER_CLAIM"), ver("WBAZZZ8VZM1234567"), VERIFIED_OPTIONS);
+    assert.ok(
+      r.state.history.some((e) => e.source === "USER_CLAIM" && e.value === "WBAZZZ8VZM1234567"),
+      "the original claim is retained as a separate history record"
+    );
+  });
+});
+
+describe("Correction 2 — first evidence never returns SAME_VALUE", () => {
+  it("first user claim → ACCEPT_EVIDENCE", () => {
+    assert.equal(evalOnce(null, ev("62", "USER_CLAIM")).decision, "ACCEPT_EVIDENCE");
+  });
+  it("first document observation → ACCEPT_EVIDENCE", () => {
+    assert.equal(evalOnce(null, ev("62", "DOCUMENT_OBSERVATION")).decision, "ACCEPT_EVIDENCE");
+  });
+  it("first visual observation → ACCEPT_EVIDENCE", () => {
+    assert.equal(evalOnce(null, ev("wood", "VISUAL_OBSERVATION")).decision, "ACCEPT_EVIDENCE");
+  });
+  it("first persisted value → ACCEPT_EVIDENCE (not verification)", () => {
+    const r = evalOnce(null, ev("office", "EXISTING_PERSISTED_VALUE"));
+    assert.equal(r.decision, "ACCEPT_EVIDENCE");
+    assert.equal(r.state.canonical?.status, "UNCONFIRMED");
+  });
+  it("first model inference → INSUFFICIENT_EVIDENCE", () => {
+    assert.equal(evalOnce(null, ev("x", "MODEL_INFERENCE")).decision, "INSUFFICIENT_EVIDENCE");
+  });
+  it("first trusted verification → ACCEPT_VERIFICATION", () => {
+    assert.equal(evalOnce(null, ver("WBAZZZ8VZM1234567"), VERIFIED_OPTIONS).decision, "ACCEPT_VERIFICATION");
+  });
+  it("SAME_VALUE occurs only when two equal normalized values were compared", () => {
+    // First evidence is never SAME_VALUE, so this decision proves a real comparison happened.
+    const r = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("62", "USER_CLAIM"));
+    assert.equal(r.decision, "SAME_VALUE");
+  });
+});
+
+describe("Correction 3 — no history deduplication; every valid event preserved in order", () => {
+  it("the same input object twice yields two separately cloned history records", () => {
+    const reused = { value: "62", source: "DOCUMENT_OBSERVATION", status: "UNCONFIRMED" } as FactEvidence;
+    const s1 = evaluateFactEvidence(null, reused);
+    const s2 = evaluateFactEvidence(s1.state, reused);
+    assert.equal(s2.state.history.length, 2, "both events must remain");
+    assert.notEqual(s2.state.history[0], s2.state.history[1], "two separate defensive clones, not aliases");
+    assert.equal(s2.state.history[0].value, "62");
+    assert.equal(s2.state.history[1].value, "62");
+    assert.notEqual(s2.state.history[0], reused, "no alias to the input object");
+    assert.notEqual(s2.state.history[1], reused, "no alias to the input object");
+  });
+});
+
+describe("Correction 4 — immutability is honest and enforceable", () => {
+  it("all nested outputs are frozen; unsafe mutation is rejected or ineffective", () => {
+    const r = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("64", "USER_CLAIM"));
+    assertFrozenMutationRejected(r, (x) => { x.decision = "CONFLICT" as FactDecision; }, () => assert.equal(r.decision, "CONFLICT"));
+    assertFrozenMutationRejected(r.state, (x) => { x.canonical = null; }, () => assert.equal(r.state.canonical?.value, "62"));
+    assertFrozenMutationRejected(r.state.canonical!, (x) => { x.value = "MUTATED"; }, () => assert.equal(r.state.canonical?.value, "62"));
+    assertFrozenMutationRejected(r.state.history, (x) => { (x as FactEvidence[])[0] = ev("junk", "USER_CLAIM"); }, () => assert.equal(r.state.history[0].value, "62"));
+    assertFrozenMutationRejected(r.state.history[0], (x) => { x.value = "MUTATED"; }, () => assert.equal(r.state.history[0].value, "62"));
+    assertFrozenMutationRejected(r.conflictWith!, (x) => { x.value = "MUTATED"; }, () => assert.equal(r.conflictWith?.value, "64"));
+
+    assert.equal(r.state.canonical?.value, "62");
+    assert.equal(r.state.history[0].value, "62");
+    assert.equal(r.conflictWith?.value, "64");
+
+    const again = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("64", "USER_CLAIM"));
+    assert.equal(again.decision, "CONFLICT");
+    assert.equal(again.state.canonical?.value, "62");
+  });
+
+  it("no output shares mutable identity with inputs or between logical slots", () => {
+    const current = ev("62", "DOCUMENT_OBSERVATION");
+    const incoming = ev("64", "USER_CLAIM");
+    const r = evaluateFactEvidence({ canonical: current, history: [current] }, incoming);
+    assert.notEqual(r.state.canonical, current);
+    assert.notEqual(r.state.history[0], current);
+    assert.notEqual(r.conflictWith, incoming);
+    assert.notEqual(r.state.history[1], incoming);
+  });
+});
+
+describe("Correction 5 — malformed prior state fails closed with INVALID_STATE", () => {
+  it("malformed canonical + valid verified history + user claim → INVALID_STATE (no replacement)", () => {
+    const badCanonical = { value: "bad", source: "USER_CLAIM", status: "INDEPENDENTLY_VERIFIED" } as FactEvidence;
+    const verified = ver("WBAZZZ8VZM1234567");
+    const r = evaluateFactEvidence(
+      { canonical: badCanonical, history: [badCanonical, verified] },
+      ev("y", "USER_CLAIM")
+    );
+    assert.equal(r.decision, "INVALID_STATE");
+    assert.match(r.reason, /canonical|verified/i);
+    assert.equal(r.state.canonical, null, "incoming must not become the replacement canonical");
+    assert.ok(r.state.history.some((e) => e.source === "TRUSTED_VERIFICATION"),
+      "previously verified evidence preserved, not discarded");
+  });
+
+  it("valid canonical absent from history → INVALID_STATE", () => {
+    const canonical = ev("62", "DOCUMENT_OBSERVATION");
+    const r = evaluateFactEvidence({ canonical, history: [] }, ev("64", "USER_CLAIM"));
+    assert.equal(r.decision, "INVALID_STATE");
+    assert.match(r.reason, /not represented/);
+    assert.equal(r.state.canonical, null);
+  });
+
+  it("non-trusted INDEPENDENTLY_VERIFIED entry hidden inside history → INVALID_STATE", () => {
+    const hidden = { value: "x", source: "MODEL_INFERENCE", status: "INDEPENDENTLY_VERIFIED" } as FactEvidence;
+    const r = evaluateFactEvidence(
+      { canonical: null, history: [ev("62", "DOCUMENT_OBSERVATION"), hidden] },
+      ev("64", "USER_CLAIM")
+    );
+    assert.equal(r.decision, "INVALID_STATE");
+    assert.match(r.reason, /history entry/);
+  });
+
+  it("malformed history entry (empty value) → INVALID_STATE", () => {
+    const r = evaluateFactEvidence(
+      { canonical: null, history: [{ value: "", source: "USER_CLAIM", status: "UNCONFIRMED" } as FactEvidence] },
+      ev("64", "USER_CLAIM")
+    );
+    assert.equal(r.decision, "INVALID_STATE");
+  });
+
+  it("corrupted canonical that is also a valid combo but unknown source → INVALID_STATE", () => {
+    const bad = { value: "x", source: "HACKED" as FactEvidence["source"], status: "UNCONFIRMED" } as FactEvidence;
+    const r = evaluateFactEvidence({ canonical: bad, history: [bad] }, ev("y", "USER_CLAIM"));
+    assert.equal(r.decision, "INVALID_STATE");
+  });
+
+  it("null state remains the only ordinary 'no prior evidence' initial state", () => {
+    const r = evaluateFactEvidence(null, ev("62", "USER_CLAIM"));
+    assert.equal(r.decision, "ACCEPT_EVIDENCE");
+    assert.equal(r.state.canonical?.value, "62");
+  });
+
+  it("every returned non-null canonical is represented in cumulative history (invariant)", () => {
+    const s1 = evalOnce(null, ev("62", "USER_CLAIM"));
+    const s2 = evaluateFactEvidence(s1.state, ev("64", "USER_CLAIM"));
+    const s3 = evaluateFactEvidence(s2.state, ev("64", "USER_CLAIM"), { isExplicitCorrection: true });
+    for (const s of [s1.state, s2.state, s3.state]) {
+      if (s.canonical) {
+        assert.ok(
+          s.history.some((e) => e.value === s.canonical!.value && e.source === s.canonical!.source),
+          "canonical must be represented in history"
+        );
+      }
+    }
+  });
+});
+
 describe("Blocker 1 — non-trusted sources can never mint or carry INDEPENDENTLY_VERIFIED", () => {
   for (const source of NON_TRUSTED_SOURCES) {
     it(`incoming ${source} + INDEPENDENTLY_VERIFIED fails closed`, () => {
       const r = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("64", source, "INDEPENDENTLY_VERIFIED"));
       assert.equal(r.decision, "REJECT_UNSUPPORTED_INFERENCE");
-      assert.equal(r.state.canonical?.value, "62", "existing evidence untouched");
+      assert.equal(r.state.canonical?.value, "62");
       assert.notEqual(r.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
     });
 
-    it(`current ${source} + INDEPENDENTLY_VERIFIED is untrusted, never authority`, () => {
-      const r = evalOnce(ev("x", source, "INDEPENDENTLY_VERIFIED"), ev("y", "USER_CLAIM"));
-      assert.equal(r.state.canonical?.value, "y", "corrupted current cannot block or verify");
+    it(`current ${source} + INDEPENDENTLY_VERIFIED → INVALID_STATE (never authority)`, () => {
+      const bad = ev("x", source, "INDEPENDENTLY_VERIFIED");
+      const r = evaluateFactEvidence({ canonical: bad, history: [bad] }, ev("y", "USER_CLAIM"));
+      assert.equal(r.decision, "INVALID_STATE");
+      assert.equal(r.state.canonical, null);
     });
   }
 
@@ -132,227 +320,91 @@ describe("Blocker 1 — non-trusted sources can never mint or carry INDEPENDENTL
 });
 
 describe("Blocker 2 — TRUSTED_VERIFICATION is semantic input, not authentication", () => {
-  it("TRUSTED_VERIFICATION without the authenticated flag fails closed", () => {
+  it("without the authenticated flag fails closed", () => {
     const r = evalOnce(null, ver("WBAZZZ8VZM1234567"));
     assert.equal(r.decision, "REJECT_UNSUPPORTED_INFERENCE");
     assert.match(r.reason, /authenticated verification/i);
-    assert.equal(r.state.canonical, null);
   });
 
-  it("TRUSTED_VERIFICATION with a non-verified status fails closed", () => {
+  it("with a non-verified status fails closed", () => {
     const r = evalOnce(null, ev("WBAZZZ8VZM1234567", "TRUSTED_VERIFICATION", "HUMAN_CONFIRMED"), VERIFIED_OPTIONS);
     assert.equal(r.decision, "REJECT_UNSUPPORTED_INFERENCE");
   });
-
-  it("TRUSTED_VERIFICATION consumes an authenticated result and does not authenticate it itself", () => {
-    const r = evalOnce(null, ver("WBAZZZ8VZM1234567"), VERIFIED_OPTIONS);
-    assert.equal(r.decision, "ACCEPT_VERIFICATION");
-    assert.equal(r.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
-    // The contract's own comments document that authentication happened upstream;
-    // the flag is the caller's attestation of that upstream boundary.
-  });
 });
 
-describe("Blocker 3 — trusted verification of a different value is never SAME_VALUE", () => {
-  it("same normalized value + verification → SAME_VALUE with a verified upgrade", () => {
-    const r = evalOnce(ev("WBAZZZ8VZM1234567", "USER_CLAIM", "HUMAN_CONFIRMED"), ver("WBAZZZ8VZM1234567"), VERIFIED_OPTIONS);
-    assert.equal(r.decision, "SAME_VALUE");
-    assert.equal(r.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
-  });
-
-  it("different normalized value + verification → ACCEPT_VERIFICATION, prior evidence retained", () => {
-    const prior = ver("WBAZZZ8VZM1234567");
-    const r = evalOnce(prior, ver("VF3XXXXXXXXX99999"), VERIFIED_OPTIONS);
+describe("Blocker 3/4 — verification vs correction semantics", () => {
+  it("different value + verification → ACCEPT_VERIFICATION, prior retained", () => {
+    const r = evalOnce(ver("WBAZZZ8VZM1234567"), ver("VF3XXXXXXXXX99999"), VERIFIED_OPTIONS);
     assert.equal(r.decision, "ACCEPT_VERIFICATION");
     assert.equal(r.state.canonical?.value, "VF3XXXXXXXXX99999");
-    assert.equal(r.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
-    assert.ok(r.state.history.some((e) => e.value === "WBAZZZ8VZM1234567" && e.status === "INDEPENDENTLY_VERIFIED"),
-      "prior verified evidence retained in history");
+    assert.ok(r.state.history.some((e) => e.value === "WBAZZZ8VZM1234567" && e.status === "INDEPENDENTLY_VERIFIED"));
   });
 
-  it("first trusted verification is ACCEPT_VERIFICATION, never SAME_VALUE", () => {
-    const r = evalOnce(null, ver("WBAZZZ8VZM1234567"), VERIFIED_OPTIONS);
-    assert.equal(r.decision, "ACCEPT_VERIFICATION");
-  });
-});
-
-describe("Blocker 4 — explicit correction never silently displaces verified evidence", () => {
-  it("correction aimed at verified evidence → REQUIRES_REVERIFICATION, both preserved", () => {
+  it("explicit correction against verified evidence → REQUIRES_REVERIFICATION, both preserved", () => {
     const prior = ver("WBAZZZ8VZM1234567");
     const r = evalOnce(prior, ev("VF3XXXXXXXXX99999", "USER_CLAIM"), { isExplicitCorrection: true });
     assert.equal(r.decision, "REQUIRES_REVERIFICATION");
-    assert.equal(r.state.canonical?.value, "WBAZZZ8VZM1234567", "verified value must not be displaced");
-    assert.equal(r.state.canonical?.status, "INDEPENDENTLY_VERIFIED", "verified status must not be downgraded");
-    assert.ok(r.state.history.some((e) => e.value === "VF3XXXXXXXXX99999" && e.source === "USER_CORRECTION"),
-      "correction retained with provenance");
-    assert.equal(r.state.history.filter((e) => e.status === "INDEPENDENTLY_VERIFIED").length, 1,
-      "verified evidence is neither erased nor duplicated");
-  });
-
-  it("correction with human confirmation still does not displace verified evidence", () => {
-    const prior = ver("WBAZZZ8VZM1234567");
-    const r = evalOnce(prior, ev("VF3XXXXXXXXX99999", "USER_CLAIM"), { isExplicitCorrection: true, isHumanConfirmation: true });
-    assert.equal(r.decision, "REQUIRES_REVERIFICATION");
+    assert.equal(r.state.canonical?.value, "WBAZZZ8VZM1234567");
     assert.equal(r.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
-  });
-
-  it("correction of NON-verified evidence still works as ACCEPT_CORRECTION", () => {
-    const r = evalOnce(ev("kaunas", "USER_CLAIM"), ev("vilnius", "USER_CLAIM"), { isExplicitCorrection: true });
-    assert.equal(r.decision, "ACCEPT_CORRECTION");
+    assert.ok(r.state.history.some((e) => e.source === "USER_CORRECTION" && e.value === "VF3XXXXXXXXX99999"));
   });
 });
 
-describe("Blocker 5 — cumulative immutable state and deep independence", () => {
-  it("history accumulates across three sequential evaluations", () => {
-    let state: FactEvidenceState | null = null;
-    const r1 = evaluateFactEvidence(state, ev("62", "DOCUMENT_OBSERVATION", "UNCONFIRMED", "doc"));
-    state = r1.state;
-    const r2 = evaluateFactEvidence(state, ev("64", "USER_CLAIM"));
-    state = r2.state;
-    const r3 = evaluateFactEvidence(state, ev("62", "DOCUMENT_OBSERVATION", "UNCONFIRMED", "doc2"));
-
-    assert.equal(r3.state.history.length, 3, "cumulative history across all evaluations");
-    assert.equal(r3.state.history[0].value, "62");
-    assert.equal(r3.state.history[1].value, "64");
-    assert.equal(r3.state.history[2].value, "62");
-    assert.equal(r1.state.history.length, 1, "earlier states are not retroactively rebuilt");
-    assert.equal(r2.state.history.length, 2);
-  });
-
-  it("outputs never share mutable identity with inputs", () => {
-    const inputState: FactEvidenceState = {
-      canonical: { value: "62", source: "DOCUMENT_OBSERVATION", status: "UNCONFIRMED" },
-      history: [{ value: "62", source: "DOCUMENT_OBSERVATION", status: "UNCONFIRMED" }],
-    };
-    const incoming = { value: "64", source: "USER_CLAIM", status: "UNCONFIRMED" } as FactEvidence;
-    const snapshotState = JSON.parse(JSON.stringify(inputState));
-    const snapshotIncoming = JSON.parse(JSON.stringify(incoming));
-
-    const r = evaluateFactEvidence(inputState, incoming);
-
-    // Mutate every returned object — nothing else may change.
-    r.state.canonical!.value = "MUTATED";
-    (r.state.history as FactEvidence[])[0].value = "MUTATED";
-    (r.state.history as FactEvidence[]).push({ value: "junk", source: "USER_CLAIM", status: "UNCONFIRMED" });
-
-    assert.deepEqual(inputState, snapshotState, "input state unchanged after output mutation");
-    assert.deepEqual(incoming, snapshotIncoming, "input evidence unchanged after output mutation");
-
-    const again = evaluateFactEvidence(inputState, incoming);
-    assert.equal(again.state.canonical?.value, "62");
-    assert.equal(again.state.history.length, 2);
-    assert.deepEqual(inputState, snapshotState, "inputs still unchanged after a second evaluation");
-  });
-});
-
-describe("Blocker 6 — no universal source-strength hierarchy", () => {
+describe("Blocker 6/7/8 — remaining semantic rules", () => {
   it("same normalized value keeps the existing canonical regardless of incoming source kind", () => {
-    // Persisted must NOT displace a document observation on agreement.
     const r1 = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("62", "EXISTING_PERSISTED_VALUE"));
     assert.equal(r1.decision, "SAME_VALUE");
-    assert.equal(r1.state.canonical?.source, "DOCUMENT_OBSERVATION", "existing canonical source preserved");
-    // And a document observation must not displace an existing user claim on agreement.
+    assert.equal(r1.state.canonical?.source, "DOCUMENT_OBSERVATION");
     const r2 = evalOnce(ev("62", "USER_CLAIM"), ev("62", "DOCUMENT_OBSERVATION"));
     assert.equal(r2.decision, "SAME_VALUE");
-    assert.equal(r2.state.canonical?.source, "USER_CLAIM", "existing canonical source preserved");
+    assert.equal(r2.state.canonical?.source, "USER_CLAIM");
   });
 
   it("arbitrary incoming status never upgrades the canonical", () => {
     const r = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("62", "USER_CLAIM", "HUMAN_CONFIRMED"));
-    assert.equal(r.decision, "SAME_VALUE");
-    assert.equal(r.state.canonical?.status, "UNCONFIRMED",
-      "status upgrades only through legitimate transitions");
+    assert.equal(r.state.canonical?.status, "UNCONFIRMED");
   });
 
-  it("the explicit human-confirmation flag is a legitimate transition", () => {
+  it("explicit human-confirmation flag is a legitimate transition", () => {
     const r = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("62", "USER_CLAIM"), { isHumanConfirmation: true });
     assert.equal(r.state.canonical?.status, "HUMAN_CONFIRMED");
   });
-});
 
-describe("Blocker 7 — runtime validation", () => {
-  it("empty string value is rejected", () => {
-    const r = evalOnce(null, ev("", "USER_CLAIM"));
-    assert.equal(r.decision, "REJECT_UNSUPPORTED_INFERENCE");
-  });
-
-  it("whitespace-only value is rejected", () => {
-    const r = evalOnce(null, ev("   ", "USER_CLAIM"));
-    assert.equal(r.decision, "REJECT_UNSUPPORTED_INFERENCE");
-  });
-
-  it("non-string value is rejected", () => {
+  it("empty / whitespace / non-string values are rejected", () => {
+    assert.equal(evalOnce(null, ev("", "USER_CLAIM")).decision, "REJECT_UNSUPPORTED_INFERENCE");
+    assert.equal(evalOnce(null, ev("   ", "USER_CLAIM")).decision, "REJECT_UNSUPPORTED_INFERENCE");
     const r = evalOnce(null, { value: 123, source: "USER_CLAIM", status: "UNCONFIRMED" });
     assert.equal(r.decision, "REJECT_UNSUPPORTED_INFERENCE");
     assert.match(r.reason, /not a string/);
   });
 
-  it("non-object incoming is rejected", () => {
-    const r = evalOnce(null, "some-string" as unknown);
-    assert.equal(r.decision, "REJECT_UNSUPPORTED_INFERENCE");
+  it("unknown incoming source/status fail closed", () => {
+    assert.equal(evalOnce(null, { value: "v", source: "HACKED" as FactEvidence["source"], status: "UNCONFIRMED" }).decision, "REJECT_UNSUPPORTED_INFERENCE");
+    assert.equal(evalOnce(null, { value: "v", source: "USER_CLAIM", status: "MAGIC" as FactEvidence["status"] }).decision, "REJECT_UNSUPPORTED_INFERENCE");
   });
 
-  it("malformed current state: corrupted canonical becomes absent, never authority", () => {
-    const r = evaluateFactEvidence(
-      { canonical: { value: "bad", source: "USER_CLAIM", status: "INDEPENDENTLY_VERIFIED" } as FactEvidence, history: [] },
-      ev("y", "USER_CLAIM")
-    );
-    assert.equal(r.state.canonical?.value, "y", "corrupted verified-claim cannot block new evidence");
-  });
-
-  it("malformed history entries are dropped safely", () => {
-    const r = evaluateFactEvidence(
-      {
-        canonical: ev("62", "DOCUMENT_OBSERVATION"),
-        history: [
-          ev("62", "DOCUMENT_OBSERVATION"),
-          { value: "", source: "USER_CLAIM", status: "UNCONFIRMED" } as FactEvidence,
-          { value: "x", source: "HACKED" as FactEvidence["source"], status: "UNCONFIRMED" } as FactEvidence,
-        ],
-      },
-      ev("64", "USER_CLAIM")
-    );
-    assert.equal(r.decision, "CONFLICT");
-    assert.equal(r.state.history.length, 2, "only valid history entries survive");
-  });
-
-  it("unknown incoming source and status still fail closed", () => {
-    const r1 = evalOnce(null, { value: "v", source: "HACKED" as FactEvidence["source"], status: "UNCONFIRMED" });
-    assert.equal(r1.decision, "REJECT_UNSUPPORTED_INFERENCE");
-    const r2 = evalOnce(null, { value: "v", source: "USER_CLAIM", status: "MAGIC" as FactEvidence["status"] });
-    assert.equal(r2.decision, "REJECT_UNSUPPORTED_INFERENCE");
-  });
-});
-
-describe("Blocker 8 — full negative matrix and semantic rules that must remain", () => {
-  it("persistence is not verification", () => {
-    const r = evalOnce(null, ev("62", "EXISTING_PERSISTED_VALUE"));
-    assert.equal(r.state.canonical?.status, "UNCONFIRMED");
-  });
-
-  it("canonical is not verification", () => {
-    const r = evalOnce(null, ev("62", "USER_CLAIM", "HUMAN_CONFIRMED"), { isHumanConfirmation: true });
-    assert.equal(r.state.canonical?.status, "HUMAN_CONFIRMED");
-    assert.notEqual(r.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
+  it("persistence and canonical are not verification", () => {
+    const r1 = evalOnce(null, ev("62", "EXISTING_PERSISTED_VALUE"));
+    assert.equal(r1.state.canonical?.status, "UNCONFIRMED");
+    const r2 = evalOnce(null, ev("62", "USER_CLAIM"), { isHumanConfirmation: true });
+    assert.equal(r2.state.canonical?.status, "HUMAN_CONFIRMED");
+    assert.notEqual(r2.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
   });
 
   it("correction intent is never inferred from a differing value alone", () => {
-    const r = evalOnce(ev("kaunas", "USER_CLAIM"), ev("vilnius", "USER_CLAIM"));
-    assert.equal(r.decision, "CONFLICT");
+    assert.equal(evalOnce(ev("kaunas", "USER_CLAIM"), ev("vilnius", "USER_CLAIM")).decision, "CONFLICT");
   });
 
   it("model inference cannot establish, overwrite or verify", () => {
-    const r1 = evalOnce(null, ev("x", "MODEL_INFERENCE"));
-    assert.equal(r1.decision, "INSUFFICIENT_EVIDENCE");
-    const r2 = evalOnce(ev("verified-value-1", "USER_CLAIM", "HUMAN_CONFIRMED"), ev("other", "MODEL_INFERENCE"));
-    assert.equal(r2.decision, "REJECT_UNSUPPORTED_INFERENCE");
-    assert.equal(r2.state.canonical?.value, "verified-value-1");
+    assert.equal(evalOnce(null, ev("x", "MODEL_INFERENCE")).decision, "INSUFFICIENT_EVIDENCE");
+    const r = evalOnce(ev("A", "USER_CLAIM", "HUMAN_CONFIRMED"), ev("B", "MODEL_INFERENCE"));
+    assert.equal(r.decision, "REJECT_UNSUPPORTED_INFERENCE");
+    assert.equal(r.state.canonical?.value, "A");
   });
 
   it("visual observations remain observations", () => {
     const r = evalOnce(null, ev("wood", "VISUAL_OBSERVATION"));
     assert.equal(r.state.canonical?.status, "UNCONFIRMED");
-    assert.notEqual(r.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
   });
 
   it("never mutates its inputs (deep-frozen)", () => {
@@ -369,17 +421,103 @@ describe("Blocker 8 — full negative matrix and semantic rules that must remain
   });
 
   it("normalization is supplied by the caller — the contract never normalizes", () => {
-    const unnormalized = evalOnce(ev("62 m²", "DOCUMENT_OBSERVATION"), ev("62m2", "USER_CLAIM"));
-    assert.equal(unnormalized.decision, "CONFLICT", "contract must not hide normalization");
-    const normalized = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("62", "USER_CLAIM"));
-    assert.equal(normalized.decision, "SAME_VALUE");
+    assert.equal(evalOnce(ev("62 m²", "DOCUMENT_OBSERVATION"), ev("62m2", "USER_CLAIM")).decision, "CONFLICT");
+    assert.equal(evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("62", "USER_CLAIM")).decision, "SAME_VALUE");
+  });
+});
+
+describe("Mandatory adversarial sequences A–H", () => {
+  it("A: USER_CLAIM → same-value authenticated verification → later different user claim", () => {
+    const s1 = evaluateFactEvidence(null, ev("WBAZZZ8VZM1234567", "USER_CLAIM"), { isHumanConfirmation: true });
+    assert.equal(s1.decision, "ACCEPT_EVIDENCE");
+    const s2 = evaluateFactEvidence(s1.state, ver("WBAZZZ8VZM1234567"), VERIFIED_OPTIONS);
+    assert.equal(s2.decision, "SAME_VALUE");
+    assert.equal(s2.state.canonical?.source, "TRUSTED_VERIFICATION");
+    const s3 = evaluateFactEvidence(s2.state, ev("VF3XXXXXXXXX99999", "USER_CLAIM"));
+    assert.equal(s3.decision, "CONFLICT", "verified canonical preserved; the differing claim conflicts");
+    assert.equal(s3.state.canonical?.value, "WBAZZZ8VZM1234567");
+    assert.equal(s3.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
   });
 
-  it("explicit correction of verified evidence never erases verified provenance", () => {
-    const prior = ver("WBAZZZ8VZM1234567");
-    const r = evalOnce(prior, ev("VF3XXXXXXXXX99999", "USER_CLAIM"), { isExplicitCorrection: true });
-    assert.equal(r.decision, "REQUIRES_REVERIFICATION");
-    assert.equal(r.state.history[0].value, "WBAZZZ8VZM1234567");
-    assert.equal(r.state.history[0].status, "INDEPENDENTLY_VERIFIED");
+  it("B: DOCUMENT_OBSERVATION → human confirmation → same-value verification → explicit correction", () => {
+    const s1 = evaluateFactEvidence(null, ev("62", "DOCUMENT_OBSERVATION", "UNCONFIRMED", "ntr.pdf"));
+    const s2 = evaluateFactEvidence(s1.state, ev("62", "USER_CLAIM"), { isHumanConfirmation: true });
+    assert.equal(s2.decision, "SAME_VALUE");
+    assert.equal(s2.state.canonical?.status, "HUMAN_CONFIRMED");
+    const s3 = evaluateFactEvidence(s2.state, ver("62"), VERIFIED_OPTIONS);
+    assert.equal(s3.decision, "SAME_VALUE");
+    assert.equal(s3.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
+    const s4 = evaluateFactEvidence(s3.state, ev("64", "USER_CLAIM"), { isExplicitCorrection: true });
+    assert.equal(s4.decision, "REQUIRES_REVERIFICATION");
+    assert.equal(s4.state.canonical?.value, "62");
+    assert.equal(s4.state.canonical?.status, "INDEPENDENTLY_VERIFIED");
+  });
+
+  it("C: reused evidence object added twice to history", () => {
+    const reused = ev("62", "DOCUMENT_OBSERVATION");
+    const s1 = evaluateFactEvidence(null, reused);
+    const s2 = evaluateFactEvidence(s1.state, reused);
+    assert.equal(s2.state.history.length, 2);
+    assert.notEqual(s2.state.history[0], s2.state.history[1]);
+    assert.notEqual(s2.state.history[0], reused);
+  });
+
+  it("D: malformed canonical + valid verified history + new user claim → INVALID_STATE", () => {
+    const bad = { value: "bad", source: "USER_CLAIM", status: "INDEPENDENTLY_VERIFIED" } as FactEvidence;
+    const verified = ver("WBAZZZ8VZM1234567");
+    const r = evaluateFactEvidence({ canonical: bad, history: [bad, verified] }, ev("y", "USER_CLAIM"));
+    assert.equal(r.decision, "INVALID_STATE");
+    assert.equal(r.state.canonical, null);
+    assert.ok(r.state.history.some((e) => e.source === "TRUSTED_VERIFICATION"));
+  });
+
+  it("E: valid canonical absent from history → INVALID_STATE", () => {
+    const r = evaluateFactEvidence(
+      { canonical: ev("62", "DOCUMENT_OBSERVATION"), history: [] },
+      ev("64", "USER_CLAIM")
+    );
+    assert.equal(r.decision, "INVALID_STATE");
+  });
+
+  it("F: non-trusted INDEPENDENTLY_VERIFIED entry hidden inside history → INVALID_STATE", () => {
+    const hidden = { value: "x", source: "MODEL_INFERENCE", status: "INDEPENDENTLY_VERIFIED" } as FactEvidence;
+    const r = evaluateFactEvidence(
+      { canonical: null, history: [ev("62", "DOCUMENT_OBSERVATION"), hidden] },
+      ev("64", "USER_CLAIM")
+    );
+    assert.equal(r.decision, "INVALID_STATE");
+  });
+
+  it("G: attempted mutation of every returned nested object is rejected or ineffective", () => {
+    const r = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("64", "USER_CLAIM"));
+    assertFrozenMutationRejected(r, (x) => { x.decision = "SAME_VALUE" as FactDecision; }, () => assert.equal(r.decision, "CONFLICT"));
+    assertFrozenMutationRejected(r.state, (x) => { (x as { canonical: unknown }).canonical = null; }, () => assert.equal(r.state.canonical?.value, "62"));
+    assertFrozenMutationRejected(r.state.canonical!, (x) => { x.value = "X"; }, () => assert.equal(r.state.canonical?.value, "62"));
+    assertFrozenMutationRejected(r.state.history, (x) => { (x as FactEvidence[])[0] = ev("j", "USER_CLAIM"); }, () => assert.equal(r.state.history[0].value, "62"));
+    assertFrozenMutationRejected(r.state.history[0], (x) => { x.value = "X"; }, () => assert.equal(r.state.history[0].value, "62"));
+    assertFrozenMutationRejected(r.conflictWith!, (x) => { x.value = "X"; }, () => assert.equal(r.conflictWith?.value, "64"));
+    const again = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("64", "USER_CLAIM"));
+    assert.equal(again.decision, "CONFLICT");
+    assert.equal(again.state.canonical?.value, "62");
+    assert.equal(again.conflictWith?.value, "64");
+  });
+
+  it("H: every returned decision state feeds into the next evaluation as valid input", () => {
+    const scenarios: Array<{ state: FactEvidenceState | null; incoming: unknown; options?: Parameters<typeof evaluateFactEvidence>[2]; expectDecision: FactDecision }> = [
+      { state: null, incoming: ev("62", "USER_CLAIM"), expectDecision: "ACCEPT_EVIDENCE" },
+      { state: null, incoming: ev("62", "DOCUMENT_OBSERVATION"), expectDecision: "ACCEPT_EVIDENCE" },
+      { state: null, incoming: ev("62", "EXISTING_PERSISTED_VALUE"), expectDecision: "ACCEPT_EVIDENCE" },
+      { state: null, incoming: ev("62", "VISUAL_OBSERVATION"), expectDecision: "ACCEPT_EVIDENCE" },
+      { state: null, incoming: ev("x", "MODEL_INFERENCE"), expectDecision: "INSUFFICIENT_EVIDENCE" },
+      { state: null, incoming: ver("WBAZZZ8VZM1234567"), options: VERIFIED_OPTIONS, expectDecision: "ACCEPT_VERIFICATION" },
+    ];
+    for (const sc of scenarios) {
+      const r = evaluateFactEvidence(sc.state, sc.incoming, sc.options ?? {});
+      assert.equal(r.decision, sc.expectDecision);
+      // The returned state must be accepted as input on the next call.
+      const next = evaluateFactEvidence(r.state, ev("64", "USER_CLAIM"));
+      assert.notEqual(next.decision, "INVALID_STATE",
+        `state produced by ${r.decision} must re-validate (got INVALID_STATE: ${next.reason})`);
+    }
   });
 });

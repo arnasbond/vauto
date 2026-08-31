@@ -12,7 +12,9 @@
  *   - a human-confirmed claim;
  *   - an independently verified value;
  *   - a trusted verification that changes the canonical value;
- *   - an explicit correction aimed at independently verified evidence.
+ *   - an explicit correction aimed at independently verified evidence;
+ *   - first evidence establishing a canonical value;
+ *   - malformed prior state requiring reconstruction.
  *
  * SECURITY SEMANTICS (do not weaken):
  *   - TRUSTED_VERIFICATION is SEMANTIC INPUT, NOT AUTHENTICATION. This pure
@@ -24,7 +26,27 @@
  *   - A non-trusted source (USER_CLAIM, USER_CORRECTION,
  *     DOCUMENT_OBSERVATION, VISUAL_OBSERVATION, MODEL_INFERENCE,
  *     EXISTING_PERSISTED_VALUE) must NEVER mint or carry
- *     INDEPENDENTLY_VERIFIED. Such combinations fail closed.
+ *     INDEPENDENTLY_VERIFIED. Such combinations are invalid.
+ *
+ * STATE INVARIANTS (enforced, not just documented):
+ *   - A non-null prior state must be VALID: malformed canonical, malformed
+ *     history entry, a canonical/history mismatch, or a non-trusted
+ *     independently-verified record anywhere yields the explicit
+ *     INVALID_STATE decision — corrupted evidence is never silently reset
+ *     and can never become authority.
+ *   - Every non-null canonical record must be represented in the cumulative
+ *     history (same value + same source).
+ *   - Every returned state is itself valid input for the next evaluation
+ *     (state-machine closure).
+ *
+ * IMMUTABILITY (enforced, not just documented):
+ *   - `FactEvidence` and `FactEvidenceState` properties are readonly.
+ *   - No returned record, history array, state or result shares mutable
+ *     identity with any input or with another logical slot in the output —
+ *     canonical, history entries and `conflictWith` are separate defensive
+ *     clones.
+ *   - All returned evidence records, history arrays, state objects and the
+ *     result object are frozen at runtime.
  *
  * Hard semantic rules (encoded below, not comments-only):
  *   1. A persisted value is NEVER automatically verified.
@@ -42,10 +64,11 @@
  *      document observation, human-confirmed value or trusted verification.
  *   8. VISUAL_OBSERVATION is an observation, never a verified fact.
  *   9. Unknown source/status values and invalid source/status combinations
- *      fail closed.
- *  10. No input is ever mutated; no output shares mutable object identity
- *      with any input; history is cumulative (never rebuilt from the latest
- *      pair alone).
+ *      fail closed; a malformed prior state fails closed with INVALID_STATE.
+ *  10. No input is ever mutated; no output shares mutable identity with any
+ *      input; history is cumulative and append-only (every valid evidence
+ *      event is preserved in order, even when the caller reuses the same
+ *      object reference).
  *  11. No marketplace category receives source precedence because of its
  *      vertical — this contract has no vertical knowledge at all. There is
  *      NO universal source-strength hierarchy: evidence quality is decided
@@ -79,12 +102,14 @@ export type FactEvidenceStatus =
 /** The deterministic decision the contract produces. */
 export type FactDecision =
   | "SAME_VALUE"
+  | "ACCEPT_EVIDENCE"
   | "ACCEPT_CORRECTION"
   | "CONFLICT"
   | "INSUFFICIENT_EVIDENCE"
   | "REJECT_UNSUPPORTED_INFERENCE"
   | "ACCEPT_VERIFICATION"
-  | "REQUIRES_REVERIFICATION";
+  | "REQUIRES_REVERIFICATION"
+  | "INVALID_STATE";
 
 export const FACT_EVIDENCE_SOURCES: readonly FactEvidenceSource[] = [
   "USER_CLAIM",
@@ -102,27 +127,27 @@ export const FACT_EVIDENCE_STATUSES: readonly FactEvidenceStatus[] = [
   "INDEPENDENTLY_VERIFIED",
 ];
 
-/** A single evidence record for one field value. Immutable by convention. */
+/** A single evidence record for one field value. Readonly + frozen at runtime. */
 export interface FactEvidence {
   /** Caller-normalized canonical string form of the value (non-empty string). */
-  value: string;
-  source: FactEvidenceSource;
-  status: FactEvidenceStatus;
+  readonly value: string;
+  readonly source: FactEvidenceSource;
+  readonly status: FactEvidenceStatus;
   /** Opaque provenance note (label id, document name…) — never parsed here. */
-  reason?: string;
+  readonly reason?: string;
   /** Epoch ms when the evidence was created; optional so tests stay deterministic. */
-  at?: number;
+  readonly at?: number;
 }
 
 /**
  * Immutable cumulative evidence state: the current canonical record plus the
- * COMPLETE evidence history. Every evaluation receives this state and returns
- * a NEW state that appends to the previous history — history is never rebuilt
- * from the latest pair alone.
+ * COMPLETE evidence history. Readonly + frozen at runtime. Every evaluation
+ * receives this state and returns a NEW state that appends to the previous
+ * history — history is never rebuilt from the latest pair alone.
  */
 export interface FactEvidenceState {
-  canonical: FactEvidence | null;
-  history: readonly FactEvidence[];
+  readonly canonical: FactEvidence | null;
+  readonly history: readonly FactEvidence[];
 }
 
 export interface EvaluateFactEvidenceOptions {
@@ -142,13 +167,13 @@ export interface EvaluateFactEvidenceOptions {
 }
 
 export interface FactEvidenceDecisionResult {
-  decision: FactDecision;
+  readonly decision: FactDecision;
   /** The NEW cumulative state (canonical + full history). Never shares identity with inputs. */
-  state: FactEvidenceState;
-  /** The competing evidence when the decision is CONFLICT. */
-  conflictWith?: FactEvidence;
+  readonly state: FactEvidenceState;
+  /** The competing evidence when the decision is CONFLICT (separate frozen clone). */
+  readonly conflictWith?: FactEvidence;
   /** Human-readable reason for the decision (stable for tests and future UI). */
-  reason: string;
+  readonly reason: string;
 }
 
 function isKnownSource(value: unknown): value is FactEvidenceSource {
@@ -159,11 +184,32 @@ function isKnownStatus(value: unknown): value is FactEvidenceStatus {
   return typeof value === "string" && (FACT_EVIDENCE_STATUSES as readonly string[]).includes(value);
 }
 
-function cloneEvidence(e: FactEvidence): FactEvidence {
-  const out: FactEvidence = { value: e.value, source: e.source, status: e.status };
-  if (e.reason !== undefined) out.reason = e.reason;
-  if (e.at !== undefined) out.at = e.at;
-  return out;
+/** Defensive clone with runtime freeze — never shares identity with anything. */
+function frozenEvidence(e: FactEvidence): FactEvidence {
+  return Object.freeze({
+    value: e.value,
+    source: e.source,
+    status: e.status,
+    ...(e.reason !== undefined ? { reason: e.reason } : {}),
+    ...(e.at !== undefined ? { at: e.at } : {}),
+  });
+}
+
+function frozenHistory(entries: readonly FactEvidence[]): readonly FactEvidence[] {
+  return Object.freeze(entries.map((e) => frozenEvidence(e)));
+}
+
+function frozenState(canonical: FactEvidence | null, history: readonly FactEvidence[]): FactEvidenceState {
+  return Object.freeze({ canonical: canonical ? frozenEvidence(canonical) : null, history: frozenHistory(history) });
+}
+
+function frozenResult(result: FactEvidenceDecisionResult): FactEvidenceDecisionResult {
+  return Object.freeze({
+    decision: result.decision,
+    state: result.state,
+    reason: result.reason,
+    ...(result.conflictWith ? { conflictWith: frozenEvidence(result.conflictWith) } : {}),
+  });
 }
 
 /** Same normalized value = identical non-empty strings. */
@@ -189,25 +235,65 @@ function isValidEvidenceShape(raw: unknown): raw is FactEvidence {
   return true;
 }
 
+/** Canonical is represented in history when an entry shares its value+source. */
+function isRepresentedInHistory(canonical: FactEvidence, history: readonly FactEvidence[]): boolean {
+  return history.some((e) => e.value === canonical.value && e.source === canonical.source);
+}
+
+type ValidatedState =
+  | { ok: true; canonical: FactEvidence | null; history: readonly FactEvidence[] }
+  | { ok: false; reason: string; history: readonly FactEvidence[] };
+
 /**
- * Sanitize an input state: drop malformed history entries and treat a
- * malformed canonical record as absent — corrupted evidence can never become
- * authority. Always returns freshly built arrays (no shared identity).
+ * Validate a prior state WITHOUT silent repair: any malformed canonical,
+ * malformed history entry, invalid source/status combination (including a
+ * non-trusted independently-verified record) or canonical/history mismatch
+ * fails closed. Every individually valid evidence entry is preserved in the
+ * returned history regardless of position.
  */
-function sanitizeState(raw: FactEvidenceState | null): FactEvidenceState {
-  if (raw == null) return { canonical: null, history: [] };
-  const history: FactEvidence[] = [];
-  const seen = new Set<FactEvidence>();
-  if (Array.isArray(raw.history)) {
-    for (const entry of raw.history) {
-      if (!isValidEvidenceShape(entry)) continue;
-      if (seen.has(entry)) continue;
-      seen.add(entry);
-      history.push(cloneEvidence(entry));
+function validateState(raw: FactEvidenceState | null): ValidatedState {
+  if (raw === null) return { ok: true, canonical: null, history: [] };
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    return { ok: false, reason: "prior state is not an object", history: [] };
+  }
+  if (!Array.isArray(raw.history)) {
+    return { ok: false, reason: "prior history is not an array", history: [] };
+  }
+  const validHistory: FactEvidence[] = [];
+  let historyFailure: string | null = null;
+  for (const entry of raw.history) {
+    if (!isValidEvidenceShape(entry)) {
+      if (!historyFailure) {
+        historyFailure = `malformed history entry: ${JSON.stringify(entry)}`;
+      }
+      continue;
+    }
+    validHistory.push(entry);
+  }
+  if (historyFailure) {
+    return { ok: false, reason: historyFailure, history: validHistory };
+  }
+  if (raw.canonical !== null && raw.canonical !== undefined) {
+    if (!isValidEvidenceShape(raw.canonical)) {
+      return {
+        ok: false,
+        reason: `malformed canonical record: ${JSON.stringify(raw.canonical)}`,
+        history: validHistory,
+      };
+    }
+    if (!isRepresentedInHistory(raw.canonical as FactEvidence, validHistory)) {
+      return {
+        ok: false,
+        reason: "canonical record is not represented in cumulative history",
+        history: validHistory,
+      };
     }
   }
-  const canonical = isValidEvidenceShape(raw.canonical) ? cloneEvidence(raw.canonical) : null;
-  return { canonical, history };
+  return {
+    ok: true,
+    canonical: raw.canonical ? (raw.canonical as FactEvidence) : null,
+    history: validHistory,
+  };
 }
 
 interface ValidatedIncoming {
@@ -288,13 +374,12 @@ function buildResult(
   reason: string,
   conflictWith?: FactEvidence
 ): FactEvidenceDecisionResult {
-  const out: FactEvidenceDecisionResult = {
+  return frozenResult({
     decision,
-    state: { canonical, history },
+    state: frozenState(canonical, history),
     reason,
-  };
-  if (conflictWith) out.conflictWith = conflictWith;
-  return out;
+    ...(conflictWith ? { conflictWith: frozenEvidence(conflictWith) } : {}),
+  });
 }
 
 /**
@@ -302,32 +387,38 @@ function buildResult(
  *
  * `state` (or null) is the previous evidence state; `incoming` is the new
  * evidence; options carry the only legitimate transition signals. Returns a
- * NEW state whose history is the previous history plus the incoming evidence.
- * Never mutates any input; never touches the clock unless `nowMs` is supplied;
- * never knows a category or a field; performs NO authentication.
+ * NEW frozen state whose history is the previous history plus the incoming
+ * evidence. Never mutates any input; never touches the clock unless `nowMs`
+ * is supplied; never knows a category or a field; performs NO authentication.
  */
 export function evaluateFactEvidence(
   state: FactEvidenceState | null,
   incoming: unknown,
   options: EvaluateFactEvidenceOptions = {}
 ): FactEvidenceDecisionResult {
-  const prior = sanitizeState(state);
+  const validatedState = validateState(state);
+  if (!validatedState.ok) {
+    // Fail closed WITHOUT accepting the incoming evidence: the caller must
+    // recover/reconstruct the state explicitly. Valid evidence found so far
+    // is preserved in the returned history.
+    return buildResult("INVALID_STATE", null, validatedState.history, validatedState.reason);
+  }
+  const priorHistory = validatedState.history;
+  const current = validatedState.canonical;
 
   const validated = validateIncoming(incoming, options);
   if (validated.invalidReason) {
-    // Fail closed: nothing from the rejected evidence may become canonical,
-    // and the incoming value is not even worth recording as considered evidence.
+    // Fail closed: rejected evidence cannot become canonical and is not
+    // recorded as considered evidence.
     return buildResult(
       "REJECT_UNSUPPORTED_INFERENCE",
-      prior.canonical,
-      prior.history,
+      current,
+      priorHistory,
       validated.invalidReason
     );
   }
   const inc = validated.evidence;
-  const historyWithIncoming: readonly FactEvidence[] = [...prior.history, inc];
-
-  const current = prior.canonical;
+  const historyWithIncoming: readonly FactEvidence[] = [...priorHistory, inc];
 
   if (!current) {
     if (inc.source === "MODEL_INFERENCE") {
@@ -340,19 +431,20 @@ export function evaluateFactEvidence(
       return buildResult("ACCEPT_VERIFICATION", inc, historyWithIncoming,
         "first evidence is an independently verified value");
     }
-    // First credible evidence becomes the canonical value; the decision name
-    // reflects that the resulting canonical equals the incoming normalized
-    // value by construction.
-    return buildResult("SAME_VALUE", inc, historyWithIncoming, "first evidence for this field");
+    // First credible evidence establishes the canonical value. SAME_VALUE is
+    // reserved for comparisons of two equal values, so this is ACCEPT_EVIDENCE.
+    return buildResult("ACCEPT_EVIDENCE", inc, historyWithIncoming, "first evidence for this field");
   }
 
   // Rule 4: an authenticated trusted verification always supersedes, and is
-  // the only path to INDEPENDENTLY_VERIFIED.
+  // the only path to INDEPENDENTLY_VERIFIED. The resulting canonical record is
+  // a VALID TRUSTED_VERIFICATION + INDEPENDENTLY_VERIFIED combination (the
+  // verification record itself), so the returned state re-validates on the
+  // next evaluation; the prior claim/observation stays separately in history.
   if (inc.source === "TRUSTED_VERIFICATION") {
     if (sameValue(current, inc)) {
-      const upgraded: FactEvidence = { ...current, status: "INDEPENDENTLY_VERIFIED" };
-      return buildResult("SAME_VALUE", upgraded, historyWithIncoming,
-        "trusted verification upgrades the same normalized value");
+      return buildResult("SAME_VALUE", inc, historyWithIncoming,
+        "trusted verification upgrades the same normalized value — prior evidence retained in history");
     }
     return buildResult("ACCEPT_VERIFICATION", inc, historyWithIncoming,
       "trusted verification changes the canonical value — prior evidence retained in history");
