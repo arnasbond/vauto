@@ -1,6 +1,6 @@
 /**
  * Universal Fact-Evidence Contract — balanced cross-vertical evaluation +
- * semantic and state-invariant hardening (final remediation).
+ * semantic, state-invariant and closure hardening (final remediation).
  *
  * Category-neutral proofs only: the contract has no vertical knowledge, so
  * every scenario here passes category/field names ONLY as test labels.
@@ -30,12 +30,24 @@ const ver = (value: string, reason?: string): FactEvidence =>
 
 const VERIFIED_OPTIONS = { authenticatedVerification: true } as const;
 
+function validState(canonical: FactEvidence | null, history: readonly FactEvidence[]): FactEvidenceState {
+  return { validity: "VALID", canonical, history };
+}
+
+function invalidState(history: readonly FactEvidence[], error: string): FactEvidenceState {
+  return { validity: "INVALID", canonical: null, history, error };
+}
+
 function evalOnce(
   current: FactEvidence | null,
   incoming: unknown,
   options: Parameters<typeof evaluateFactEvidence>[2] = {}
 ) {
-  return evaluateFactEvidence(current ? { canonical: current, history: [current] } : null, incoming, options);
+  return evaluateFactEvidence(
+    current ? validState(current, [current]) : null,
+    incoming,
+    options
+  );
 }
 
 const NON_TRUSTED_SOURCES: readonly FactEvidence["source"][] = [
@@ -65,6 +77,7 @@ describe("Universal fact-evidence contract — balanced cross-vertical scenarios
   it("real_estate: document 62 m² vs user claim 64 m² → CONFLICT, neither silently wins", () => {
     const r = evalOnce(ev("62", "DOCUMENT_OBSERVATION", "UNCONFIRMED", "ntr-registras.pdf"), ev("64", "USER_CLAIM"));
     assert.equal(r.decision, "CONFLICT");
+    assert.equal(r.state.validity, "VALID");
     assert.equal(r.state.canonical?.value, "62", "existing evidence stays canonical");
     assert.equal(r.conflictWith?.value, "64");
   });
@@ -129,7 +142,6 @@ describe("Correction 1 — same-value trusted verification produces a VALID cano
   });
 
   it("the returned state re-validates across a second and third evaluation (multi-turn regression)", () => {
-    // USER_CLAIM → same-value TRUSTED_VERIFICATION → later supporting evidence.
     const s1 = evalOnce(null, ev("WBAZZZ8VZM1234567", "USER_CLAIM"), { isHumanConfirmation: true });
     const s2 = evaluateFactEvidence(s1.state, ver("WBAZZZ8VZM1234567"), VERIFIED_OPTIONS);
     assert.equal(s2.decision, "SAME_VALUE");
@@ -173,7 +185,6 @@ describe("Correction 2 — first evidence never returns SAME_VALUE", () => {
     assert.equal(evalOnce(null, ver("WBAZZZ8VZM1234567"), VERIFIED_OPTIONS).decision, "ACCEPT_VERIFICATION");
   });
   it("SAME_VALUE occurs only when two equal normalized values were compared", () => {
-    // First evidence is never SAME_VALUE, so this decision proves a real comparison happened.
     const r = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("62", "USER_CLAIM"));
     assert.equal(r.decision, "SAME_VALUE");
   });
@@ -215,7 +226,7 @@ describe("Correction 4 — immutability is honest and enforceable", () => {
   it("no output shares mutable identity with inputs or between logical slots", () => {
     const current = ev("62", "DOCUMENT_OBSERVATION");
     const incoming = ev("64", "USER_CLAIM");
-    const r = evaluateFactEvidence({ canonical: current, history: [current] }, incoming);
+    const r = evaluateFactEvidence(validState(current, [current]), incoming);
     assert.notEqual(r.state.canonical, current);
     assert.notEqual(r.state.history[0], current);
     assert.notEqual(r.conflictWith, incoming);
@@ -223,71 +234,141 @@ describe("Correction 4 — immutability is honest and enforceable", () => {
   });
 });
 
-describe("Correction 5 — malformed prior state fails closed with INVALID_STATE", () => {
-  it("malformed canonical + valid verified history + user claim → INVALID_STATE (no replacement)", () => {
+describe("Invalid-state closure — malformed prior states fail closed and STAY closed", () => {
+  it("A: malformed state → INVALID_STATE → next user claim → still INVALID_STATE", () => {
     const badCanonical = { value: "bad", source: "USER_CLAIM", status: "INDEPENDENTLY_VERIFIED" } as FactEvidence;
     const verified = ver("WBAZZZ8VZM1234567");
-    const r = evaluateFactEvidence(
-      { canonical: badCanonical, history: [badCanonical, verified] },
+    const first = evaluateFactEvidence(
+      validState(badCanonical, [badCanonical, verified]),
       ev("y", "USER_CLAIM")
     );
-    assert.equal(r.decision, "INVALID_STATE");
-    assert.match(r.reason, /canonical|verified/i);
-    assert.equal(r.state.canonical, null, "incoming must not become the replacement canonical");
-    assert.ok(r.state.history.some((e) => e.source === "TRUSTED_VERIFICATION"),
-      "previously verified evidence preserved, not discarded");
+    assert.equal(first.decision, "INVALID_STATE");
+    assert.equal(first.state.validity, "INVALID");
+    const second = evaluateFactEvidence(first.state, ev("z", "USER_CLAIM"));
+    assert.equal(second.decision, "INVALID_STATE", "INVALID must never silently become VALID");
+    assert.equal(second.state.validity, "INVALID");
+    assert.equal(second.state.canonical, null, "no new claim may become canonical");
+    assert.match(second.reason, /canonical|verified/i);
   });
 
-  it("valid canonical absent from history → INVALID_STATE", () => {
-    const canonical = ev("62", "DOCUMENT_OBSERVATION");
-    const r = evaluateFactEvidence({ canonical, history: [] }, ev("64", "USER_CLAIM"));
+  it("B: invalid state with verified history retains that history across three subsequent evaluations", () => {
+    const badCanonical = { value: "bad", source: "USER_CLAIM", status: "INDEPENDENTLY_VERIFIED" } as FactEvidence;
+    const verified = ver("WBAZZZ8VZM1234567");
+    let state: FactEvidenceState | null = validState(badCanonical, [badCanonical, verified]);
+    for (let i = 0; i < 3; i++) {
+      const r = evaluateFactEvidence(state, ev(`claim-${i}`, "USER_CLAIM"));
+      assert.equal(r.decision, "INVALID_STATE");
+      assert.ok(r.state.history.some((e) => e.source === "TRUSTED_VERIFICATION" && e.value === "WBAZZZ8VZM1234567"),
+        `verified evidence must be preserved at step ${i}`);
+      state = r.state;
+    }
+    assert.equal(state!.validity, "INVALID");
+  });
+
+  it("C: missing canonical property → INVALID_STATE", () => {
+    const r = evaluateFactEvidence({ validity: "VALID", history: [] } as never, ev("y", "USER_CLAIM"));
     assert.equal(r.decision, "INVALID_STATE");
-    assert.match(r.reason, /not represented/);
+    assert.match(r.reason, /missing canonical/i);
     assert.equal(r.state.canonical, null);
   });
 
-  it("non-trusted INDEPENDENTLY_VERIFIED entry hidden inside history → INVALID_STATE", () => {
-    const hidden = { value: "x", source: "MODEL_INFERENCE", status: "INDEPENDENTLY_VERIFIED" } as FactEvidence;
+  it("D: canonical: undefined → INVALID_STATE", () => {
     const r = evaluateFactEvidence(
-      { canonical: null, history: [ev("62", "DOCUMENT_OBSERVATION"), hidden] },
-      ev("64", "USER_CLAIM")
+      { validity: "VALID", canonical: undefined, history: [] } as never,
+      ev("y", "USER_CLAIM")
     );
     assert.equal(r.decision, "INVALID_STATE");
-    assert.match(r.reason, /history entry/);
+    assert.match(r.reason, /undefined/i);
   });
 
-  it("malformed history entry (empty value) → INVALID_STATE", () => {
+  it("E: missing/unknown validity discriminator → INVALID_STATE", () => {
+    const missing = evaluateFactEvidence(
+      { canonical: null, history: [] } as never,
+      ev("y", "USER_CLAIM")
+    );
+    assert.equal(missing.decision, "INVALID_STATE");
+    assert.match(missing.reason, /discriminator/);
+    const unknown = evaluateFactEvidence(
+      { validity: "WEIRD", canonical: null, history: [] } as never,
+      ev("y", "USER_CLAIM")
+    );
+    assert.equal(unknown.decision, "INVALID_STATE");
+    assert.match(unknown.reason, /discriminator/);
+  });
+
+  it("F: VALID + canonical:null + verified history → INVALID_STATE", () => {
     const r = evaluateFactEvidence(
-      { canonical: null, history: [{ value: "", source: "USER_CLAIM", status: "UNCONFIRMED" } as FactEvidence] },
-      ev("64", "USER_CLAIM")
+      validState(null, [ver("WBAZZZ8VZM1234567")]),
+      ev("y", "USER_CLAIM")
     );
     assert.equal(r.decision, "INVALID_STATE");
+    assert.match(r.reason, /canonical-capable evidence/);
+    assert.equal(r.state.canonical, null, "a new claim must never silently become canonical");
+    assert.ok(r.state.history.some((e) => e.source === "TRUSTED_VERIFICATION"), "verified evidence preserved");
   });
 
-  it("corrupted canonical that is also a valid combo but unknown source → INVALID_STATE", () => {
-    const bad = { value: "x", source: "HACKED" as FactEvidence["source"], status: "UNCONFIRMED" } as FactEvidence;
-    const r = evaluateFactEvidence({ canonical: bad, history: [bad] }, ev("y", "USER_CLAIM"));
-    assert.equal(r.decision, "INVALID_STATE");
+  it("G: VALID + canonical:null + ordinary evidence history → INVALID_STATE (not contract-produced)", () => {
+    for (const source of ["USER_CLAIM", "USER_CORRECTION", "DOCUMENT_OBSERVATION", "VISUAL_OBSERVATION", "EXISTING_PERSISTED_VALUE"] as FactEvidence["source"][]) {
+      const r = evaluateFactEvidence(
+        validState(null, [ev("62", source)]),
+        ev("64", "USER_CLAIM")
+      );
+      assert.equal(r.decision, "INVALID_STATE", `${source} history without canonical must not accept a new claim`);
+      assert.equal(r.state.canonical, null);
+    }
   });
 
-  it("null state remains the only ordinary 'no prior evidence' initial state", () => {
-    const r = evaluateFactEvidence(null, ev("62", "USER_CLAIM"));
-    assert.equal(r.decision, "ACCEPT_EVIDENCE");
-    assert.equal(r.state.canonical?.value, "62");
+  it("H: VALID + canonical:null + model-inference-only history remains valid and accepts credible evidence later", () => {
+    const s1 = evalOnce(null, ev("x", "MODEL_INFERENCE"));
+    assert.equal(s1.decision, "INSUFFICIENT_EVIDENCE");
+    assert.equal(s1.state.validity, "VALID");
+    assert.equal(s1.state.canonical, null);
+    const s2 = evaluateFactEvidence(s1.state, ev("62", "USER_CLAIM"));
+    assert.equal(s2.decision, "ACCEPT_EVIDENCE", "inference-only history is a legitimate noncanonical state");
+    assert.equal(s2.state.canonical?.value, "62");
   });
 
-  it("every returned non-null canonical is represented in cumulative history (invariant)", () => {
-    const s1 = evalOnce(null, ev("62", "USER_CLAIM"));
-    const s2 = evaluateFactEvidence(s1.state, ev("64", "USER_CLAIM"));
-    const s3 = evaluateFactEvidence(s2.state, ev("64", "USER_CLAIM"), { isExplicitCorrection: true });
-    for (const s of [s1.state, s2.state, s3.state]) {
-      if (s.canonical) {
-        assert.ok(
-          s.history.some((e) => e.value === s.canonical!.value && e.source === s.canonical!.source),
-          "canonical must be represented in history"
-        );
+  it("I: every decision result feeds into the next evaluation with closure", () => {
+    const cases: Array<{ name: string; state: FactEvidenceState | null; incoming: unknown; options?: Parameters<typeof evaluateFactEvidence>[2]; decision: FactDecision }> = [
+      { name: "ACCEPT_EVIDENCE", state: null, incoming: ev("62", "USER_CLAIM"), decision: "ACCEPT_EVIDENCE" },
+      { name: "SAME_VALUE", state: validState(ev("62", "DOCUMENT_OBSERVATION"), [ev("62", "DOCUMENT_OBSERVATION")]), incoming: ev("62", "USER_CLAIM"), decision: "SAME_VALUE" },
+      { name: "ACCEPT_CORRECTION", state: validState(ev("kaunas", "USER_CLAIM"), [ev("kaunas", "USER_CLAIM")]), incoming: ev("vilnius", "USER_CLAIM"), options: { isExplicitCorrection: true }, decision: "ACCEPT_CORRECTION" },
+      { name: "CONFLICT", state: validState(ev("62", "DOCUMENT_OBSERVATION"), [ev("62", "DOCUMENT_OBSERVATION")]), incoming: ev("64", "USER_CLAIM"), decision: "CONFLICT" },
+      { name: "INSUFFICIENT_EVIDENCE", state: null, incoming: ev("x", "MODEL_INFERENCE"), decision: "INSUFFICIENT_EVIDENCE" },
+      { name: "REJECT_UNSUPPORTED_INFERENCE", state: validState(ev("62", "DOCUMENT_OBSERVATION"), [ev("62", "DOCUMENT_OBSERVATION")]), incoming: ev("64", "MODEL_INFERENCE"), decision: "REJECT_UNSUPPORTED_INFERENCE" },
+      { name: "ACCEPT_VERIFICATION", state: validState(ver("A"), [ver("A")]), incoming: ver("B"), options: VERIFIED_OPTIONS, decision: "ACCEPT_VERIFICATION" },
+      { name: "REQUIRES_REVERIFICATION", state: validState(ver("A"), [ver("A")]), incoming: ev("B", "USER_CLAIM"), options: { isExplicitCorrection: true }, decision: "REQUIRES_REVERIFICATION" },
+      { name: "INVALID_STATE", state: invalidState([ver("A")], "boom"), incoming: ev("B", "USER_CLAIM"), decision: "INVALID_STATE" },
+    ];
+    for (const c of cases) {
+      const r = evaluateFactEvidence(c.state, c.incoming, c.options ?? {});
+      assert.equal(r.decision, c.decision, c.name);
+      const next = evaluateFactEvidence(r.state, ev("after", "USER_CLAIM"));
+      if (c.decision === "INVALID_STATE") {
+        assert.equal(next.decision, "INVALID_STATE", `${c.name} must stay INVALID`);
+        assert.equal(next.state.validity, "INVALID");
+      } else {
+        assert.notEqual(next.decision, "INVALID_STATE", `${c.name} must re-validate as VALID (got: ${next.reason})`);
+        assert.equal(next.state.validity, "VALID");
       }
     }
+  });
+
+  it("J: state/result immutability and cumulative history remain intact with the discriminator", () => {
+    const r = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("64", "USER_CLAIM"));
+    assertFrozenMutationRejected(r.state, (x) => { (x as { validity?: string }).validity = "INVALID"; }, () => assert.equal(r.state.validity, "VALID"));
+    assertFrozenMutationRejected(r.state, (x) => { x.canonical = null; }, () => assert.equal(r.state.canonical?.value, "62"));
+    const inv = evaluateFactEvidence(
+      validState({ value: "bad", source: "USER_CLAIM", status: "INDEPENDENTLY_VERIFIED" } as FactEvidence, [ver("A")]),
+      ev("y", "USER_CLAIM")
+    );
+    assert.equal(inv.state.validity, "INVALID");
+    assert.ok(typeof (inv.state as { error?: string }).error === "string" && (inv.state as { error: string }).error.length > 0, "INVALID carries an explicit error");
+    const cumulative = evaluateFactEvidence(
+      validState(ev("62", "DOCUMENT_OBSERVATION"), [ev("62", "DOCUMENT_OBSERVATION")]),
+      ev("64", "USER_CLAIM")
+    );
+    assert.equal(cumulative.state.history.length, 2);
   });
 });
 
@@ -302,7 +383,7 @@ describe("Blocker 1 — non-trusted sources can never mint or carry INDEPENDENTL
 
     it(`current ${source} + INDEPENDENTLY_VERIFIED → INVALID_STATE (never authority)`, () => {
       const bad = ev("x", source, "INDEPENDENTLY_VERIFIED");
-      const r = evaluateFactEvidence({ canonical: bad, history: [bad] }, ev("y", "USER_CLAIM"));
+      const r = evaluateFactEvidence(validState(bad, [bad]), ev("y", "USER_CLAIM"));
       assert.equal(r.decision, "INVALID_STATE");
       assert.equal(r.state.canonical, null);
     });
@@ -350,7 +431,7 @@ describe("Blocker 3/4 — verification vs correction semantics", () => {
   });
 });
 
-describe("Blocker 6/7/8 — remaining semantic rules", () => {
+describe("Remaining semantic rules", () => {
   it("same normalized value keeps the existing canonical regardless of incoming source kind", () => {
     const r1 = evalOnce(ev("62", "DOCUMENT_OBSERVATION"), ev("62", "EXISTING_PERSISTED_VALUE"));
     assert.equal(r1.decision, "SAME_VALUE");
@@ -410,7 +491,7 @@ describe("Blocker 6/7/8 — remaining semantic rules", () => {
   it("never mutates its inputs (deep-frozen)", () => {
     const current = Object.freeze({ ...ev("62", "DOCUMENT_OBSERVATION", "UNCONFIRMED", "doc.pdf") });
     const incoming = Object.freeze({ ...ev("64", "USER_CLAIM") });
-    evaluateFactEvidence({ canonical: current, history: [current] }, incoming);
+    evaluateFactEvidence(validState(current, [current]), incoming);
     assert.deepEqual(current, { value: "62", source: "DOCUMENT_OBSERVATION", status: "UNCONFIRMED", reason: "doc.pdf" });
     assert.deepEqual(incoming, { value: "64", source: "USER_CLAIM", status: "UNCONFIRMED" });
   });
@@ -426,7 +507,7 @@ describe("Blocker 6/7/8 — remaining semantic rules", () => {
   });
 });
 
-describe("Mandatory adversarial sequences A–H", () => {
+describe("Mandatory adversarial sequences A–H (cross-vertical flow proofs)", () => {
   it("A: USER_CLAIM → same-value authenticated verification → later different user claim", () => {
     const s1 = evaluateFactEvidence(null, ev("WBAZZZ8VZM1234567", "USER_CLAIM"), { isHumanConfirmation: true });
     assert.equal(s1.decision, "ACCEPT_EVIDENCE");
@@ -465,26 +546,20 @@ describe("Mandatory adversarial sequences A–H", () => {
   it("D: malformed canonical + valid verified history + new user claim → INVALID_STATE", () => {
     const bad = { value: "bad", source: "USER_CLAIM", status: "INDEPENDENTLY_VERIFIED" } as FactEvidence;
     const verified = ver("WBAZZZ8VZM1234567");
-    const r = evaluateFactEvidence({ canonical: bad, history: [bad, verified] }, ev("y", "USER_CLAIM"));
+    const r = evaluateFactEvidence(validState(bad, [bad, verified]), ev("y", "USER_CLAIM"));
     assert.equal(r.decision, "INVALID_STATE");
     assert.equal(r.state.canonical, null);
     assert.ok(r.state.history.some((e) => e.source === "TRUSTED_VERIFICATION"));
   });
 
   it("E: valid canonical absent from history → INVALID_STATE", () => {
-    const r = evaluateFactEvidence(
-      { canonical: ev("62", "DOCUMENT_OBSERVATION"), history: [] },
-      ev("64", "USER_CLAIM")
-    );
+    const r = evaluateFactEvidence(validState(ev("62", "DOCUMENT_OBSERVATION"), []), ev("64", "USER_CLAIM"));
     assert.equal(r.decision, "INVALID_STATE");
   });
 
   it("F: non-trusted INDEPENDENTLY_VERIFIED entry hidden inside history → INVALID_STATE", () => {
     const hidden = { value: "x", source: "MODEL_INFERENCE", status: "INDEPENDENTLY_VERIFIED" } as FactEvidence;
-    const r = evaluateFactEvidence(
-      { canonical: null, history: [ev("62", "DOCUMENT_OBSERVATION"), hidden] },
-      ev("64", "USER_CLAIM")
-    );
+    const r = evaluateFactEvidence(validState(null, [ev("62", "DOCUMENT_OBSERVATION"), hidden]), ev("64", "USER_CLAIM"));
     assert.equal(r.decision, "INVALID_STATE");
   });
 
@@ -514,7 +589,6 @@ describe("Mandatory adversarial sequences A–H", () => {
     for (const sc of scenarios) {
       const r = evaluateFactEvidence(sc.state, sc.incoming, sc.options ?? {});
       assert.equal(r.decision, sc.expectDecision);
-      // The returned state must be accepted as input on the next call.
       const next = evaluateFactEvidence(r.state, ev("64", "USER_CLAIM"));
       assert.notEqual(next.decision, "INVALID_STATE",
         `state produced by ${r.decision} must re-validate (got INVALID_STATE: ${next.reason})`);
