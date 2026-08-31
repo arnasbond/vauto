@@ -1,5 +1,6 @@
 import type { Listing } from "@/lib/types";
 import { ensureDemoCatalogListings } from "@/lib/merge-listings";
+import { defaultExpiresAt } from "@/lib/listing-expiry";
 
 /** Demo seed IDs (lt-auto-001, lt-el-001, …) — ne vartotojo skelbimai. */
 export function isDemoListingId(id: string): boolean {
@@ -7,10 +8,18 @@ export function isDemoListingId(id: string): boolean {
 }
 
 export function markListingDemoFlags(listings: Listing[]): Listing[] {
-  return listings.map((l) => ({
-    ...l,
-    isDemo: l.isDemo ?? isDemoListingId(l.id),
-  }));
+  return listings.map((l) => {
+    const isDemo = l.isDemo ?? isDemoListingId(l.id);
+    const flagged = { ...l, isDemo };
+    if (!isDemo) return flagged;
+    // Demo/QA fixtures must never rot: the seeded catalog's fixed
+    // `createdAt` values would otherwise cross the platform's 90-day active
+    // window (`isListingActive`) as wall-clock time passes, silently emptying
+    // the demo feed and breaking deterministic search scenarios. Re-baseline
+    // the expiry for demo entries so they stay active. Real listings are
+    // never demo-marked and keep their API-provided expiry.
+    return { ...flagged, expiresAt: flagged.expiresAt ?? defaultExpiresAt() };
+  });
 }
 
 export function filterLiveFeedListings(listings: Listing[]): Listing[] {
