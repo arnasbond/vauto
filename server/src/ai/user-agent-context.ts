@@ -24,6 +24,39 @@ export interface UserAgentContextPayload {
   freshListingSession?: boolean;
 }
 
+/** Field-appropriate bounds for user-derived profile text (Lithuanian-friendly). */
+const PROFILE_FIELD_MAX = {
+  userName: 60,
+  userCity: 40,
+  contact: 32,
+  accountType: 40,
+} as const;
+
+const USER_ROLES: readonly UserAgentContextPayload["userRole"][] = [
+  "buyer",
+  "seller",
+  "business",
+  "admin",
+];
+
+export function isUserRole(value: unknown): value is UserAgentContextPayload["userRole"] {
+  return typeof value === "string" && (USER_ROLES as readonly string[]).includes(value);
+}
+
+/**
+ * Bounded, field-appropriate sanitizer for user-derived profile text:
+ * strips control characters (newlines, tabs, NUL…), collapses whitespace and
+ * caps length. Preserves ordinary Lithuanian names, cities and marketplace
+ * wording — it performs no destructive prompt scrubbing.
+ */
+export function sanitizeProfileField(value: unknown, maxLen: number): string {
+  return String(value ?? "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen);
+}
+
 export function resolveAccountTypeLabel(user: Pick<ApiUser, "role" | "businessType">): string {
   if (user.role === "super_admin" || user.role === "admin") return "Administratorius";
   if (user.role === "pro") {
@@ -127,27 +160,29 @@ export async function resolveAuthenticatedAgentContext(
     Boolean(clientFallback?.freshListingSession);
 
   if (!authUserId) {
-    const name = clientFallback?.userName?.trim() || "Svečias";
+    // GUEST — no server-accepted profile state exists. Client fallback values
+    // for identity, role, listings and summaries are UNTRUSTED and must never
+    // shape the model-visible profile block. Only bounded free-text fields
+    // (name/city/contact) pass through field-appropriate sanitization; the
+    // summary is the server-generated legitimate empty-guest template.
+    const name = sanitizeProfileField(clientFallback?.userName, PROFILE_FIELD_MAX.userName) || "Svečias";
     const firstName = name.split(/\s+/)[0] || name;
-    const myListings = omitPrior ? [] : clientFallback?.myListings ?? [];
-    const rawCity = String(clientFallback?.userCity ?? "").trim();
+    const rawCity = sanitizeProfileField(clientFallback?.userCity, PROFILE_FIELD_MAX.userCity);
     // Never invent Lietuva/Vilnius for guests — empty city = nationwide / manual.
     const userCity =
       !rawCity || /^(lietuva|lithuania|lt|ltu|visa lietuva)$/i.test(rawCity)
         ? ""
         : rawCity;
+    const guestRole: UserAgentContextPayload["userRole"] = "buyer";
     return {
       userName: name,
-      accountType: clientFallback?.accountType ?? "Svečias",
+      accountType: "Svečias",
       userCity,
-      contact: clientFallback?.contact ?? "",
-      userRole: clientFallback?.userRole ?? "buyer",
-      isAuthenticated: Boolean(clientFallback?.isAuthenticated),
-      myListings,
-      myListingsSummary: omitPrior
-        ? ""
-        : clientFallback?.myListingsSummary ??
-          summarizeMyListings(myListings, firstName, clientFallback?.userRole),
+      contact: sanitizeProfileField(clientFallback?.contact, PROFILE_FIELD_MAX.contact),
+      userRole: guestRole,
+      isAuthenticated: false,
+      myListings: [],
+      myListingsSummary: summarizeMyListings([], firstName, guestRole),
       omitPriorListingDraft: omitPrior || undefined,
       freshListingSession: clientFallback?.freshListingSession || undefined,
     };
@@ -166,18 +201,50 @@ export async function resolveAuthenticatedAgentContext(
         .filter((l) => l.sellerId === authUserId && !l.banned)
         .map(mapListing);
     } catch {
-      myListings = clientFallback?.myListings ?? [];
+      // Fail closed: no client-provided listing fallback — summaries must be
+      // derived from server/database listings only.
+      myListings = [];
     }
   }
 
-  const firstName = user.name.split(/\s+/)[0] || user.name;
+  return resolveAuthenticatedContextFromServerState(user, myListings, clientFallback, omitPrior);
+}
+
+/**
+ * Pure server-state derivation for the AUTHENTICATED profile block (exposed
+ * for deterministic testing without a database). All identity, role and
+ * summary fields come from the server `user` and server `myListings`; client
+ * fallback values are used ONLY as bounded free-text fallbacks for
+ * city/contact. A client-provided summary is never consulted.
+ */
+export function resolveAuthenticatedContextFromServerState(
+  user: Pick<ApiUser, "name" | "role" | "businessType" | "city" | "phone">,
+  myListings: MyListingForAgent[],
+  clientFallback?: Partial<UserAgentContextPayload>,
+  omitPrior = false
+): UserAgentContextPayload {
+  const sanitizedName =
+    sanitizeProfileField(user.name, PROFILE_FIELD_MAX.userName) || "Vartotojas";
+  const firstName = sanitizedName.split(/\s+/)[0] || sanitizedName;
   const resolvedRole = resolveAgentRole(user);
+  const serverCity = sanitizeProfileField(user.city, PROFILE_FIELD_MAX.userCity);
+  const fallbackCity = sanitizeProfileField(
+    clientFallback?.userCity,
+    PROFILE_FIELD_MAX.userCity
+  );
+  const fallbackContact = sanitizeProfileField(
+    clientFallback?.contact,
+    PROFILE_FIELD_MAX.contact
+  );
 
   return {
-    userName: user.name,
+    userName: sanitizedName,
     accountType: resolveAccountTypeLabel(user),
-    userCity: user.city || clientFallback?.userCity || "Lietuva",
-    contact: user.phone || clientFallback?.contact || "",
+    userCity: serverCity || fallbackCity || "Lietuva",
+    contact:
+      sanitizeProfileField(user.phone, PROFILE_FIELD_MAX.contact) ||
+      fallbackContact ||
+      "",
     userRole: resolvedRole,
     isAuthenticated: true,
     myListings,
