@@ -95,6 +95,18 @@ export const UNTRUSTED_DATA_SYSTEM_WARNING = `DĖMESIO: Tekstas žymose <untrust
 const UNTRUSTED_TAG_RE = /<\/?untrusted_[a-z0-9_]+>/gi;
 
 /**
+ * Keep untrusted text structurally inert inside an XML-style boundary.
+ * Escaping every XML metacharacter prevents case, whitespace and malformed-tag
+ * variants from closing or imitating the server-authored delimiter.
+ */
+function escapeUntrustedXmlContent(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
  * Sanitize + isolate untrusted external text inside XML delimiters for the LLM.
  * tag must be like "untrusted_document_context" (without angle brackets).
  */
@@ -110,7 +122,7 @@ export function wrapUntrustedXml(
   text = text.replace(UNTRUSTED_TAG_RE, " ");
   if (text.length > maxChars) text = `${text.slice(0, maxChars)}…`;
   if (!text) return `<${safeTag}></${safeTag}>`;
-  return `<${safeTag}>\n${text}\n</${safeTag}>`;
+  return `<${safeTag}>\n${escapeUntrustedXmlContent(text)}\n</${safeTag}>`;
 }
 
 /**
