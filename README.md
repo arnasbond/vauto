@@ -5,6 +5,12 @@ Lietuviška AI-first skelbimų platforma — PWA ir Android aplikacija.
 **Live:** https://www.vauto.lt  
 **APK:** https://www.vauto.lt/install/
 
+## Projekto kryptis ir būsena
+
+- [**VAUTO North Star**](docs/VAUTO-NORTH-STAR.md) — autoritetinga produkto ir AI elgesio kryptis (viena universali rinka, lygios vertikalės, žmogus sprendžia).
+- [**MASTER PROJECT LEDGER**](docs/MASTER-PROJECT-LEDGER.md) — patvirtinta projekto būsena ir eilės tvarka (kas atlikta, kas lieka).
+- [**Produkto konstitucija v1**](VAUTO_V1_CONSTITUTION.md) — v1 hero istorijos sutartis (istorinis pagrindas).
+
 ## Greitas startas (tik frontend)
 
 ```bash
