@@ -37,6 +37,7 @@ import {
   isSparseSellRequest,
 } from "./sell-intent-fallback.js";
 import { extractVehicleSpecsFromChat, buildVehicleDescriptionFromAttributes } from "./vehicle-attribute-extract.js";
+import { isVehicleFamilyCategory } from "../shared/category-registry.js";
 import {
   applyVinExtractionCandidate,
   applyVinStructuredReviewAction,
@@ -1206,12 +1207,19 @@ async function runVautoAgentInner(
     );
     const negotiable = isNegotiablePriceChatInput(lastUserText);
     const price = negotiable ? 0 : parsePriceFromChatInput(lastUserText);
-    const specPatch = extractVehicleSpecsFromChat(lastUserText);
+    // Cross-vertical containment: vehicle specification extraction, VIN
+    // reconciliation, year-conflict handling, vehicle title generation and
+    // vehicle description rebuilding are TRANSPORT-ONLY. Every other category
+    // (real_estate, electronics, clothing, services, jobs, home, tools, rental,
+    // other, unknown/malformed) fails closed here as non-vehicle — generic price
+    // and natural-language description edits below still apply to all.
+    const isVehicleDraft = isVehicleFamilyCategory(listingDraft.category);
+    const specPatch = isVehicleDraft ? extractVehicleSpecsFromChat(lastUserText) : {};
     // Phase 2C: a VIN matched by this bare chat-text regex is never trusted as a
     // canonical fact — it is reconciled via the VIN review state machine below,
     // never spread directly into the live draft's attributes.
     const { vin: chatVinRaw, ...specPatchWithoutVin } = specPatch;
-    const hasSpecs = Object.keys(specPatch).length > 0;
+    const hasSpecs = isVehicleDraft && Object.keys(specPatch).length > 0;
     const priceToApply = negotiable
       ? 0
       : price != null && !(specPatch.year && String(price) === String(specPatch.year))
@@ -1271,7 +1279,7 @@ async function runVautoAgentInner(
         ).description;
       }
       const nextTitle =
-        mergedAttrs.make && mergedAttrs.model
+        isVehicleDraft && mergedAttrs.make && mergedAttrs.model
           ? `${mergedAttrs.make} ${mergedAttrs.model}${mergedAttrs.year ? ` ${mergedAttrs.year}` : ""}`.trim()
           : listingDraft.title;
       const nextDraft = normalizeListingDraftForAction(
