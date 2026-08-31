@@ -74,24 +74,26 @@ Definitions:
 
 | Term | Meaning |
 |---|---|
-| **Fact** | A value whose source has been verified or canonically recorded (e.g. server-verified VIN, persisted listing field). |
+| **Fact** | A value supported by an appropriate **verified source** or an **explicit verification boundary** (e.g. a server-verified VIN receipt). A merely persisted listing field is **not** automatically an objective fact. |
 | **User-provided claim** | What the user typed/said — trusted as input, but still subject to canonical shaping and, where critical, confirmation. |
 | **Document/label observation** | Content read from a document, label or barcode — an observation, not automatically canonical. |
 | **Visual inference** | What the model inferred from photos — always provisional until accepted by the user or a deterministic rule. |
 | **Confidence** | A numeric/level signal attached to an inference; never authority by itself. |
 | **Uncertainty** | A known state of not knowing — must be visible to the user, not hidden. |
 | **Conflict** | Two sources disagree on the same field — must be surfaced as a choice, never silently resolved. |
-| **Canonical value** | The value stored in the listing record through the verified pipeline. |
-| **Human-confirmed value** | A canonical value explicitly confirmed by the human (e.g. through the VIN review / PrePublish flow). |
+| **Canonical value** | The **platform-selected normalized value** used by the listing/search system. Canonical does **not** automatically mean objectively verified — it must retain appropriate provenance, confidence and confirmation state. |
+| **Human-confirmed value** | A claim **explicitly accepted by the user**. It is **not** independently verified unless a separate trusted verification boundary proves it. Examples: a user-confirmed clothing size remains a human-confirmed claim; a server-verified VIN receipt provides a stronger verified boundary; persisted marketplace data alone is not proof of truth. |
 
 Rules:
 
 - AI **never invents** missing facts.
 - Interpretation must **never silently become fact**.
+- **Persistence does not convert a claim or inference into verified fact.**
 - Conflicting sources must be **surfaced**.
 - Human-confirmed facts must **not be silently overwritten**.
 - If the system cannot determine something reliably, it must **say so**.
 - Provenance/confidence architecture must be **shared across verticals** — not rebuilt only for transport.
+- UI labels must distinguish **human-confirmed**, **document-observed**, **visually inferred** and **independently verified** values where material.
 
 ## 7. Multimodal listing doctrine
 

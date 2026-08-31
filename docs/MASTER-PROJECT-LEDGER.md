@@ -59,9 +59,9 @@
 ### 12. Cross-vertical vehicle-extraction containment — **COMPLETE**
 - PR #16 (merge OID `3125b05d…`); vehicle spec extraction/VIN/year/title/description gated to transport categories via the canonical `isVehicleFamilyCategory` predicate; 14-test cross-vertical regression suite; Production-verified.
 
-### 13. Universal marketplace/search/publish plumbing — **COMPLETE**
-- Evidence: canonical 13A vertical schemas (except clothing), 13B faceted search, one publish path, category-branched validation, deal-room capability registry; strong unit/e2e coverage per vertical.
-- Debt: clothing has no 13A vertical (enforced test invariant); electronics/services client facet chips missing.
+### 13. Universal marketplace/search/publish plumbing — **COMPLETE WITH DEBT**
+- Evidence: canonical 13A vertical schemas, 13B faceted search, one publish path, category-branched validation, deal-room capability registry; strong unit/e2e coverage per vertical; all live in Production.
+- Debt: **clothing has no 13A vertical** (enforced test invariant); electronics/services/home client facet chips incomplete; shared plumbing is live, but cross-vertical parity is **not** complete.
 
 ### 14. Deal Room / transaction capabilities by vertical — **COMPLETE WITH DEBT**
 - TRANSPORT full; REAL_ESTATE negotiation-only; ELECTRONICS offer+payment; JOBS fail-closed; SERVICES **declared but untested**; clothing fail-closed by design.
@@ -71,11 +71,13 @@
 - Live: service-lead tools, metrics, boost/monetization. Docs-only: Business Cockpit (`docs/UI-BUSINESS-7.0.md`).
 
 ### 16. AI behavioral resilience — **PARTIAL**
-- Proven live defects fixed or open: raw base64 prompt block, guest `myListingsSummary` unsanitized, compact/full instruction drift, client/server trim divergence, untested AI-down chain and tool routing (see debt register).
+- **Open proven defects:** raw base64 image block injected as prompt text (`vauto-agent.ts:1831-1840`); guest `myListingsSummary` unsanitized prompt-injection channel; prompt stacking with contradictory question-count and price-timing instructions.
+- **Missing tests:** compact-vs-full instruction drift; client/server trimming divergence; AI-down fallback chain; supervisor tool routing.
+- **Architectural risks:** unbounded per-turn context (sellerMetrics/behavior payloads uncapped); client/server trim policy divergence (8 vs 32 messages, assistant retention); safety-shield vision path inert with dev fail-open.
 
 ### 17. Cross-vertical deterministic fact core — **PARTIAL**
-- Live: VIN + year conflict state machines, one-question policy, vehicle extraction (now correctly gated).
-- Missing: non-vehicle conflict producers (`roomsConflict`/`workTypeConflict` are question strings with zero producers), non-vehicle uncertainty tiers, per-field provenance in the live draft.
+- Live: VIN + year conflict state machines, one-question policy, vehicle extraction (now correctly gated). Generic extraction exists across multiple verticals.
+- Missing: deterministic provenance/confidence/conflict/uncertainty controls for non-transport verticals — non-vehicle conflict producers (`roomsConflict`/`workTypeConflict` are question strings with zero producers), non-vehicle uncertainty tiers, per-field provenance in the live draft. Other verticals remain partial and asymmetric.
 
 ### 18. Multimodal listing intelligence — **PARTIAL / LIVE WITH ASYMMETRY**
 - Live: photos+text+documents into the agent path; vehicles strongest; clothing (wardrobe + barcode) live; generic two-pass for others.
@@ -105,6 +107,8 @@
 - `docs/STAGE-14-PRODUCTION-RELEASE-GATE.md` defines the gate; it has not been executed against the current ledger.
 
 ### 26. Soft launch — **NOT STARTED**
+- The current public Production is a **controlled live-beta / verification environment** (real marketplace traffic used for hardening and verification closures).
+- Formal Soft Launch — as defined by the project plan, with bounded real-user cohorts and structured feedback/telemetry review — remains **NOT STARTED**.
 
 ### 27. Public launch — **NOT STARTED**
 
@@ -112,7 +116,7 @@
 
 - **Safety and human-control foundation: COMPLETE** (Phases 1, 2A, 2B, 2C, 2D, cross-vertical containment — all merged, CI-green, Production-verified).
 - **Atlas-level universal assistant: PARTIAL.**
-- **Cross-vertical fact/provenance/confidence/conflict core: PARTIAL** (live only for transport; producers missing for other verticals).
+- **Cross-vertical fact/provenance/confidence/conflict core: PARTIAL** — generic extraction exists across multiple verticals; **deterministic provenance/confidence/conflict/uncertainty controls are materially complete only for transport**; other verticals remain partial and asymmetric.
 - **Multimodal input plumbing: PARTIAL / LIVE WITH ASYMMETRY.**
 - **Full behavioral/adversarial audit: NOT COMPLETE.**
 
