@@ -90,7 +90,7 @@ Rules:
 - Interpretation must **never silently become fact**.
 - **Persistence does not convert a claim or inference into verified fact.**
 - Conflicting sources must be **surfaced**.
-- Human-confirmed facts must **not be silently overwritten**.
+- Human-confirmed values or claims must **not be silently overwritten**.
 - If the system cannot determine something reliably, it must **say so**.
 - Provenance/confidence architecture must be **shared across verticals** — not rebuilt only for transport.
 - UI labels must distinguish **human-confirmed**, **document-observed**, **visually inferred** and **independently verified** values where material.

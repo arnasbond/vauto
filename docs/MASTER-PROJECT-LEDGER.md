@@ -60,7 +60,7 @@
 - PR #16 (merge OID `3125b05d…`); vehicle spec extraction/VIN/year/title/description gated to transport categories via the canonical `isVehicleFamilyCategory` predicate; 14-test cross-vertical regression suite; Production-verified.
 
 ### 13. Universal marketplace/search/publish plumbing — **COMPLETE WITH DEBT**
-- Evidence: canonical 13A vertical schemas, 13B faceted search, one publish path, category-branched validation, deal-room capability registry; strong unit/e2e coverage per vertical; all live in Production.
+- Evidence: canonical 13A schemas for the currently registered 13A verticals, 13B faceted search, one shared publish pipeline, category-branched validation and a deal-room capability registry are live in Production.
 - Debt: **clothing has no 13A vertical** (enforced test invariant); electronics/services/home client facet chips incomplete; shared plumbing is live, but cross-vertical parity is **not** complete.
 
 ### 14. Deal Room / transaction capabilities by vertical — **COMPLETE WITH DEBT**
