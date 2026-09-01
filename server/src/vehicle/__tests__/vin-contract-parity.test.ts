@@ -62,7 +62,7 @@ function normalizeNodeNextImports(source: string): string {
 }
 
 describe("Phase 2C contract parity — enforced no-drift mirror", () => {
-  for (const name of ["vin-review.ts", "vin-utils.ts", "listing-attributes-sanitize.ts", "fact-evidence.ts", "fact-evidence-adapter.ts"]) {
+  for (const name of ["vin-review.ts", "vin-utils.ts", "listing-attributes-sanitize.ts", "fact-evidence.ts", "fact-evidence-adapter.ts", "llm-context-slice.ts"]) {
     test(`shared/${name} and server/src/shared/${name} are identical modulo the NodeNext import-suffix transform`, () => {
       const root = lfNormalized(join(repoRoot, "shared", name));
       const mirror = lfNormalized(join(repoRoot, "server", "src", "shared", name));

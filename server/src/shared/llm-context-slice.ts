@@ -22,13 +22,18 @@ const VIN_MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
 ]);
 
 /**
- * Phase 2D — deterministic field-conflict markers must also stay out of the
- * model-visible slice: conflict resolution is a deterministic reducer
- * (`resolveYearConflictPatch`), never an LLM decision.
+ * Phase 2D / F5 — deterministic field-conflict markers must also stay out of
+ * the model-visible slice: conflict resolution is a deterministic reducer
+ * (`resolveYearConflictPatch` / `resolveVerticalConflictPatch`), never an LLM
+ * decision.
  */
 const FIELD_CONFLICT_MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
   "yearConflict",
   "yearConflictCandidate",
+  "roomsConflict",
+  "roomsConflictCandidate",
+  "workTypeConflict",
+  "workTypeConflictCandidate",
 ]);
 
 const MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
