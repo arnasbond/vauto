@@ -1837,11 +1837,18 @@ async function runVautoAgentInner(
   }
 
   if (req.context.pendingImageUrls?.length) {
+    const { buildPendingImagePromptMarker } = await import(
+      "../shared/llm-context-slice.js"
+    );
+    const pendingImageMarker = buildPendingImagePromptMarker(
+      req.context.pendingImageUrls,
+      10
+    );
     contents.unshift({
       role: "user",
       parts: [
         {
-          text: `[Nuotraukos įkeltos — PRIVALOMA scanListingPhotos]\nimageUrls: ${JSON.stringify(req.context.pendingImageUrls.slice(0, 10))}`,
+          text: pendingImageMarker,
         },
       ],
     });

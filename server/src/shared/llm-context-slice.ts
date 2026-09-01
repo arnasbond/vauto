@@ -67,6 +67,25 @@ export function slimImageHandleList(
     .slice(0, max);
 }
 
+/**
+ * Model-visible upload marker. Raw URLs and Base64 payloads stay exclusively
+ * in server tool context; the orchestrator needs only the bounded count to
+ * decide that scanListingPhotos is required.
+ */
+export function buildPendingImagePromptMarker(
+  urls: unknown,
+  max = 10
+): string {
+  if (!Array.isArray(urls)) return "";
+  const count = urls
+    .map((url) => String(url ?? "").trim())
+    .filter(Boolean)
+    .slice(0, max).length;
+  if (!count) return "";
+
+  return `[Nuotraukos įkeltos — PRIVALOMA scanListingPhotos]\npending_image_count: ${count}\nimage_payload_location: server_tool_context_only`;
+}
+
 type DraftLike = {
   title?: string;
   description?: string;
