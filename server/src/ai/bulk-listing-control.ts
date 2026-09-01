@@ -30,6 +30,11 @@
  *     records (response-level; durable persistence is next-wave debt).
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
+import type {
+  BulkOperationState,
+  BulkOperationStore,
+  BulkTargetImageEntry,
+} from "./bulk/bulk-store.js";
 
 export const BULK_OPERATIONS = ["hide", "republish"] as const;
 export type BulkOperation = (typeof BULK_OPERATIONS)[number];
@@ -71,16 +76,6 @@ export type BulkTargetVerdict =
   | { status: "foreign"; listingId: string }
   | { status: "not_found"; listingId: string }
   | { status: "invalid"; listingId: string };
-
-function normalizeIds(raw: unknown[]): string[] {
-  const out: string[] = [];
-  for (const id of raw) {
-    const s = String(id ?? "").trim();
-    if (!s || s.length > 100) continue;
-    if (!out.includes(s)) out.push(s);
-  }
-  return out;
-}
 
 /**
  * ONE canonical target validation/normalization for the whole boundary
@@ -423,4 +418,404 @@ export async function executeBulkOperation(input: {
   }
 
   return { ok: true, outcomes, audit, executed: true };
+}
+
+/* -------------------------------------------------------------------------- */
+/* F6.2 — durable execution (Postgres store)                                  */
+/* -------------------------------------------------------------------------- */
+
+export type DurableBulkExecutionResult =
+  | {
+      ok: true;
+      outcomes: BulkItemOutcome[];
+      audit: BulkAuditEntry[];
+      executed: boolean;
+      replayed: boolean;
+      state: BulkOperationState;
+    }
+  | {
+      ok: false;
+      code:
+        | "expired"
+        | "tampered"
+        | "invalid_operation"
+        | "unauthorized"
+        | "invalid_payload"
+        | "too_many"
+        | "disabled"
+        | "duplicate"
+        | "recovery_required";
+      message: string;
+      state?: BulkOperationState;
+    };
+
+function desiredListingStatus(operation: BulkOperation): string {
+  return operation === "republish" ? "active" : "deleted";
+}
+
+function recordOutcomes(
+  resultJson: unknown
+): { outcomes: BulkItemOutcome[]; state: BulkOperationState } {
+  const parsed = (resultJson ?? {}) as {
+    outcomes?: BulkItemOutcome[];
+    state?: BulkOperationState;
+  };
+  return {
+    outcomes: Array.isArray(parsed.outcomes) ? parsed.outcomes : [],
+    state: parsed.state ?? "RECOVERY_REQUIRED",
+  };
+}
+
+/**
+ * Durable bulk execution. The store's unique (actor, operation, key) claim
+ * guarantees at-most-once execution across processes and restarts:
+ *   - a fresh claim runs the operation and persists per-item outcomes plus
+ *     the terminal state;
+ *   - a replay returns the SAVED result (never re-executes);
+ *   - a claim found in EXECUTING / FAILED / RECOVERY_REQUIRED fails closed
+ *     with `recovery_required` — no blind re-run; `recoverBulkOperation`
+ *     verifies the ACTUAL listing statuses (hide/republish are idempotent
+ *     desired-state actions) before completing.
+ */
+export async function executeBulkOperationDurable(input: {
+  actorId: string;
+  actorRole: string | null | undefined;
+  operation: BulkOperation;
+  targetIds: string[];
+  digest: string;
+  proposalExpiresAt: number;
+  idempotencyKey: string;
+  signingKey: string;
+  store: BulkOperationStore;
+  applyItem: (listingId: string) => Promise<{ ok: boolean; detail?: string }>;
+  resolveListings: () => Promise<BulkListingRow[]>;
+  nowMs?: number;
+  env?: { NODE_ENV?: string; VAUTO_ENABLE_BULK_LISTING_OPS?: string };
+}): Promise<DurableBulkExecutionResult> {
+  const now = input.nowMs ?? Date.now();
+  const operation = input.operation as BulkOperation;
+  if (!(BULK_OPERATIONS as readonly string[]).includes(operation)) {
+    return { ok: false, code: "invalid_operation", message: "Nepalaikoma operacija." };
+  }
+  if (!canRunBulkOperations(input.actorRole)) {
+    return { ok: false, code: "unauthorized", message: "Tik verslo pardavėjams." };
+  }
+  if (!bulkExecutionEnabled(input.env)) {
+    return { ok: false, code: "disabled", message: "Bulk vykdymas išjungtas šioje aplinkoje." };
+  }
+  const validated = validateBulkTargetIds(input.targetIds);
+  if (!validated.ok) {
+    return { ok: false, code: "invalid_payload", message: validated.message };
+  }
+  if (validated.ids.length > BULK_MAX_TARGETS) {
+    return { ok: false, code: "too_many", message: `Daugiausia ${BULK_MAX_TARGETS} skelbimų vienu metu.` };
+  }
+  const key = String(input.idempotencyKey ?? "").trim();
+  if (!key || key.length > 160) {
+    return { ok: false, code: "duplicate", message: "Trūksta idempotency rakto." };
+  }
+  if (input.proposalExpiresAt <= now) {
+    return { ok: false, code: "expired", message: "Patvirtinimas pasibaigė — sukurkite naują preview." };
+  }
+
+  const listings = await input.resolveListings();
+  const { verdicts, ownedIds, foreignIds } = classifyBulkTargets({
+    actorId: input.actorId,
+    listings,
+    requestedIds: validated.ids,
+  });
+  const targetImage: BulkTargetImageEntry[] = verdicts.map((v) => ({
+    id: v.listingId,
+    verdict: v.status,
+  }));
+
+  const expectedDigest = signBulkProposal(
+    {
+      actorId: input.actorId,
+      targets: targetImage.map((t) => ({ id: t.id, verdict: t.verdict })),
+      operation,
+      expiresAt: input.proposalExpiresAt,
+    },
+    input.signingKey
+  );
+  if (!safeEqual(input.digest, expectedDigest)) {
+    return { ok: false, code: "tampered", message: "Proposal pakeistas — atnaujinkite preview." };
+  }
+
+  const { created, record } = await input.store.tryClaimOperation({
+    actorId: input.actorId,
+    operation,
+    idempotencyKey: key,
+    proposalDigest: input.digest,
+    targetImage,
+    nowMs: now,
+  });
+
+  if (!created) {
+    // Same (actor, operation, key): NEVER re-execute.
+    if (record.proposalDigest !== input.digest) {
+      return { ok: false, code: "tampered", message: "Proposal pakeistas — atnaujinkite preview." };
+    }
+    if (record.state === "COMPLETED" || record.state === "PARTIAL") {
+      const saved = recordOutcomes(record.resultJson);
+      return {
+        ok: true,
+        outcomes: saved.outcomes,
+        audit: [],
+        executed: false,
+        replayed: true,
+        state: record.state,
+      };
+    }
+    if (record.state === "PENDING") {
+      return {
+        ok: true,
+        outcomes: [],
+        audit: [],
+        executed: false,
+        replayed: true,
+        state: record.state,
+      };
+    }
+    // EXECUTING / FAILED / RECOVERY_REQUIRED — fail closed, no blind re-run.
+    return {
+      ok: false,
+      code: "recovery_required",
+      message: "Operacija nebaigta — reikalingas saugus atkūrimas.",
+      state: record.state,
+    };
+  }
+
+  await input.store.markState(record.id, "PENDING", "EXECUTING", { nowMs: now });
+
+  const outcomes: BulkItemOutcome[] = [];
+  const audit: BulkAuditEntry[] = [];
+  const action = `bulk:${operation}`;
+  const foreignSet = new Set(foreignIds);
+  let failures = 0;
+  let applied = 0;
+
+  for (const id of validated.ids) {
+    if (!ownedIds.includes(id)) {
+      const reason = foreignSet.has(id) ? "not_owned" : "not_found";
+      failures += 1;
+      outcomes.push({ id, status: "failed", reason });
+      await input.store.saveItemResult({
+        operationId: record.id,
+        listingId: id,
+        state: "FAILED",
+        outcome: reason,
+        detail: null,
+        appliedAt: null,
+      });
+      audit.push({ actorId: input.actorId, action, targetId: id, outcome: `failed:${reason}`, correlation: key, timestamp: now });
+      continue;
+    }
+    try {
+      const appliedResult = await input.applyItem(id);
+      if (appliedResult.ok) {
+        applied += 1;
+        outcomes.push({ id, status: "success", detail: appliedResult.detail ?? operation });
+        await input.store.saveItemResult({
+          operationId: record.id,
+          listingId: id,
+          state: "APPLIED",
+          outcome: "success",
+          detail: appliedResult.detail ?? operation,
+          appliedAt: now,
+        });
+        audit.push({ actorId: input.actorId, action, targetId: id, outcome: "success", correlation: key, timestamp: now });
+      } else {
+        failures += 1;
+        outcomes.push({ id, status: "failed", reason: appliedResult.detail ?? "apply_failed" });
+        await input.store.saveItemResult({
+          operationId: record.id,
+          listingId: id,
+          state: "FAILED",
+          outcome: appliedResult.detail ?? "apply_failed",
+          detail: null,
+          appliedAt: null,
+        });
+        audit.push({ actorId: input.actorId, action, targetId: id, outcome: `failed:${appliedResult.detail ?? "apply_failed"}`, correlation: key, timestamp: now });
+      }
+    } catch {
+      failures += 1;
+      outcomes.push({ id, status: "failed", reason: "apply_error" });
+      await input.store.saveItemResult({
+        operationId: record.id,
+        listingId: id,
+        state: "FAILED",
+        outcome: "apply_error",
+        detail: null,
+        appliedAt: null,
+      });
+      audit.push({ actorId: input.actorId, action, targetId: id, outcome: "failed:apply_error", correlation: key, timestamp: now });
+    }
+  }
+
+  const terminalState: BulkOperationState =
+    failures === 0 ? "COMPLETED" : applied > 0 ? "PARTIAL" : "FAILED";
+  await input.store.saveOutcomes({
+    operationId: record.id,
+    from: "EXECUTING",
+    to: terminalState,
+    resultJson: { outcomes, state: terminalState },
+    nowMs: now,
+  });
+  await input.store.appendAudit(
+    audit.map((a) => ({
+      operationId: record.id,
+      actorId: a.actorId,
+      action: a.action,
+      targetId: a.targetId,
+      proposalDigest: input.digest,
+      correlation: a.correlation,
+      outcome: a.outcome,
+      timestamp: a.timestamp,
+    }))
+  );
+
+  return { ok: true, outcomes, audit, executed: true, replayed: false, state: terminalState };
+}
+
+/**
+ * Safe recovery after a crash: verify the ACTUAL listing status against the
+ * desired state (hide → deleted, republish → active) and only apply when the
+ * desired state is NOT yet present. Ambiguous status reads fail closed to
+ * `recovery_required`. Never touches foreign/not-found targets (they are not
+ * part of the stored target image's owned set).
+ */
+export async function recoverBulkOperation(input: {
+  actorId: string;
+  actorRole: string | null | undefined;
+  operation: BulkOperation;
+  idempotencyKey: string;
+  store: BulkOperationStore;
+  readListingStatus: (listingId: string) => Promise<{ status: string } | null>;
+  applyItem: (listingId: string) => Promise<{ ok: boolean; detail?: string }>;
+  nowMs?: number;
+  env?: { NODE_ENV?: string; VAUTO_ENABLE_BULK_LISTING_OPS?: string };
+}): Promise<DurableBulkExecutionResult> {
+  const now = input.nowMs ?? Date.now();
+  const operation = input.operation as BulkOperation;
+  if (!canRunBulkOperations(input.actorRole)) {
+    return { ok: false, code: "unauthorized", message: "Tik verslo pardavėjams." };
+  }
+  if (!bulkExecutionEnabled(input.env)) {
+    return { ok: false, code: "disabled", message: "Bulk vykdymas išjungtas šioje aplinkoje." };
+  }
+  const record = await input.store.getOperation({
+    actorId: input.actorId,
+    operation,
+    idempotencyKey: input.idempotencyKey,
+  });
+  if (!record) {
+    return { ok: false, code: "invalid_payload", message: "Operacija nerasta." };
+  }
+  if (record.state === "COMPLETED" || record.state === "PARTIAL") {
+    const saved = recordOutcomes(record.resultJson);
+    return { ok: true, outcomes: saved.outcomes, audit: [], executed: false, replayed: true, state: record.state };
+  }
+  if (record.state === "PENDING") {
+    return { ok: false, code: "recovery_required", message: "Operacija dar neprasidėjo.", state: record.state };
+  }
+
+  const ownedIds = record.targetImage
+    .filter((t) => t.verdict === "owned")
+    .map((t) => t.id);
+  const outcomes: BulkItemOutcome[] = [];
+  const desired = desiredListingStatus(operation);
+  const action = `bulk:${operation}:recover`;
+  let ambiguous = false;
+  let failures = 0;
+  let applied = 0;
+
+  for (const id of ownedIds) {
+    let current: { status: string } | null;
+    try {
+      current = await input.readListingStatus(id);
+    } catch {
+      ambiguous = true;
+      continue;
+    }
+    if (current === null) {
+      // Listing gone: hide → desired already true (nothing to do); republish → failed.
+      if (operation === "hide") {
+        outcomes.push({ id, status: "success", detail: "already_deleted" });
+        await input.store.saveItemResult({
+          operationId: record.id, listingId: id, state: "APPLIED", outcome: "already_deleted", detail: null, appliedAt: now,
+        });
+      } else {
+        failures += 1;
+        outcomes.push({ id, status: "failed", reason: "not_found" });
+        await input.store.saveItemResult({
+          operationId: record.id, listingId: id, state: "FAILED", outcome: "not_found", detail: null, appliedAt: null,
+        });
+      }
+      continue;
+    }
+    if (current.status === desired) {
+      outcomes.push({ id, status: "success", detail: "already_applied" });
+      await input.store.saveItemResult({
+        operationId: record.id, listingId: id, state: "APPLIED", outcome: "already_applied", detail: null, appliedAt: now,
+      });
+      continue;
+    }
+    try {
+      const appliedResult = await input.applyItem(id);
+      if (appliedResult.ok) {
+        applied += 1;
+        outcomes.push({ id, status: "success", detail: appliedResult.detail ?? operation });
+        await input.store.saveItemResult({
+          operationId: record.id, listingId: id, state: "APPLIED", outcome: "success", detail: appliedResult.detail ?? operation, appliedAt: now,
+        });
+      } else {
+        failures += 1;
+        outcomes.push({ id, status: "failed", reason: appliedResult.detail ?? "apply_failed" });
+        await input.store.saveItemResult({
+          operationId: record.id, listingId: id, state: "FAILED", outcome: appliedResult.detail ?? "apply_failed", detail: null, appliedAt: null,
+        });
+      }
+    } catch {
+      failures += 1;
+      outcomes.push({ id, status: "failed", reason: "apply_error" });
+      await input.store.saveItemResult({
+        operationId: record.id, listingId: id, state: "FAILED", outcome: "apply_error", detail: null, appliedAt: null,
+      });
+    }
+  }
+
+  if (ambiguous) {
+    await input.store.markState(record.id, record.state, "RECOVERY_REQUIRED", { nowMs: now });
+    return {
+      ok: false,
+      code: "recovery_required",
+      message: "Nepavyko patikimai nustatyti visų skelbimų būsenų — atkūrimą pakartokite vėliau.",
+      state: "RECOVERY_REQUIRED",
+    };
+  }
+
+  const terminalState: BulkOperationState =
+    failures === 0 ? "COMPLETED" : applied > 0 || outcomes.some((o) => o.status === "success") ? "PARTIAL" : "FAILED";
+  await input.store.saveOutcomes({
+    operationId: record.id,
+    from: record.state,
+    to: terminalState,
+    resultJson: { outcomes, state: terminalState },
+    nowMs: now,
+  });
+  await input.store.appendAudit(
+    outcomes.map((o) => ({
+      operationId: record.id,
+      actorId: input.actorId,
+      action,
+      targetId: o.id,
+      proposalDigest: record.proposalDigest,
+      correlation: record.idempotencyKey,
+      outcome: o.status === "success" ? `recovered:${o.status}` : `recovered:${o.status}:${(o as { reason?: string }).reason ?? ""}`,
+      timestamp: now,
+    }))
+  );
+
+  return { ok: true, outcomes, audit: [], executed: true, replayed: false, state: terminalState };
 }
