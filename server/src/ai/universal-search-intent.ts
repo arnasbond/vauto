@@ -4,7 +4,7 @@ const JOB_SEARCH_RE =
   /\b(ie[sš]kau\s+darb|ieskau\s+darb|darbo\s+skelbim|darbo\s+pasiūlym|darbas|darbo|atlyginim|atlygin|algos|cv\b|karjera|karjer|vakancij|įdarbinim|idarbinim|samdom|bedarb)\b/i;
 
 const JOB_FALSE_POSITIVE_RE =
-  /\b(darbo\s+kėd|darbo\s+ked|darbo\s+stal|ergonomin.*kėd|office\s+chair)\b/i;
+  /\b(darbo\s+k[ėe]d(?:[ėę]s?|es)\b|darbo\s+st[ao]l(?:o|as|u|ą)\b|ergonomin.*k[ėe]d|office\s+chair)\b/i;
 
 const RADIUS_KM_RE = /\b(\d{1,3})\s*km\b/i;
 
@@ -37,8 +37,9 @@ export function inferUniversalListingCategory(query: string): string | undefined
     return "clothing";
   }
   // Physical goods before services — “gitara” must not become detailing/services.
+  // F5 — inflection-tolerant stems (sofos/sofa/batus…), no exact-stem \b traps.
   if (
-    /\b(gitar|pianin|smuik|būgn|paveiksl|dvirat|sof[aą]|bald|komod|virtuv|televiz|konsol)\b/i.test(
+    /\b(gitar\w*|pianin\w*|smuik\w*|b[ūu]gn\w*|paveiksl\w*|dvirat\w*|sof\w*|bald\w*|komod\w*|virtuv\w*|televiz\w*|konsol\w*)\b/i.test(
       query
     ) &&
     !/\b(paslaug|pamok|kurs|meistr|detali[nz]|plovim)\b/i.test(query)
@@ -65,7 +66,7 @@ export function inferUniversalListingCategory(query: string): string | undefined
   ) {
     return "vehicles";
   }
-  if (/\b(bald|sofa|komod|virtuv)\b/i.test(query) && !isJobSearchQuery(query)) return "home";
+  if (/\b(bald\w*|sof\w*|komod\w*|virtuv\w*)\b/i.test(query) && !isJobSearchQuery(query)) return "home";
   return undefined;
 }
 

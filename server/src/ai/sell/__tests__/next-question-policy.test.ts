@@ -604,3 +604,125 @@ describe("Phase 2B — cross-cutting behaviors", () => {
     assert.ok(result!.question.length > 0);
   });
 });
+
+describe("F5 - home / HOME_GARDEN single-question parity", () => {
+  it("empty home draft asks itemType first (canonical required tier)", () => {
+    const result = selectNextQuestion({
+      category: "home",
+      facts: {},
+      blockers: { sellerType: fact(undefined), city: fact(undefined) },
+    });
+    assert.ok(result);
+    assert.equal(result!.field, "itemType");
+    assert.equal(result!.reason, "missing_required");
+  });
+
+  it("itemType known -> condition next", () => {
+    const result = selectNextQuestion({
+      category: "home",
+      facts: { itemType: fact("Baldai") },
+      blockers: { sellerType: fact(undefined), city: fact(undefined) },
+    });
+    assert.ok(result);
+    assert.equal(result!.field, "condition");
+    assert.equal(result!.reason, "missing_required");
+  });
+
+  it("required fields outrank universal blockers and price", () => {
+    const result = selectNextQuestion({
+      category: "home",
+      facts: {},
+      blockers: { sellerType: fact(undefined), city: fact(undefined) },
+    });
+    assert.ok(result);
+    assert.equal(result!.field, "itemType");
+    assert.notEqual(result!.field, "sellerType");
+    assert.notEqual(result!.field, "price");
+  });
+
+  it("optional material/deliveryOption are asked only after required + blockers + price", () => {
+    const filled = {
+      itemType: fact("Sodo technika"),
+      condition: fact("Naudota"),
+      price: fact(120),
+    };
+    const withBlockersMissing = selectNextQuestion({
+      category: "home",
+      facts: filled,
+      blockers: { sellerType: fact(undefined), city: fact(undefined) },
+    });
+    assert.ok(withBlockersMissing);
+    assert.equal(withBlockersMissing!.field, "sellerType", "blocker before optional");
+
+    const everythingElse = selectNextQuestion({
+      category: "home",
+      facts: filled,
+      blockers: { sellerType: fact("private"), city: fact("Vilnius") },
+    });
+    assert.ok(everythingElse);
+    assert.equal(everythingElse!.field, "material", "first optional after all other tiers");
+    assert.equal(everythingElse!.reason, "missing_important");
+
+    const materialKnown = selectNextQuestion({
+      category: "home",
+      facts: { ...filled, material: fact("Metalas") },
+      blockers: { sellerType: fact("private"), city: fact("Vilnius") },
+    });
+    assert.ok(materialKnown);
+    assert.equal(materialKnown!.field, "deliveryOption", "second optional");
+  });
+
+  it("exactly one question per turn (single structural result)", () => {
+    const result = selectNextQuestion({
+      category: "home",
+      facts: {},
+      blockers: { sellerType: fact(undefined), city: fact(undefined) },
+    });
+    assert.ok(result);
+    assert.equal(typeof result!.field, "string");
+    assert.equal(typeof result!.question, "string");
+    // The API returns one object or null - never a list.
+    assert.ok(!Array.isArray(result));
+  });
+
+  it("uses only canonical HOME_GARDEN keys; furnitureType never appears", () => {
+    const order = debugPriorityOrder("home");
+    for (const key of order) {
+      assert.ok(
+        ["itemType", "condition", "material", "deliveryOption", "sellerType", "city", "price"].includes(key),
+        `canonical key only, got: ${key}`
+      );
+      assert.notEqual(key, "furnitureType");
+    }
+    const q1 = selectNextQuestion({ category: "home", facts: {}, blockers: { sellerType: fact("private"), city: fact("Vilnius") } });
+    assert.ok(q1 && !q1.question.toLowerCase().includes("furnituretype"));
+    const q2 = selectNextQuestion({
+      category: "home",
+      facts: { itemType: fact("Baldai"), condition: fact("Nauja"), price: fact(50), material: fact("Medis") },
+      blockers: { sellerType: fact("private"), city: fact("Vilnius") },
+    });
+    assert.ok(q2 && q2.field === "deliveryOption");
+    assert.match(q2.question, /siuntimas|atsiėmimas|abu/i);
+  });
+
+  it("clothing and the other six vertical priorities are unchanged", () => {
+    const snapshots: Record<string, string[]> = {
+      clothing: debugPriorityOrder("clothing"),
+      vehicles: debugPriorityOrder("vehicles"),
+      real_estate: debugPriorityOrder("real_estate"),
+      electronics: debugPriorityOrder("electronics"),
+      services: debugPriorityOrder("services"),
+      jobs: debugPriorityOrder("jobs"),
+    };
+    assert.deepEqual(snapshots.clothing.slice(0, 3), ["condition", "sellerType", "city"]);
+    assert.deepEqual(snapshots.vehicles.slice(0, 3), ["vin", "make", "model"]);
+    assert.deepEqual(snapshots.real_estate.slice(0, 1), ["propertyType"]);
+    assert.deepEqual(snapshots.electronics.slice(0, 1), ["manufacturer"]);
+    assert.deepEqual(snapshots.services.slice(0, 1), ["serviceType"]);
+    assert.deepEqual(snapshots.jobs.slice(0, 2), ["jobTitle", "employmentType"]);
+    for (const [cat, order] of Object.entries(snapshots)) {
+      assert.ok(!order.includes("furnitureType"), `${cat} must not know furnitureType`);
+      assert.ok(!order.includes("itemType") || cat === "home", `${cat} must not use home keys`);
+    }
+  });
+});

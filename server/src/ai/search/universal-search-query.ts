@@ -29,6 +29,10 @@ import {
   isCategoryBrowseQuery,
 } from "../product-search-query.js";
 import { extractSearchRadiusKm } from "../universal-search-intent.js";
+import {
+  isCarAccessorySearch,
+  isOfficeFurnitureSearch,
+} from "../search-disambiguation.js";
 
 export const F3_SEARCH_BUDGET = {
   rawInput: 500,
@@ -108,7 +112,7 @@ const F3_CATEGORY_RULES: Array<[F3CanonicalCategory, RegExp]> = [
   ],
   [
     "home",
-    /\b(gitar\w*|pianin\w*|smuik\w*|b[ūu]gn\w*|paveiksl\w*|dvirat\w*|sof\w*|bald\w*|komod\w*|virtuv\w*|konsol\w*|st[ao]l\w*|lov\w*|k[ėe]d\w*|foteli\w*|veidrod\w*|lamp\w*|siuvimo\s+ma[sš]in\w*|skalbimo\s+ma[sš]in\w*)/i,
+    /\b(gitar\w*|pianin\w*|smuik\w*|b[ūu]gn\w*|paveiksl\w*|dvirat\w*|sof\w*|bald\w*|komod\w*|virtuv\w*|konsol\w*|st[ao]l\w*|lov\w*|k[ėe]d\w*|foteli\w*|veidrod\w*|lamp\w*|siuvimo\s+ma[sš]in\w*|skalbimo\s+ma[sš]in\w*|u[zž]valkal\w*|kilimėl\w*|laikikl\w*)/i,
   ],
 ];
 
@@ -193,7 +197,14 @@ function neutralQuery(rawSanitized: string, injectionBlocked: boolean): Universa
 }
 
 function resolveF3Category(text: string): F3CanonicalCategory {
+  // F5 — single shared disambiguation source (office furniture ≠ jobs,
+  // car accessories ≠ vehicles) — the corresponding rule is skipped and the
+  // precise category rule (home) wins.
+  const officeFurniture = isOfficeFurnitureSearch(text);
+  const carAccessory = isCarAccessorySearch(text);
   for (const [category, re] of F3_CATEGORY_RULES) {
+    if (category === "jobs" && officeFurniture) continue;
+    if (category === "vehicles" && carAccessory) continue;
     if (re.test(text)) return category;
   }
   const legacy = inferSearchCategory(text);
