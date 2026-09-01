@@ -1,5 +1,6 @@
 import type { VautoAgentContext } from "@/lib/vauto-agent-client";
 import { USER_BEHAVIOR_MAX_EVENTS } from "@/lib/user-behavior-types";
+import { truncateTextSafely } from "@vauto/shared/text-truncation";
 
 /** Keep agent POST bodies under platform limits (Vercel ~4.5MB, safe target much lower). */
 export const AGENT_MAX_MESSAGES = 8;
@@ -40,10 +41,9 @@ export interface AgentRequestBody {
   includeAdminContext?: boolean;
 }
 
+// F1.2 — canonical shared word-boundary truncation (client and server).
 function capText(text: string, max: number): string {
-  const t = text.trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max)}…`;
+  return truncateTextSafely(text, max);
 }
 
 export function trimAgentRequestBody<T extends AgentRequestBody>(body: T): T {

@@ -4,6 +4,8 @@ import {
   formatPrimaryVehicleLabel,
   type PrimaryVehicle,
 } from "./zero-ui-defaults.js";
+import { CONTEXT_BLOCK_BUDGET } from "./context-budget.js";
+import { clampJsonBlock } from "../shared/text-truncation.js";
 
 export interface AgentSearchFilters {
   query?: string;
@@ -63,8 +65,12 @@ export function buildAgentMemoryContextBlock(
   }
 
   if (memory.activeSearchFilters && Object.keys(memory.activeSearchFilters).length) {
+    const filtersJson = clampJsonBlock(
+      memory.activeSearchFilters,
+      CONTEXT_BLOCK_BUDGET.searchFiltersJson
+    );
     lines.push(
-      `activeSearchFilters=${JSON.stringify(memory.activeSearchFilters)} (naudok TIK refine'inant tą pačią temą; naujai temai IGNORUOK)`
+      `activeSearchFilters=${filtersJson} (naudok TIK refine'inant tą pačią temą; naujai temai IGNORUOK)`
     );
   }
 
