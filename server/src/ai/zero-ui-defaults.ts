@@ -11,12 +11,6 @@ export interface PrimaryVehicle {
   year: number;
 }
 
-export const DEFAULT_PRIMARY_VEHICLE: PrimaryVehicle = {
-  make: "Volvo",
-  model: "V70",
-  year: 2006,
-};
-
 export function resolveAgentDefaultCity(input?: string | null): string {
   const trimmed = String(input ?? "").trim();
   if (

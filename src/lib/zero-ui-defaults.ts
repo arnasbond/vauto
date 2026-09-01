@@ -9,12 +9,6 @@ export interface PrimaryVehicle {
   year: number;
 }
 
-export const DEFAULT_PRIMARY_VEHICLE: PrimaryVehicle = {
-  make: "Volvo",
-  model: "V70",
-  year: 2006,
-};
-
 export function resolveDefaultUserCity(city?: string | null): string {
   const trimmed = city?.trim();
   if (
@@ -28,9 +22,14 @@ export function resolveDefaultUserCity(city?: string | null): string {
   return trimmed;
 }
 
+/**
+ * F1.3 — category neutrality: a vehicle anchor exists ONLY when the user has
+ * explicitly saved a real vehicle. No synthetic fleet default is invented for
+ * users without one (previously every user received a fake "Volvo V70").
+ */
 export function resolvePrimaryVehicle(
   vehicle?: Partial<PrimaryVehicle> | null
-): PrimaryVehicle {
+): PrimaryVehicle | null {
   if (vehicle?.make?.trim() && vehicle?.model?.trim() && vehicle.year) {
     return {
       make: vehicle.make.trim(),
@@ -38,7 +37,7 @@ export function resolvePrimaryVehicle(
       year: Number(vehicle.year),
     };
   }
-  return DEFAULT_PRIMARY_VEHICLE;
+  return null;
 }
 
 export function formatPrimaryVehicleLabel(vehicle: PrimaryVehicle): string {

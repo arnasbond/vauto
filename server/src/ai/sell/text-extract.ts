@@ -178,7 +178,10 @@ export function extractFromUserText(
       source,
       evidence: ["electronics_cue"],
     };
-  } else if (/\b(bmw|audi|vw|auto|mašin|masin|quattro|xdrive)\b/i.test(raw)) {
+  // F1.3 — category neutrality: vehicles only from explicit brand cues.
+  // Word-substring matches ("auto", "mašin", "masin") used to force vehicles
+  // onto unrelated items (e.g. "siuvimo mašina") — removed.
+  } else if (/\b(bmw|audi|volkswagen|vw|toyota|mercedes|volvo|opel|ford|renault|skoda|peugeot|citro[eë]?n|quattro|xdrive)\b/i.test(raw)) {
     candidates.category = {
       value: "vehicles",
       confidence: 0.9,

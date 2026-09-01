@@ -133,15 +133,16 @@ export function createManualFallbackDraft(opts: {
   const transcript = String(opts.transcript ?? "").trim();
   const titleHint = String(opts.title ?? "").trim();
   const category = opts.category ?? "other";
-  const looksVehicle =
-    category === "vehicles" ||
-    category === "transport" ||
-    /\b(auto|bmw|audi|vw|citro|toyota|mašin|masin|automobil)/i.test(
-      `${titleHint} ${transcript}`
-    );
-  const makeMatch = transcript.match(
-    /\b(bmw|audi|volkswagen|vw|toyota|mercedes|opel|ford|renault|skoda|volvo|peugeot|citro[eë]?n)\b/i
-  );
+  // F1.3 — category neutrality: vehicle drafting requires an EXPLICIT vehicle
+  // category. Word-substring matches ("auto", "mašin", "masin") previously
+  // turned unrelated items (e.g. "siuvimo mašina") into car listings.
+  const isVehicleCategory =
+    category === "vehicles" || category === "transport";
+  const makeMatch = isVehicleCategory
+    ? transcript.match(
+        /\b(bmw|audi|volkswagen|vw|toyota|mercedes|opel|ford|renault|skoda|volvo|peugeot|citro[eë]?n)\b/i
+      )
+    : null;
   const make = makeMatch
     ? makeMatch[1]!.replace(/\bvw\b/i, "Volkswagen")
     : "";
@@ -149,11 +150,11 @@ export function createManualFallbackDraft(opts: {
     titleHint ||
     (make
       ? `Parduodamas ${make.charAt(0).toUpperCase()}${make.slice(1)}`
-      : looksVehicle
+      : isVehicleCategory
         ? "Parduodamas naudotas automobilis"
         : transcript.slice(0, 64) || "Naujas skelbimas");
   const city = opts.location?.trim() || "";
-  const description = looksVehicle
+  const description = isVehicleCategory
     ? [
         `Parduodamas naudotas automobilis${make ? ` ${make}` : ""}.`,
         "Techniniai duomenys (metai, dyzelinis / benzininis variklis, kėbulo tipas, rida) bus patikslinti pagal nuotraukas ir dokumentus.",
@@ -173,7 +174,8 @@ export function createManualFallbackDraft(opts: {
     price: 0,
     location: opts.location,
     contact: opts.contact,
-    category: looksVehicle ? "vehicles" : category,
+    // The user's chosen category is never silently rewritten.
+    category,
     confidence: 0.35,
     description,
     attributes: {

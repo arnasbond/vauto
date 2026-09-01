@@ -241,9 +241,7 @@ function toListing(raw: Record<string, unknown>, userCity: string, contact: stri
   };
 }
 
-const VEHICLE_VISION_RULES = `Jei nuotraukoje matomas visas automobilis (Citroën, Peugeot, BMW, VW ir kt.) — category "vehicles", title su make+model, attributes: make, model, year (jei matoma), fuelType, mileage (jei matoma), bodyType.
-Jei auto dalis (ratlankis, padanga) — category "vehicles" su partType, size, condition, quantity.
-Jei mobilus telefonas — category "electronics", ne vehicles.`;
+const UNIVERSAL_VISION_RULES = `Nustatyk pagrindinį objektą tiksliai ir priskirk teisingą kategoriją: automobilis → "vehicles" (make, model, year, fuelType, mileage, bodyType TIK jei aiškiai matoma); auto dalis (ratlankis, padanga) → "vehicles" su partType, size, condition, quantity; mobilus telefonas / technika → "electronics"; drabužiai → "clothing"; NT → "real_estate"; paslaugos → "services"; darbas → "jobs"; kita → "other". Neišgalvok parametrų, kurių nuotraukoje nematyti — nežinomą palik tuščią.`;
 
 aiRouter.post("/extract-image", async (req, res) => {
   if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
@@ -291,7 +289,7 @@ aiRouter.post("/extract-image", async (req, res) => {
     });
     const visionImages = imagesAfterPipeline(pipeline, images);
     const raw = await visionExtractJson(
-      `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. ${VEHICLE_VISION_RULES} Atpažink tiksliai pagrindinį objektą — category ir title turi atitikti tai, ką realiai matai. Kaina EUR.${imageCountNote}${contextNote} JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
+      `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. ${UNIVERSAL_VISION_RULES} Atpažink tiksliai pagrindinį objektą — category ir title turi atitikti tai, ką realiai matai. Kaina EUR.${imageCountNote}${contextNote} JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
       visionImages
     );
     const listing = toListing(raw, city, phone);
@@ -892,7 +890,7 @@ aiRouter.post("/extract-combined", async (req, res) => {
     });
     const visionImages = imagesAfterPipeline(pipeline, images);
     const raw = await visionExtractJson(
-      `Ištrauk skelbimo duomenis iš nuotraukos IR vartotojo balso/teksto aprašymo vienu kartu. ${VEHICLE_VISION_RULES} Tekstas turi prioritetą kainai, vietai ir detalėms; nuotrauka — objekto atpažinimui ir kategorijai.${imageCountNote} Vartotojo aprašymas: "${transcript}" JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
+      `Ištrauk skelbimo duomenis iš nuotraukos IR vartotojo balso/teksto aprašymo vienu kartu. ${UNIVERSAL_VISION_RULES} Tekstas turi prioritetą kainai, vietai ir detalėms; nuotrauka — objekto atpažinimui ir kategorijai.${imageCountNote} Vartotojo aprašymas: "${transcript}" JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
       visionImages
     );
     const listing = toListing(raw, city, phone);

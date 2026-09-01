@@ -446,7 +446,12 @@ export async function runVautoAgent(
     return await runVautoAgentInner(req, options?.onEvent);
   } catch (e) {
     console.warn("[vauto-agent] run failed:", e);
-    if (e instanceof AgentRouteError && e.code === "agent_unavailable") throw e;
+    // F1.3 — AI DOWN ≠ VAUTO DOWN skaidrumas: provider errors, rate-limits and
+    // timeouts are honest AgentRouteErrors (502/503/504) and must reach the
+    // client as errors — never be masked as an ok:true canned reply.
+    if (e instanceof AgentRouteError) throw e;
+    // Unexpected internal bugs degrade to the deterministic recovery string
+    // (never invented data), keeping classic search/manual flows usable.
     return {
       ok: true,
       reply: VAUTO_IN_DOMAIN_RECOVERY,
@@ -2004,7 +2009,14 @@ async function runVautoAgentInner(
       if (succeeded) break;
     }
 
-    if (!succeeded) break;
+    if (!succeeded) {
+      // F1.3 — a fully failed model round (outage/rate-limit/timeout after
+      // retries) must surface as an honest error, never as an empty reply.
+      throw (
+        lastGeminiError ??
+        new AgentRouteError("gemini_error", "Gemini turn failed", 502)
+      );
+    }
 
     const functionCalls = extractGeminiFunctionCalls(parts);
 
