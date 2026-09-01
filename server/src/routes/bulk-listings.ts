@@ -33,6 +33,7 @@ import {
 } from "../ai/bulk-listing-control.js";
 import {
   createPostgresBulkOperationStore,
+  postgresBulkQueryable,
   type BulkOperationStore,
 } from "../ai/bulk/bulk-store.js";
 import {
@@ -57,7 +58,7 @@ let defaultStore: BulkOperationStore | null = null;
 
 function getDefaultStore(): BulkOperationStore {
   if (!defaultStore) {
-    defaultStore = createPostgresBulkOperationStore(pool);
+    defaultStore = createPostgresBulkOperationStore(postgresBulkQueryable(pool));
   }
   return defaultStore;
 }
@@ -67,7 +68,7 @@ let testStore: BulkOperationStore | null = null;
 let executors: {
   applyItem: (listingId: string) => Promise<{ ok: boolean; detail?: string }>;
   resolveListings: () => Promise<Array<{ id: string; sellerId: string; banned?: boolean; title?: string; category?: string; status?: string }>>;
-  readListingStatus?: (listingId: string) => Promise<{ status: string } | null>;
+  readListingOwnership?: (listingId: string) => Promise<{ id: string; sellerId: string; status: string } | null>;
 } | null = null;
 
 export function setBulkStoreForTests(store: BulkOperationStore | null): void {
@@ -82,9 +83,12 @@ function defaultResolveListings() {
   return getListings();
 }
 
-async function defaultReadListingStatus(listingId: string): Promise<{ status: string } | null> {
+async function defaultReadListingOwnership(
+  listingId: string
+): Promise<{ id: string; sellerId: string; status: string } | null> {
   const listing = await getListingForEmbedding(listingId);
-  return listing ? { status: listing.status ?? "active" } : null;
+  if (!listing) return null;
+  return { id: listing.id, sellerId: listing.sellerId, status: listing.status ?? "active" };
 }
 
 function defaultApplyItem(operation: BulkOperation) {
@@ -194,7 +198,10 @@ router.post("/confirm", async (req: AuthedRequest, res) => {
 
     if (!result.ok) {
       const status =
-        result.code === "expired" || result.code === "tampered" || result.code === "recovery_required"
+        result.code === "expired" ||
+        result.code === "tampered" ||
+        result.code === "recovery_required" ||
+        result.code === "in_progress"
           ? 409
           : result.code === "unauthorized" || result.code === "disabled"
             ? 403
@@ -241,9 +248,9 @@ router.post("/recover", async (req: AuthedRequest, res) => {
       operation,
       idempotencyKey,
       store: testStore ?? getDefaultStore(),
-      readListingStatus: executors?.readListingStatus
-        ? executors.readListingStatus
-        : defaultReadListingStatus,
+      readListingOwnership: executors?.readListingOwnership
+        ? executors.readListingOwnership
+        : defaultReadListingOwnership,
       applyItem: async (listingId) => {
         if (executors) return executors.applyItem(listingId);
         return defaultApplyItem(operation)(listingId, actorId);
@@ -251,7 +258,7 @@ router.post("/recover", async (req: AuthedRequest, res) => {
     });
 
     if (!result.ok) {
-      const status = result.code === "recovery_required" ? 409 : result.code === "unauthorized" ? 403 : 400;
+      const status = result.code === "recovery_required" || result.code === "in_progress" ? 409 : result.code === "unauthorized" ? 403 : 400;
       return res.status(status).json({ ok: false, code: result.code, error: result.message, state: result.state });
     }
     return res.json({

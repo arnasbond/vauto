@@ -14,10 +14,14 @@ CREATE TABLE IF NOT EXISTS vauto_bulk_operations (
   proposal_digest  TEXT NOT NULL,
   target_image     JSONB NOT NULL,
   state            TEXT NOT NULL CHECK (
-    state IN ('PENDING', 'EXECUTING', 'COMPLETED', 'PARTIAL', 'FAILED', 'RECOVERY_REQUIRED')
+    state IN ('PENDING', 'EXECUTING', 'RECOVERING', 'COMPLETED', 'PARTIAL', 'FAILED', 'RECOVERY_REQUIRED')
   ),
   result_json      JSONB,
   error_message    TEXT,
+  -- Server-derived recovery ownership: a single CAS winner may hold the
+  -- RECOVERING state; the lease must expire before anyone else may claim it.
+  recovery_token   TEXT,
+  lease_until      TIMESTAMPTZ,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (actor_id, operation, idempotency_key)

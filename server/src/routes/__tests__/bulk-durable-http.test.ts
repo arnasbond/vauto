@@ -193,16 +193,18 @@ describe("F6.2 — durable execution through the HTTP boundary", () => {
       .send({ listingIds: ["l-1"], operation: "hide" });
     assert.equal(preview.status, 200);
 
-    // Simulate crash: claim + EXECUTING state, no items persisted.
+    // Simulate crash: claim + EXECUTING state with an EXPIRED lease (the
+    // crashed process is gone), no items persisted.
     const claim = await store.tryClaimOperation({
       actorId: ACTOR,
       operation: "hide",
       idempotencyKey: "k-crash1",
       proposalDigest: preview.body.digest,
       targetImage: [{ id: "l-1", verdict: "owned" }],
+      leaseMs: 30_000,
       nowMs: Date.now(),
     });
-    await store.markState(claim.record.id, "PENDING", "EXECUTING", { nowMs: Date.now() });
+    await store.markState(claim.record.id, "PENDING", "EXECUTING", { nowMs: Date.now(), leaseMs: -1 });
 
     const replay = await request(app)
       .post("/api/bulk-listings/confirm")
@@ -225,7 +227,7 @@ describe("F6.2 — durable execution through the HTTP boundary", () => {
         applied.push(id);
         return { ok: true };
       },
-      readListingStatus: async () => ({ status: "active" }),
+      readListingOwnership: async () => ({ id: "l-1", sellerId: ACTOR, status: "active" }),
     });
     const recover = await request(app)
       .post("/api/bulk-listings/recover")
@@ -259,9 +261,10 @@ describe("F6.2 — durable execution through the HTTP boundary", () => {
       idempotencyKey: "k-crash2",
       proposalDigest: preview.body.digest,
       targetImage: [{ id: "l-2", verdict: "owned" }],
+      leaseMs: 30_000,
       nowMs: Date.now(),
     });
-    await store.markState(claim.record.id, "PENDING", "EXECUTING", { nowMs: Date.now() });
+    await store.markState(claim.record.id, "PENDING", "EXECUTING", { nowMs: Date.now(), leaseMs: -1 });
     // The apply already happened in the crashed process — the listing is now deleted.
     await store.saveItemResult({
       operationId: claim.record.id,
@@ -278,7 +281,7 @@ describe("F6.2 — durable execution through the HTTP boundary", () => {
         applied.push(id);
         return { ok: true };
       },
-      readListingStatus: async () => ({ status: "deleted" }),
+      readListingOwnership: async () => ({ id: "l-2", sellerId: ACTOR, status: "deleted" }),
     });
     const recover = await request(app)
       .post("/api/bulk-listings/recover")
@@ -339,7 +342,7 @@ describe("F6.2 — durable execution through the HTTP boundary", () => {
         applied.push(id);
         return { ok: true };
       },
-      readListingStatus: async () => ({ status: "active" }),
+      readListingOwnership: async () => ({ id: "l-1", sellerId: ACTOR, status: "active" }),
     });
     const minted = buildBulkProposal({
       actorId: ACTOR,
@@ -358,6 +361,7 @@ describe("F6.2 — durable execution through the HTTP boundary", () => {
         { id: "l-1", verdict: "owned" },
         { id: "l-foreign", verdict: "foreign" },
       ],
+      leaseMs: 30_000,
       nowMs: 3_001,
     });
     const record = await store.getOperation({ actorId: ACTOR, operation: "hide", idempotencyKey: "k-foreign" });
@@ -468,6 +472,7 @@ describe("F6.2 — durable core recovery unit", () => {
       idempotencyKey: "k-ambiguous",
       proposalDigest: "d",
       targetImage: [{ id: "l-1", verdict: "owned" }],
+      leaseMs: 30_000,
       nowMs: 1_000,
     });
     await store.markState(claim.record.id, "PENDING", "EXECUTING", { nowMs: 1_001 });
@@ -477,7 +482,7 @@ describe("F6.2 — durable core recovery unit", () => {
       operation: "hide",
       idempotencyKey: "k-ambiguous",
       store,
-      readListingStatus: async () => {
+      readListingOwnership: async () => {
         throw new Error("db unavailable");
       },
       applyItem: async () => ({ ok: true }),
@@ -536,3 +541,182 @@ describe("F6.2 — durable core recovery unit", () => {
     assert.equal(applied, 0);
   });
 });
+
+  it("a fresh in-flight confirm is reported in_progress, never a false success or takeover", async () => {
+    const store = createInMemoryBulkOperationStore();
+    setBulkStoreForTests(store);
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async () => ({ ok: true }),
+    });
+    const preview = await request(app)
+      .post("/api/bulk-listings/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ listingIds: ["l-1"], operation: "hide" });
+    const claim = await store.tryClaimOperation({
+      actorId: ACTOR,
+      operation: "hide",
+      idempotencyKey: "k-fresh",
+      proposalDigest: preview.body.digest,
+      targetImage: [{ id: "l-1", verdict: "owned" }],
+      leaseMs: 30_000,
+      nowMs: Date.now(),
+    });
+    await store.markState(claim.record.id, "PENDING", "EXECUTING", { nowMs: Date.now(), leaseMs: 30_000 });
+
+    const confirmReplay = await request(app)
+      .post("/api/bulk-listings/confirm")
+      .set("Authorization", authHeader(ACTOR))
+      .send({
+        digest: preview.body.digest,
+        proposalExpiresAt: preview.body.proposal.expiresAt,
+        operation: "hide",
+        listingIds: ["l-1"],
+        idempotencyKey: "k-fresh",
+      });
+    assert.equal(confirmReplay.status, 409);
+    assert.equal(confirmReplay.body.code, "in_progress");
+
+    const recoverWhileRunning = await request(app)
+      .post("/api/bulk-listings/recover")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ operation: "hide", idempotencyKey: "k-fresh" });
+    assert.equal(recoverWhileRunning.status, 409);
+    assert.equal(recoverWhileRunning.body.code, "in_progress");
+  });
+
+  it("a stale PENDING after a crash is safely recovered", async () => {
+    const applied: string[] = [];
+    const store = createInMemoryBulkOperationStore();
+    setBulkStoreForTests(store);
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async (id) => {
+        applied.push(id);
+        return { ok: true };
+      },
+      readListingOwnership: async () => ({ id: "l-3", sellerId: ACTOR, status: "active" }),
+    });
+    const preview = await request(app)
+      .post("/api/bulk-listings/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ listingIds: ["l-3"], operation: "hide" });
+    // Crash after claim but BEFORE EXECUTING: PENDING with an expired lease.
+    const claim = await store.tryClaimOperation({
+      actorId: ACTOR,
+      operation: "hide",
+      idempotencyKey: "k-stale-pending",
+      proposalDigest: preview.body.digest,
+      targetImage: [{ id: "l-3", verdict: "owned" }],
+      leaseMs: 30_000,
+      nowMs: Date.now() - 120_000,
+    });
+
+    const recover = await request(app)
+      .post("/api/bulk-listings/recover")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ operation: "hide", idempotencyKey: "k-stale-pending" });
+    assert.equal(recover.status, 200, "stale PENDING is recoverable");
+    assert.equal(recover.body.state, "COMPLETED");
+    assert.deepEqual(applied, ["l-3"]);
+  });
+
+  it("a listing transferred after preview is never applied (not_owned)", async () => {
+    const applied: string[] = [];
+    const store = createInMemoryBulkOperationStore();
+    setBulkStoreForTests(store);
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async (id) => {
+        applied.push(id);
+        return { ok: true };
+      },
+      readListingOwnership: async () => ({ id: "l-4", sellerId: "someone-else", status: "active" }),
+    });
+    const preview = await request(app)
+      .post("/api/bulk-listings/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ listingIds: ["l-4"], operation: "hide" });
+    const claim = await store.tryClaimOperation({
+      actorId: ACTOR,
+      operation: "hide",
+      idempotencyKey: "k-transferred",
+      proposalDigest: preview.body.digest,
+      targetImage: [{ id: "l-4", verdict: "owned" }],
+      leaseMs: 30_000,
+      nowMs: Date.now() - 120_000,
+    });
+
+    const recover = await request(app)
+      .post("/api/bulk-listings/recover")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ operation: "hide", idempotencyKey: "k-transferred" });
+    assert.equal(recover.status, 200);
+    assert.deepEqual(applied, [], "transferred listing never gets applyItem");
+    assert.equal(recover.body.outcomes[0].status, "failed");
+    assert.equal(recover.body.outcomes[0].reason, "not_owned");
+  });
+
+  it("two parallel recoveries apply at most once (CAS ownership)", async () => {
+    const applied: string[] = [];
+    const store = createInMemoryBulkOperationStore();
+    setBulkStoreForTests(store);
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async (id) => {
+        applied.push(id);
+        return { ok: true };
+      },
+      readListingOwnership: async () => ({ id: "l-5", sellerId: ACTOR, status: "active" }),
+    });
+    const preview = await request(app)
+      .post("/api/bulk-listings/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ listingIds: ["l-5"], operation: "hide" });
+    const claim = await store.tryClaimOperation({
+      actorId: ACTOR,
+      operation: "hide",
+      idempotencyKey: "k-par-recover",
+      proposalDigest: preview.body.digest,
+      targetImage: [{ id: "l-5", verdict: "owned" }],
+      leaseMs: 30_000,
+      nowMs: Date.now() - 120_000,
+    });
+
+    const [a, b] = await Promise.all([
+      request(app).post("/api/bulk-listings/recover").set("Authorization", authHeader(ACTOR)).send({ operation: "hide", idempotencyKey: "k-par-recover" }),
+      request(app).post("/api/bulk-listings/recover").set("Authorization", authHeader(ACTOR)).send({ operation: "hide", idempotencyKey: "k-par-recover" }),
+    ]);
+    const successes = [a, b].filter((r) => r.status === 200);
+    assert.ok(successes.length >= 1, "at least one recovery completes");
+    assert.deepEqual(applied, ["l-5"], "apply at most once across parallel recoveries");
+    const completed = successes.find((r) => r.body?.executed === true);
+    assert.ok(completed, "exactly one executed recovery");
+  });
+
+  it("replay after a terminal commit returns the identical durable result", async () => {
+    const store = createInMemoryBulkOperationStore();
+    setBulkStoreForTests(store);
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async () => ({ ok: true }),
+    });
+    const preview = await request(app)
+      .post("/api/bulk-listings/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ listingIds: ["l-6"], operation: "hide" });
+    const body = {
+      digest: preview.body.digest,
+      proposalExpiresAt: preview.body.proposal.expiresAt,
+      operation: "hide",
+      listingIds: ["l-6"],
+      idempotencyKey: "k-identical",
+    };
+    const first = await request(app).post("/api/bulk-listings/confirm").set("Authorization", authHeader(ACTOR)).send(body);
+    const replay = await request(app).post("/api/bulk-listings/confirm").set("Authorization", authHeader(ACTOR)).send(body);
+    assert.equal(first.status, 200);
+    assert.equal(replay.status, 200);
+    assert.deepEqual(replay.body.outcomes, first.body.outcomes, "identical durable result");
+    assert.equal(replay.body.state, "COMPLETED");
+    assert.equal(replay.body.executed, false);
+  });

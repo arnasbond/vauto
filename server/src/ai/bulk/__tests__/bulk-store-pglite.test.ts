@@ -1,7 +1,9 @@
 /**
  * F6.2 — durable bulk store against a REAL PostgreSQL-compatible engine
  * (PGlite): atomic claim via the unique constraint, replay reads the saved
- * result, CAS state transitions, per-item persistence and append-only audit.
+ * result, CAS recovery ownership with lease, CAS state transitions, per-item
+ * persistence, and the atomic terminalization transaction (results + items +
+ * audit commit together or not at all).
  */
 import assert from "node:assert/strict";
 import { describe, it, before, after } from "node:test";
@@ -17,18 +19,33 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function adaptPglite(db: PGlite): BulkStoreQueryable {
-  return {
+  const q: BulkStoreQueryable = {
     async query<T extends Record<string, unknown>>(text: string, params?: unknown[]) {
       const res = await db.query(text, params as never[]);
       return { rows: res.rows as T[] };
     },
+    async withTransaction<T>(fn: (tx: BulkStoreQueryable) => Promise<T>): Promise<T> {
+      return db.transaction(async (txDb) => {
+        const tx: BulkStoreQueryable = {
+          async query<Tx extends Record<string, unknown>>(text: string, params?: unknown[]) {
+            const res = await txDb.query(text, params as never[]);
+            return { rows: res.rows as Tx[] };
+          },
+          withTransaction: (inner) => inner(tx),
+        };
+        return fn(tx);
+      });
+    },
   };
+  return q;
 }
 
 const MIGRATION_SQL = readFileSync(
   path.resolve(__dirname, "../../../../migrations/064_f6_bulk_operations.sql"),
   "utf8"
 );
+
+const LEASE = 30_000;
 
 describe("F6.2 — durable bulk store (PGlite)", () => {
   let db: PGlite;
@@ -52,6 +69,7 @@ describe("F6.2 — durable bulk store (PGlite)", () => {
       idempotencyKey: "k-race",
       proposalDigest: "d1",
       targetImage: [{ id: "l-1", verdict: "owned" as const }],
+      leaseMs: LEASE,
       nowMs: 1_000,
     };
     const [a, b] = await Promise.all([
@@ -71,16 +89,19 @@ describe("F6.2 — durable bulk store (PGlite)", () => {
       idempotencyKey: "k-replay",
       proposalDigest: "d2",
       targetImage: [{ id: "l-2", verdict: "owned" as const }],
+      leaseMs: LEASE,
       nowMs: 2_000,
     };
     const first = await store.tryClaimOperation(input);
     assert.equal(first.created, true);
     await store.markState(first.record.id, "PENDING", "EXECUTING", { nowMs: 2_001 });
-    await store.saveOutcomes({
+    await store.completeOperationAtomically({
       operationId: first.record.id,
-      from: "EXECUTING",
+      fromStates: ["EXECUTING"],
       to: "COMPLETED",
       resultJson: { outcomes: [{ id: "l-2", status: "success" }], state: "COMPLETED" },
+      items: [{ listingId: "l-2", state: "APPLIED", outcome: "success", detail: "republished", appliedAt: 2_002 }],
+      audit: [],
       nowMs: 2_002,
     });
 
@@ -101,6 +122,7 @@ describe("F6.2 — durable bulk store (PGlite)", () => {
       idempotencyKey: "k-cas",
       proposalDigest: "d3",
       targetImage: [{ id: "l-3", verdict: "owned" as const }],
+      leaseMs: LEASE,
       nowMs: 3_000,
     });
     assert.equal(claim.created, true);
@@ -109,6 +131,108 @@ describe("F6.2 — durable bulk store (PGlite)", () => {
     const stale = await store.markState(claim.record.id, "PENDING", "COMPLETED", { nowMs: 3_002 });
     assert.equal(stale.updated, false);
     assert.equal(stale.record.state, "EXECUTING");
+  });
+
+  it("recovery claim is CAS: exactly one winner; the lease blocks healthy executes", async () => {
+    const store = createPostgresBulkOperationStore(q);
+    const claim = await store.tryClaimOperation({
+      actorId: "actor-6",
+      operation: "hide" as const,
+      idempotencyKey: "k-rec",
+      proposalDigest: "d6",
+      targetImage: [{ id: "l-6", verdict: "owned" as const }],
+      leaseMs: LEASE,
+      nowMs: 6_000,
+    });
+    await store.markState(claim.record.id, "PENDING", "EXECUTING", { nowMs: 6_001, leaseMs: LEASE });
+
+    // Fresh lease — recovery cannot claim.
+    const blocked = await store.tryClaimRecovery({
+      operationId: claim.record.id,
+      claimableStates: ["PENDING", "EXECUTING", "RECOVERING", "FAILED", "RECOVERY_REQUIRED"],
+      leaseMs: 120_000,
+      token: "t1",
+      nowMs: 6_002,
+    });
+    assert.equal(blocked.claimed, false);
+    assert.equal(blocked.record.state, "EXECUTING");
+
+    // Lease expired — two parallel recoveries, exactly one wins.
+    const [a, b] = await Promise.all([
+      store.tryClaimRecovery({
+        operationId: claim.record.id,
+        claimableStates: ["EXECUTING", "RECOVERING", "FAILED", "RECOVERY_REQUIRED"],
+        leaseMs: 120_000,
+        token: "tA",
+        nowMs: 40_000,
+      }),
+      store.tryClaimRecovery({
+        operationId: claim.record.id,
+        claimableStates: ["EXECUTING", "RECOVERING", "FAILED", "RECOVERY_REQUIRED"],
+        leaseMs: 120_000,
+        token: "tB",
+        nowMs: 40_000,
+      }),
+    ]);
+    assert.equal([a, b].filter((r) => r.claimed).length, 1, "exactly one recovery claim wins");
+    const winner = [a, b].find((r) => r.claimed)!;
+    assert.equal(winner.record.state, "RECOVERING");
+    assert.ok(winner.record.recoveryToken === "tA" || winner.record.recoveryToken === "tB");
+  });
+
+  it("atomic terminalization: a failing audit insert rolls the whole commit back", async () => {
+    const store = createPostgresBulkOperationStore(q);
+    const claim = await store.tryClaimOperation({
+      actorId: "actor-7",
+      operation: "hide" as const,
+      idempotencyKey: "k-atomic",
+      proposalDigest: "d7",
+      targetImage: [{ id: "l-7", verdict: "owned" as const }],
+      leaseMs: LEASE,
+      nowMs: 7_000,
+    });
+    await store.markState(claim.record.id, "PENDING", "EXECUTING", { nowMs: 7_001 });
+
+    let threw = false;
+    try {
+      await store.completeOperationAtomically({
+        operationId: claim.record.id,
+        fromStates: ["EXECUTING"],
+        to: "COMPLETED",
+        resultJson: { outcomes: [{ id: "l-7", status: "success" }], state: "COMPLETED" },
+        items: [{ listingId: "l-7", state: "APPLIED", outcome: "success", detail: "hidden", appliedAt: 7_002 }],
+        audit: [
+          {
+            operationId: claim.record.id,
+            actorId: "actor-7",
+            action: "bulk:hide",
+            targetId: "l-7",
+            proposalDigest: "d7",
+            correlation: "k-atomic",
+            outcome: "success",
+            timestamp: 7_002,
+          },
+          // NOT NULL violation on purpose — the second audit row has no actor.
+          {
+            operationId: claim.record.id,
+            actorId: null as unknown as string,
+            action: "bulk:hide",
+            targetId: "l-7",
+            proposalDigest: "d7",
+            correlation: "k-atomic",
+            outcome: "success",
+            timestamp: 7_002,
+          },
+        ],
+        nowMs: 7_002,
+      });
+    } catch {
+      threw = true;
+    }
+    assert.equal(threw, true, "the transactional method must fail");
+    const afterCrash = await store.getOperation({ actorId: "actor-7", operation: "hide", idempotencyKey: "k-atomic" });
+    assert.equal(afterCrash!.state, "EXECUTING", "no terminal state without results + audit");
+    assert.deepEqual(await store.getItems(claim.record.id), [], "items rolled back too");
   });
 
   it("per-item persistence + append-only audit survive re-reads", async () => {
@@ -122,6 +246,7 @@ describe("F6.2 — durable bulk store (PGlite)", () => {
         { id: "l-4", verdict: "owned" as const },
         { id: "l-foreign", verdict: "foreign" as const },
       ],
+      leaseMs: LEASE,
       nowMs: 4_000,
     });
     assert.equal(claim.created, true);
@@ -163,6 +288,7 @@ describe("F6.2 — durable bulk store (PGlite)", () => {
         { id: "l-5", verdict: "owned" as const },
         { id: "l-foreign", verdict: "foreign" as const },
       ],
+      leaseMs: LEASE,
       nowMs: 5_000,
     });
     assert.equal(claim.created, true);

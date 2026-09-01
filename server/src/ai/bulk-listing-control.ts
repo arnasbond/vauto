@@ -29,8 +29,9 @@
  *   - audit trail: structured actor/action/targets/outcome/correlation
  *     records (response-level; durable persistence is next-wave debt).
  */
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type {
+  BulkItemState,
   BulkOperationState,
   BulkOperationStore,
   BulkTargetImageEntry,
@@ -424,6 +425,10 @@ export async function executeBulkOperation(input: {
 /* F6.2 — durable execution (Postgres store)                                  */
 /* -------------------------------------------------------------------------- */
 
+export const BULK_EXECUTION_LEASE_MS = 30_000;
+export const BULK_STALE_PENDING_MS = 60_000;
+export const BULK_RECOVERY_LEASE_MS = 120_000;
+
 export type DurableBulkExecutionResult =
   | {
       ok: true;
@@ -444,7 +449,8 @@ export type DurableBulkExecutionResult =
         | "too_many"
         | "disabled"
         | "duplicate"
-        | "recovery_required";
+        | "recovery_required"
+        | "in_progress";
       message: string;
       state?: BulkOperationState;
     };
@@ -470,11 +476,12 @@ function recordOutcomes(
  * Durable bulk execution. The store's unique (actor, operation, key) claim
  * guarantees at-most-once execution across processes and restarts:
  *   - a fresh claim runs the operation and persists per-item outcomes plus
- *     the terminal state;
+ *     the terminal state AND the mandatory audit trail in ONE atomic store
+ *     transaction (no terminal state without results + audit);
  *   - a replay returns the SAVED result (never re-executes);
- *   - a claim found in EXECUTING / FAILED / RECOVERY_REQUIRED fails closed
- *     with `recovery_required` — no blind re-run; `recoverBulkOperation`
- *     verifies the ACTUAL listing statuses (hide/republish are idempotent
+ *   - a claim found in a non-terminal state returns in_progress /
+ *     recovery_required — no blind re-run; `recoverBulkOperation` verifies
+ *     the ACTUAL listing statuses (hide/republish are idempotent
  *     desired-state actions) before completing.
  */
 export async function executeBulkOperationDurable(input: {
@@ -548,15 +555,15 @@ export async function executeBulkOperationDurable(input: {
     idempotencyKey: key,
     proposalDigest: input.digest,
     targetImage,
+    leaseMs: BULK_EXECUTION_LEASE_MS,
     nowMs: now,
   });
 
   if (!created) {
-    // Same (actor, operation, key): NEVER re-execute.
     if (record.proposalDigest !== input.digest) {
       return { ok: false, code: "tampered", message: "Proposal pakeistas — atnaujinkite preview." };
     }
-    if (record.state === "COMPLETED" || record.state === "PARTIAL") {
+    if (record.state === "COMPLETED" || record.state === "PARTIAL" || record.state === "FAILED") {
       const saved = recordOutcomes(record.resultJson);
       return {
         ok: true,
@@ -567,26 +574,25 @@ export async function executeBulkOperationDurable(input: {
         state: record.state,
       };
     }
-    if (record.state === "PENDING") {
-      return {
-        ok: true,
-        outcomes: [],
-        audit: [],
-        executed: false,
-        replayed: true,
-        state: record.state,
-      };
-    }
-    // EXECUTING / FAILED / RECOVERY_REQUIRED — fail closed, no blind re-run.
+    // PENDING / EXECUTING with a VALID lease → healthy in-flight confirm.
+    // Stale lease (crashed process) → recovery_required, never a blind re-run.
+    const leaseValid = record.leaseUntil != null && record.leaseUntil > now;
+    const inProgress =
+      (record.state === "PENDING" || record.state === "EXECUTING") && leaseValid;
     return {
       ok: false,
-      code: "recovery_required",
-      message: "Operacija nebaigta — reikalingas saugus atkūrimas.",
+      code: inProgress ? "in_progress" : "recovery_required",
+      message: inProgress
+        ? "Operacija jau vykdoma."
+        : "Operacija nebaigta — reikalingas saugus atkūrimas.",
       state: record.state,
     };
   }
 
-  await input.store.markState(record.id, "PENDING", "EXECUTING", { nowMs: now });
+  await input.store.markState(record.id, "PENDING", "EXECUTING", {
+    nowMs: now,
+    leaseMs: BULK_EXECUTION_LEASE_MS,
+  });
 
   const outcomes: BulkItemOutcome[] = [];
   const audit: BulkAuditEntry[] = [];
@@ -594,20 +600,20 @@ export async function executeBulkOperationDurable(input: {
   const foreignSet = new Set(foreignIds);
   let failures = 0;
   let applied = 0;
+  const items: Array<{
+    listingId: string;
+    state: BulkItemState;
+    outcome: string;
+    detail?: string | null;
+    appliedAt?: number | null;
+  }> = [];
 
   for (const id of validated.ids) {
     if (!ownedIds.includes(id)) {
       const reason = foreignSet.has(id) ? "not_owned" : "not_found";
       failures += 1;
       outcomes.push({ id, status: "failed", reason });
-      await input.store.saveItemResult({
-        operationId: record.id,
-        listingId: id,
-        state: "FAILED",
-        outcome: reason,
-        detail: null,
-        appliedAt: null,
-      });
+      items.push({ listingId: id, state: "FAILED", outcome: reason, detail: null, appliedAt: null });
       audit.push({ actorId: input.actorId, action, targetId: id, outcome: `failed:${reason}`, correlation: key, timestamp: now });
       continue;
     }
@@ -616,54 +622,31 @@ export async function executeBulkOperationDurable(input: {
       if (appliedResult.ok) {
         applied += 1;
         outcomes.push({ id, status: "success", detail: appliedResult.detail ?? operation });
-        await input.store.saveItemResult({
-          operationId: record.id,
-          listingId: id,
-          state: "APPLIED",
-          outcome: "success",
-          detail: appliedResult.detail ?? operation,
-          appliedAt: now,
-        });
+        items.push({ listingId: id, state: "APPLIED", outcome: "success", detail: appliedResult.detail ?? operation, appliedAt: now });
         audit.push({ actorId: input.actorId, action, targetId: id, outcome: "success", correlation: key, timestamp: now });
       } else {
         failures += 1;
         outcomes.push({ id, status: "failed", reason: appliedResult.detail ?? "apply_failed" });
-        await input.store.saveItemResult({
-          operationId: record.id,
-          listingId: id,
-          state: "FAILED",
-          outcome: appliedResult.detail ?? "apply_failed",
-          detail: null,
-          appliedAt: null,
-        });
+        items.push({ listingId: id, state: "FAILED", outcome: appliedResult.detail ?? "apply_failed", detail: null, appliedAt: null });
         audit.push({ actorId: input.actorId, action, targetId: id, outcome: `failed:${appliedResult.detail ?? "apply_failed"}`, correlation: key, timestamp: now });
       }
     } catch {
       failures += 1;
       outcomes.push({ id, status: "failed", reason: "apply_error" });
-      await input.store.saveItemResult({
-        operationId: record.id,
-        listingId: id,
-        state: "FAILED",
-        outcome: "apply_error",
-        detail: null,
-        appliedAt: null,
-      });
+      items.push({ listingId: id, state: "FAILED", outcome: "apply_error", detail: null, appliedAt: null });
       audit.push({ actorId: input.actorId, action, targetId: id, outcome: "failed:apply_error", correlation: key, timestamp: now });
     }
   }
 
   const terminalState: BulkOperationState =
     failures === 0 ? "COMPLETED" : applied > 0 ? "PARTIAL" : "FAILED";
-  await input.store.saveOutcomes({
+  await input.store.completeOperationAtomically({
     operationId: record.id,
-    from: "EXECUTING",
+    fromStates: ["EXECUTING", "RECOVERING"],
     to: terminalState,
     resultJson: { outcomes, state: terminalState },
-    nowMs: now,
-  });
-  await input.store.appendAudit(
-    audit.map((a) => ({
+    items,
+    audit: audit.map((a) => ({
       operationId: record.id,
       actorId: a.actorId,
       action: a.action,
@@ -672,18 +655,23 @@ export async function executeBulkOperationDurable(input: {
       correlation: a.correlation,
       outcome: a.outcome,
       timestamp: a.timestamp,
-    }))
-  );
+    })),
+    nowMs: now,
+  });
 
   return { ok: true, outcomes, audit, executed: true, replayed: false, state: terminalState };
 }
 
 /**
- * Safe recovery after a crash: verify the ACTUAL listing status against the
- * desired state (hide → deleted, republish → active) and only apply when the
- * desired state is NOT yet present. Ambiguous status reads fail closed to
- * `recovery_required`. Never touches foreign/not-found targets (they are not
- * part of the stored target image's owned set).
+ * Safe recovery after a crash. Ownership is re-checked against FRESH listing
+ * state (id + sellerId + status); a target whose sellerId no longer matches
+ * the actor is `not_owned` and `applyItem` is NEVER called for it.
+ *
+ * Claim semantics: exactly one caller wins the RECOVERING state (CAS with a
+ * server-derived token + lease). A fresh PENDING/EXECUTING operation (valid
+ * lease) returns in_progress and is never taken over; a stale PENDING may be
+ * claimed. Terminalization (results + items + audit) is one atomic store
+ * transaction.
  */
 export async function recoverBulkOperation(input: {
   actorId: string;
@@ -691,7 +679,11 @@ export async function recoverBulkOperation(input: {
   operation: BulkOperation;
   idempotencyKey: string;
   store: BulkOperationStore;
-  readListingStatus: (listingId: string) => Promise<{ status: string } | null>;
+  readListingOwnership: (listingId: string) => Promise<{
+    id: string;
+    sellerId: string;
+    status: string;
+  } | null>;
   applyItem: (listingId: string) => Promise<{ ok: boolean; detail?: string }>;
   nowMs?: number;
   env?: { NODE_ENV?: string; VAUTO_ENABLE_BULK_LISTING_OPS?: string };
@@ -712,12 +704,31 @@ export async function recoverBulkOperation(input: {
   if (!record) {
     return { ok: false, code: "invalid_payload", message: "Operacija nerasta." };
   }
-  if (record.state === "COMPLETED" || record.state === "PARTIAL") {
+  if (record.state === "COMPLETED" || record.state === "PARTIAL" || record.state === "FAILED") {
     const saved = recordOutcomes(record.resultJson);
     return { ok: true, outcomes: saved.outcomes, audit: [], executed: false, replayed: true, state: record.state };
   }
-  if (record.state === "PENDING") {
-    return { ok: false, code: "recovery_required", message: "Operacija dar neprasidėjo.", state: record.state };
+  if (record.state === "PENDING" && now - record.updatedAt < BULK_STALE_PENDING_MS) {
+    return { ok: false, code: "in_progress", message: "Operacija jau vykdoma.", state: record.state };
+  }
+  if (
+    (record.state === "EXECUTING" || record.state === "RECOVERING") &&
+    record.leaseUntil != null &&
+    record.leaseUntil > now
+  ) {
+    return { ok: false, code: "in_progress", message: "Operacija jau vykdoma.", state: record.state };
+  }
+
+  const recoveryToken = randomUUID();
+  const claim = await input.store.tryClaimRecovery({
+    operationId: record.id,
+    claimableStates: ["PENDING", "EXECUTING", "RECOVERING", "RECOVERY_REQUIRED", "FAILED"],
+    leaseMs: BULK_RECOVERY_LEASE_MS,
+    token: recoveryToken,
+    nowMs: now,
+  });
+  if (!claim.claimed) {
+    return { ok: false, code: "in_progress", message: "Atkūrimą jau vykdo kitas procesas.", state: claim.record.state };
   }
 
   const ownedIds = record.targetImage
@@ -729,36 +740,45 @@ export async function recoverBulkOperation(input: {
   let ambiguous = false;
   let failures = 0;
   let applied = 0;
+  const items: Array<{
+    listingId: string;
+    state: BulkItemState;
+    outcome: string;
+    detail?: string | null;
+    appliedAt?: number | null;
+  }> = [];
 
   for (const id of ownedIds) {
-    let current: { status: string } | null;
+    let current: { id: string; sellerId: string; status: string } | null;
     try {
-      current = await input.readListingStatus(id);
+      current = await input.readListingOwnership(id);
     } catch {
       ambiguous = true;
       continue;
     }
     if (current === null) {
-      // Listing gone: hide → desired already true (nothing to do); republish → failed.
+      // Listing gone. Desired-state semantics: hide → already satisfied;
+      // republish → explicit failure.
       if (operation === "hide") {
         outcomes.push({ id, status: "success", detail: "already_deleted" });
-        await input.store.saveItemResult({
-          operationId: record.id, listingId: id, state: "APPLIED", outcome: "already_deleted", detail: null, appliedAt: now,
-        });
+        items.push({ listingId: id, state: "APPLIED", outcome: "already_deleted", detail: null, appliedAt: now });
       } else {
         failures += 1;
         outcomes.push({ id, status: "failed", reason: "not_found" });
-        await input.store.saveItemResult({
-          operationId: record.id, listingId: id, state: "FAILED", outcome: "not_found", detail: null, appliedAt: null,
-        });
+        items.push({ listingId: id, state: "FAILED", outcome: "not_found", detail: null, appliedAt: null });
       }
+      continue;
+    }
+    if (current.sellerId !== input.actorId) {
+      // Transferred / foreign after preview — fail closed, NEVER apply.
+      failures += 1;
+      outcomes.push({ id, status: "failed", reason: "not_owned" });
+      items.push({ listingId: id, state: "FAILED", outcome: "not_owned", detail: null, appliedAt: null });
       continue;
     }
     if (current.status === desired) {
       outcomes.push({ id, status: "success", detail: "already_applied" });
-      await input.store.saveItemResult({
-        operationId: record.id, listingId: id, state: "APPLIED", outcome: "already_applied", detail: null, appliedAt: now,
-      });
+      items.push({ listingId: id, state: "APPLIED", outcome: "already_applied", detail: null, appliedAt: now });
       continue;
     }
     try {
@@ -766,27 +786,21 @@ export async function recoverBulkOperation(input: {
       if (appliedResult.ok) {
         applied += 1;
         outcomes.push({ id, status: "success", detail: appliedResult.detail ?? operation });
-        await input.store.saveItemResult({
-          operationId: record.id, listingId: id, state: "APPLIED", outcome: "success", detail: appliedResult.detail ?? operation, appliedAt: now,
-        });
+        items.push({ listingId: id, state: "APPLIED", outcome: "success", detail: appliedResult.detail ?? operation, appliedAt: now });
       } else {
         failures += 1;
         outcomes.push({ id, status: "failed", reason: appliedResult.detail ?? "apply_failed" });
-        await input.store.saveItemResult({
-          operationId: record.id, listingId: id, state: "FAILED", outcome: appliedResult.detail ?? "apply_failed", detail: null, appliedAt: null,
-        });
+        items.push({ listingId: id, state: "FAILED", outcome: appliedResult.detail ?? "apply_failed", detail: null, appliedAt: null });
       }
     } catch {
       failures += 1;
       outcomes.push({ id, status: "failed", reason: "apply_error" });
-      await input.store.saveItemResult({
-        operationId: record.id, listingId: id, state: "FAILED", outcome: "apply_error", detail: null, appliedAt: null,
-      });
+      items.push({ listingId: id, state: "FAILED", outcome: "apply_error", detail: null, appliedAt: null });
     }
   }
 
   if (ambiguous) {
-    await input.store.markState(record.id, record.state, "RECOVERY_REQUIRED", { nowMs: now });
+    await input.store.markState(record.id, "RECOVERING", "RECOVERY_REQUIRED", { nowMs: now });
     return {
       ok: false,
       code: "recovery_required",
@@ -797,15 +811,13 @@ export async function recoverBulkOperation(input: {
 
   const terminalState: BulkOperationState =
     failures === 0 ? "COMPLETED" : applied > 0 || outcomes.some((o) => o.status === "success") ? "PARTIAL" : "FAILED";
-  await input.store.saveOutcomes({
+  await input.store.completeOperationAtomically({
     operationId: record.id,
-    from: record.state,
+    fromStates: ["RECOVERING"],
     to: terminalState,
     resultJson: { outcomes, state: terminalState },
-    nowMs: now,
-  });
-  await input.store.appendAudit(
-    outcomes.map((o) => ({
+    items,
+    audit: outcomes.map((o) => ({
       operationId: record.id,
       actorId: input.actorId,
       action,
@@ -814,8 +826,9 @@ export async function recoverBulkOperation(input: {
       correlation: record.idempotencyKey,
       outcome: o.status === "success" ? `recovered:${o.status}` : `recovered:${o.status}:${(o as { reason?: string }).reason ?? ""}`,
       timestamp: now,
-    }))
-  );
+    })),
+    nowMs: now,
+  });
 
   return { ok: true, outcomes, audit: [], executed: true, replayed: false, state: terminalState };
 }
