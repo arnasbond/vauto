@@ -10,11 +10,20 @@
  *   - ownership: an actor can only ever operate on their OWN listings
  *     (fresh ownership re-check at execution time — forged/foreign/unknown
  *     target IDs fail closed);
- *   - preview + human confirmation: execution requires the exact opaque
- *     digest minted by the preview (HMAC over actor + canonical target set +
- *     operation + expiry), with a hard TTL;
- *   - idempotency: one correlation key executes a bulk operation exactly once
- *     — replays are reported as skipped, never re-applied;
+ *   - preview + human confirmation: the opaque digest covers the ENTIRE
+ *     normalized confirmed proposal image (actor + every requested target
+ *     WITH its verdict + operation + expiry) — adding, removing or changing
+ *     any target at confirm time yields 409 and executes nothing;
+ *   - idempotency: the registry key is scoped to actorId + operation +
+ *     idempotencyKey, so different sellers can never block each other and a
+ *     replay never double-applies;
+ *   - fail-closed feature gate: in production, bulk execution is OFF by
+ *     default (no durable idempotency/audit persistence yet) and requires an
+ *     explicit safe opt-in; the preview never promises execution while the
+ *     gate is closed;
+ *   - one precisely-named soft operation ("hide" = soft-delete from the
+ *     public catalog, "republish" = restore) — no aliases pretending to be
+ *     different actions;
  *   - partial failure: per-item success/failed/skipped outcomes, already
  *     applied results are never hidden by later failures;
  *   - audit trail: structured actor/action/targets/outcome/correlation
@@ -22,7 +31,7 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-export const BULK_OPERATIONS = ["unpublish", "republish", "delete"] as const;
+export const BULK_OPERATIONS = ["hide", "republish"] as const;
 export type BulkOperation = (typeof BULK_OPERATIONS)[number];
 
 export const BULK_PROPOSAL_TTL_MS = 5 * 60_000;
@@ -32,6 +41,20 @@ export const BULK_MAX_TARGETS = 100;
 export function canRunBulkOperations(role: string | null | undefined): boolean {
   const r = String(role ?? "").trim().toLowerCase();
   return r === "pro" || r === "admin" || r === "super_admin";
+}
+
+/**
+ * Fail-closed feature gate: bulk execution is OFF in production by default
+ * (process-local idempotency + response-only audit are not production
+ * guarantees yet). An explicit, deliberately-named opt-in enables it.
+ */
+export function bulkExecutionEnabled(
+  env: { NODE_ENV?: string; VAUTO_ENABLE_BULK_LISTING_OPS?: string } = process.env
+): boolean {
+  if (env.NODE_ENV === "production") {
+    return env.VAUTO_ENABLE_BULK_LISTING_OPS === "true";
+  }
+  return true;
 }
 
 export type BulkListingRow = {
@@ -49,14 +72,12 @@ export type BulkTargetVerdict =
   | { status: "not_found"; listingId: string }
   | { status: "invalid"; listingId: string };
 
-function normalizeIds(raw: unknown): string[] {
-  if (!Array.isArray(raw)) return [];
+function normalizeIds(raw: unknown[]): string[] {
   const out: string[] = [];
   for (const id of raw) {
     const s = String(id ?? "").trim();
     if (!s || s.length > 100) continue;
     if (!out.includes(s)) out.push(s);
-    if (out.length >= BULK_MAX_TARGETS) break;
   }
   return out;
 }
@@ -105,15 +126,23 @@ export function classifyBulkTargets(input: {
   return { verdicts, ownedIds, foreignIds };
 }
 
+/**
+ * The immutable proposal image covered by the digest: EVERY requested target
+ * with its verdict (owned/foreign/not_found/invalid), sorted canonically.
+ * Adding, removing or changing any target changes the digest.
+ */
 function canonicalDigestPayload(input: {
   actorId: string;
-  ownedIds: string[];
+  targets: Array<{ id: string; verdict: string }>;
   operation: BulkOperation;
   expiresAt: number;
 }): string {
+  const targets = [...input.targets]
+    .map((t) => ({ id: t.id, verdict: t.verdict }))
+    .sort((a, b) => a.id.localeCompare(b.id));
   return JSON.stringify({
     actorId: input.actorId,
-    ids: [...input.ownedIds].sort(),
+    targets,
     operation: input.operation,
     expiresAt: input.expiresAt,
   });
@@ -122,7 +151,7 @@ function canonicalDigestPayload(input: {
 export function signBulkProposal(
   input: {
     actorId: string;
-    ownedIds: string[];
+    targets: Array<{ id: string; verdict: string }>;
     operation: BulkOperation;
     expiresAt: number;
   },
@@ -150,7 +179,7 @@ export type BulkProposal = {
 
 /**
  * Human-review preview: classify the requested targets, mint an opaque digest
- * over the CONFIRMABLE (owned) set, and surface every warning. No execution.
+ * over the FULL proposal image, and surface every warning. No execution.
  */
 export function buildBulkProposal(input: {
   actorId: string;
@@ -162,7 +191,7 @@ export function buildBulkProposal(input: {
 }): { proposal: BulkProposal; digest: string } {
   const now = input.nowMs ?? Date.now();
   const expiresAt = now + BULK_PROPOSAL_TTL_MS;
-  const { verdicts, ownedIds, foreignIds } = classifyBulkTargets({
+  const { verdicts, ownedIds } = classifyBulkTargets({
     actorId: input.actorId,
     listings: input.listings,
     requestedIds: normalizeIds(input.requestedIds),
@@ -174,7 +203,6 @@ export function buildBulkProposal(input: {
     if (v.status === "invalid") warnings.push(`Skelbimas negalimas (uždraustas): ${v.listingId}`);
   }
   if (ownedIds.length === 0) warnings.push("Nėra patvirtinamų skelbimų.");
-  void foreignIds;
   return {
     proposal: {
       operation: input.operation,
@@ -184,7 +212,12 @@ export function buildBulkProposal(input: {
       warnings,
     },
     digest: signBulkProposal(
-      { actorId: input.actorId, ownedIds, operation: input.operation, expiresAt },
+      {
+        actorId: input.actorId,
+        targets: verdicts.map((v) => ({ id: v.listingId, verdict: v.status })),
+        operation: input.operation,
+        expiresAt,
+      },
       input.signingKey
     ),
   };
@@ -211,14 +244,25 @@ export type BulkExecutionResult =
       audit: BulkAuditEntry[];
       executed: boolean;
     }
-  | { ok: false; code: "expired" | "tampered" | "invalid_operation" | "unauthorized" | "empty_targets" | "duplicate"; message: string };
+  | {
+      ok: false;
+      code:
+        | "expired"
+        | "tampered"
+        | "invalid_operation"
+        | "unauthorized"
+        | "empty_targets"
+        | "too_many"
+        | "disabled"
+        | "duplicate";
+      message: string;
+    };
 
 /**
  * Execute a human-confirmed bulk operation. Fail-closed at every boundary:
- * expiry, digest tampering, role, fresh ownership, idempotency.
- *
- * `executedKeys` is the caller's registry (route keeps it in-memory); the key
- * is claimed BEFORE any item is applied so replays can never double-apply.
+ * gate, expiry, digest (full proposal image), role, fresh ownership,
+ * idempotency. `executedKeys` is the caller's registry; the scoped key is
+ * claimed BEFORE any item is applied so replays can never double-apply.
  */
 export async function executeBulkOperation(input: {
   actorId: string;
@@ -233,6 +277,7 @@ export async function executeBulkOperation(input: {
   applyItem: (listingId: string) => Promise<{ ok: boolean; detail?: string }>;
   resolveListings: () => Promise<BulkListingRow[]>;
   nowMs?: number;
+  env?: { NODE_ENV?: string; VAUTO_ENABLE_BULK_LISTING_OPS?: string };
 }): Promise<BulkExecutionResult> {
   const now = input.nowMs ?? Date.now();
   const operation = input.operation as BulkOperation;
@@ -242,9 +287,14 @@ export async function executeBulkOperation(input: {
   if (!canRunBulkOperations(input.actorRole)) {
     return { ok: false, code: "unauthorized", message: "Tik verslo pardavėjams." };
   }
-  const ids = normalizeIds(input.targetIds);
-  if (ids.length === 0) {
+  if (!bulkExecutionEnabled(input.env)) {
+    return { ok: false, code: "disabled", message: "Bulk vykdymas išjungtas šioje aplinkoje." };
+  }
+  if (!Array.isArray(input.targetIds) || input.targetIds.length === 0) {
     return { ok: false, code: "empty_targets", message: "Nėra patvirtinamų skelbimų." };
+  }
+  if (input.targetIds.length > BULK_MAX_TARGETS) {
+    return { ok: false, code: "too_many", message: `Daugiausia ${BULK_MAX_TARGETS} skelbimų vienu metu.` };
   }
   const key = String(input.idempotencyKey ?? "").trim();
   if (!key || key.length > 160) {
@@ -255,14 +305,21 @@ export async function executeBulkOperation(input: {
   }
 
   const listings = await input.resolveListings();
-  const { ownedIds, foreignIds } = classifyBulkTargets({
+  const { verdicts, ownedIds, foreignIds } = classifyBulkTargets({
     actorId: input.actorId,
     listings,
-    requestedIds: ids,
+    requestedIds: normalizeIds(input.targetIds),
   });
 
+  // The digest must match the FULL proposal image: any target added, removed
+  // or changed (including its verdict) at confirm time fails closed.
   const expectedDigest = signBulkProposal(
-    { actorId: input.actorId, ownedIds, operation, expiresAt: input.proposalExpiresAt },
+    {
+      actorId: input.actorId,
+      targets: verdicts.map((v) => ({ id: v.listingId, verdict: v.status })),
+      operation,
+      expiresAt: input.proposalExpiresAt,
+    },
     input.signingKey
   );
   if (!safeEqual(input.digest, expectedDigest)) {
@@ -272,19 +329,22 @@ export async function executeBulkOperation(input: {
   const outcomes: BulkItemOutcome[] = [];
   const audit: BulkAuditEntry[] = [];
   const action = `bulk:${operation}`;
-  const claimed = !input.executedKeys.has(key);
+  // Idempotency is scoped to actor + operation + correlation key.
+  const scopedKey = `${input.actorId}:${operation}:${key}`;
+  const claimed = !input.executedKeys.has(scopedKey);
   if (!claimed) {
-    for (const id of ids) {
+    for (const id of input.targetIds.map(String)) {
       const reason = "duplicate_request";
       outcomes.push({ id, status: "skipped", reason });
       audit.push({ actorId: input.actorId, action, targetId: id, outcome: `skipped:${reason}`, correlation: key, timestamp: now });
     }
     return { ok: true, outcomes, audit, executed: false };
   }
-  input.executedKeys.add(key);
+  input.executedKeys.add(scopedKey);
 
   const foreignSet = new Set(foreignIds);
-  for (const id of ids) {
+  for (const rawId of input.targetIds) {
+    const id = String(rawId).trim();
     if (!ownedIds.includes(id)) {
       const reason = foreignSet.has(id) ? "not_owned" : "not_found";
       outcomes.push({ id, status: "failed", reason });

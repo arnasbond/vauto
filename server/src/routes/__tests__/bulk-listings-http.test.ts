@@ -6,7 +6,7 @@
  * for real, executors faked, no PostgreSQL touched.
  */
 import assert from "node:assert/strict";
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import express from "express";
 import request from "supertest";
 import { signAccessToken } from "../../auth/tokens.js";
@@ -16,13 +16,16 @@ import {
   setBulkExecutorsForTests,
 } from "../bulk-listings.js";
 import {
+  BULK_OPERATIONS,
   buildBulkProposal,
+  bulkExecutionEnabled,
   canRunBulkOperations,
   classifyBulkTargets,
   executeBulkOperation,
 } from "../../ai/bulk-listing-control.js";
 
 const ACTOR = "seller-pro-1";
+const OTHER = "seller-pro-2";
 
 const ROWS = [
   { id: "l-1", sellerId: ACTOR, title: "Volvo V70", category: "vehicles", status: "active" },
@@ -49,6 +52,16 @@ function authHeader(userId: string, role = "pro") {
 
 const app = createApp();
 
+const SAVED_ENV = { NODE_ENV: process.env.NODE_ENV, VAUTO_ENABLE_BULK_LISTING_OPS: process.env.VAUTO_ENABLE_BULK_LISTING_OPS };
+
+afterEach(() => {
+  setBulkExecutorsForTests(null);
+  if (SAVED_ENV.NODE_ENV === undefined) delete process.env.NODE_ENV;
+  else process.env.NODE_ENV = SAVED_ENV.NODE_ENV;
+  if (SAVED_ENV.VAUTO_ENABLE_BULK_LISTING_OPS === undefined) delete process.env.VAUTO_ENABLE_BULK_LISTING_OPS;
+  else process.env.VAUTO_ENABLE_BULK_LISTING_OPS = SAVED_ENV.VAUTO_ENABLE_BULK_LISTING_OPS;
+});
+
 describe("F6.1 — bulk-listing core (pure)", () => {
   it("role gate: only pro/admin/super_admin may run bulk operations", () => {
     assert.equal(canRunBulkOperations("pro"), true);
@@ -58,6 +71,19 @@ describe("F6.1 — bulk-listing core (pure)", () => {
     assert.equal(canRunBulkOperations("buyer"), false);
     assert.equal(canRunBulkOperations(undefined), false);
     assert.equal(canRunBulkOperations("hacker"), false);
+  });
+
+  it("operation vocabulary is precise: hide + republish only (no aliases)", () => {
+    assert.deepEqual([...BULK_OPERATIONS], ["hide", "republish"]);
+    assert.ok(!(BULK_OPERATIONS as readonly string[]).includes("unpublish"));
+    assert.ok(!(BULK_OPERATIONS as readonly string[]).includes("delete"));
+  });
+
+  it("feature gate: production is fail-closed without the explicit opt-in", () => {
+    assert.equal(bulkExecutionEnabled({ NODE_ENV: "production" }), false);
+    assert.equal(bulkExecutionEnabled({ NODE_ENV: "production", VAUTO_ENABLE_BULK_LISTING_OPS: "true" }), true);
+    assert.equal(bulkExecutionEnabled({ NODE_ENV: "production", VAUTO_ENABLE_BULK_LISTING_OPS: "1" }), false);
+    assert.equal(bulkExecutionEnabled({}), true, "non-production stays enabled");
   });
 
   it("classification: owned / foreign / not_found / invalid, fail-closed", () => {
@@ -76,48 +102,80 @@ describe("F6.1 — bulk-listing core (pure)", () => {
     assert.equal(verdicts.find((v) => v.listingId === "l-banned")!.status, "invalid");
   });
 
-  it("proposal digest is deterministic per canonical payload; tampering fails", async () => {
-    const first = buildBulkProposal({
-      actorId: ACTOR,
-      listings: ROWS,
-      requestedIds: ["l-2", "l-1"],
-      operation: "unpublish",
-      signingKey: "test-key",
-      nowMs: 1_000,
-    });
-    const same = buildBulkProposal({
+  it("digest covers the FULL proposal image: added, removed or changed targets → tampered", async () => {
+    const minted = buildBulkProposal({
       actorId: ACTOR,
       listings: ROWS,
       requestedIds: ["l-1", "l-2"],
-      operation: "unpublish",
+      operation: "hide",
       signingKey: "test-key",
-      nowMs: 1_000,
+      nowMs: 500,
     });
-    assert.equal(first.digest, same.digest, "order-insensitive canonical digest");
+    let applied = 0;
+    const base = {
+      actorId: ACTOR,
+      actorRole: "pro" as const,
+      operation: "hide" as const,
+      proposalExpiresAt: minted.proposal.expiresAt,
+      idempotencyKey: "k",
+      signingKey: "test-key",
+      executedKeys: new Set<string>(),
+      nowMs: 600,
+      applyItem: async () => {
+        applied += 1;
+        return { ok: true };
+      },
+      resolveListings: async () => ROWS,
+      env: {},
+    };
 
+    const added = await executeBulkOperation({ ...base, targetIds: ["l-1", "l-2", "l-foreign"], digest: minted.digest });
+    assert.equal(added.ok, false);
+    assert.equal((added as { code: string }).code, "tampered");
+
+    const removed = await executeBulkOperation({ ...base, targetIds: ["l-1"], digest: minted.digest });
+    assert.equal(removed.ok, false);
+    assert.equal((removed as { code: string }).code, "tampered");
+
+    const changed = await executeBulkOperation({ ...base, targetIds: ["l-1", "l-3"], digest: minted.digest });
+    assert.equal(changed.ok, false);
+    assert.equal((changed as { code: string }).code, "tampered");
+
+    assert.equal(applied, 0, "zero execution on any proposal change");
+  });
+
+  it("canonical ordering: the same set in a different order executes", async () => {
+    const minted = buildBulkProposal({
+      actorId: ACTOR,
+      listings: ROWS,
+      requestedIds: ["l-1", "l-2"],
+      operation: "hide",
+      signingKey: "test-key",
+      nowMs: 500,
+    });
     const result = await executeBulkOperation({
       actorId: ACTOR,
       actorRole: "pro",
-      operation: "unpublish",
-      targetIds: ["l-1", "l-2"],
-      digest: "00".repeat(32),
-      proposalExpiresAt: 2_000,
-      idempotencyKey: "k1",
+      operation: "hide",
+      targetIds: ["l-2", "l-1"],
+      digest: minted.digest,
+      proposalExpiresAt: minted.proposal.expiresAt,
+      idempotencyKey: "k-order",
       signingKey: "test-key",
       executedKeys: new Set(),
-      nowMs: 1_100,
+      nowMs: 600,
       applyItem: async () => ({ ok: true }),
       resolveListings: async () => ROWS,
+      env: {},
     });
-    assert.equal(result.ok, false);
-    assert.equal((result as { code: string }).code, "tampered");
+    assert.equal(result.ok, true);
   });
 
   it("expired proposal is rejected", async () => {
     const result = await executeBulkOperation({
       actorId: ACTOR,
       actorRole: "pro",
-      operation: "unpublish",
+      operation: "hide",
       targetIds: ["l-1"],
       digest: "aa",
       proposalExpiresAt: 1_000,
@@ -127,47 +185,105 @@ describe("F6.1 — bulk-listing core (pure)", () => {
       nowMs: 2_000,
       applyItem: async () => ({ ok: true }),
       resolveListings: async () => ROWS,
+      env: {},
     });
     assert.equal(result.ok, false);
     assert.equal((result as { code: string }).code, "expired");
   });
 
-  it("idempotency: the same key executes exactly once", async () => {
-    const applied: string[] = [];
-    const keys = new Set<string>();
+  it("more than 100 targets is rejected with too_many, never silently truncated", async () => {
+    const ids = Array.from({ length: 101 }, (_, i) => `l-${i}`);
+    const result = await executeBulkOperation({
+      actorId: ACTOR,
+      actorRole: "pro",
+      operation: "hide",
+      targetIds: ids,
+      digest: "aa",
+      proposalExpiresAt: 9_999_999,
+      idempotencyKey: "k-many",
+      signingKey: "test-key",
+      executedKeys: new Set(),
+      nowMs: 1_000,
+      applyItem: async () => ({ ok: true }),
+      resolveListings: async () => ROWS,
+      env: {},
+    });
+    assert.equal(result.ok, false);
+    assert.equal((result as { code: string }).code, "too_many");
+  });
+
+  it("production without the opt-in fails closed (disabled)", async () => {
     const minted = buildBulkProposal({
       actorId: ACTOR,
       listings: ROWS,
       requestedIds: ["l-1"],
-      operation: "unpublish",
+      operation: "hide",
       signingKey: "test-key",
       nowMs: 500,
     });
-    const base = {
+    const result = await executeBulkOperation({
       actorId: ACTOR,
-      actorRole: "pro" as const,
-      operation: "unpublish" as const,
+      actorRole: "pro",
+      operation: "hide",
       targetIds: ["l-1"],
+      digest: minted.digest,
       proposalExpiresAt: minted.proposal.expiresAt,
+      idempotencyKey: "k-gate",
       signingKey: "test-key",
-      executedKeys: keys,
-      nowMs: 1_000,
-      applyItem: async (id: string) => {
-        applied.push(id);
-        return { ok: true };
-      },
+      executedKeys: new Set(),
+      nowMs: 600,
+      applyItem: async () => ({ ok: true }),
       resolveListings: async () => ROWS,
-    };
+      env: { NODE_ENV: "production" },
+    });
+    assert.equal(result.ok, false);
+    assert.equal((result as { code: string }).code, "disabled");
+  });
 
-    const first = await executeBulkOperation({ ...base, digest: minted.digest, idempotencyKey: "k-same" });
-    const second = await executeBulkOperation({ ...base, digest: minted.digest, idempotencyKey: "k-same" });
-    assert.equal(first.ok, true);
-    assert.deepEqual(applied, ["l-1"], "applied exactly once");
-    const secondOk = second as { ok: true; outcomes: { status: string; reason: string }[]; executed: boolean };
-    assert.equal(secondOk.ok, true);
-    assert.equal(secondOk.outcomes[0]!.status, "skipped");
-    assert.equal(secondOk.outcomes[0]!.reason, "duplicate_request");
-    assert.equal(secondOk.executed, false);
+  it("idempotency is scoped per actor + operation + key — sellers never block each other", async () => {
+    const keys = new Set<string>();
+    const makeProposal = (actorId: string, id: string) =>
+      buildBulkProposal({
+        actorId,
+        listings: [
+          ...ROWS,
+          { id, sellerId: actorId, title: "X", category: "home", status: "active" },
+        ],
+        requestedIds: [id],
+        operation: "hide",
+        signingKey: "test-key",
+        nowMs: 500,
+      });
+    const run = async (actorId: string, id: string) => {
+      const minted = makeProposal(actorId, id);
+      return executeBulkOperation({
+        actorId,
+        actorRole: "pro",
+        operation: "hide",
+        targetIds: [id],
+        digest: minted.digest,
+        proposalExpiresAt: minted.proposal.expiresAt,
+        idempotencyKey: "same-key",
+        signingKey: "test-key",
+        executedKeys: keys,
+        nowMs: 600,
+        applyItem: async () => ({ ok: true }),
+        resolveListings: async () => [
+          ...ROWS,
+          { id, sellerId: actorId, title: "X", category: "home", status: "active" },
+        ],
+        env: {},
+      });
+    };
+    const a1 = await run(ACTOR, "l-a");
+    const b1 = await run(OTHER, "l-b");
+    assert.equal(a1.ok, true);
+    assert.equal(b1.ok, true, "different actor with the same key is not blocked");
+    assert.equal((a1 as { executed: boolean }).executed, true);
+    assert.equal((b1 as { executed: boolean }).executed, true);
+
+    const a2 = await run(ACTOR, "l-a");
+    assert.equal((a2 as { ok: true; executed: boolean }).executed, false, "same actor replay is skipped");
   });
 
   it("partial failure never hides already-applied results; foreign targets fail closed", async () => {
@@ -175,8 +291,8 @@ describe("F6.1 — bulk-listing core (pure)", () => {
     const minted = buildBulkProposal({
       actorId: ACTOR,
       listings: ROWS,
-      requestedIds: ["l-1", "l-3"],
-      operation: "delete",
+      requestedIds: ["l-1", "l-3", "l-foreign"],
+      operation: "hide",
       signingKey: "test-key",
       nowMs: 500,
     });
@@ -184,16 +300,17 @@ describe("F6.1 — bulk-listing core (pure)", () => {
     const result = await executeBulkOperation({
       actorId: ACTOR,
       actorRole: "pro",
-      operation: "delete",
+      operation: "hide",
       targetIds: ["l-1", "l-3", "l-foreign"],
       digest: minted.digest,
       proposalExpiresAt: minted.proposal.expiresAt,
       idempotencyKey: "k-partial",
       signingKey: "test-key",
       executedKeys: keys,
-      nowMs: 1_000,
+      nowMs: 600,
       applyItem: async (id) => (id === "l-3" ? { ok: false, detail: "db_locked" } : { ok: true }),
       resolveListings: async () => ROWS,
+      env: {},
     });
     assert.equal(result.ok, true);
     const outcomes = (result as { ok: true; outcomes: { id: string; status: string; reason?: string }[] }).outcomes;
@@ -217,11 +334,42 @@ describe("F6.1 — bulk-listing HTTP boundary (preview → confirm)", () => {
     const res = await request(app)
       .post("/api/bulk-listings/preview")
       .set("Authorization", authHeader(ACTOR))
-      .send({ listingIds: ["l-1", "l-foreign"], operation: "unpublish" });
+      .send({ listingIds: ["l-1", "l-foreign"], operation: "hide" });
     assert.equal(res.status, 200);
     assert.ok(res.body.digest);
+    assert.equal(res.body.executionEnabled, true);
     assert.equal(res.body.proposal.ownedCount, 1);
     assert.ok(res.body.proposal.warnings.some((w: string) => w.includes("Svetimas")));
+  });
+
+  it("production gate: preview promises nothing, mints no digest, confirm is 403", async () => {
+    process.env.NODE_ENV = "production";
+    delete process.env.VAUTO_ENABLE_BULK_LISTING_OPS;
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async () => ({ ok: true }),
+    });
+    const preview = await request(app)
+      .post("/api/bulk-listings/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ listingIds: ["l-1"], operation: "hide" });
+    assert.equal(preview.status, 200);
+    assert.equal(preview.body.executionEnabled, false);
+    assert.equal(preview.body.digest, null);
+    assert.ok(preview.body.proposal.warnings.some((w: string) => w.includes("išjungtas")));
+
+    const confirm = await request(app)
+      .post("/api/bulk-listings/confirm")
+      .set("Authorization", authHeader(ACTOR))
+      .send({
+        digest: "aa",
+        proposalExpiresAt: Date.now() + 60_000,
+        operation: "hide",
+        listingIds: ["l-1"],
+        idempotencyKey: "k-gate",
+      });
+    assert.equal(confirm.status, 403);
+    assert.equal(confirm.body.code, "disabled");
   });
 
   it("confirm without a valid human-confirmed digest never executes", async () => {
@@ -239,12 +387,68 @@ describe("F6.1 — bulk-listing HTTP boundary (preview → confirm)", () => {
       .send({
         digest: "00".repeat(32),
         proposalExpiresAt: Date.now() + 60_000,
-        operation: "unpublish",
+        operation: "hide",
         listingIds: ["l-1"],
         idempotencyKey: "k-http-1",
       });
     assert.equal(res.status, 409);
     assert.equal(applied, 0, "no execution without the minted digest");
+  });
+
+  it("adding a foreign id after preview → 409, zero apply", async () => {
+    const applied: string[] = [];
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async (id) => {
+        applied.push(id);
+        return { ok: true };
+      },
+    });
+    const preview = await request(app)
+      .post("/api/bulk-listings/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ listingIds: ["l-1"], operation: "hide" });
+    const res = await request(app)
+      .post("/api/bulk-listings/confirm")
+      .set("Authorization", authHeader(ACTOR))
+      .send({
+        digest: preview.body.digest,
+        proposalExpiresAt: preview.body.proposal.expiresAt,
+        operation: "hide",
+        listingIds: ["l-1", "l-foreign"],
+        idempotencyKey: "k-add",
+      });
+    assert.equal(res.status, 409);
+    assert.equal(res.body.code, "tampered");
+    assert.deepEqual(applied, [], "zero apply");
+  });
+
+  it("removing a target after preview → 409, zero apply", async () => {
+    const applied: string[] = [];
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async (id) => {
+        applied.push(id);
+        return { ok: true };
+      },
+    });
+    const preview = await request(app)
+      .post("/api/bulk-listings/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ listingIds: ["l-1", "l-2"], operation: "hide" });
+    const res = await request(app)
+      .post("/api/bulk-listings/confirm")
+      .set("Authorization", authHeader(ACTOR))
+      .send({
+        digest: preview.body.digest,
+        proposalExpiresAt: preview.body.proposal.expiresAt,
+        operation: "hide",
+        listingIds: ["l-1"],
+        idempotencyKey: "k-remove",
+      });
+    assert.equal(res.status, 409);
+    assert.equal(res.body.code, "tampered");
+    assert.deepEqual(applied, []);
   });
 
   it("full flow: preview → confirm executes per-item with audit trail; replay is skipped", async () => {
@@ -260,7 +464,7 @@ describe("F6.1 — bulk-listing HTTP boundary (preview → confirm)", () => {
     const preview = await request(app)
       .post("/api/bulk-listings/preview")
       .set("Authorization", authHeader(ACTOR))
-      .send({ listingIds: ["l-1", "l-2"], operation: "unpublish" });
+      .send({ listingIds: ["l-1", "l-2"], operation: "hide" });
     assert.equal(preview.status, 200);
 
     const confirm = await request(app)
@@ -269,7 +473,7 @@ describe("F6.1 — bulk-listing HTTP boundary (preview → confirm)", () => {
       .send({
         digest: preview.body.digest,
         proposalExpiresAt: preview.body.proposal.expiresAt,
-        operation: "unpublish",
+        operation: "hide",
         listingIds: ["l-1", "l-2"],
         idempotencyKey: "k-http-full",
       });
@@ -290,7 +494,7 @@ describe("F6.1 — bulk-listing HTTP boundary (preview → confirm)", () => {
       .send({
         digest: preview.body.digest,
         proposalExpiresAt: preview.body.proposal.expiresAt,
-        operation: "unpublish",
+        operation: "hide",
         listingIds: ["l-1", "l-2"],
         idempotencyKey: "k-http-full",
       });
@@ -308,14 +512,14 @@ describe("F6.1 — bulk-listing HTTP boundary (preview → confirm)", () => {
     const preview = await request(app)
       .post("/api/bulk-listings/preview")
       .set("Authorization", authHeader(ACTOR))
-      .send({ listingIds: ["l-1"], operation: "delete" });
+      .send({ listingIds: ["l-1"], operation: "hide" });
     const res = await request(app)
       .post("/api/bulk-listings/confirm")
       .set("Authorization", authHeader(ACTOR))
       .send({
         digest: preview.body.digest,
         proposalExpiresAt: Date.now() - 1_000,
-        operation: "delete",
+        operation: "hide",
         listingIds: ["l-1"],
         idempotencyKey: "k-expired",
       });
@@ -331,14 +535,14 @@ describe("F6.1 — bulk-listing HTTP boundary (preview → confirm)", () => {
     const preview = await request(app)
       .post("/api/bulk-listings/preview")
       .set("Authorization", authHeader(ACTOR))
-      .send({ listingIds: ["l-1"], operation: "unpublish" });
+      .send({ listingIds: ["l-1"], operation: "hide" });
     const res = await request(app)
       .post("/api/bulk-listings/confirm")
-      .set("Authorization", authHeader("other-seller", "pro"))
+      .set("Authorization", authHeader(OTHER))
       .send({
         digest: preview.body.digest,
         proposalExpiresAt: preview.body.proposal.expiresAt,
-        operation: "unpublish",
+        operation: "hide",
         listingIds: ["l-1"],
         idempotencyKey: "k-forged",
       });
@@ -346,17 +550,36 @@ describe("F6.1 — bulk-listing HTTP boundary (preview → confirm)", () => {
     assert.equal(res.body.code, "tampered");
   });
 
+  it("more than 100 confirm target ids → 400, no silent truncation", async () => {
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async () => ({ ok: true }),
+    });
+    const ids = Array.from({ length: 101 }, (_, i) => `l-${i}`);
+    const res = await request(app)
+      .post("/api/bulk-listings/confirm")
+      .set("Authorization", authHeader(ACTOR))
+      .send({
+        digest: "aa",
+        proposalExpiresAt: Date.now() + 60_000,
+        operation: "hide",
+        listingIds: ids,
+        idempotencyKey: "k-many",
+      });
+    assert.equal(res.status, 400);
+  });
+
   it("consumer/unknown roles are rejected (403); no preview or execution", async () => {
     const preview = await request(app)
       .post("/api/bulk-listings/preview")
       .set("Authorization", authHeader(ACTOR, "private"))
-      .send({ listingIds: ["l-1"], operation: "unpublish" });
+      .send({ listingIds: ["l-1"], operation: "hide" });
     assert.equal(preview.status, 403);
 
     const confirm = await request(app)
       .post("/api/bulk-listings/confirm")
       .set("Authorization", authHeader(ACTOR, "buyer"))
-      .send({ digest: "x", proposalExpiresAt: 1, operation: "unpublish", listingIds: ["l-1"], idempotencyKey: "k" });
+      .send({ digest: "x", proposalExpiresAt: 1, operation: "hide", listingIds: ["l-1"], idempotencyKey: "k" });
     assert.equal(confirm.status, 403);
   });
 

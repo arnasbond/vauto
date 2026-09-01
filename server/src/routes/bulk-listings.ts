@@ -1,18 +1,23 @@
 /**
  * F6.1 — professional seller bulk listing control route.
  *
- * PREVIEW → HUMAN CONFIRMATION → EXECUTION boundary for unpublish /
- * republish / delete across the seller's OWN listings. Mounted with
+ * PREVIEW → HUMAN CONFIRMATION → EXECUTION boundary for hide (soft-delete)
+ * / republish (restore) across the seller's OWN listings. Mounted with
  * `actionRateLimiter` + `requireAuth` in server/src/index.ts. The LLM has NO
  * tool for this boundary — only the trusted client UI may call it, and
  * nothing executes without the exact opaque digest minted by the preview.
+ *
+ * Fail-closed feature gate: in production, execution is OFF by default until
+ * the durable idempotency/audit persistence wave lands; the preview then
+ * explicitly reports `executionEnabled: false` and mints no digest.
  */
 import { Router } from "express";
 import type { AuthedRequest } from "../middleware/auth.js";
 import {
-  BULK_OPERATIONS,
   BULK_MAX_TARGETS,
+  BULK_OPERATIONS,
   buildBulkProposal,
+  bulkExecutionEnabled,
   canRunBulkOperations,
   executeBulkOperation,
   type BulkOperation,
@@ -66,8 +71,9 @@ function defaultApplyItem(operation: BulkOperation) {
       const restored = await restoreListing(listingId, actorId);
       return restored ? { ok: true, detail: "republished" } : { ok: false, detail: "not_restored" };
     }
+    // "hide" is the single precisely-named soft-delete operation.
     const deleted = await deleteListing(listingId, actorId);
-    return deleted ? { ok: true, detail: operation } : { ok: false, detail: "not_applied" };
+    return deleted ? { ok: true, detail: "hidden" } : { ok: false, detail: "not_applied" };
   };
 }
 
@@ -91,6 +97,7 @@ router.post("/preview", async (req: AuthedRequest, res) => {
     if (body.listingIds.length > BULK_MAX_TARGETS) {
       return res.status(400).json({ error: `Daugiausia ${BULK_MAX_TARGETS} skelbimų vienu metu.` });
     }
+    const enabled = bulkExecutionEnabled();
     const listings = executors ? await executors.resolveListings() : await defaultResolveListings();
     const { proposal, digest } = buildBulkProposal({
       actorId,
@@ -99,7 +106,11 @@ router.post("/preview", async (req: AuthedRequest, res) => {
       operation,
       signingKey: signingKey(),
     });
-    return res.json({ digest, proposal });
+    if (!enabled) {
+      // The preview must never promise active execution while the gate is closed.
+      proposal.warnings.push("Bulk vykdymas šioje aplinkoje išjungtas — preview tik informacinis.");
+    }
+    return res.json({ digest: enabled ? digest : null, proposal, executionEnabled: enabled });
   } catch (e) {
     console.warn("[bulk-listings] preview failed:", e);
     return res.status(503).json({ error: "Laikinai nepasiekiama." });
@@ -114,6 +125,9 @@ router.post("/confirm", async (req: AuthedRequest, res) => {
     }
     if (!canRunBulkOperations(req.authRole)) {
       return res.status(403).json({ error: "Tik verslo pardavėjams." });
+    }
+    if (!bulkExecutionEnabled()) {
+      return res.status(403).json({ ok: false, code: "disabled", error: "Bulk vykdymas išjungtas šioje aplinkoje." });
     }
     const body = (req.body ?? {}) as {
       digest?: unknown;
@@ -130,6 +144,9 @@ router.post("/confirm", async (req: AuthedRequest, res) => {
 
     if (!digest || !idempotencyKey || !listingIds.length || !Number.isFinite(proposalExpiresAt)) {
       return res.status(400).json({ error: "Trūksta patvirtinimo duomenų." });
+    }
+    if (listingIds.length > BULK_MAX_TARGETS) {
+      return res.status(400).json({ error: `Daugiausia ${BULK_MAX_TARGETS} skelbimų vienu metu.` });
     }
 
     const now = Date.now();
@@ -157,12 +174,16 @@ router.post("/confirm", async (req: AuthedRequest, res) => {
 
     if (!result.ok) {
       const status =
-        result.code === "expired" ? 409 : result.code === "tampered" ? 409 : result.code === "unauthorized" ? 403 : 400;
+        result.code === "expired" || result.code === "tampered"
+          ? 409
+          : result.code === "unauthorized" || result.code === "disabled"
+            ? 403
+            : 400;
       return res.status(status).json({ ok: false, code: result.code, error: result.message });
     }
 
     if (result.executed) {
-      executedAt.set(idempotencyKey, now);
+      executedAt.set(`${actorId}:${operation}:${idempotencyKey}`, now);
     }
     return res.json({ ok: true, outcomes: result.outcomes, audit: result.audit, executed: result.executed });
   } catch (e) {
