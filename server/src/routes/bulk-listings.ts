@@ -201,7 +201,8 @@ router.post("/confirm", async (req: AuthedRequest, res) => {
         result.code === "expired" ||
         result.code === "tampered" ||
         result.code === "recovery_required" ||
-        result.code === "in_progress"
+        result.code === "in_progress" ||
+        result.code === "fenced"
           ? 409
           : result.code === "unauthorized" || result.code === "disabled"
             ? 403
@@ -258,7 +259,12 @@ router.post("/recover", async (req: AuthedRequest, res) => {
     });
 
     if (!result.ok) {
-      const status = result.code === "recovery_required" || result.code === "in_progress" ? 409 : result.code === "unauthorized" ? 403 : 400;
+      const status =
+        result.code === "recovery_required" || result.code === "in_progress" || result.code === "fenced"
+          ? 409
+          : result.code === "unauthorized"
+            ? 403
+            : 400;
       return res.status(status).json({ ok: false, code: result.code, error: result.message, state: result.state });
     }
     return res.json({

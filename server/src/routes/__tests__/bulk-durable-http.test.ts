@@ -720,3 +720,257 @@ describe("F6.2 — durable core recovery unit", () => {
     assert.equal(replay.body.state, "COMPLETED");
     assert.equal(replay.body.executed, false);
   });
+
+describe("F6.2 — distributed-worker fencing", () => {
+  it("a long confirm renews its lease per target; recovery can never take over and applies nothing", async () => {
+    const store = createInMemoryBulkOperationStore();
+    let t = 0;
+    const clock = () => t;
+    const confirmApplied: string[] = [];
+    const recoveryApplied: string[] = [];
+    const proposal = buildBulkProposal({
+      actorId: ACTOR,
+      listings: [ROWS[0]!, ROWS[1]!, ROWS[2]!],
+      requestedIds: ["l-1", "l-2", "l-3"],
+      operation: "hide",
+      signingKey: "test-signing-key",
+      nowMs: 0,
+    });
+
+    // Total run: 3 targets x 20s gaps = 60s > the 30s initial lease, but every
+    // pre-apply fence renews the lease, so the worker is NEVER stale.
+    const result = await executeBulkOperationDurable({
+      actorId: ACTOR,
+      actorRole: "pro",
+      operation: "hide",
+      targetIds: ["l-1", "l-2", "l-3"],
+      digest: proposal.digest,
+      proposalExpiresAt: proposal.proposal.expiresAt,
+      idempotencyKey: "k-long-renew",
+      signingKey: "test-signing-key",
+      store,
+      nowMs: 0,
+      clock,
+      resolveListings: async () => [ROWS[0]!, ROWS[1]!, ROWS[2]!],
+      applyItem: async (id) => {
+        confirmApplied.push(id);
+        t += 20_000;
+        if (id === "l-2") {
+          // Another instance tries recovery mid-run: the renewed lease is
+          // still valid → in_progress, zero apply.
+          const recovery = await recoverBulkOperation({
+            actorId: ACTOR,
+            actorRole: "pro",
+            operation: "hide",
+            idempotencyKey: "k-long-renew",
+            store,
+            nowMs: t,
+            readListingOwnership: async (listingId) => ({ id: listingId, sellerId: ACTOR, status: "active" }),
+            applyItem: async (listingId) => {
+              recoveryApplied.push(listingId);
+              return { ok: true };
+            },
+          });
+          assert.equal(recovery.ok, false);
+          assert.equal(recovery.code, "in_progress");
+        }
+        return { ok: true };
+      },
+    });
+    assert.equal(result.ok, true, `confirm completes: ${JSON.stringify(result)}`);
+    assert.deepEqual(confirmApplied, ["l-1", "l-2", "l-3"]);
+    assert.deepEqual(recoveryApplied, [], "recovery never applies while the confirm renews its lease");
+    const saved = await store.getOperation({ actorId: ACTOR, operation: "hide", idempotencyKey: "k-long-renew" });
+    assert.equal(saved!.state, "COMPLETED");
+  });
+
+  it("takeover: after recovery claims, the stale confirm can neither apply the next target nor terminalize", async () => {
+    const store = createInMemoryBulkOperationStore();
+    let t = 0;
+    const clock = () => t;
+    const applied: string[] = [];
+    const proposal = buildBulkProposal({
+      actorId: ACTOR,
+      listings: [ROWS[0]!, ROWS[1]!, ROWS[2]!],
+      requestedIds: ["l-1", "l-2", "l-3"],
+      operation: "hide",
+      signingKey: "test-signing-key",
+      nowMs: 0,
+    });
+
+    const result = await executeBulkOperationDurable({
+      actorId: ACTOR,
+      actorRole: "pro",
+      operation: "hide",
+      targetIds: ["l-1", "l-2", "l-3"],
+      digest: proposal.digest,
+      proposalExpiresAt: proposal.proposal.expiresAt,
+      idempotencyKey: "k-takeover",
+      signingKey: "test-signing-key",
+      store,
+      nowMs: 0,
+      clock,
+      resolveListings: async () => [ROWS[0]!, ROWS[1]!, ROWS[2]!],
+      applyItem: async (id) => {
+        applied.push(id);
+        if (id === "l-1") {
+          // The apply takes longer than the 30s lease: the lease genuinely
+          // expires mid-batch and a recovery worker takes over.
+          t += 31_000;
+          const takeover = await store.tryClaimRecovery({
+            operationId: (await store.getOperation({ actorId: ACTOR, operation: "hide", idempotencyKey: "k-takeover" }))!.id,
+            claimableStates: ["EXECUTING", "RECOVERING", "FAILED", "RECOVERY_REQUIRED"],
+            leaseMs: 120_000,
+            token: "rec-takeover",
+            nowMs: t,
+          });
+          assert.equal(takeover.claimed, true);
+          assert.equal(takeover.record.executionToken, null, "takeover fences the old worker");
+          // The takeover worker itself crashed too — its lease is now stale.
+          takeover.record.leaseUntil = t - 1;
+        }
+        return { ok: true };
+      },
+    });
+    assert.equal(result.ok, false, "the stale confirm is fenced");
+    assert.equal(result.code, "fenced");
+    assert.deepEqual(applied, ["l-1"], "no further target is applied after the takeover");
+
+    // The RECOVERING operation is completed by the recovery worker — every
+    // remaining target is applied at most once in total.
+    const saved = await store.getOperation({ actorId: ACTOR, operation: "hide", idempotencyKey: "k-takeover" });
+    assert.equal(saved!.state, "RECOVERING");
+    const recovered = await recoverBulkOperation({
+      actorId: ACTOR,
+      actorRole: "pro",
+      operation: "hide",
+      idempotencyKey: "k-takeover",
+      store,
+      nowMs: t + 1,
+      clock: () => t + 1,
+      readListingOwnership: async (listingId) => {
+        if (listingId === "l-1") return { id: listingId, sellerId: ACTOR, status: "deleted" };
+        return { id: listingId, sellerId: ACTOR, status: "active" };
+      },
+      applyItem: async (listingId) => {
+        applied.push(listingId);
+        return { ok: true };
+      },
+    });
+    assert.equal(recovered.ok, true, `recovery completes: ${JSON.stringify(recovered)}`);
+    const counts = applied.reduce<Record<string, number>>((acc, id) => {
+      acc[id] = (acc[id] ?? 0) + 1;
+      return acc;
+    }, {});
+    assert.deepEqual(counts, { "l-1": 1, "l-2": 1, "l-3": 1 }, "each target changes at most once across the takeover");
+  });
+
+  it("HTTP: after a recovery takeover, the confirm replay can never terminalize a RECOVERING operation", async () => {
+    const store = createInMemoryBulkOperationStore();
+    setBulkStoreForTests(store);
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async () => ({ ok: true }),
+      readListingOwnership: async () => ({ id: "l-1", sellerId: ACTOR, status: "active" }),
+    });
+    const preview = await request(app)
+      .post("/api/bulk-listings/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ listingIds: ["l-1"], operation: "hide" });
+    // Crash mid-run: EXECUTING with an expired lease.
+    const claim = await store.tryClaimOperation({
+      actorId: ACTOR,
+      operation: "hide",
+      idempotencyKey: "k-http-takeover",
+      proposalDigest: preview.body.digest,
+      targetImage: [{ id: "l-1", verdict: "owned" }],
+      leaseMs: 30_000,
+      nowMs: Date.now(),
+    });
+    await store.markState(claim.record.id, "PENDING", "EXECUTING", { nowMs: Date.now(), leaseMs: -1 });
+
+    // A recovery worker takes over.
+    const recover = await request(app)
+      .post("/api/bulk-listings/recover")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ operation: "hide", idempotencyKey: "k-http-takeover" });
+    assert.equal(recover.status, 200);
+    assert.equal(recover.body.state, "COMPLETED");
+    const afterRecover = await store.getOperation({ actorId: ACTOR, operation: "hide", idempotencyKey: "k-http-takeover" });
+    assert.equal(afterRecover!.executionToken, null);
+
+    // While the recovery runs (fresh lease), a confirm replay must NOT
+    // terminalize or re-run: 409 in_progress.
+    const confirmed = await request(app)
+      .post("/api/bulk-listings/confirm")
+      .set("Authorization", authHeader(ACTOR))
+      .send({
+        digest: preview.body.digest,
+        proposalExpiresAt: preview.body.proposal.expiresAt,
+        operation: "hide",
+        listingIds: ["l-1"],
+        idempotencyKey: "k-http-takeover",
+      });
+    assert.equal(confirmed.status, 200, "terminal replay returns the durable result");
+    assert.equal(confirmed.body.executed, false);
+  });
+
+  it("HTTP: recovery A is fenced after recovery B takes over its lease", async () => {
+    const applied: string[] = [];
+    const store = createInMemoryBulkOperationStore();
+    setBulkStoreForTests(store);
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async (id) => {
+        applied.push(id);
+        return { ok: true };
+      },
+      readListingOwnership: async () => ({ id: "l-2", sellerId: ACTOR, status: "active" }),
+    });
+    const preview = await request(app)
+      .post("/api/bulk-listings/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ listingIds: ["l-2"], operation: "hide" });
+    const claim = await store.tryClaimOperation({
+      actorId: ACTOR,
+      operation: "hide",
+      idempotencyKey: "k-rec-ab",
+      proposalDigest: preview.body.digest,
+      targetImage: [{ id: "l-2", verdict: "owned" }],
+      leaseMs: 30_000,
+      nowMs: Date.now() - 120_000,
+    });
+
+    // Recovery A claims and starts (RECOVERING, token A, fresh lease).
+    const claimA = await store.tryClaimRecovery({
+      operationId: claim.record.id,
+      claimableStates: ["PENDING", "EXECUTING", "RECOVERING", "FAILED", "RECOVERY_REQUIRED"],
+      leaseMs: 120_000,
+      token: "rec-A-http",
+      nowMs: Date.now(),
+    });
+    assert.equal(claimA.claimed, true);
+
+    // A's lease expires; recovery B (via the real route) claims and completes.
+    const record = store._records.get(claim.record.id)!;
+    record.leaseUntil = Date.now() - 1;
+    const recoverB = await request(app)
+      .post("/api/bulk-listings/recover")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ operation: "hide", idempotencyKey: "k-rec-ab" });
+    assert.equal(recoverB.status, 200);
+    assert.equal(recoverB.body.state, "COMPLETED");
+    assert.equal(recoverB.body.executed, true);
+
+    // Stale recovery A can no longer fence or terminalize.
+    const aFence = await store.fenceBeforeApply({
+      operationId: claim.record.id,
+      executor: "recovery",
+      token: "rec-A-http",
+      leaseMs: 120_000,
+      nowMs: Date.now(),
+    });
+    assert.equal(aFence.ok, false, "stale recovery A is fenced after B takes over");
+    assert.deepEqual(applied, ["l-2"], "the target is applied exactly once, by B");
+  });
+});

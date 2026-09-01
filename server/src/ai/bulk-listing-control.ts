@@ -450,7 +450,8 @@ export type DurableBulkExecutionResult =
         | "disabled"
         | "duplicate"
         | "recovery_required"
-        | "in_progress";
+        | "in_progress"
+        | "fenced";
       message: string;
       state?: BulkOperationState;
     };
@@ -497,9 +498,12 @@ export async function executeBulkOperationDurable(input: {
   applyItem: (listingId: string) => Promise<{ ok: boolean; detail?: string }>;
   resolveListings: () => Promise<BulkListingRow[]>;
   nowMs?: number;
+  /** Injectable monotonic clock for deterministic lease-fencing tests. */
+  clock?: () => number;
   env?: { NODE_ENV?: string; VAUTO_ENABLE_BULK_LISTING_OPS?: string };
 }): Promise<DurableBulkExecutionResult> {
-  const now = input.nowMs ?? Date.now();
+  const clock = input.clock ?? (() => Date.now());
+  const now = input.nowMs ?? clock();
   const operation = input.operation as BulkOperation;
   if (!(BULK_OPERATIONS as readonly string[]).includes(operation)) {
     return { ok: false, code: "invalid_operation", message: "Nepalaikoma operacija." };
@@ -594,6 +598,13 @@ export async function executeBulkOperationDurable(input: {
     leaseMs: BULK_EXECUTION_LEASE_MS,
   });
 
+  // Server-derived execution token: fencing authority for EVERY action below.
+  const executionToken = record.executionToken;
+  if (!executionToken) {
+    // Defense-in-depth: a record without its execution token must never run.
+    return { ok: false, code: "recovery_required", message: "Nėra vykdytojo tokeno — reikalingas atkūrimas.", state: record.state };
+  }
+
   const outcomes: BulkItemOutcome[] = [];
   const audit: BulkAuditEntry[] = [];
   const action = `bulk:${operation}`;
@@ -616,6 +627,24 @@ export async function executeBulkOperationDurable(input: {
       items.push({ listingId: id, state: "FAILED", outcome: reason, detail: null, appliedAt: null });
       audit.push({ actorId: input.actorId, action, targetId: id, outcome: `failed:${reason}`, correlation: key, timestamp: now });
       continue;
+    }
+    // Fence BEFORE the consequential action: atomically re-verify token +
+    // state and renew the lease RELATIVE TO NOW (a long batch periodically
+    // renews its lease; recovery can only take over a genuinely stale worker).
+    const fence = await input.store.fenceBeforeApply({
+      operationId: record.id,
+      executor: "confirm",
+      token: executionToken,
+      leaseMs: BULK_EXECUTION_LEASE_MS,
+      nowMs: clock(),
+    });
+    if (!fence.ok) {
+      return {
+        ok: false,
+        code: "fenced",
+        message: "Operaciją perėmė atkūrimo procesas — vykdymas sustabdytas.",
+        state: "RECOVERING",
+      };
     }
     try {
       const appliedResult = await input.applyItem(id);
@@ -640,9 +669,11 @@ export async function executeBulkOperationDurable(input: {
 
   const terminalState: BulkOperationState =
     failures === 0 ? "COMPLETED" : applied > 0 ? "PARTIAL" : "FAILED";
-  await input.store.completeOperationAtomically({
+  const completed = await input.store.completeOperationAtomically({
     operationId: record.id,
-    fromStates: ["EXECUTING", "RECOVERING"],
+    executor: "confirm",
+    expectedToken: executionToken,
+    fromStates: ["EXECUTING"],
     to: terminalState,
     resultJson: { outcomes, state: terminalState },
     items,
@@ -658,6 +689,14 @@ export async function executeBulkOperationDurable(input: {
     })),
     nowMs: now,
   });
+  if (!completed.updated) {
+    return {
+      ok: false,
+      code: "fenced",
+      message: "Operaciją perėmė atkūrimo procesas — terminalizacija atmesta.",
+      state: completed.record.state,
+    };
+  }
 
   return { ok: true, outcomes, audit, executed: true, replayed: false, state: terminalState };
 }
@@ -686,9 +725,12 @@ export async function recoverBulkOperation(input: {
   } | null>;
   applyItem: (listingId: string) => Promise<{ ok: boolean; detail?: string }>;
   nowMs?: number;
+  /** Injectable monotonic clock for deterministic lease-fencing tests. */
+  clock?: () => number;
   env?: { NODE_ENV?: string; VAUTO_ENABLE_BULK_LISTING_OPS?: string };
 }): Promise<DurableBulkExecutionResult> {
-  const now = input.nowMs ?? Date.now();
+  const clock = input.clock ?? (() => Date.now());
+  const now = input.nowMs ?? clock();
   const operation = input.operation as BulkOperation;
   if (!canRunBulkOperations(input.actorRole)) {
     return { ok: false, code: "unauthorized", message: "Tik verslo pardavėjams." };
@@ -781,6 +823,23 @@ export async function recoverBulkOperation(input: {
       items.push({ listingId: id, state: "APPLIED", outcome: "already_applied", detail: null, appliedAt: now });
       continue;
     }
+    // Fence BEFORE the consequential action with the RECOVERY token: another
+    // recovery worker may have taken over (lease expired) — then we MUST stop.
+    const fence = await input.store.fenceBeforeApply({
+      operationId: record.id,
+      executor: "recovery",
+      token: recoveryToken,
+      leaseMs: BULK_RECOVERY_LEASE_MS,
+      nowMs: clock(),
+    });
+    if (!fence.ok) {
+      return {
+        ok: false,
+        code: "fenced",
+        message: "Atkūrimą perėmė kitas procesas — vykdymas sustabdytas.",
+        state: "RECOVERING",
+      };
+    }
     try {
       const appliedResult = await input.applyItem(id);
       if (appliedResult.ok) {
@@ -800,7 +859,20 @@ export async function recoverBulkOperation(input: {
   }
 
   if (ambiguous) {
-    await input.store.markState(record.id, "RECOVERING", "RECOVERY_REQUIRED", { nowMs: now });
+    // RECOVERING → RECOVERY_REQUIRED is a critical transition: it must verify
+    // the recovery token AND the state (a taken-over recovery must NOT write it).
+    const marked = await input.store.markState(record.id, "RECOVERING", "RECOVERY_REQUIRED", {
+      nowMs: now,
+      expectedRecoveryToken: recoveryToken,
+    });
+    if (!marked.updated) {
+      return {
+        ok: false,
+        code: "fenced",
+        message: "Atkūrimą perėmė kitas procesas — būsenos perėjimas atmestas.",
+        state: marked.record.state,
+      };
+    }
     return {
       ok: false,
       code: "recovery_required",
@@ -811,8 +883,10 @@ export async function recoverBulkOperation(input: {
 
   const terminalState: BulkOperationState =
     failures === 0 ? "COMPLETED" : applied > 0 || outcomes.some((o) => o.status === "success") ? "PARTIAL" : "FAILED";
-  await input.store.completeOperationAtomically({
+  const completed = await input.store.completeOperationAtomically({
     operationId: record.id,
+    executor: "recovery",
+    expectedToken: recoveryToken,
     fromStates: ["RECOVERING"],
     to: terminalState,
     resultJson: { outcomes, state: terminalState },
@@ -829,6 +903,14 @@ export async function recoverBulkOperation(input: {
     })),
     nowMs: now,
   });
+  if (!completed.updated) {
+    return {
+      ok: false,
+      code: "fenced",
+      message: "Atkūrimą perėmė kitas procesas — terminalizacija atmesta.",
+      state: completed.record.state,
+    };
+  }
 
   return { ok: true, outcomes, audit: [], executed: true, replayed: false, state: terminalState };
 }

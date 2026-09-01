@@ -37,6 +37,7 @@ export type BulkOperationRecord = {
   state: BulkOperationState;
   resultJson: unknown;
   errorMessage: string | null;
+  executionToken: string | null;
   recoveryToken: string | null;
   leaseUntil: number | null;
   createdAt: number;
@@ -138,12 +139,20 @@ export interface BulkOperationStore {
     nowMs: number;
   }): Promise<{ created: boolean; record: BulkOperationRecord }>;
 
-  /** CAS state transition: UPDATE … WHERE id=$1 AND state=$2 RETURNING. */
+  /** CAS state transition: UPDATE … WHERE id=$1 AND state=$2 RETURNING.
+   *  Optionally fenced by a server-derived token: when `expectedRecoveryToken`
+   *  is provided the transition only succeeds while that recovery token is
+   *  still owned (used for the RECOVERING → RECOVERY_REQUIRED transition). */
   markState(
     operationId: string,
     from: BulkOperationState,
     to: BulkOperationState,
-    opts?: { errorMessage?: string; nowMs?: number; leaseMs?: number }
+    opts?: {
+      errorMessage?: string;
+      nowMs?: number;
+      leaseMs?: number;
+      expectedRecoveryToken?: string;
+    }
   ): Promise<{ updated: boolean; record: BulkOperationRecord }>;
 
   /**
@@ -161,13 +170,43 @@ export interface BulkOperationStore {
   }): Promise<{ claimed: boolean; record: BulkOperationRecord }>;
 
   /**
+   * Distributed-worker fencing: atomically re-verify the executor's token +
+   * state AND renew its lease (single CAS UPDATE). Called BEFORE every
+   * consequential `applyItem`. A false result means another worker has taken
+   * over (recovery claim NULLs the execution token / overwrites the recovery
+   * token) and the caller MUST stop immediately — it can no longer apply the
+   * next target nor terminalize the operation.
+   */
+  fenceBeforeApply(input: {
+    operationId: string;
+    executor: "confirm" | "recovery";
+    token: string;
+    leaseMs: number;
+    nowMs: number;
+  }): Promise<{ ok: boolean }>;
+
+  /**
    * ATOMIC terminalization: state transition + result_json + per-item
    * outcomes + the mandatory audit rows commit in ONE transaction. A crash
    * before commit leaves the operation non-terminal (recoverable); no
    * terminal state can ever exist without its durable results and audit.
+   *
+   * FENCING: terminalization requires the executor's token AND its state:
+   *   - confirm  → state EXECUTING  + execution_token match
+   *   - recovery → state RECOVERING + recovery_token match
+   * A confirm can therefore NEVER terminalize from RECOVERING.
+   *
+   * Documented safe completion rule: token ownership IS the fencing
+   * authority. A recovery claim atomically NULLs `execution_token` (and
+   * overwrites `recovery_token`), so a matching token proves no takeover
+   * happened since the executor's last fence — lease expiry alone never
+   * blocks the token-holding executor from terminalizing. The lease governs
+   * TAKEOVER, the token governs ACTIONS.
    */
   completeOperationAtomically(input: {
     operationId: string;
+    executor: "confirm" | "recovery";
+    expectedToken: string;
     fromStates: BulkOperationState[];
     to: BulkOperationState;
     resultJson: unknown;
@@ -224,6 +263,7 @@ function rowToRecord(row: Record<string, unknown>): BulkOperationRecord {
     state: String(row.state) as BulkOperationState,
     resultJson: row.result_json ?? null,
     errorMessage: row.error_message == null ? null : String(row.error_message),
+    executionToken: row.execution_token == null ? null : String(row.execution_token),
     recoveryToken: row.recovery_token == null ? null : String(row.recovery_token),
     leaseUntil: row.lease_until == null ? null : new Date(String(row.lease_until)).getTime(),
     createdAt: new Date(String(row.created_at)).getTime(),
@@ -234,14 +274,15 @@ function rowToRecord(row: Record<string, unknown>): BulkOperationRecord {
 export function createPostgresBulkOperationStore(db: BulkStoreQueryable): BulkOperationStore {
   const iso = (ms: number) => new Date(ms).toISOString();
   const SELECT_COLUMNS =
-    "id, actor_id, operation, idempotency_key, proposal_digest, target_image, state, result_json, error_message, recovery_token, lease_until, created_at, updated_at";
+    "id, actor_id, operation, idempotency_key, proposal_digest, target_image, state, result_json, error_message, execution_token, recovery_token, lease_until, created_at, updated_at";
   return {
     async tryClaimOperation(input) {
       const id = randomUUID();
+      const token = randomUUID();
       const res = await db.query(
         `INSERT INTO vauto_bulk_operations
-           (id, actor_id, operation, idempotency_key, proposal_digest, target_image, state, lease_until, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6::jsonb, 'PENDING', $7, $8, $8)
+           (id, actor_id, operation, idempotency_key, proposal_digest, target_image, state, execution_token, lease_until, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, 'PENDING', $7, $8, $9, $9)
          ON CONFLICT (actor_id, operation, idempotency_key) DO NOTHING
          RETURNING ${SELECT_COLUMNS}`,
         [
@@ -251,6 +292,7 @@ export function createPostgresBulkOperationStore(db: BulkStoreQueryable): BulkOp
           input.idempotencyKey,
           input.proposalDigest,
           JSON.stringify(input.targetImage),
+          token,
           iso(input.nowMs + input.leaseMs),
           iso(input.nowMs),
         ]
@@ -272,13 +314,24 @@ export function createPostgresBulkOperationStore(db: BulkStoreQueryable): BulkOp
 
     async markState(operationId, from, to, opts) {
       const now = opts?.nowMs ?? Date.now();
+      const guarded = opts?.expectedRecoveryToken != null;
+      const tokenGuard = guarded ? " AND recovery_token IS NOT DISTINCT FROM $7" : "";
+      const params: unknown[] = [
+        operationId,
+        to,
+        iso(now),
+        opts?.errorMessage ?? null,
+        from,
+        opts?.leaseMs != null ? iso(now + opts.leaseMs) : null,
+      ];
+      if (guarded) params.push(opts?.expectedRecoveryToken ?? null);
       const res = await db.query(
         `UPDATE vauto_bulk_operations
          SET state = $2, updated_at = $3, error_message = COALESCE($4, error_message),
              lease_until = CASE WHEN $6::timestamptz IS NULL THEN lease_until ELSE $6::timestamptz END
-         WHERE id = $1 AND state = $5
+         WHERE id = $1 AND state = $5${tokenGuard}
          RETURNING ${SELECT_COLUMNS}`,
-        [operationId, to, iso(now), opts?.errorMessage ?? null, from, opts?.leaseMs != null ? iso(now + opts.leaseMs) : null]
+        params
       );
       if (res.rows.length === 0) {
         const current = await db.query(
@@ -295,7 +348,8 @@ export function createPostgresBulkOperationStore(db: BulkStoreQueryable): BulkOp
       const stateList = [...new Set(input.claimableStates)];
       const res = await db.query(
         `UPDATE vauto_bulk_operations
-         SET state = 'RECOVERING', recovery_token = $2, lease_until = $3, updated_at = $4
+         SET state = 'RECOVERING', recovery_token = $2, execution_token = NULL,
+             lease_until = $3, updated_at = $4
          WHERE id = $1
            AND state = ANY($5::text[])
            AND (lease_until IS NULL OR lease_until <= $4)
@@ -313,15 +367,30 @@ export function createPostgresBulkOperationStore(db: BulkStoreQueryable): BulkOp
       return { claimed: false, record: rowToRecord(current.rows[0]!) };
     },
 
+    async fenceBeforeApply(input) {
+      const state = input.executor === "confirm" ? "EXECUTING" : "RECOVERING";
+      const tokenCol = input.executor === "confirm" ? "execution_token" : "recovery_token";
+      const res = await db.query(
+        `UPDATE vauto_bulk_operations
+         SET lease_until = $3, updated_at = $4
+         WHERE id = $1 AND state = $5 AND ${tokenCol} IS NOT DISTINCT FROM $2
+         RETURNING id`,
+        [input.operationId, input.token, iso(input.nowMs + input.leaseMs), iso(input.nowMs), state]
+      );
+      return { ok: res.rows.length > 0 };
+    },
+
     async completeOperationAtomically(input) {
       const stateList = [...new Set(input.fromStates)];
+      const tokenCol = input.executor === "confirm" ? "execution_token" : "recovery_token";
       return db.withTransaction(async (tx) => {
         const res = await tx.query(
           `UPDATE vauto_bulk_operations
-           SET state = $2, result_json = $3::jsonb, updated_at = $4, recovery_token = NULL, lease_until = NULL
-           WHERE id = $1 AND state = ANY($5::text[])
+           SET state = $2, result_json = $3::jsonb, updated_at = $4,
+               recovery_token = NULL, execution_token = NULL, lease_until = NULL
+           WHERE id = $1 AND state = ANY($5::text[]) AND ${tokenCol} IS NOT DISTINCT FROM $6
            RETURNING ${SELECT_COLUMNS}`,
-          [input.operationId, input.to, JSON.stringify(input.resultJson), iso(input.nowMs), stateList]
+          [input.operationId, input.to, JSON.stringify(input.resultJson), iso(input.nowMs), stateList, input.expectedToken]
         );
         if (res.rows.length === 0) {
           const current = await tx.query(
@@ -502,6 +571,7 @@ export function createInMemoryBulkOperationStore(): BulkOperationStore & {
         state: "PENDING",
         resultJson: null,
         errorMessage: null,
+        executionToken: randomUUID(),
         recoveryToken: null,
         leaseUntil: input.nowMs + input.leaseMs,
         createdAt: input.nowMs,
@@ -515,6 +585,9 @@ export function createInMemoryBulkOperationStore(): BulkOperationStore & {
       const r = records.get(operationId);
       if (!r) throw new Error("bulk operation not found");
       if (r.state !== from) return { updated: false, record: r };
+      if (opts?.expectedRecoveryToken != null && r.recoveryToken !== opts.expectedRecoveryToken) {
+        return { updated: false, record: r };
+      }
       r.state = to;
       if (opts?.errorMessage != null) r.errorMessage = opts.errorMessage;
       if (opts?.leaseMs != null) r.leaseUntil = (opts.nowMs ?? Date.now()) + opts.leaseMs;
@@ -529,16 +602,31 @@ export function createInMemoryBulkOperationStore(): BulkOperationStore & {
       if (!claimable || !leaseExpired) return { claimed: false, record: r };
       r.state = "RECOVERING";
       r.recoveryToken = input.token;
+      r.executionToken = null;
       r.leaseUntil = input.nowMs + input.leaseMs;
       r.updatedAt = input.nowMs;
       return { claimed: true, record: r };
     },
+    async fenceBeforeApply(input) {
+      const r = records.get(input.operationId);
+      if (!r) throw new Error("bulk operation not found");
+      const stateOk = input.executor === "confirm" ? r.state === "EXECUTING" : r.state === "RECOVERING";
+      const token = input.executor === "confirm" ? r.executionToken : r.recoveryToken;
+      if (!stateOk || token !== input.token) return { ok: false };
+      r.leaseUntil = input.nowMs + input.leaseMs;
+      r.updatedAt = input.nowMs;
+      return { ok: true };
+    },
     async completeOperationAtomically(input) {
       const r = records.get(input.operationId);
       if (!r) throw new Error("bulk operation not found");
-      if (!input.fromStates.includes(r.state)) return { updated: false, record: r };
+      const token = input.executor === "confirm" ? r.executionToken : r.recoveryToken;
+      if (!input.fromStates.includes(r.state) || token !== input.expectedToken) {
+        return { updated: false, record: r };
+      }
       r.state = input.to;
       r.resultJson = input.resultJson;
+      r.executionToken = null;
       r.recoveryToken = null;
       r.leaseUntil = null;
       r.updatedAt = input.nowMs;

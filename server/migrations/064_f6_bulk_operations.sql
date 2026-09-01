@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS vauto_bulk_operations (
   ),
   result_json      JSONB,
   error_message    TEXT,
+  -- Distributed-worker fencing: the confirm executor owns `execution_token`;
+  -- a recovery claim NULLs it so a stale worker can never continue or
+  -- terminalize after a takeover. All tokens are server-derived.
+  execution_token  TEXT,
   -- Server-derived recovery ownership: a single CAS winner may hold the
   -- RECOVERING state; the lease must expire before anyone else may claim it.
   recovery_token   TEXT,
