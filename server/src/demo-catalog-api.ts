@@ -1,5 +1,11 @@
 import type { ApiListing } from "./types.js";
 import { DEMO_LISTINGS, type DemoListingRow } from "./demo-listings.js";
+import {
+  sanitizeListingCategory,
+  sanitizeListingDescription,
+  sanitizeListingLocation,
+  sanitizeListingTitle,
+} from "./ai/listing-context-sanitizer.js";
 
 function isValidImage(url: unknown): url is string {
   return typeof url === "string" && /^https?:\/\/.+/i.test(url.trim());
@@ -79,12 +85,17 @@ export function toAgentListingSummary(
   location: string;
   description?: string;
 } {
+  // F1.1 — DB listing text is untrusted data in model context: every field
+  // passes the centralized listing-context sanitizer (injection scrub +
+  // impersonation neutralization + budget). id/price are DB-controlled.
   return {
     id: listing.id,
-    title: listing.title,
+    title: sanitizeListingTitle(listing.title),
     price: listing.price,
-    category: listing.category,
-    location: listing.location,
-    description: listing.description,
+    category: sanitizeListingCategory(listing.category),
+    location: sanitizeListingLocation(listing.location),
+    description: listing.description
+      ? sanitizeListingDescription(listing.description)
+      : undefined,
   };
 }
