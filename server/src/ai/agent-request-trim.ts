@@ -3,6 +3,7 @@ import {
   sanitizePromptUserInput,
   scrubPromptInjection,
 } from "../shared/prompt-injection.js";
+import { truncateTextSafely } from "../shared/text-truncation.js";
 import {
   sanitizeListingDescription,
   sanitizeListingTitle,
@@ -17,10 +18,9 @@ export const AGENT_MAX_MY_LISTINGS = 24;
 /** Cap client-supplied pendingDocuments.text (L-03). */
 export const AGENT_MAX_PENDING_DOCUMENT_TEXT_CHARS = 20_000;
 
+// F1.2 — canonical shared word-boundary truncation (client and server).
 function capText(text: string, max: number): string {
-  const t = text.trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max)}…`;
+  return truncateTextSafely(text, max);
 }
 
 /**

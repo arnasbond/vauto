@@ -29,6 +29,12 @@ import {
   sanitizePromptUserInput,
   wrapUntrustedXml,
 } from "../shared/prompt-injection.js";
+import { clampJsonBlock } from "../shared/text-truncation.js";
+import {
+  CONTEXT_BLOCK_BUDGET,
+  boundContextText,
+  sanitizeSellerMetrics,
+} from "./context-budget.js";
 import {
   buildSellListingDraftFallback,
   buildSellClarificationReply,
@@ -1678,11 +1684,21 @@ async function runVautoAgentInner(
   }));
 
   if (req.context.lastError?.code) {
+    const errorCode = boundContextText(
+      req.context.lastError.code,
+      CONTEXT_BLOCK_BUDGET.lastErrorCode
+    );
+    const errorMessage = sanitizePromptUserInput(
+      boundContextText(
+        req.context.lastError.message,
+        CONTEXT_BLOCK_BUDGET.lastErrorMessage
+      )
+    ).text;
     contents.unshift({
       role: "user",
       parts: [
         {
-          text: `[Sistemos klaida: ${req.context.lastError.code}] ${req.context.lastError.message ?? ""}`,
+          text: `[Sistemos klaida: ${errorCode}] ${errorMessage}`,
         },
       ],
     });
@@ -1692,10 +1708,19 @@ async function runVautoAgentInner(
   if (req.context.fromSearchBar) {
     wizardBits.push("fromSearchBar=true");
   }
-  if (req.context.wizardMode) wizardBits.push(`wizardMode=${req.context.wizardMode}`);
+  if (req.context.wizardMode) {
+    wizardBits.push(
+      `wizardMode=${boundContextText(req.context.wizardMode, CONTEXT_BLOCK_BUDGET.wizardMode)}`
+    );
+  }
   if (req.context.isAuthenticated === false) wizardBits.push("isAuthenticated=false");
   if (req.context.missingFields?.length) {
-    wizardBits.push(`missingFields=${req.context.missingFields.join(",")}`);
+    wizardBits.push(
+      `missingFields=${boundContextText(
+        req.context.missingFields.join(","),
+        CONTEXT_BLOCK_BUDGET.wizardBit
+      )}`
+    );
   }
   if (req.context.listingDraft) {
     const { slimListingDraftForLlm } = await import(
@@ -1707,10 +1732,17 @@ async function runVautoAgentInner(
     }
   }
   if (req.context.searchResultCount === 0 && req.context.lastSearchQuery) {
-    wizardBits.push(`emptySearchQuery=${req.context.lastSearchQuery}`);
+    wizardBits.push(
+      `emptySearchQuery=${boundContextText(
+        req.context.lastSearchQuery,
+        CONTEXT_BLOCK_BUDGET.emptySearchQuery
+      )}`
+    );
   }
   if (req.context.currentView) {
-    wizardBits.push(`currentView=${req.context.currentView}`);
+    wizardBits.push(
+      `currentView=${boundContextText(req.context.currentView, CONTEXT_BLOCK_BUDGET.currentView)}`
+    );
   }
   if (req.context.pendingImageUrls?.length) {
     const { slimImageHandleList } = await import(
@@ -1744,8 +1776,9 @@ async function runVautoAgentInner(
       );
     }
   }
-  if (req.context.sellerMetrics) {
-    wizardBits.push(`sellerMetrics=${JSON.stringify(req.context.sellerMetrics)}`);
+  const sellerMetrics = sanitizeSellerMetrics(req.context.sellerMetrics);
+  if (sellerMetrics) {
+    wizardBits.push(`sellerMetrics=${sellerMetrics}`);
   }
   if (wizardBits.length) {
     contents.unshift({
@@ -1792,7 +1825,10 @@ async function runVautoAgentInner(
     const offerPayload = [
       `query=${sanitizePromptUserInput(po.query ?? req.context.lastSearchQuery ?? "").text}`,
       `resultCount=${po.resultCount ?? req.context.searchResultCount ?? ""}`,
-      `filters=${JSON.stringify(req.context.activeSearchFilters ?? po.filters ?? null)}`,
+      `filters=${clampJsonBlock(
+        req.context.activeSearchFilters ?? po.filters ?? null,
+        CONTEXT_BLOCK_BUDGET.searchFiltersJson
+      )}`,
     ].join("\n");
     contents.unshift({
       role: "user",
@@ -1816,7 +1852,10 @@ async function runVautoAgentInner(
       "";
     const offerPayload = [
       `query=${sanitizePromptUserInput(q).text}`,
-      `filters=${JSON.stringify(req.context.activeSearchFilters ?? req.context.proactiveOffer?.filters ?? null)}`,
+      `filters=${clampJsonBlock(
+        req.context.activeSearchFilters ?? req.context.proactiveOffer?.filters ?? null,
+        CONTEXT_BLOCK_BUDGET.searchFiltersJson
+      )}`,
     ].join("\n");
     contents.unshift({
       role: "user",

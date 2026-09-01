@@ -25,6 +25,7 @@
 import {
   sanitizePromptUserInput,
 } from "../shared/prompt-injection.js";
+import { truncateTextSafely } from "../shared/text-truncation.js";
 
 /** Per-listing context budget — bounded text in model context. */
 export const LISTING_CONTEXT_BUDGET = {
@@ -85,15 +86,6 @@ const INSTRUCTION_PHRASE_RE =
 /** Control characters must never survive into prompt slots. */
 const CONTROL_CHARS_RE = /[\u0000-\u001f\u007f]/g;
 
-/** Truncate at a word boundary when one exists near the cap; always append … */
-function truncateSafely(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text;
-  const cut = text.slice(0, maxLen - 1);
-  const lastSpace = cut.lastIndexOf(" ");
-  const head = lastSpace > (maxLen - 1) * 0.6 ? cut.slice(0, lastSpace) : cut;
-  return `${head.trimEnd()}…`;
-}
-
 /**
  * Sanitize one free-text listing field for model context:
  * control-char strip → whitespace collapse → injection scrub → impersonation
@@ -130,7 +122,7 @@ export function sanitizeListingTextField(value: unknown, maxLen: number): string
       .replace(/\s{2,}/g, " ")
       .trim();
     if (!text) return "";
-    return truncateSafely(text, maxLen);
+    return truncateTextSafely(text, maxLen);
   } catch {
     // Fail-safe: never let a sanitizer error crash search/agent paths.
     return "";

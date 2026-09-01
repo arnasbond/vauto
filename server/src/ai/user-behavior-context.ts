@@ -1,3 +1,6 @@
+import { CONTEXT_BLOCK_BUDGET, boundContextText } from "./context-budget.js";
+import { clampJsonBlock } from "../shared/text-truncation.js";
+
 export interface UserBehaviorEventPayload {
   type: string;
   at: number;
@@ -9,9 +12,14 @@ export function buildUserBehaviorContextBlock(
 ): string {
   if (!events?.length) return "";
 
+  // F1.2 — every event line is bounded: type capped, payload JSON clamped,
+  // so a hostile/buggy client cannot grow this block without limit.
   const lines = events.slice(-15).map((e) => {
-    const payload = e.payload ? JSON.stringify(e.payload) : "{}";
-    return `- [${e.type}] ${payload}`;
+    const type = boundContextText(e.type, CONTEXT_BLOCK_BUDGET.behaviorEventType);
+    const payload = e.payload
+      ? clampJsonBlock(e.payload, CONTEXT_BLOCK_BUDGET.behaviorEventPayload)
+      : "{}";
+    return `- [${type}] ${payload}`;
   });
 
   return `[Vartotojo elgsena — paskutiniai ${lines.length} veiksmai]
