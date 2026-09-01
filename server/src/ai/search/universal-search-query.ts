@@ -29,6 +29,10 @@ import {
   isCategoryBrowseQuery,
 } from "../product-search-query.js";
 import { extractSearchRadiusKm } from "../universal-search-intent.js";
+import {
+  isCarAccessorySearch,
+  isOfficeFurnitureSearch,
+} from "../search-disambiguation.js";
 
 export const F3_SEARCH_BUDGET = {
   rawInput: 500,
@@ -84,7 +88,7 @@ const RADIUS_RE = /(?:iki|per|spindul)\w*\s*(\d{1,3})\s*km/i;
 const F3_CATEGORY_RULES: Array<[F3CanonicalCategory, RegExp]> = [
   [
     "jobs",
-    /\b(ie[sš]kau\s+darb\w*(?!\w*\s*(k[ėe]d\w*|st[ao]l\w*|bald\w*))\b|darbo\s+(skelbim\w*|pasi[ūu]l\w*)|vakancij\w*|atlyg\w*|atlyginim\w*|alg\w*|samd\w*|užimtum\w*|karjer\w*|cv\b|bedarb\w*)/i,
+    /\b(ie[sš]kau\s+darb\w*|darbo\s+(skelbim\w*|pasi[ūu]l\w*)|vakancij\w*|atlyg\w*|atlyginim\w*|alg\w*|samd\w*|užimtum\w*|karjer\w*|cv\b|bedarb\w*)/i,
   ],
   [
     "real_estate",
@@ -100,7 +104,7 @@ const F3_CATEGORY_RULES: Array<[F3CanonicalCategory, RegExp]> = [
   ],
   [
     "vehicles",
-    /\b(volvo|bmw|audi|v70|v60|automobil\w*(?!\w*\s*(u[zž]valkal\w*|kilimėl\w*|laikikl\w*|dangt\w*|s[ėe]dyn\w*))|transport\w*|cars?|vehicles?|(?<!siuvimo |skalbimo |ind[ųu] |plovimo |kavos |duonos )ma[sš]in\w*)\b/i,
+    /\b(volvo|bmw|audi|v70|v60|automobil\w*|transport\w*|cars?|vehicles?|(?<!siuvimo |skalbimo |ind[ųu] |plovimo |kavos |duonos )ma[sš]in\w*)\b/i,
   ],
   [
     "services",
@@ -193,7 +197,14 @@ function neutralQuery(rawSanitized: string, injectionBlocked: boolean): Universa
 }
 
 function resolveF3Category(text: string): F3CanonicalCategory {
+  // F5 — single shared disambiguation source (office furniture ≠ jobs,
+  // car accessories ≠ vehicles) — the corresponding rule is skipped and the
+  // precise category rule (home) wins.
+  const officeFurniture = isOfficeFurnitureSearch(text);
+  const carAccessory = isCarAccessorySearch(text);
   for (const [category, re] of F3_CATEGORY_RULES) {
+    if (category === "jobs" && officeFurniture) continue;
+    if (category === "vehicles" && carAccessory) continue;
     if (re.test(text)) return category;
   }
   const legacy = inferSearchCategory(text);

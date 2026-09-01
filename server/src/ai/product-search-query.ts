@@ -5,6 +5,10 @@ import {
   isJobSearchQuery,
   jobSearchKeywordQuery,
 } from "./universal-search-intent.js";
+import {
+  isCarAccessorySearch,
+  isOfficeFurnitureSearch,
+} from "./search-disambiguation.js";
 
 /** Conversational fillers — strip so SQL never AND-matches „kokius nors“. */
 const FILLER_TOKEN_RE =
@@ -48,8 +52,9 @@ const BROAD_CATEGORY_RULES: Array<{
     category: "real_estate",
   },
   {
-    // F5 — "ieškau darbo kėdės" is furniture, not a job search.
-    re: /\b(darb\w*(?!\w*\s*(k[ėe]d\w*|st[ao]l\w*|bald\w*))\b|job\w*|vakancij\w*|karjer\w*)\b/i,
+    // F5 — the furniture exception lives in the shared disambiguation module;
+    // the broad stem stays (professions must keep resolving to jobs).
+    re: /\b(darb\w*|job\w*|vakancij\w*|karjer\w*)\b/i,
     category: "jobs",
   },
 ];
@@ -111,6 +116,28 @@ function titleCaseQuery(q: string): string {
 export function extractProductSearchIntent(raw: string): ProductSearchIntent {
   const trimmed = raw.trim();
   if (!trimmed) return { keyword: "", categoryBrowse: false };
+
+  // F5 — shared disambiguation BEFORE the job/vehicle classifiers:
+  // office furniture and car accessories are HOME goods in BOTH chains.
+  if (isOfficeFurnitureSearch(trimmed)) {
+    const leftover = stripSearchPrefixes(trimmed)
+      .replace(/\bdarbo\b/i, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return {
+      keyword: titleCaseQuery(stripFillers(leftover)) || "biuro baldai",
+      category: "home",
+      categoryBrowse: false,
+    };
+  }
+  if (isCarAccessorySearch(trimmed)) {
+    const leftover = stripFillers(stripSearchPrefixes(trimmed));
+    return {
+      keyword: titleCaseQuery(leftover) || "automobilio priedai",
+      category: "home",
+      categoryBrowse: false,
+    };
+  }
 
   if (isJobSearchQuery(trimmed)) {
     const role = jobSearchKeywordQuery(trimmed);

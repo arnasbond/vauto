@@ -22,6 +22,7 @@ import {
   fallbackTokenizedSearchQuery,
   parseUniversalSearchQuery,
 } from "../search/universal-search-query.js";
+import { inferSearchCategory } from "../product-search-query.js";
 import { buildSellDraft } from "../sell/visual-sell-engine.js";
 import { parseSellDraft } from "../sell/sell-draft-schema.js";
 import { buildSellerContextualVoiceFollowUp } from "../seller-voice-prompt.js";
@@ -225,6 +226,56 @@ describe("F5 — 7-vertical product parity matrix (real adapters)", () => {
         assert.ok(!("salary" in q.verticalAttributes));
       }
     }
+  });
+});
+
+describe("F5 — Atlas blocker remediation: dual-entry classification parity", () => {
+  const DUAL_ENTRY_CASES: Array<[string, string]> = [
+    // Furniture items — must NOT become jobs.
+    ["ieškau darbo kėdės", "home"],
+    ["ieškau darbo stalo", "home"],
+    ["darbo kėdė", "home"],
+    ["  IEŠKAU   DARBO   STALO  ", "home"],
+    ["ieškau darbo kėdę", "home"],
+    // Car accessories — must NOT become vehicles.
+    ["ieškau automobilio sėdynių užvalkalų", "home"],
+    ["automobilio kilimėliai", "home"],
+    ["ieškau automobilio kilimėlių", "home"],
+    // Professions / production / sales — MUST stay jobs.
+    ["ieškau darbo staliaus", "jobs"],
+    ["ieškau darbo staliumi", "jobs"],
+    ["ieškau darbo baldų gamintoju", "jobs"],
+    ["ieškau darbo kėdžių gamyboje", "jobs"],
+    ["ieškau darbo kėdžių pardavėju", "jobs"],
+    // Control: real jobs and real vehicles keep their categories.
+    ["ieškau darbo vairuotoju", "jobs"],
+    ["darbo vadybininku Vilniuje", "jobs"],
+    ["ieškau BMW 320d", "vehicles"],
+    ["automobilis iki 5000 €", "vehicles"],
+    ["parduodu volvo v70", "vehicles"],
+    // Control: genuine furniture stays home via both chains.
+    ["sofos kampinės", "home"],
+  ];
+
+  for (const [phrase, expected] of DUAL_ENTRY_CASES) {
+    it(`"${phrase.trim()}" → ${expected} (both production classifiers)`, () => {
+      const f3 = parseUniversalSearchQuery(phrase);
+      assert.equal(f3.canonicalCategory, expected, "F3 parser");
+
+      const legacy = inferSearchCategory(phrase);
+      assert.equal(legacy, expected, "legacy chain");
+    });
+  }
+});
+
+describe("F5 — Atlas blocker remediation: shared disambiguation invariants", () => {
+  it("no broad stems: professions survive, item forms are precise", () => {
+    // staliaus/staliumi are NOT office furniture (no broad stal* stem).
+    assert.equal(parseUniversalSearchQuery("ieškau darbo staliaus").canonicalCategory, "jobs");
+    assert.equal(parseUniversalSearchQuery("ieškau darbo staliumi").canonicalCategory, "jobs");
+    // Item forms are precise: kėdės/stalo only.
+    assert.equal(parseUniversalSearchQuery("ieškau darbo kėdės").canonicalCategory, "home");
+    assert.equal(parseUniversalSearchQuery("ieškau darbo stalo").canonicalCategory, "home");
   });
 });
 
