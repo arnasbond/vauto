@@ -43,6 +43,11 @@ import {
   isSparseSellRequest,
 } from "./sell-intent-fallback.js";
 import { extractVehicleSpecsFromChat, buildVehicleDescriptionFromAttributes } from "./vehicle-attribute-extract.js";
+import {
+  extractRoomsFromChat,
+  extractWorkTypeFromChat,
+  resolveVerticalConflictPatch,
+} from "./sell/vertical-conflict-state.js";
 import { isVehicleFamilyCategory } from "../shared/category-registry.js";
 import {
   applyVinExtractionCandidate,
@@ -1242,7 +1247,39 @@ async function runVautoAgentInner(
     );
     const hasDescEdit = descEdit.removed.length > 0;
 
-    if (priceToApply != null || negotiable || hasSpecs || hasDescEdit) {
+    // F5 closure — live vertical field-conflict state (rooms: REAL_ESTATE,
+    // workType: JOBS). Category-gated, deterministic, no LLM; unrelated turns
+    // preserve pending conflicts; only an explicit user choice resolves them.
+    const roomsIncoming =
+      listingDraft.category === "real_estate"
+        ? extractRoomsFromChat(lastUserText)
+        : undefined;
+    const workTypeIncoming =
+      listingDraft.category === "jobs"
+        ? extractWorkTypeFromChat(lastUserText)
+        : undefined;
+    const roomsPatch = resolveVerticalConflictPatch({
+      field: "rooms",
+      category: listingDraft.category,
+      priorAttributes: listingDraft.attributes,
+      incomingValue: roomsIncoming,
+    });
+    const workTypePatch = resolveVerticalConflictPatch({
+      field: "workType",
+      category: listingDraft.category,
+      priorAttributes: listingDraft.attributes,
+      incomingValue: workTypeIncoming,
+    });
+    const hasVerticalConflictUpdate =
+      Object.keys(roomsPatch).length > 0 || Object.keys(workTypePatch).length > 0;
+
+    if (
+      priceToApply != null ||
+      negotiable ||
+      hasSpecs ||
+      hasDescEdit ||
+      hasVerticalConflictUpdate
+    ) {
       const negoPatch = negotiable ? negotiablePricePatch() : null;
       const yearResolution = resolveYearConflictPatch({
         priorAttributes: listingDraft.attributes,
@@ -1264,9 +1301,19 @@ async function runVautoAgentInner(
         ...specPatchWithoutVin,
         ...(negoPatch?.attributes ?? {}),
         ...yearResolution,
+        ...roomsPatch,
+        ...workTypePatch,
       };
       if (mergedAttrs.yearConflict === "") delete mergedAttrs.yearConflict;
       if (mergedAttrs.yearConflictCandidate === "") delete mergedAttrs.yearConflictCandidate;
+      for (const key of [
+        "roomsConflict",
+        "roomsConflictCandidate",
+        "workTypeConflict",
+        "workTypeConflictCandidate",
+      ]) {
+        if (mergedAttrs[key] === "") delete mergedAttrs[key];
+      }
       delete mergedAttrs.awaitingSpecs;
       // Round 4: register a server challenge when this turn created a candidate.
       Object.assign(
