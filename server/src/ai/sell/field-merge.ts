@@ -10,6 +10,10 @@ import {
 } from "../foundation/confidence.js";
 import type { ExtractedField } from "./sell-draft-schema.js";
 import type { SellFieldSource } from "./sell-types.js";
+import {
+  evaluateFieldEvidence,
+  type FactEvidenceState,
+} from "../../shared/fact-evidence-adapter.js";
 
 const SOURCE_RANK: Record<SellFieldSource, number> = {
   USER_PROVIDED: 100,
@@ -33,12 +37,32 @@ export type MergeResult<T> = {
   warning?: string;
 };
 
-function valuesEqual(a: unknown, b: unknown): boolean {
-  if (a == null || b == null) return a === b;
-  if (typeof a === "string" && typeof b === "string") {
-    return a.trim().toLowerCase() === b.trim().toLowerCase();
+/**
+ * Preserve the merge boundary's existing equality semantics while supplying the
+ * fact-evidence contract with caller-normalized strings. Strings remain
+ * trim/case-insensitive; primitives compare by value; object-like values compare
+ * by identity, exactly as the previous `valuesEqual` implementation did.
+ */
+function toMergeFactValue(
+  value: unknown,
+  referenceTokens: Map<unknown, string>,
+  occurrence: number
+): string {
+  if (typeof value === "string") return `string:${value.trim().toLowerCase()}`;
+  if (typeof value === "number") {
+    if (Number.isNaN(value)) return `number:nan:${occurrence}`;
+    return `number:${Object.is(value, -0) ? "0" : String(value)}`;
   }
-  return a === b;
+  if (typeof value === "boolean") return `boolean:${value}`;
+  if (typeof value === "bigint") return `bigint:${String(value)}`;
+  if (value === null) return "null";
+
+  let token = referenceTokens.get(value);
+  if (!token) {
+    token = `reference:${referenceTokens.size + 1}`;
+    referenceTokens.set(value, token);
+  }
+  return token;
 }
 
 export function mergeFieldCandidates<T>(
@@ -67,17 +91,47 @@ export function mergeFieldCandidates<T>(
       b.confidence - a.confidence
   );
   const top = usable[0]!;
-  const conflictWith = usable.find(
-    (c) => c !== top && !valuesEqual(c.value, top.value) && SOURCE_RANK[c.source] >= 40
-  );
+
+  // F2.1 — fact-evidence is the decision authority. Fold the already-normalized
+  // candidates through evaluateFieldEvidence in the SAME precedence order,
+  // threading the cumulative state so CONFLICT / unsupported evidence can
+  // actually arise at this seam. The sorted `top` candidate remains the value
+  // authority (existing precedence); the decision only governs confirmation.
+  let state: FactEvidenceState | null = null;
+  let conflictCandidate: FieldCandidate<T> | null = null;
+  let forcesConfirmation = false;
+  const referenceTokens = new Map<unknown, string>();
+  for (const [index, candidate] of usable.entries()) {
+    const decision = evaluateFieldEvidence(state, {
+      value: toMergeFactValue(candidate.value, referenceTokens, index),
+      source: candidate.source,
+      confidence: candidate.confidence,
+      evidence: candidate.evidence,
+    });
+    if (!decision) continue;
+    state = decision.state;
+    if (decision.decision === "CONFLICT" && !conflictCandidate) {
+      conflictCandidate = candidate;
+    }
+    if (
+      decision.decision === "REJECT_UNSUPPORTED_INFERENCE" ||
+      decision.decision === "INSUFFICIENT_EVIDENCE" ||
+      decision.decision === "REQUIRES_REVERIFICATION" ||
+      decision.decision === "INVALID_STATE"
+    ) {
+      forcesConfirmation = true;
+    }
+  }
 
   const policy = applyConfidencePolicy(top.value as T, top.confidence);
   let value = policy.abstained ? null : (policy.value as T | null);
   let confidence = clampConfidence(top.confidence);
   let requiresConfirmation =
-    policy.requiresUserConfirmation || opts?.critical === true;
+    policy.requiresUserConfirmation ||
+    opts?.critical === true ||
+    forcesConfirmation;
 
-  if (conflictWith) {
+  if (conflictCandidate) {
     requiresConfirmation = true;
     // Keep higher-precedence value but force confirm
     return {
@@ -88,12 +142,12 @@ export function mergeFieldCandidates<T>(
         requiresConfirmation: true,
         evidence: [
           ...(top.evidence ?? []),
-          ...(conflictWith.evidence ?? []),
+          ...(conflictCandidate.evidence ?? []),
           `conflict:${key}`,
         ],
       },
       conflict: true,
-      warning: `Konfliktas lauke „${key}”: ${String(top.value)} (${top.source}) vs ${String(conflictWith.value)} (${conflictWith.source}) — patvirtinkite.`,
+      warning: `Konfliktas lauke „${key}”: ${String(top.value)} (${top.source}) vs ${String(conflictCandidate.value)} (${conflictCandidate.source}) — patvirtinkite.`,
     };
   }
 
