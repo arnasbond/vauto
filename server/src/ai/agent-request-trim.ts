@@ -3,10 +3,15 @@ import {
   sanitizePromptUserInput,
   scrubPromptInjection,
 } from "../shared/prompt-injection.js";
+import {
+  sanitizeListingDescription,
+  sanitizeListingTitle,
+} from "./listing-context-sanitizer.js";
 
 export const AGENT_MAX_MESSAGES = 32;
 export const AGENT_MAX_MESSAGE_CHARS = 12_000;
 export const AGENT_MAX_LISTINGS = 48;
+/** Description budget now enforced by `listing-context-sanitizer.ts` (same value). */
 export const AGENT_MAX_LISTING_DESC_CHARS = 160;
 export const AGENT_MAX_MY_LISTINGS = 24;
 /** Cap client-supplied pendingDocuments.text (L-03). */
@@ -61,14 +66,15 @@ export function trimVautoAgentRequest(req: VautoAgentRequest): VautoAgentRequest
   }
 
   const listings = req.context?.listings;
+  // F1.1 — client-provided listing titles/descriptions are untrusted data in
+  // model context; both pass the centralized listing-context sanitizer (the
+  // same boundary DB-driven paths use), keeping one budget everywhere.
   const trimmedListings = listings?.length
     ? listings.slice(0, AGENT_MAX_LISTINGS).map((l) => ({
         ...l,
+        title: sanitizeListingTitle(l.title),
         description: l.description
-          ? capText(
-              sanitizePromptUserInput(l.description).text || l.description,
-              AGENT_MAX_LISTING_DESC_CHARS
-            )
+          ? sanitizeListingDescription(l.description)
           : undefined,
       }))
     : listings;
@@ -88,7 +94,7 @@ export function trimVautoAgentRequest(req: VautoAgentRequest): VautoAgentRequest
       })
     : req.context?.pendingDocuments;
 
-  let context = {
+  const context = {
     ...req.context,
     listings: trimmedListings,
     myListings,
