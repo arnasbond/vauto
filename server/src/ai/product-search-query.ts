@@ -48,7 +48,8 @@ const BROAD_CATEGORY_RULES: Array<{
     category: "real_estate",
   },
   {
-    re: /\b(darb\w*|job\w*|vakancij\w*|karjer\w*)\b/i,
+    // F5 — "ieškau darbo kėdės" is furniture, not a job search.
+    re: /\b(darb\w*(?!\w*\s*(k[ėe]d\w*|st[ao]l\w*|bald\w*))\b|job\w*|vakancij\w*|karjer\w*)\b/i,
     category: "jobs",
   },
 ];
