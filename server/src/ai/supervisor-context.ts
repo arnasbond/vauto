@@ -7,6 +7,14 @@ import {
   toLithuanianDative,
   toLithuanianVocative,
 } from "./lithuanian-name-case.js";
+import {
+  neutralizeProfileInstruction,
+  sanitizeProfileField,
+} from "./user-agent-context.js";
+import {
+  UNTRUSTED_DATA_SYSTEM_WARNING,
+  wrapUntrustedXml,
+} from "../shared/prompt-injection.js";
 
 export interface SupervisorUploadMetadata {
   /** Count only — never embed base64 URLs in supervisor state (payload size). */
@@ -54,25 +62,65 @@ export interface SupervisorContextSource {
   accountType?: string;
   userRole?: string;
   userCity?: string;
+  contact?: string;
+}
+
+function boundedCount(value: unknown, max: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Math.min(Math.trunc(parsed), max);
+}
+
+function sanitizeStateValue(value: unknown, depth = 0): unknown {
+  if (depth >= 4) return undefined;
+  if (typeof value === "string") return sanitizeProfileField(value, 240);
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "boolean" || value === null) return value;
+  if (Array.isArray(value)) {
+    return value
+      .slice(0, 12)
+      .map((item) => sanitizeStateValue(item, depth + 1))
+      .filter((item) => item !== undefined);
+  }
+  if (typeof value === "object" && value) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .slice(0, 24)
+        .map(([key, item]) => [
+          sanitizeProfileField(key, 60),
+          sanitizeStateValue(item, depth + 1),
+        ])
+        .filter(([key, item]) => Boolean(key) && item !== undefined)
+    );
+  }
+  return undefined;
+}
+
+function sanitizeFilters(value: unknown): Record<string, unknown> {
+  const sanitized = sanitizeStateValue(value);
+  return sanitized && typeof sanitized === "object" && !Array.isArray(sanitized)
+    ? (sanitized as Record<string, unknown>)
+    : {};
 }
 
 export function resolveSupervisorCurrentUser(
   context: SupervisorContextSource,
   authUserId?: string
 ): SupervisorCurrentUser {
-  if (context.supervisorState?.current_user) {
-    const u = context.supervisorState.current_user;
-    return {
-      ...u,
-      firstNameVocative:
-        u.firstNameVocative || toLithuanianVocative(u.firstName),
-      firstNameDative: u.firstNameDative || toLithuanianDative(u.firstName),
-    };
-  }
-
-  const name = context.userName?.trim() || "Svečias";
+  // Identity and authority are server-owned. Never accept the client's
+  // supervisorState.current_user projection, including pre-derived name cases.
+  const authenticated = Boolean(authUserId);
+  const name =
+    neutralizeProfileInstruction(
+      sanitizeProfileField(context.userName, 60),
+      authenticated ? "Vartotojas" : "Svečias"
+    ) || (authenticated ? "Vartotojas" : "Svečias");
   const firstName = name.split(/\s+/)[0] || name;
-  const authenticated = Boolean(authUserId || context.isAuthenticated);
+  const city = neutralizeProfileInstruction(
+    sanitizeProfileField(context.userCity, 40),
+    ""
+  );
+  const phone = sanitizeProfileField(context.contact, 32);
 
   return {
     id: authUserId,
@@ -81,9 +129,15 @@ export function resolveSupervisorCurrentUser(
     firstNameVocative: toLithuanianVocative(firstName),
     firstNameDative: toLithuanianDative(firstName),
     status: authenticated ? "authenticated" : "guest",
-    accountType: context.accountType,
-    role: context.userRole,
-    city: context.userCity,
+    accountType: authenticated
+      ? sanitizeProfileField(context.accountType, 40) || undefined
+      : "Svečias",
+    role: authenticated
+      ? sanitizeProfileField(context.userRole, 20) || "buyer"
+      : "buyer",
+    city: city || undefined,
+    phone: phone || undefined,
+    hasVerifiedContacts: authenticated && Boolean(phone),
     hasSessionToken: Boolean(authUserId),
   };
 }
@@ -95,18 +149,18 @@ export function resolveSupervisorStateFromRequest(
   const resolvedUser = resolveSupervisorCurrentUser(context, authUserId);
 
   if (context.supervisorState) {
-    const mergedUser = context.supervisorState.current_user ?? resolvedUser;
-    const current_user = {
-      ...mergedUser,
-      firstNameVocative:
-        mergedUser.firstNameVocative ||
-        toLithuanianVocative(mergedUser.firstName),
-      firstNameDative:
-        mergedUser.firstNameDative || toLithuanianDative(mergedUser.firstName),
-    };
+    const state = context.supervisorState;
     return {
-      ...context.supervisorState,
-      current_user,
+      current_page_url: sanitizeProfileField(state.current_page_url, 160) || "/",
+      active_filters: sanitizeFilters(state.active_filters),
+      total_listings_count: boundedCount(state.total_listings_count, 1_000_000),
+      upload_metadata: {
+        pendingImageCount: boundedCount(state.upload_metadata?.pendingImageCount, 10),
+        visionHint: sanitizeProfileField(state.upload_metadata?.visionHint, 1_200) || undefined,
+        lastVisionSummary:
+          sanitizeProfileField(state.upload_metadata?.lastVisionSummary, 1_200) || undefined,
+      },
+      current_user: resolvedUser,
     };
   }
 
@@ -123,11 +177,12 @@ export function resolveSupervisorStateFromRequest(
     0;
 
   return {
-    current_page_url: context.currentPageContext?.page_id ?? "/",
-    active_filters: filters,
-    total_listings_count: context.searchResultCount ?? 0,
+    current_page_url:
+      sanitizeProfileField(context.currentPageContext?.page_id, 160) || "/",
+    active_filters: sanitizeFilters(filters),
+    total_listings_count: boundedCount(context.searchResultCount, 1_000_000),
     upload_metadata: {
-      pendingImageCount: imageCount,
+      pendingImageCount: boundedCount(imageCount, 10),
     },
     current_user: resolvedUser,
   };
@@ -153,10 +208,11 @@ export function buildSupervisorStateInjectionBlock(
 
   return `[SISTEMOS BŪSENA — tavo akys ir ausys]
 Tu nuolat matai šį vaizdą; kalbėk ir veik atsižvelgdamas į jį:
+${UNTRUSTED_DATA_SYSTEM_WARNING}
 
-current_page_url: ${state.current_page_url}
-active_filters: ${JSON.stringify(state.active_filters)}
+current_page_url: ${wrapUntrustedXml("untrusted_current_page", state.current_page_url, 200)}
+active_filters: ${wrapUntrustedXml("untrusted_active_filters", JSON.stringify(state.active_filters), 2_000)}
 total_listings_count: ${state.total_listings_count}
-upload_metadata: ${JSON.stringify(state.upload_metadata)}
-current_user: ${userLine}`;
+upload_metadata: ${wrapUntrustedXml("untrusted_upload_metadata", JSON.stringify(state.upload_metadata), 3_000)}
+current_user: ${wrapUntrustedXml("untrusted_current_user", userLine, 2_000)}`;
 }
