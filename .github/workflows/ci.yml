@@ -8,6 +8,10 @@ on:
     branches: [master]
   workflow_dispatch:
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -202,6 +206,9 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     needs: build
+    env:
+      CI: "true"
+      PLAYWRIGHT_REUSE_BUILD: "1"
     steps:
       - uses: actions/checkout@v4
 
@@ -228,76 +235,31 @@ jobs:
       - name: Install server dependencies (Stage 12A harness)
         run: npm run server:install
 
-      - name: Run Stage 12A Deal Room E2E
-        run: npx playwright test e2e/stage12a-deal-room-flows.spec.ts
+      - name: Run authenticated Deal Room E2E pack (single build/server)
+        run: |
+          npx playwright test --project=e2e-legacy \
+            e2e/stage12a-deal-room-flows.spec.ts \
+            e2e/stage13c-deal-room.spec.ts
         env:
-          CI: "true"
           E2E_MINT_REAL_JWT: "1"
           JWT_SECRET: vauto-dev-secret-change-in-production
 
-      - name: Run Stage 12B user comprehension E2E
-        run: npx playwright test e2e/stage12b-user-comprehension.spec.ts
-        env:
-          CI: "true"
-
-      - name: Run Stage 13B faceted filters E2E
-        run: npx playwright test e2e/stage13b-faceted-filters.spec.ts
-        env:
-          CI: "true"
-
-      - name: Run Stage 13C Deal Room E2E
-        run: npx playwright test e2e/stage13c-deal-room.spec.ts
-        env:
-          CI: "true"
-          E2E_MINT_REAL_JWT: "1"
-          JWT_SECRET: vauto-dev-secret-change-in-production
-
-      - name: Run E2E smoke tests
-        run: npx playwright test e2e/smoke.spec.ts
-        env:
-          CI: "true"
-
-      - name: Run AI assistant restore E2E
-        run: npx playwright test e2e/ai-assistant-restore.spec.ts
-        env:
-          CI: "true"
-
-      - name: Run auth ops guard E2E
-        run: npx playwright test e2e/auth.spec.ts
-        env:
-          CI: "true"
-
-      - name: Run conductor runtime-config E2E (mocked override)
-        run: npx playwright test e2e/ai-conductor-runtime.spec.ts
-        env:
-          CI: "true"
-
-      - name: Run conductor runtime-config E2E (live baked file)
-        run: npx playwright test e2e/ai-conductor-runtime-live.spec.ts
-        env:
-          CI: "true"
-
-      - name: Run conductor disabled legacy E2E
-        run: npx playwright test e2e/ai-conductor-off.spec.ts
-        env:
-          CI: "true"
+      - name: Run critical browser E2E pack (single build/server)
+        run: |
+          npx playwright test --project=e2e-legacy \
+            e2e/stage12b-user-comprehension.spec.ts \
+            e2e/stage13b-faceted-filters.spec.ts \
+            e2e/smoke.spec.ts \
+            e2e/ai-assistant-restore.spec.ts \
+            e2e/auth.spec.ts \
+            e2e/ai-conductor-runtime.spec.ts \
+            e2e/ai-conductor-runtime-live.spec.ts \
+            e2e/ai-conductor-off.spec.ts \
+            e2e/master-wave1-theme-semantics.spec.ts \
+            e2e/vin-review-confirmation.spec.ts
 
       - name: Run conductor E2E (NEXT_PUBLIC_VAUTO_CONDUCTOR=1)
         run: npm run test:e2e:conductor
-        env:
-          CI: "true"
-
-      - name: Run MASTER Wave 1 theme semantics E2E
-        run: npx playwright test e2e/master-wave1-theme-semantics.spec.ts
-        env:
-          CI: "true"
-
-      - name: Run Phase 2C VIN confirmation E2E
-        run: npx playwright test e2e/vin-review-confirmation.spec.ts
-        env:
-          CI: "true"
 
       - name: Run enterprise business E2E pack
         run: npx playwright test --project=e2e-enterprise
-        env:
-          CI: "true"

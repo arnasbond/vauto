@@ -52,6 +52,12 @@ const baseURL = assertLocalhostOnlyBaseUrl(
     : "http://127.0.0.1:4173"
 );
 
+const serveCommand = "npx --yes serve@14.2.6 out -l 4173";
+const webServerCommand =
+  process.env.PLAYWRIGHT_REUSE_BUILD === "1"
+    ? `node -e "require('node:fs').accessSync('out/index.html')" && ${serveCommand}`
+    : `node scripts/build-e2e-static.mjs && ${serveCommand}`;
+
 export default defineConfig({
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
@@ -96,8 +102,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // Prefer local binary if present; --yes avoids interactive npx prompts on cold cache.
-    command: "node scripts/build-e2e-static.mjs && npx --yes serve@14.2.6 out -l 4173",
+    // CI builds once before Playwright and reuses that exact output across test packs.
+    // Local direct Playwright runs keep the safe build-before-serve behavior.
+    command: webServerCommand,
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
     // Next export + cold `serve` install can exceed 3 minutes on Windows.
