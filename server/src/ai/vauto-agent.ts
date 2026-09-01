@@ -1259,20 +1259,25 @@ async function runVautoAgentInner(
       listingDraft.category === "jobs"
         ? extractWorkTypeVariants(lastUserText)
         : [];
-    const roomsPatch = resolveAmbiguousVerticalPatch({
+    const roomsResolution = resolveAmbiguousVerticalPatch({
       field: "rooms",
       category: listingDraft.category,
       priorAttributes: listingDraft.attributes,
       variants: roomsVariants,
     });
-    const workTypePatch = resolveAmbiguousVerticalPatch({
+    const workTypeResolution = resolveAmbiguousVerticalPatch({
       field: "workType",
       category: listingDraft.category,
       priorAttributes: listingDraft.attributes,
       variants: workTypeVariants,
     });
+    const roomsPatch = roomsResolution.patch;
+    const workTypePatch = workTypeResolution.patch;
     const hasVerticalConflictUpdate =
-      Object.keys(roomsPatch).length > 0 || Object.keys(workTypePatch).length > 0;
+      Object.keys(roomsPatch).length > 0 ||
+      Object.keys(workTypePatch).length > 0 ||
+      roomsResolution.needsClarification ||
+      workTypeResolution.needsClarification;
 
     if (
       priceToApply != null ||

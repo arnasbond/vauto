@@ -108,20 +108,30 @@ export function resolveVerticalConflictPatch(input: {
  * Variant-aware entrypoint for a live turn:
  *   - 0 variants        → no change;
  *   - 1 variant         → normal conflict-state transition;
- *   - >1 distinct       → NEVER pick silently: keep the canonical; if the
- *                         canonical exists and at least one variant differs,
- *                         open an explicit clarification conflict with the
- *                         first differing variant as the candidate.
+ *   - >1 distinct       → NEVER pick silently:
+ *       * pending valid conflict → preserved (existing machinery asks it);
+ *       * valid canonical + differing variant → explicit clarification
+ *         conflict with the first differing variant as the candidate;
+ *       * NO valid canonical (empty draft or malformed prior markers) →
+ *         no value is written; `needsClarification` signals the caller to
+ *         surface exactly one deterministic clarification question.
+ * Malformed active markers (missing/invalid canonical or candidate) never
+ * block a fresh clarification.
  */
+export type AmbiguousVerticalPatchResult = {
+  patch: Record<string, string>;
+  needsClarification: boolean;
+};
+
 export function resolveAmbiguousVerticalPatch(input: {
   field: VerticalConflictField;
   category: string | null | undefined;
   priorAttributes?: Record<string, string | undefined>;
   variants: string[];
-}): Record<string, string> {
+}): AmbiguousVerticalPatchResult {
   const allowedCategory = VERTICAL_CONFLICT_FIELDS[input.field];
   const category = String(input.category ?? "").trim().toLowerCase();
-  if (category !== allowedCategory) return {};
+  if (category !== allowedCategory) return { patch: {}, needsClarification: false };
 
   const unique = [
     ...new Set(
@@ -130,30 +140,47 @@ export function resolveAmbiguousVerticalPatch(input: {
         .filter((v): v is string => Boolean(v))
     ),
   ];
-  if (unique.length === 0) return {};
+  if (unique.length === 0) return { patch: {}, needsClarification: false };
   if (unique.length === 1) {
-    return resolveVerticalConflictPatch({
-      field: input.field,
-      category: input.category,
-      priorAttributes: input.priorAttributes,
-      incomingValue: unique[0],
-    });
+    return {
+      patch: resolveVerticalConflictPatch({
+        field: input.field,
+        category: input.category,
+        priorAttributes: input.priorAttributes,
+        incomingValue: unique[0],
+      }),
+      needsClarification: false,
+    };
   }
 
   const priorAttrs = input.priorAttributes ?? {};
   const conflictKey = `${input.field}Conflict`;
   const candidateKey = `${input.field}ConflictCandidate`;
-  const priorConflictActive = String(priorAttrs[conflictKey] ?? "") === "true";
-  if (priorConflictActive) return {};
   const canonical = normalizeFieldValue(input.field, priorAttrs[input.field]);
-  if (!canonical) return {};
-  const differing = unique.find((v) => v !== canonical);
-  if (!differing) return {};
-  return {
-    [input.field]: canonical,
-    [conflictKey]: "true",
-    [candidateKey]: differing,
-  };
+  const candidate = normalizeFieldValue(input.field, priorAttrs[candidateKey]);
+  const priorConflictActive =
+    String(priorAttrs[conflictKey] ?? "") === "true" &&
+    Boolean(canonical) &&
+    Boolean(candidate);
+
+  if (priorConflictActive) return { patch: {}, needsClarification: false };
+
+  if (canonical) {
+    const differing = unique.find((v) => v !== canonical);
+    if (!differing) return { patch: {}, needsClarification: false };
+    return {
+      patch: {
+        [input.field]: canonical,
+        [conflictKey]: "true",
+        [candidateKey]: differing,
+      },
+      needsClarification: false,
+    };
+  }
+
+  // No valid canonical (empty draft or malformed prior markers): never pick a
+  // variant silently — ask exactly one deterministic clarification.
+  return { patch: {}, needsClarification: true };
 }
 
 /**

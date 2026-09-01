@@ -12,6 +12,7 @@ import type { VautoAgentRequest } from "../../vauto-agent.js";
 import {
   extractRoomsFromChat,
   extractWorkTypeFromChat,
+  resolveAmbiguousVerticalPatch,
   resolveVerticalConflictPatch,
 } from "../vertical-conflict-state.js";
 import { slimListingDraftForLlm } from "../../../shared/llm-context-slice.js";
@@ -195,6 +196,47 @@ describe("F5 closure — resolveVerticalConflictPatch (pure state machine)", () 
       resolveVerticalConflictPatch({ field: "workType", category: "jobs", priorAttributes: { workType: "Biure" }, incomingValue: "kartais" }),
       {}
     );
+  });
+
+  it("multi-variant turns without a canonical never pick silently (unit)", () => {
+    const empty = resolveAmbiguousVerticalPatch({
+      field: "rooms",
+      category: "real_estate",
+      priorAttributes: {},
+      variants: ["2", "3"],
+    });
+    assert.deepEqual(empty.patch, {}, "no variant written as canonical");
+    assert.equal(empty.needsClarification, true);
+
+    const work = resolveAmbiguousVerticalPatch({
+      field: "workType",
+      category: "jobs",
+      priorAttributes: {},
+      variants: ["Biure", "Nuotoliu"],
+    });
+    assert.deepEqual(work.patch, {});
+    assert.equal(work.needsClarification, true);
+
+    // Malformed active markers without valid canonical/candidate must not
+    // block a fresh clarification.
+    const malformed = resolveAmbiguousVerticalPatch({
+      field: "rooms",
+      category: "real_estate",
+      priorAttributes: { rooms: "abc", roomsConflict: "true", roomsConflictCandidate: "xyz" },
+      variants: ["2", "3"],
+    });
+    assert.deepEqual(malformed.patch, {}, "no canonical written over malformed state");
+    assert.equal(malformed.needsClarification, true);
+
+    // Canonical present → explicit clarification conflict (existing behavior).
+    const withCanonical = resolveAmbiguousVerticalPatch({
+      field: "rooms",
+      category: "real_estate",
+      priorAttributes: { rooms: "3" },
+      variants: ["2", "3"],
+    });
+    assert.deepEqual(withCanonical.patch, { rooms: "3", roomsConflict: "true", roomsConflictCandidate: "2" });
+    assert.equal(withCanonical.needsClarification, false);
   });
 });
 
@@ -406,5 +448,76 @@ describe("F5 closure — narrow remediation adversarial live cases", () => {
     assert.equal(attrs.rooms, "5", "canonical preserved");
     assert.equal(attrs.roomsConflict, "true", "single clear value still opens a conflict");
     assert.equal(attrs.roomsConflictCandidate, "3");
+  });
+});
+
+describe("F5 closure — empty-draft multi-variant clarification (live)", () => {
+  function reDraftNoRooms() {
+    return {
+      title: "Butas Vilniuje",
+      description: "Butas Vilniuje.",
+      price: 120000,
+      location: "Vilnius",
+      category: "real_estate",
+      attributes: { propertyType: "Butas", heatingType: "Centrinis", sellerType: "private" },
+      listingFlowState: "DRAFT_READY" as const,
+    };
+  }
+
+  function jobsDraftNoWorkType() {
+    return {
+      title: "Vairuotojas",
+      description: "Ieškau darbo vairuotoju.",
+      price: 0,
+      location: "Vilnius",
+      category: "jobs",
+      attributes: {
+        jobTitle: "Vairuotojas",
+        employmentType: "Pilnas etatas",
+        salaryMin: "2000",
+        sellerType: "private",
+      },
+      listingFlowState: "DRAFT_READY" as const,
+    };
+  }
+
+  it("'2 arba 3 kambariai' on a draft without rooms: no silent pick, one clarification question", async () => {
+    const res = await runVautoAgent(requestFor(reDraftNoRooms(), "2 arba 3 kambariai"));
+    const attrs = attrsOf(res);
+    assert.equal(attrs.rooms, undefined, "no variant written as canonical");
+    assert.equal(attrs.roomsConflict, undefined, "no manufactured conflict");
+    assert.doesNotMatch(res.reply, /kuris kambarių skaičius teisingas/);
+    assert.equal((res.reply.match(/parašykite:/g) ?? []).length, 1, "exactly one question");
+    assert.doesNotMatch(res.reply, /atnaujinau kainą/);
+  });
+
+  it("'biure arba nuotoliu' on a draft without workType: no silent pick, one clarification question", async () => {
+    const res = await runVautoAgent(requestFor(jobsDraftNoWorkType(), "biure arba nuotoliu"));
+    const attrs = attrsOf(res);
+    assert.equal(attrs.workType, undefined, "no variant written as canonical");
+    assert.equal(attrs.workTypeConflict, undefined);
+    assert.doesNotMatch(res.reply, /kurios darbo sąlygos teisingos/);
+    assert.equal((res.reply.match(/parašykite:/g) ?? []).length, 1, "exactly one question");
+    assert.doesNotMatch(res.reply, /atnaujinau kainą/);
+  });
+
+  it("malformed active markers + multi-variant turn: fresh clarification, no silent canonical", async () => {
+    const draft: Record<string, unknown> = {
+      ...(reDraftNoRooms() as unknown as Record<string, unknown>),
+      attributes: {
+        ...reDraftNoRooms().attributes,
+        rooms: "abc",
+        roomsConflict: "true",
+        roomsConflictCandidate: "xyz",
+      },
+    };
+    const res = await runVautoAgent(requestFor(draft, "2 arba 3 kambariai"));
+    const attrs = attrsOf(res);
+    assert.equal(attrs.rooms, "abc", "malformed canonical not silently rewritten");
+    assert.equal(
+      (res.reply.match(/parašykite:/g) ?? []).length,
+      1,
+      "exactly one clarification question"
+    );
   });
 });
