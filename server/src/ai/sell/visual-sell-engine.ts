@@ -19,7 +19,13 @@ import {
   type MarketCategory,
   type MarketObservation,
 } from "../../market-intelligence/index.js";
-import { mergeFieldCandidates, mergePriceField, type FieldCandidate } from "./field-merge.js";
+import {
+  mergeFieldCandidates,
+  mergePriceField,
+  type FieldCandidate,
+  type MergeFieldEvidenceProjection,
+  type MergeResult,
+} from "./field-merge.js";
 import { validateImagesFailClosed, type ImageSafetyResult, type ImageSafetyProvider } from "./image-validation.js";
 import {
   parseSellDraft,
@@ -316,6 +322,12 @@ export async function buildSellDraft(
       { critical }
     );
 
+  // F2.2 — structured fact-evidence projections, keyed identically to the
+  // canonical intel field keys (top-level by name, attributes as attributes.<key>).
+  const factEvidence: Record<string, MergeFieldEvidenceProjection> = {};
+  const collectProjection = (key: string, m: MergeResult<unknown> | undefined) => {
+    if (m?.factEvidence) factEvidence[key] = m.factEvidence;
+  };
   const categoryM = mergeStr("category", [
     textC?.category,
     voiceCandidates.category,
@@ -362,6 +374,15 @@ export async function buildSellDraft(
   for (const m of [categoryM, brandM, modelM, colorM, conditionM, yearM, priceM]) {
     if (m.warning) warnings.push(m.warning);
   }
+  collectProjection("category", categoryM as MergeResult<unknown>);
+  collectProjection("title", titleM as MergeResult<unknown>);
+  collectProjection("brand", brandM as MergeResult<unknown>);
+  collectProjection("model", modelM as MergeResult<unknown>);
+  collectProjection("color", colorM as MergeResult<unknown>);
+  collectProjection("condition", conditionM as MergeResult<unknown>);
+  collectProjection("year", yearM as MergeResult<unknown>);
+  collectProjection("price", priceM as MergeResult<unknown>);
+  collectProjection("description", descM as MergeResult<unknown>);
 
   // Attributes merge (critical: vin, mileage, engineLiters, storage, defects)
   const attrKeys = new Set([
@@ -387,6 +408,7 @@ export async function buildSellDraft(
       { critical }
     );
     attributes[key] = merged.field;
+    collectProjection(`attributes.${key}`, merged as MergeResult<unknown>);
     if (merged.warning) warnings.push(merged.warning);
   }
 
@@ -462,6 +484,7 @@ export async function buildSellDraft(
       reasons: imageSafety.reasons,
     },
     marketAdvice,
+    ...(Object.keys(factEvidence).length ? { factEvidence } : {}),
     foundationVersion: AI_FOUNDATION_VERSION,
   });
 
