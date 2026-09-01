@@ -92,6 +92,9 @@ const CATEGORY_VERTICAL_MAP: Partial<Record<NextQuestionCategory, VerticalId>> =
   electronics: "ELECTRONICS",
   services: "SERVICES",
   jobs: "JOBS",
+  // F5 — home maps to the canonical HOME_GARDEN vertical: itemType + condition
+  // arrive automatically as Stage 13A required fields (never duplicated here).
+  home: "HOME_GARDEN",
 };
 
 /** Categories where a direct sale price is a first-class trust/decision fact. */
@@ -143,7 +146,9 @@ const IMPORTANT_FIELDS: Record<NextQuestionCategory, readonly string[]> = {
   clothing: ["size", "material", "color"],
   services: ["serviceLocation", "duration"],
   jobs: ["salaryMin", "workType"],
-  home: [],
+  // F5 — only meaningful OPTIONAL HOME_GARDEN facts; required keys
+  // (itemType, condition) come from the canonical registry, never from here.
+  home: ["material", "deliveryOption"],
   tools: [],
   rental: [],
   other: [],
@@ -216,6 +221,9 @@ const QUESTION_TEXT: Record<string, string> = {
   workType: "Ar darbas biure, nuotoliu, ar hibridinis?",
   workTypeConflict:
     "Nurodėte prieštaringas darbo sąlygas — patikslinkite, ar darbas nuotolinis, biure ar hibridinis?",
+  // Home & garden (canonical HOME_GARDEN keys only)
+  itemType: "Kokio tipo prekė ar baldas?",
+  deliveryOption: "Koks pristatymo būdas — siuntimas, atsiėmimas ar abu?",
 };
 
 function isMissing(fact: FactState | undefined): boolean {
