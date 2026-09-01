@@ -30,7 +30,9 @@ const BROAD_CATEGORY_RULES: Array<{
     category: "services",
   },
   {
-    re: /\b(automobil\w*|ma[sš]in\w*|auto\b|cars?|vehicles?|transport\w*)\b/i,
+    // F3 — no transport bias: generic "mašina" (siuvimo/skalbimo/indų/…)
+    // must never force vehicles; brands/"automobilis" still do.
+    re: /\b(automobil\w*|(?<!siuvimo |skalbimo |ind[ųu] |plovimo |kavos |duonos )ma[sš]in\w*|auto\b|cars?|vehicles?|transport\w*)\b/i,
     category: "vehicles",
   },
   {
