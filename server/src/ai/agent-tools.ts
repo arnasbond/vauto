@@ -43,7 +43,7 @@ import {
   normCityForFilter,
   resolveLtCityNominative,
 } from "./lithuanian-location-normalize.js";
-import { buildSellerContextualVoiceFollowUp, buildCreateListingDraftFollowUp } from "./seller-voice-prompt.js";
+import { buildSellerContextualVoiceFollowUp } from "./seller-voice-prompt.js";
 import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
 import { buildDraftingCompletePhotosPrompt } from "./listing-conversational-flow.js";
 import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
@@ -1700,42 +1700,15 @@ export async function executeAgentTool(
         allowPastomatas: draft.allowPastomatas,
       });
 
-      const suggestedQuestions: string[] = [];
-      if (enriched.category === "electronics" || /iphone|telefon|mobil/i.test(enriched.title)) {
-        suggestedQuestions.push(
-          "Kokia jūsų telefono spalva ir vidinė atmintis — 128 ar 256 GB?"
-        );
-        suggestedQuestions.push("Ar pridedate originalų įkroviklį ir dėžutę?");
-      }
-      if (missingFields.includes("price")) {
-        suggestedQuestions.push(
-          "Kokią kainą norėtumėte — greitam pardavimui ar maksimaliai vertei?"
-        );
-      }
-      if (enriched.category === "vehicles" && missingFields.includes("make")) {
-        suggestedQuestions.push("Kokia automobilio markė? Pvz. BMW, Volkswagen, Toyota.");
-      }
-      if (enriched.category === "vehicles" && missingFields.includes("model")) {
-        suggestedQuestions.push("Koks modelis? Pvz. Golf, 520, Corolla.");
-      }
-      if (enriched.category === "vehicles" && missingFields.includes("year")) {
-        suggestedQuestions.push("Kokie pagaminimo ar registracijos metai ir kokia rida?");
-      }
-      if (missingFields.includes("sellerType")) {
-        suggestedQuestions.push(
-          "Ar keliate skelbimą kaip privatus asmuo, ar kaip įmonė/verslas?"
-        );
-      }
-      // City last — only if truly missing (profile sync may fill later).
-      if (missingFields.includes("city") && suggestedQuestions.length < 3) {
-        suggestedQuestions.push("Kurį miestą rodyti pirkėjams skelbime?");
-      }
-
+      // F1.3 — single highest-value question doctrine: the deterministic
+      // policy (selectNextQuestion) picks exactly ONE clarification question;
+      // a multi-question interview must never reach the model or the user.
       const voiceFollowUp = buildSellerContextualVoiceFollowUp(
         enriched.category,
         attributes,
         missingFields
       );
+      const suggestedQuestions: string[] = voiceFollowUp ? [voiceFollowUp] : [];
       const voiceFollowUpWithVinHint = vinReviewRequiresHumanAttention(attributes)
         ? `${voiceFollowUp ? `${voiceFollowUp}\n\n` : ""}${VIN_REVIEW_MODEL_HINT}`
         : voiceFollowUp;
@@ -1743,8 +1716,8 @@ export async function executeAgentTool(
         ? `${voiceFollowUpWithVinHint}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
         : voiceFollowUpWithVinHint;
 
-      let marketAnalysis = null;
-      let proactivePricingMessage: string | null = null;
+      const marketAnalysis = null;
+      const proactivePricingMessage: string | null = null;
       const monState =
         ctx.monetization ??
         resolveMonetizationState({ userRole: ctx.userRole });

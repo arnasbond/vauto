@@ -62,11 +62,12 @@ export function buddyMessageForAgentFailure(error?: string, code?: string): stri
       err
     )
   ) {
-    return err || "Per daug užklausų, pamėginkite šiek tiek vėliau";
+    // F1.3 — honest AI-down: manual mode stays available.
+    return err || "Per daug užklausų — pamėginkite šiek tiek vėliau. Iki tol veikia įprasta paieška ir rankinis skelbimų kūrimas.";
   }
 
   if (normalizedCode === "timeout" || /timeout|laiko limit|aborted/i.test(err)) {
-    return "Užtruko ilgiau nei įprastai — nuotraukų siuntimas nutrūko. Bandykite dar kartą arba įkelkite mažiau nuotraukų vienu metu.";
+    return "AI atsakymas užtruko ilgiau nei įprastai — pamėginkite dar kartą po kelių minučių. Iki tol galite naudotis įprasta paieška ir skelbimų forma rankiniu būdu.";
   }
 
   if (
@@ -81,11 +82,14 @@ export function buddyMessageForAgentFailure(error?: string, code?: string): stri
   // True upstream outage only — not every "serveris" substring in Lithuanian copy.
   if (
     normalizedCode === "agent_unavailable" ||
+    normalizedCode === "gemini_error" ||
     /502|503|bad gateway|overloaded|high demand|nepasiekiamas — serveris atsistato/i.test(
       err
     )
   ) {
-    return "AI asistentas šiuo metu nepasiekiamas — serveris atsistato. Bandykite po kelių minučių.";
+    // F1.3 — AI DOWN ≠ VAUTO DOWN: calm, clear message + direct path to
+    // manual mode (classic search / standard listing form remain available).
+    return "AI asistentas šiuo metu nepasiekiamas — serveris trumpam atsistato. Tuo metu viskas veikia įprastai: galite ieškoti skelbimų klasikine paieška arba sukurti skelbimą rankiniu būdu. Pabandykite AI šiek tiek vėliau.";
   }
 
   return VAUTO_IN_DOMAIN_RECOVERY;

@@ -27,7 +27,7 @@ import type { UserProfile } from "@/lib/types";
 
 export interface ZeroUiMemoryContextValue {
   defaultRegion: string;
-  primaryVehicle: PrimaryVehicle;
+  primaryVehicle: PrimaryVehicle | null;
   activeSearchFilters: AgentSearchFilters | null;
   buildAgentContext: (user: UserProfile) => Pick<
     VautoAgentContext,
@@ -76,7 +76,8 @@ export function ZeroUiMemoryProvider({ children }: { children: ReactNode }) {
       return {
         userCity: defaultRegion,
         defaultRegion,
-        primaryVehicle,
+        // F1.3 — wire contract keeps `primaryVehicle` optional; no synthetic fleet.
+        primaryVehicle: primaryVehicle ?? undefined,
         activeSearchFilters,
       };
     },
@@ -86,6 +87,7 @@ export function ZeroUiMemoryProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     (): ZeroUiMemoryContextValue => ({
       defaultRegion: DEFAULT_USER_REGION || ALL_LITHUANIA_LABEL,
+      // F1.3 — no synthetic fleet: null until the user saves a real vehicle.
       primaryVehicle: resolvePrimaryVehicle(null),
       activeSearchFilters,
       buildAgentContext,

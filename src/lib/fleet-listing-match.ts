@@ -42,9 +42,10 @@ export function listingMatchesFleet(
 
 export function buildFleetMatchMessage(
   listing: Listing,
-  vehicle: PrimaryVehicle,
+  vehicle: PrimaryVehicle | null,
   region: string
 ): string {
+  if (!vehicle) return "";
   const city = listing.location.split(",")[0]?.trim() || region;
   return `${city} ką tik įkeltas naujas ${vehicle.make} ${vehicle.model} skelbimas dalims. Žinau, kad vairuoji šį modelį — ar nori, kad atversčiau šį skelbimą?`;
 }
@@ -52,9 +53,11 @@ export function buildFleetMatchMessage(
 export function findNewFleetMatches(
   listings: Listing[],
   seenIds: Set<string>,
-  vehicle: PrimaryVehicle,
+  vehicle: PrimaryVehicle | null,
   region: string
 ): Listing[] {
+  // F1.3 — no synthetic fleet: without a saved vehicle there are no fleet matches.
+  if (!vehicle) return [];
   return listings.filter(
     (l) => !seenIds.has(l.id) && listingMatchesFleet(l, vehicle, region)
   );

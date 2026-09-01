@@ -128,9 +128,11 @@ function unavailableResult(
       ? "ai_rate_limit_exceeded"
       : status === 401
         ? "auth_required"
-        : status == null || status === 0
-          ? "network_error"
-          : "agent_unavailable";
+        : status === 504
+          ? "timeout"
+          : status == null || status === 0
+            ? "network_error"
+            : "agent_unavailable";
   const error =
     detail?.trim() ||
     (status
