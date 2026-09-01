@@ -154,6 +154,32 @@ function boundedNumber(value: number): number | undefined {
   return Math.round(value);
 }
 
+/**
+ * F4 — canonical price-notation normalization before NLP filter extraction:
+ * "150.000€" → "150000€", "iki 150k" → "iki 150000", "under 300" → "iki 300".
+ * A bare "150k" WITHOUT a price cue is ambiguous (mileage etc.) and stays a
+ * keyword. Deterministic, pure, bounded.
+ */
+export function normalizeSearchPriceNotation(text: string): string {
+  try {
+    const bounded = truncateTextSafely(text, F3_SEARCH_BUDGET.rawInput);
+    return bounded
+      .replace(
+        /\b(iki|nuo|max|min|under|below|iki\s+max|maziau|mažiau|pigiau|daugiau)\s+(\d{2,4})k\b/gi,
+        (_m, cue, n) => `${cue} ${Number(n) * 1000}`
+      )
+      .replace(/\b(\d{2,4})k\s*(?=eur|eurai|eur[uų]|€)/gi, (_m, n) => `${Number(n) * 1000} `)
+      .replace(
+        /\b(\d{1,3}(?:\.\d{3})+)\s*(?=€|eur|eurai|eur[uų])/gi,
+        (_m, n) => n.replace(/\./g, "")
+      )
+      .replace(/\bunder\s+(\d[\d\s]{0,6})(?=\s*(?:€|eur))?/gi, "iki $1")
+      .replace(/\bbelow\s+(\d[\d\s]{0,6})(?=\s*(?:€|eur))?/gi, "iki $1");
+  } catch {
+    return text;
+  }
+}
+
 function neutralQuery(rawSanitized: string, injectionBlocked: boolean): UniversalSearchQuery {
   return {
     canonicalCategory: "other",
@@ -200,7 +226,8 @@ export function parseUniversalSearchQuery(raw: string): UniversalSearchQuery {
     if (safe.blocked || SEARCH_INSTRUCTION_RE.test(safe.text)) {
       return neutralQuery(safe.text, true);
     }
-    const text = safe.text;
+    // F4 — canonical price notation before filter extraction.
+    const text = normalizeSearchPriceNotation(safe.text);
     if (!text) return neutralQuery("", false);
 
     // 1. NLP filters (price/city) + keyword residue (existing certified logic).
