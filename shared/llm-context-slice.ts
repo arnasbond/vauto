@@ -2,7 +2,44 @@
  * Lightweight LLM context slicing — never re-inject data-URLs or bulky drafts.
  */
 
+import {
+  UNTRUSTED_VIN_MARKER_KEYS,
+  VIN_REVIEW_MODEL_STATE_KEY,
+} from "./vin-review";
+
 const DATA_URL_RE = /^data:([^;]+);base64,/i;
+
+/**
+ * VIN keys that must never enter a model-visible prompt: every untrusted
+ * value/marker key (canonical vin, candidate/conflict/review state, challenge,
+ * scope, reviewId, confirmation receipt + timestamps) plus the generic
+ * human-review state flag. Server-owned boundary redaction — applies even when
+ * a client already strips some of these.
+ */
+const VIN_MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
+  ...UNTRUSTED_VIN_MARKER_KEYS,
+  VIN_REVIEW_MODEL_STATE_KEY,
+]);
+
+/**
+ * Phase 2D / F5 — deterministic field-conflict markers must also stay out of
+ * the model-visible slice: conflict resolution is a deterministic reducer
+ * (`resolveYearConflictPatch` / `resolveVerticalConflictPatch`), never an LLM
+ * decision.
+ */
+const FIELD_CONFLICT_MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
+  "yearConflict",
+  "yearConflictCandidate",
+  "roomsConflict",
+  "roomsConflictCandidate",
+  "workTypeConflict",
+  "workTypeConflictCandidate",
+]);
+
+const MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
+  ...VIN_MODEL_HIDDEN_ATTR_KEYS,
+  ...FIELD_CONFLICT_MODEL_HIDDEN_ATTR_KEYS,
+]);
 
 /** Short-lived object handle instead of a full Base64 payload. */
 export function slimImageHandle(url: string): string {
@@ -35,6 +72,25 @@ export function slimImageHandleList(
     .slice(0, max);
 }
 
+/**
+ * Model-visible upload marker. Raw URLs and Base64 payloads stay exclusively
+ * in server tool context; the orchestrator needs only the bounded count to
+ * decide that scanListingPhotos is required.
+ */
+export function buildPendingImagePromptMarker(
+  urls: unknown,
+  max = 10
+): string {
+  if (!Array.isArray(urls)) return "";
+  const count = urls
+    .map((url) => String(url ?? "").trim())
+    .filter(Boolean)
+    .slice(0, max).length;
+  if (!count) return "";
+
+  return `[Nuotraukos įkeltos — PRIVALOMA scanListingPhotos]\npending_image_count: ${count}\nimage_payload_location: server_tool_context_only`;
+}
+
 type DraftLike = {
   title?: string;
   description?: string;
@@ -57,6 +113,7 @@ export function slimListingDraftForLlm(draft: unknown): Record<string, unknown> 
   const attrs = d.attributes && typeof d.attributes === "object" ? d.attributes : {};
   const attrKeys = Object.keys(attrs).filter(
     (k) =>
+      !MODEL_HIDDEN_ATTR_KEYS.has(k) &&
       !/^(deferredSalesDescription|attachedDocumentText|documentFacts|orderedImageUrls)$/i.test(
         k
       )

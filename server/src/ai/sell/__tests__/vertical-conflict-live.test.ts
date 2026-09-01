@@ -131,8 +131,10 @@ describe("F5 closure — resolveVerticalConflictPatch (pure state machine)", () 
   it("extractors are deterministic and bounded (no LLM)", () => {
     assert.equal(extractRoomsFromChat("butas 3 kambarių"), "3");
     assert.equal(extractRoomsFromChat("2 kambariai 65 kv.m"), "2");
-    assert.equal(extractRoomsFromChat("2 k."), "2");
     assert.equal(extractRoomsFromChat("kaina 120000 eur"), undefined);
+    assert.equal(extractRoomsFromChat("kaina 12 k."), undefined, "tūkst. is never rooms");
+    assert.equal(extractRoomsFromChat("2 k."), undefined, "bare k. abbreviation is ambiguous");
+    assert.equal(extractRoomsFromChat("2 arba 3 kambariai"), undefined, "ambiguous → fail-closed");
     assert.equal(extractRoomsFromChat("2020 m. statybos"), undefined);
     assert.equal(extractRoomsFromChat("45 kambariai"), undefined, "cap 30");
     assert.equal(extractRoomsFromChat("0 kambarių"), undefined);
@@ -142,8 +144,57 @@ describe("F5 closure — resolveVerticalConflictPatch (pure state machine)", () 
     assert.equal(extractWorkTypeFromChat("hibridas"), "Hibridas");
     assert.equal(extractWorkTypeFromChat("hybrid"), "Hibridas");
     assert.equal(extractWorkTypeFromChat("remote'u"), "Nuotoliu");
+    assert.equal(extractWorkTypeFromChat("biure arba nuotoliu"), undefined, "ambiguous → fail-closed");
     assert.equal(extractWorkTypeFromChat("ieškau darbo"), undefined);
     assert.equal(extractWorkTypeFromChat("kartais vakarais"), undefined);
+  });
+
+  it("normalizers make semantically equal forms identical", () => {
+    assert.deepEqual(
+      resolveVerticalConflictPatch({ field: "workType", category: "jobs", priorAttributes: { workType: "Biure" }, incomingValue: "  biuras " }),
+      {},
+      "case/whitespace/inflection-equal forms never conflict"
+    );
+    assert.deepEqual(
+      resolveVerticalConflictPatch({ field: "workType", category: "jobs", priorAttributes: { workType: "Biure" }, incomingValue: "ofise" }),
+      {},
+      "legacy equal form never conflicts"
+    );
+    assert.deepEqual(
+      resolveVerticalConflictPatch({ field: "rooms", category: "real_estate", priorAttributes: { rooms: "3" }, incomingValue: "03" }),
+      {},
+      "numeric normalization"
+    );
+  });
+
+  it("malformed conflict markers are ignored safely, never manufacture a resolution", () => {
+    // Missing candidate — the pending flag is inert.
+    const missingCandidate = resolveVerticalConflictPatch({
+      field: "rooms",
+      category: "real_estate",
+      priorAttributes: { rooms: "3", roomsConflict: "true", roomsConflictCandidate: "" },
+      incomingValue: "2",
+    });
+    assert.deepEqual(missingCandidate, { rooms: "3", roomsConflict: "true", roomsConflictCandidate: "2" });
+
+    // Non-"true" flag — inert.
+    const weakFlag = resolveVerticalConflictPatch({
+      field: "rooms",
+      category: "real_estate",
+      priorAttributes: { rooms: "3", roomsConflict: "yes", roomsConflictCandidate: "2" },
+      incomingValue: "2",
+    });
+    assert.deepEqual(weakFlag, { rooms: "3", roomsConflict: "true", roomsConflictCandidate: "2" });
+
+    // Oversized/malformed incoming values never become a fact.
+    assert.deepEqual(
+      resolveVerticalConflictPatch({ field: "rooms", category: "real_estate", priorAttributes: { rooms: "3" }, incomingValue: "999999999999" }),
+      {}
+    );
+    assert.deepEqual(
+      resolveVerticalConflictPatch({ field: "workType", category: "jobs", priorAttributes: { workType: "Biure" }, incomingValue: "kartais" }),
+      {}
+    );
   });
 });
 
@@ -157,6 +208,7 @@ describe("F5 closure — live rooms conflict through runVautoAgent (REAL_ESTATE)
     assert.match(res.reply, /kuris kambarių skaičius teisingas/);
     assert.equal((res.reply.match(/parašykite:/g) ?? []).length, 1, "exactly one gap question");
     assert.doesNotMatch(res.reply, /kambarių skaičių(?! teisingas)|plotą \(m²\)|ridą \(km\)/, "no second question in the same turn");
+    assert.doesNotMatch(res.reply, /atnaujinau kainą/, "a vertical-only update must never claim a price change");
   });
 
   it("unrelated turn keeps the conflict; explicit choice of A resolves", async () => {
@@ -225,6 +277,7 @@ describe("F5 closure — live workType conflict through runVautoAgent (JOBS)", (
     assert.match(res.reply, /kurios darbo sąlygos teisingos/);
     assert.equal((res.reply.match(/parašykite:/g) ?? []).length, 1, "exactly one gap question");
     assert.doesNotMatch(res.reply, /atlyginimo dydį|darbo formatą \(biuras/, "no second question");
+    assert.doesNotMatch(res.reply, /atnaujinau kainą/, "a vertical-only update must never claim a price change");
   });
 
   it("choose A / choose B / third C fail-closed", async () => {
@@ -302,5 +355,56 @@ describe("F5 closure — cross-vertical isolation and model-visible protection",
     const draftJ = (tj.actions as { listingDraft: Record<string, unknown> }).listingDraft;
     const slimJ = slimListingDraftForLlm(draftJ);
     assert.ok(!JSON.stringify(slimJ).includes("workTypeConflict"));
+  });
+});
+
+describe("F5 closure — narrow remediation adversarial live cases", () => {
+  it("'kaina 12 k.' updates price only, never rooms", async () => {
+    const res = await runVautoAgent(requestFor(reDraft({ rooms: "3" }), "kaina 12 k."));
+    if (res.actions.type === "listing_draft") {
+      const attrs = attrsOf(res);
+      assert.equal(attrs.rooms, "3", "rooms unchanged");
+      assert.notEqual(attrs.rooms, "12");
+      assert.equal(attrs.roomsConflict, undefined);
+    }
+  });
+
+  it("'2 arba 3 kambariai' never picks silently — canonical kept, one clarification asked", async () => {
+    const res = await runVautoAgent(requestFor(reDraft({ rooms: "3" }), "2 arba 3 kambariai"));
+    const attrs = attrsOf(res);
+    assert.equal(attrs.rooms, "3", "state kept");
+    assert.equal(attrs.roomsConflict, "true", "explicit clarification conflict");
+    assert.equal(attrs.roomsConflictCandidate, "2");
+    assert.match(res.reply, /kuris kambarių skaičius teisingas/);
+    assert.equal((res.reply.match(/parašykite:/g) ?? []).length, 1);
+    assert.doesNotMatch(res.reply, /atnaujinau kainą/);
+  });
+
+  it("'biure arba nuotoliu' never picks silently — canonical kept, one clarification asked", async () => {
+    const res = await runVautoAgent(requestFor(jobsDraft({ workType: "Biure" }), "biure arba nuotoliu"));
+    const attrs = attrsOf(res);
+    assert.equal(attrs.workType, "Biure", "state kept");
+    assert.equal(attrs.workTypeConflict, "true");
+    assert.equal(attrs.workTypeConflictCandidate, "Nuotoliu");
+    assert.match(res.reply, /kurios darbo sąlygos teisingos/);
+    assert.equal((res.reply.match(/parašykite:/g) ?? []).length, 1);
+    assert.doesNotMatch(res.reply, /atnaujinau kainą/);
+  });
+
+  it("lowercase/whitespace/legacy semantically equal canonical never conflicts (live)", async () => {
+    const res = await runVautoAgent(requestFor(jobsDraft({ workType: "Biure" }), "  ofise  "));
+    if (res.actions.type === "listing_draft") {
+      const attrs = attrsOf(res);
+      assert.equal(attrs.workTypeConflict, undefined, "legacy equal form must not conflict");
+    }
+  });
+
+  it("oversized input stays bounded and deterministic (live)", async () => {
+    const big = `aprašau butą ${"ž".repeat(2000)} 3 kambarių ${"x".repeat(1000)}`;
+    const res = await runVautoAgent(requestFor(reDraft({ rooms: "5" }), big));
+    const attrs = attrsOf(res);
+    assert.equal(attrs.rooms, "5", "canonical preserved");
+    assert.equal(attrs.roomsConflict, "true", "single clear value still opens a conflict");
+    assert.equal(attrs.roomsConflictCandidate, "3");
   });
 });

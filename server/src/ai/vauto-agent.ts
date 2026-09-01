@@ -44,9 +44,9 @@ import {
 } from "./sell-intent-fallback.js";
 import { extractVehicleSpecsFromChat, buildVehicleDescriptionFromAttributes } from "./vehicle-attribute-extract.js";
 import {
-  extractRoomsFromChat,
-  extractWorkTypeFromChat,
-  resolveVerticalConflictPatch,
+  extractRoomsVariants,
+  extractWorkTypeVariants,
+  resolveAmbiguousVerticalPatch,
 } from "./sell/vertical-conflict-state.js";
 import { isVehicleFamilyCategory } from "../shared/category-registry.js";
 import {
@@ -1249,26 +1249,27 @@ async function runVautoAgentInner(
 
     // F5 closure — live vertical field-conflict state (rooms: REAL_ESTATE,
     // workType: JOBS). Category-gated, deterministic, no LLM; unrelated turns
-    // preserve pending conflicts; only an explicit user choice resolves them.
-    const roomsIncoming =
+    // preserve pending conflicts; only an explicit user choice resolves them;
+    // ambiguous multi-variant turns never pick silently.
+    const roomsVariants =
       listingDraft.category === "real_estate"
-        ? extractRoomsFromChat(lastUserText)
-        : undefined;
-    const workTypeIncoming =
+        ? extractRoomsVariants(lastUserText)
+        : [];
+    const workTypeVariants =
       listingDraft.category === "jobs"
-        ? extractWorkTypeFromChat(lastUserText)
-        : undefined;
-    const roomsPatch = resolveVerticalConflictPatch({
+        ? extractWorkTypeVariants(lastUserText)
+        : [];
+    const roomsPatch = resolveAmbiguousVerticalPatch({
       field: "rooms",
       category: listingDraft.category,
       priorAttributes: listingDraft.attributes,
-      incomingValue: roomsIncoming,
+      variants: roomsVariants,
     });
-    const workTypePatch = resolveVerticalConflictPatch({
+    const workTypePatch = resolveAmbiguousVerticalPatch({
       field: "workType",
       category: listingDraft.category,
       priorAttributes: listingDraft.attributes,
-      incomingValue: workTypeIncoming,
+      variants: workTypeVariants,
     });
     const hasVerticalConflictUpdate =
       Object.keys(roomsPatch).length > 0 || Object.keys(workTypePatch).length > 0;
@@ -1367,14 +1368,21 @@ async function runVautoAgentInner(
         specPatch.powerKw ? `${specPatch.powerKw} kW` : "",
         specPatch.fuelType ? specPatch.fuelType.toLowerCase() : "",
         specPatch.model ? specPatch.model : "",
+        roomsPatch.rooms ? `${roomsPatch.rooms} kamb.` : "",
+        workTypePatch.workType ? workTypePatch.workType : "",
         ...descEdit.removed.map((r) => `−${r}`),
       ].filter(Boolean);
-      const intro =
-        negotiable
-          ? "Supratau — kaina sutartinė."
-          : hasSpecs || hasDescEdit
-            ? `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`
-            : "Puiku — atnaujinau kainą!";
+      const verticalOnlyUpdate =
+        !negotiable && !hasSpecs && !hasDescEdit && priceToApply == null;
+      const intro = negotiable
+        ? "Supratau — kaina sutartinė."
+        : hasSpecs || hasDescEdit
+          ? `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`
+          : priceToApply != null
+            ? "Puiku — atnaujinau kainą!"
+            : verticalOnlyUpdate && bits.length
+              ? `Supratau — atnaujinau juodraštį (${bits.join(", ")}).`
+              : "Puiku — atnaujinau juodraštį!";
       const vinReviewChips = buildVinReviewDisplayChips(mergedAttrs);
       const vinReviewPayload = buildVinReviewSideEffect(mergedAttrs);
       return {
