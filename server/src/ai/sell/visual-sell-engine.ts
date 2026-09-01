@@ -24,6 +24,7 @@ import {
   mergePriceField,
   type FieldCandidate,
   type MergeFieldEvidenceProjection,
+  type MergeFieldCandidatesOptions,
   type MergeResult,
 } from "./field-merge.js";
 import { validateImagesFailClosed, type ImageSafetyResult, type ImageSafetyProvider } from "./image-validation.js";
@@ -31,6 +32,7 @@ import {
   parseSellDraft,
   type ExtractedField,
   type SellDraft,
+  type SellFactEvidenceProjection,
 } from "./sell-draft-schema.js";
 import { SELL_AUTO_PUBLISH, type SellInput } from "./sell-types.js";
 import { extractFromUserText } from "./text-extract.js";
@@ -64,6 +66,14 @@ export type BuildSellDraftOptions = {
   requestId?: string;
   /** Optional 10D observations — advisory only; never overwrites user price. */
   marketObservations?: MarketObservation[];
+  /**
+   * F2 closure — per-field structured evidence from the previous draft
+   * (round-trip). The evidence chain continues: history grows, canonical
+   * values and persisted conflicts survive, human authority is respected.
+   */
+  priorFactEvidence?: Record<string, SellFactEvidenceProjection>;
+  /** F2 closure — field keys the user explicitly corrected in this turn. */
+  userCorrectionKeys?: string[];
 };
 
 function emptyStringField(): ExtractedField<string> {
@@ -311,6 +321,10 @@ export async function buildSellDraft(
   }
 
   const textC = textBundle?.candidates;
+  const priorFor = (key: string): MergeFieldCandidatesOptions => ({
+    existingFactEvidence: opts.priorFactEvidence?.[key],
+    isUserCorrection: opts.userCorrectionKeys?.includes(key),
+  });
   const mergeStr = (
     key: string,
     list: Array<FieldCandidate<string> | undefined>,
@@ -319,7 +333,7 @@ export async function buildSellDraft(
     mergeFieldCandidates(
       key,
       list.filter(Boolean) as Array<FieldCandidate<string>>,
-      { critical }
+      { critical, ...priorFor(key) }
     );
 
   // F2.2 — structured fact-evidence projections, keyed identically to the
@@ -359,7 +373,7 @@ export async function buildSellDraft(
     [textC?.year, voiceCandidates.year].filter(Boolean) as Array<
       FieldCandidate<number>
     >,
-    { critical: true }
+    { critical: true, ...priorFor("year") }
   );
   const priceM = mergePriceField(
     [textC?.price, voiceCandidates.price].filter(Boolean) as Array<
@@ -405,7 +419,7 @@ export async function buildSellDraft(
         textC?.attributes?.[key],
         voiceCandidates.attributes?.[key],
       ].filter(Boolean) as Array<FieldCandidate<unknown>>,
-      { critical }
+      { critical, ...priorFor(`attributes.${key}`) }
     );
     attributes[key] = merged.field;
     collectProjection(`attributes.${key}`, merged as MergeResult<unknown>);

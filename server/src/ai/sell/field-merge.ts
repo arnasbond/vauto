@@ -55,6 +55,19 @@ export type MergeResult<T> = {
   factEvidence?: MergeFieldEvidenceProjection;
 };
 
+export type MergeFieldCandidatesOptions = {
+  critical?: boolean;
+  /**
+   * F2 closure — prior cumulative evidence state of this field (draft
+   * round-trip). The evidence chain continues: history grows, the canonical
+   * value is preserved, and a persisted conflict stays active until a real
+   * human correction resolves it.
+   */
+  existingFactEvidence?: MergeFieldEvidenceProjection;
+  /** F2 closure — explicit human correction intent (legitimate conflict resolution). */
+  isUserCorrection?: boolean;
+};
+
 /**
  * Preserve the merge boundary's existing equality semantics while supplying the
  * fact-evidence contract with caller-normalized strings. Strings remain
@@ -101,7 +114,7 @@ function safeOriginalValue(value: unknown): string | number | boolean | undefine
 export function mergeFieldCandidates<T>(
   key: string,
   candidates: Array<FieldCandidate<T>>,
-  opts?: { critical?: boolean }
+  opts?: MergeFieldCandidatesOptions
 ): MergeResult<T> {
   const usable = candidates.filter(
     (c) => c.value != null && c.source !== "OCR_UNTRUSTED"
@@ -130,7 +143,8 @@ export function mergeFieldCandidates<T>(
   // threading the cumulative state so CONFLICT / unsupported evidence can
   // actually arise at this seam. The sorted `top` candidate remains the value
   // authority (existing precedence); the decision only governs confirmation.
-  let state: FactEvidenceState | null = null;
+  // F2 closure — the chain starts from the PRIOR state (round-trip continuity).
+  let state: FactEvidenceState | null = opts?.existingFactEvidence?.state ?? null;
   let conflictCandidate: FieldCandidate<T> | null = null;
   let conflictWith: FactEvidence | undefined;
   let lastDecision: FactDecision = "INSUFFICIENT_EVIDENCE";
@@ -142,6 +156,8 @@ export function mergeFieldCandidates<T>(
       source: candidate.source,
       confidence: candidate.confidence,
       evidence: candidate.evidence,
+    }, {
+      isExplicitCorrection: opts?.isUserCorrection,
     });
     if (!decision) continue;
     state = decision.state;
@@ -159,6 +175,17 @@ export function mergeFieldCandidates<T>(
       forcesConfirmation = true;
     }
   }
+
+  // F2 closure — persisted conflicts stay active across round-trips until a
+  // real human correction resolves them. The competing evidence travels WITH
+  // the projection (same snapshot as the state), so carrying it forward is
+  // consistent; ACCEPT_CORRECTION is the one legitimate resolution.
+  const resolvedByCorrection = lastDecision === "ACCEPT_CORRECTION";
+  const persistedConflict = resolvedByCorrection
+    ? undefined
+    : opts?.existingFactEvidence?.conflictWith;
+  const effectiveConflictWith = conflictWith ?? persistedConflict;
+  const conflictPersists = Boolean(conflictCandidate || persistedConflict);
 
   const policy = applyConfidencePolicy(top.value as T, top.confidence);
   const value = policy.abstained ? null : (policy.value as T | null);
@@ -179,7 +206,7 @@ export function mergeFieldCandidates<T>(
     const factEvidence: MergeFieldEvidenceProjection = {
       state: state!,
       lastDecision,
-      ...(conflictWith ? { conflictWith } : {}),
+      ...(effectiveConflictWith ? { conflictWith: effectiveConflictWith } : {}),
       ...(conflictOriginal !== undefined
         ? { conflictOriginalValue: conflictOriginal }
         : {}),
@@ -222,7 +249,7 @@ export function mergeFieldCandidates<T>(
               factEvidence: {
                 state,
                 lastDecision,
-                ...(conflictWith ? { conflictWith } : {}),
+                ...(effectiveConflictWith ? { conflictWith: effectiveConflictWith } : {}),
                 reviewRequired: true,
               },
             }
@@ -235,7 +262,10 @@ export function mergeFieldCandidates<T>(
     }
   }
 
-  const finalRequiresConfirmation = requiresConfirmation || value == null;
+  // F2 closure — a persisted conflict keeps confirmation and review active
+  // across round-trips; the competing evidence stays attached.
+  const finalRequiresConfirmation =
+    requiresConfirmation || value == null || conflictPersists;
   return {
     field: {
       value,
@@ -244,13 +274,13 @@ export function mergeFieldCandidates<T>(
       requiresConfirmation: finalRequiresConfirmation,
       evidence: top.evidence,
     },
-    conflict: false,
+    conflict: conflictPersists,
     ...(state
       ? {
           factEvidence: {
             state,
             lastDecision,
-            ...(conflictWith ? { conflictWith } : {}),
+            ...(effectiveConflictWith ? { conflictWith: effectiveConflictWith } : {}),
             reviewRequired: finalRequiresConfirmation,
           },
         }
