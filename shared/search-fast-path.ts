@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Search fast-path + strict NLP intent isolation (shared client/server).
  * Selection opens recent results in <1s; SQL search must survive Render cold DB
  * and large listing rows (keep in sync with AI_TIMEOUT_POLICY.searchSqlMs).
@@ -206,6 +206,19 @@ export function extractSearchNlFilters(text: string): SearchNlFilters {
   let maxPrice: number | undefined;
   let minPrice: number | undefined;
 
+  // F4 — min cue first: "nuo 100000 eur" must be a MIN bound, never swallowed
+  // by the trailing-currency MAX pattern.
+  const minMatch = working.match(
+    /(?:nuo|min|ne\s+mažiau(?:\s+kaip)?|brangiau\s+nei)\s*(\d[\d\s]{0,6})\s*(?:€|eur)?/i
+  );
+  if (minMatch?.[1]) {
+    const n = Number(minMatch[1].replace(/\s+/g, ""));
+    if (Number.isFinite(n) && n > 0 && n < 10_000_000) {
+      minPrice = Math.round(n);
+      working = working.replace(minMatch[0], " ");
+    }
+  }
+
   const maxPatterns = [
     /(?:iki|max|ne\s+daugiau(?:\s+kaip)?|pigiau\s+nei|mažiau\s+nei|maziau\s+nei)\s*(\d[\d\s]{0,6})\s*(?:€|eur)?/i,
     /\b(\d[\d\s]{1,6})\s*(?:€|eur)\s*(?:iki|max)?/i,
@@ -218,17 +231,6 @@ export function extractSearchNlFilters(text: string): SearchNlFilters {
       maxPrice = Math.round(n);
       working = working.replace(m[0], " ");
       break;
-    }
-  }
-
-  const minMatch = working.match(
-    /(?:nuo|min|ne\s+mažiau(?:\s+kaip)?|brangiau\s+nei)\s*(\d[\d\s]{0,6})\s*(?:€|eur)?/i
-  );
-  if (minMatch?.[1]) {
-    const n = Number(minMatch[1].replace(/\s+/g, ""));
-    if (Number.isFinite(n) && n > 0 && n < 10_000_000) {
-      minPrice = Math.round(n);
-      working = working.replace(minMatch[0], " ");
     }
   }
 
