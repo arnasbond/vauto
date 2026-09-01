@@ -8,12 +8,19 @@ import {
   applyConfidencePolicy,
   clampConfidence,
 } from "../foundation/confidence.js";
-import type { ExtractedField } from "./sell-draft-schema.js";
+import type {
+  ExtractedField,
+  SellFactEvidenceProjection,
+} from "./sell-draft-schema.js";
 import type { SellFieldSource } from "./sell-types.js";
 import {
   evaluateFieldEvidence,
   type FactEvidenceState,
 } from "../../shared/fact-evidence-adapter.js";
+import type {
+  FactDecision,
+  FactEvidence,
+} from "../../shared/fact-evidence.js";
 
 const SOURCE_RANK: Record<SellFieldSource, number> = {
   USER_PROVIDED: 100,
@@ -31,24 +38,36 @@ export type FieldCandidate<T> = {
   evidence?: string[];
 };
 
+/**
+ * F2.2 — structured fact-evidence projection of one merged field (alias of the
+ * schema-validated SellFactEvidenceProjection). The cumulative F2.1
+ * `FactEvidenceState` (canonical + full history), the LAST decision the
+ * contract produced, the competing evidence when a CONFLICT was detected, and
+ * the derived human-review signal. Category-neutral — no vertical knowledge
+ * lives here.
+ */
+export type MergeFieldEvidenceProjection = SellFactEvidenceProjection;
+
 export type MergeResult<T> = {
   field: ExtractedField<T>;
   conflict: boolean;
   warning?: string;
+  factEvidence?: MergeFieldEvidenceProjection;
 };
 
 /**
  * Preserve the merge boundary's existing equality semantics while supplying the
  * fact-evidence contract with caller-normalized strings. Strings remain
- * trim/case-insensitive; primitives compare by value; object-like values compare
- * by identity, exactly as the previous `valuesEqual` implementation did.
+ * trim/case-insensitive (no type prefix — the projected canonical/competing
+ * values stay human-readable); primitives compare by value; object-like values
+ * compare by identity, exactly as the previous `valuesEqual` implementation did.
  */
 function toMergeFactValue(
   value: unknown,
   referenceTokens: Map<unknown, string>,
   occurrence: number
 ): string {
-  if (typeof value === "string") return `string:${value.trim().toLowerCase()}`;
+  if (typeof value === "string") return value.trim().toLowerCase();
   if (typeof value === "number") {
     if (Number.isNaN(value)) return `number:nan:${occurrence}`;
     return `number:${Object.is(value, -0) ? "0" : String(value)}`;
@@ -63,6 +82,20 @@ function toMergeFactValue(
     referenceTokens.set(value, token);
   }
   return token;
+}
+
+/**
+ * F2.2 — the ORIGINAL typed competing value, kept separate from the normalized
+ * fact-evidence comparison key. STRICT boundary: bounded string, finite
+ * number or boolean only; every other value (objects, arrays, null, NaN,
+ * ±Infinity…) yields undefined (fail-closed — the intel layer then forces
+ * review without inventing a typed value).
+ */
+function safeOriginalValue(value: unknown): string | number | boolean | undefined {
+  if (typeof value === "string") return value.length <= 500 ? value : undefined;
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  return undefined;
 }
 
 export function mergeFieldCandidates<T>(
@@ -99,6 +132,8 @@ export function mergeFieldCandidates<T>(
   // authority (existing precedence); the decision only governs confirmation.
   let state: FactEvidenceState | null = null;
   let conflictCandidate: FieldCandidate<T> | null = null;
+  let conflictWith: FactEvidence | undefined;
+  let lastDecision: FactDecision = "INSUFFICIENT_EVIDENCE";
   let forcesConfirmation = false;
   const referenceTokens = new Map<unknown, string>();
   for (const [index, candidate] of usable.entries()) {
@@ -110,8 +145,10 @@ export function mergeFieldCandidates<T>(
     });
     if (!decision) continue;
     state = decision.state;
+    lastDecision = decision.decision;
     if (decision.decision === "CONFLICT" && !conflictCandidate) {
       conflictCandidate = candidate;
+      conflictWith = decision.conflictWith;
     }
     if (
       decision.decision === "REJECT_UNSUPPORTED_INFERENCE" ||
@@ -124,8 +161,8 @@ export function mergeFieldCandidates<T>(
   }
 
   const policy = applyConfidencePolicy(top.value as T, top.confidence);
-  let value = policy.abstained ? null : (policy.value as T | null);
-  let confidence = clampConfidence(top.confidence);
+  const value = policy.abstained ? null : (policy.value as T | null);
+  const confidence = clampConfidence(top.confidence);
   let requiresConfirmation =
     policy.requiresUserConfirmation ||
     opts?.critical === true ||
@@ -133,6 +170,21 @@ export function mergeFieldCandidates<T>(
 
   if (conflictCandidate) {
     requiresConfirmation = true;
+    // F2.2 — the structured state survives the merge boundary: canonical value,
+    // cumulative history, the CONFLICT decision and the competing evidence are
+    // all carried forward for schema validation and the intel projection.
+    const conflictOriginal = conflictCandidate
+      ? safeOriginalValue(conflictCandidate.value)
+      : undefined;
+    const factEvidence: MergeFieldEvidenceProjection = {
+      state: state!,
+      lastDecision,
+      ...(conflictWith ? { conflictWith } : {}),
+      ...(conflictOriginal !== undefined
+        ? { conflictOriginalValue: conflictOriginal }
+        : {}),
+      reviewRequired: true,
+    };
     // Keep higher-precedence value but force confirm
     return {
       field: {
@@ -148,6 +200,7 @@ export function mergeFieldCandidates<T>(
       },
       conflict: true,
       warning: `Konfliktas lauke „${key}”: ${String(top.value)} (${top.source}) vs ${String(conflictCandidate.value)} (${conflictCandidate.source}) — patvirtinkite.`,
+      factEvidence,
     };
   }
 
@@ -164,6 +217,16 @@ export function mergeFieldCandidates<T>(
         },
         conflict: false,
         warning: `Kritinis laukas „${key}” be pakankamų įrodymų — nepaliekame kaip fakto.`,
+        ...(state
+          ? {
+              factEvidence: {
+                state,
+                lastDecision,
+                ...(conflictWith ? { conflictWith } : {}),
+                reviewRequired: true,
+              },
+            }
+          : {}),
       };
     }
     // Evidence present but not HIGH → keep as prefill + forced confirmation
@@ -172,15 +235,26 @@ export function mergeFieldCandidates<T>(
     }
   }
 
+  const finalRequiresConfirmation = requiresConfirmation || value == null;
   return {
     field: {
       value,
       confidence,
       source: top.source,
-      requiresConfirmation: requiresConfirmation || value == null,
+      requiresConfirmation: finalRequiresConfirmation,
       evidence: top.evidence,
     },
     conflict: false,
+    ...(state
+      ? {
+          factEvidence: {
+            state,
+            lastDecision,
+            ...(conflictWith ? { conflictWith } : {}),
+            reviewRequired: finalRequiresConfirmation,
+          },
+        }
+      : {}),
   };
 }
 

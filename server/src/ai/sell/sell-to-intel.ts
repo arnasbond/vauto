@@ -15,9 +15,14 @@
  *   gates on the legacy SellDraft.
  */
 
-import type { ExtractedField, SellDraft } from "./sell-draft-schema.js";
-import type { ListingIntelDraft, ListingIntelField } from "../../shared/listing-intelligence/index.js";
+import type {
+  ExtractedField,
+  SellDraft,
+  SellFactEvidenceProjection,
+} from "./sell-draft-schema.js";
+import type { ListingIntelDraft, ListingIntelField, ListingIntelSource, ListingIntelConflict } from "../../shared/listing-intelligence/index.js";
 import { toIntelField } from "../../shared/intelligence-adapter/index.js";
+import type { FactEvidenceSource } from "../../shared/fact-evidence.js";
 
 function toCanonicalField<T>(
   field: ExtractedField<T> | undefined
@@ -41,6 +46,102 @@ function attrsToCanonical(
     if (canonical) out[`attributes.${key}`] = canonical;
   }
   return out;
+}
+
+/**
+ * F2.2 — map a canonical FactEvidenceSource into the intel provenance
+ * vocabulary. TRUSTED_VERIFICATION and any unknown source fall through to
+ * UNKNOWN (fail-closed): this stage can never mint trusted verification, so it
+ * must never fabricate a provenance for one. Category-neutral.
+ */
+function factSourceToIntelSource(source: FactEvidenceSource): ListingIntelSource {
+  switch (source) {
+    case "USER_CLAIM":
+    case "USER_CORRECTION":
+      return "USER_TEXT";
+    case "DOCUMENT_OBSERVATION":
+      return "DOCUMENT";
+    case "VISUAL_OBSERVATION":
+      return "VISION";
+    case "MODEL_INFERENCE":
+      return "AI_INFERRED";
+    case "EXISTING_PERSISTED_VALUE":
+      return "CONTEXT";
+    case "TRUSTED_VERIFICATION":
+      return "UNKNOWN";
+  }
+}
+
+/**
+ * F2.2 — overlay the structured fact-evidence projection onto a legacy intel
+ * field. The legacy provenance/value mapping is preserved; the structured
+ * state ADDS what the legacy shape could not carry: the explicit conflict,
+ * the review signal, and the competing evidence.
+ *
+ * - Conflict candidates carry REAL typed values: the canonical candidate is
+ *   the legacy field's typed `value`; the competing candidate is the original
+ *   typed `conflictOriginalValue`. Normalized comparison tokens
+ *   (`number:…`, `reference:…`) never reach this layer.
+ * - Object-like / unsupported original values fail closed: the competing
+ *   candidate is `null` and review is forced — never an invented typed value.
+ * - Verification is NEVER conflated with human confirmation: this path has no
+ *   INDEPENDENTLY_VERIFIED handling (the projection schema rejects it).
+ */
+function applyStructuredEvidence(
+  fieldKey: string,
+  intel: ListingIntelField<unknown>,
+  projection: SellFactEvidenceProjection
+): ListingIntelField<unknown> {
+  const canonical =
+    projection.state.validity === "VALID" ? projection.state.canonical : null;
+  const stateInvalid = projection.state.validity === "INVALID";
+  const conflictWith = projection.conflictWith;
+
+  const conflicts: ListingIntelConflict<unknown>[] = [...intel.conflicts];
+  if (canonical && conflictWith) {
+    const competingOriginal = projection.conflictOriginalValue;
+    const competingValue =
+      competingOriginal !== undefined ? competingOriginal : null;
+    conflicts.push({
+      fieldKey,
+      candidates: [
+        {
+          value: intel.value,
+          source: intel.provenance,
+          confidence: intel.confidence,
+        },
+        {
+          value: competingValue,
+          source: factSourceToIntelSource(conflictWith.source),
+          confidence: null,
+        },
+      ],
+      message: `Konfliktas lauke „${fieldKey}”: ${String(intel.value)} vs ${String(competingValue ?? "nežinoma reikšmė")} — patvirtinkite.`,
+    });
+  }
+
+  const needsReview =
+    intel.requiresReview ||
+    projection.reviewRequired ||
+    stateInvalid ||
+    projection.lastDecision === "CONFLICT" ||
+    conflicts.length > intel.conflicts.length;
+
+  const conflictAdded = conflicts.length > intel.conflicts.length;
+  const reviewForcedByStructuredState =
+    conflictAdded || stateInvalid || projection.lastDecision === "CONFLICT";
+
+  let reviewState = intel.reviewState;
+  if (reviewForcedByStructuredState && reviewState !== "HUMAN_CONFIRMED") {
+    reviewState = "NEEDS_REVIEW";
+  }
+
+  return {
+    ...intel,
+    requiresReview: needsReview,
+    conflicts,
+    reviewState,
+  };
 }
 
 /**
@@ -73,6 +174,13 @@ export function sellDraftToIntelDraft(draft: SellDraft): ListingIntelDraft {
     fields,
     attrsToCanonical(draft.attributes as Record<string, ExtractedField<unknown>>)
   );
+
+  // F2.2 — structured projections keyed by the same field keys.
+  for (const [fieldKey, projection] of Object.entries(draft.factEvidence ?? {})) {
+    const existing = fields[fieldKey];
+    if (!existing) continue;
+    fields[fieldKey] = applyStructuredEvidence(fieldKey, existing, projection);
+  }
 
   const requiresReview =
     draft.requiresUserConfirmation === true ||

@@ -164,6 +164,28 @@ export type EvaluateFieldEvidenceOptions = {
   nowMs?: number;
 };
 
+/** One deterministic, safe bound for the joined evidence `reason` (UTF-16 units). */
+const MAX_EVIDENCE_REASON_CHARS = 240;
+
+/**
+ * F2.2 — join producer evidence entries into the opaque reason string with ONE
+ * deterministic bound: truncation at 240 UTF-16 units, walking code points so
+ * no surrogate pair is ever split. Long evidence can never grow the payload
+ * unbounded and can never reject an otherwise legal SellDraft at the schema
+ * boundary.
+ */
+function joinEvidenceReason(evidence: string[] | undefined): string | undefined {
+  if (!evidence || evidence.length === 0) return undefined;
+  const joined = evidence.join("; ");
+  if (joined.length <= MAX_EVIDENCE_REASON_CHARS) return joined;
+  let out = "";
+  for (const ch of joined) {
+    if (out.length + ch.length > MAX_EVIDENCE_REASON_CHARS) break;
+    out += ch;
+  }
+  return out;
+}
+
 /**
  * Map a producer field into a single `FactEvidence` record (or `null` when the
  * field carries no representable evidence). Does NOT evaluate — use
@@ -173,17 +195,14 @@ export type EvaluateFieldEvidenceOptions = {
  */
 export function toFactEvidence<T>(
   field: FactEvidenceProducerField<T>,
-  options: EvaluateFieldEvidenceOptions = {}
+  options: EvaluateFactEvidenceOptions = {}
 ): FactEvidence | null {
   if (field == null || typeof field !== "object") return null;
   const value = stringifyFactValue(field.value);
   if (value === null) return null;
   const source = toFactEvidenceSource(field.source);
   if (source === null) return null;
-  const reason =
-    field.evidence && field.evidence.length > 0
-      ? field.evidence.join("; ")
-      : undefined;
+  const reason = joinEvidenceReason(field.evidence);
   const status: FactEvidence["status"] =
     source === "TRUSTED_VERIFICATION" ? "INDEPENDENTLY_VERIFIED" : "UNCONFIRMED";
   return {

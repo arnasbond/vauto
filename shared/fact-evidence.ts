@@ -127,6 +127,19 @@ export const FACT_EVIDENCE_STATUSES: readonly FactEvidenceStatus[] = [
   "INDEPENDENTLY_VERIFIED",
 ];
 
+/** Every decision the contract can produce (schema-validation mirror). */
+export const FACT_DECISIONS: readonly FactDecision[] = [
+  "SAME_VALUE",
+  "ACCEPT_EVIDENCE",
+  "ACCEPT_CORRECTION",
+  "CONFLICT",
+  "INSUFFICIENT_EVIDENCE",
+  "REJECT_UNSUPPORTED_INFERENCE",
+  "ACCEPT_VERIFICATION",
+  "REQUIRES_REVERIFICATION",
+  "INVALID_STATE",
+];
+
 /** A single evidence record for one field value. Readonly + frozen at runtime. */
 export interface FactEvidence {
   /** Caller-normalized canonical string form of the value (non-empty string). */
