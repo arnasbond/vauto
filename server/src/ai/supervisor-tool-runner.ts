@@ -22,7 +22,6 @@ import { buildBrowseAllReply } from "../lib/browse-all-intent.js";
 import { buildNoMatchLeadPrompt } from "../offer-engine.js";
 import {
   extractProductSearchIntent,
-  inferSearchCategory,
   normalizeProductSearchQuery,
 } from "./product-search-query.js";
 import {
@@ -33,6 +32,7 @@ import {
   extractSearchNlFilters,
   isRevealActiveResultsIntent,
 } from "../shared/search-fast-path.js";
+import { resolveUniversalSearchQuery } from "./search/universal-search-query.js";
 
 export type GeminiPart =
   | { text: string }
@@ -241,19 +241,28 @@ export async function runDeterministicSupervisorSearch(
   ctx: AgentToolContext
 ): Promise<{ result: unknown; sideEffect?: AgentSideEffect; toolName: string }> {
   const trimmed = rawQuery.trim();
-  // Single-pass: NLP filters + indexed SQL — no Gemini tool ping-pong.
-  const nl = extractSearchNlFilters(trimmed);
-  const query = normalizeProductSearchQuery(nl.keyword || trimmed);
-  const category = inferSearchCategory(trimmed);
+  // F3 — universal structured expansion; falls back transparently to a
+  // tokenized keyword search on any internal failure (AI DOWN ≠ VAUTO DOWN,
+  // zero results ≠ search failure).
+  const { query: parsed, usedFallback } = resolveUniversalSearchQuery(trimmed);
+  const nl = usedFallback ? extractSearchNlFilters(trimmed) : null;
+  const query = normalizeProductSearchQuery(
+    parsed.freeTextKeywords.join(" ") || trimmed
+  );
+  const category =
+    parsed.canonicalCategory === "other" ? undefined : parsed.canonicalCategory;
 
   const { result, sideEffect } = await executeAgentTool(
     "searchListings",
     {
       query,
       ...(category ? { category } : {}),
-      ...(nl.minPrice != null ? { minPrice: nl.minPrice } : {}),
-      ...(nl.maxPrice != null ? { maxPrice: nl.maxPrice } : {}),
-      ...(nl.city ? { city: nl.city } : {}),
+      ...(parsed.priceMin != null ? { minPrice: parsed.priceMin } : {}),
+      ...(parsed.priceMax != null ? { maxPrice: parsed.priceMax } : {}),
+      ...(parsed.location ? { city: parsed.location } : {}),
+      ...(nl?.minPrice != null ? { minPrice: nl.minPrice } : {}),
+      ...(nl?.maxPrice != null ? { maxPrice: nl.maxPrice } : {}),
+      ...(nl?.city ? { city: nl.city } : {}),
       limit: 80,
     },
     { ...ctx, lastUserQuery: trimmed }

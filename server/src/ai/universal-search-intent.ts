@@ -56,8 +56,10 @@ export function inferUniversalListingCategory(query: string): string | undefined
   if (/\b(telefon|iphone|samsung|laptop|kompiuter|elektronik)\b/i.test(query)) {
     return "electronics";
   }
+  // F3 — no transport bias: generic "mašina" (siuvimo/skalbimo/indų/…) must
+  // never force vehicles; brands/models/"automobilis" still do.
   if (
-    /\b(volvo|bmw|audi|v70|v60|auto|masin|mašin|automob|transport|cars?|vehicles?)\b/i.test(
+    /\b(volvo|bmw|audi|v70|v60|automob|transport|cars?|vehicles?|(?<!siuvimo |skalbimo |ind[ųu] |plovimo |kavos |duonos )ma[sš]in\w*)\b/i.test(
       query
     )
   ) {
