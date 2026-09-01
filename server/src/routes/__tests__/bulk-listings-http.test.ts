@@ -22,6 +22,7 @@ import {
   canRunBulkOperations,
   classifyBulkTargets,
   executeBulkOperation,
+  validateBulkTargetIds,
 } from "../../ai/bulk-listing-control.js";
 
 const ACTOR = "seller-pro-1";
@@ -84,6 +85,79 @@ describe("F6.1 — bulk-listing core (pure)", () => {
     assert.equal(bulkExecutionEnabled({ NODE_ENV: "production", VAUTO_ENABLE_BULK_LISTING_OPS: "true" }), true);
     assert.equal(bulkExecutionEnabled({ NODE_ENV: "production", VAUTO_ENABLE_BULK_LISTING_OPS: "1" }), false);
     assert.equal(bulkExecutionEnabled({}), true, "non-production stays enabled");
+  });
+
+  it("canonical validation: duplicates, empty, non-string, whitespace, >100 chars → invalid", () => {
+    assert.equal(validateBulkTargetIds(["l-1", "l-1"]).ok, false, "duplicates");
+    assert.equal(validateBulkTargetIds([]).ok, false, "empty");
+    assert.equal(validateBulkTargetIds(["  "]).ok, false, "whitespace-only");
+    assert.equal(validateBulkTargetIds([42]).ok, false, "number");
+    assert.equal(validateBulkTargetIds([null]).ok, false, "null");
+    assert.equal(validateBulkTargetIds([{ id: "l-1" }]).ok, false, "object");
+    assert.equal(validateBulkTargetIds(["x".repeat(101)]).ok, false, "too long");
+    assert.equal(validateBulkTargetIds("l-1" as unknown as string[]).ok, false, "non-array");
+
+    const ok = validateBulkTargetIds(["l-2", " l-1 "]);
+    assert.equal(ok.ok, true);
+    assert.deepEqual((ok as { ok: true; ids: string[] }).ids, ["l-1", "l-2"], "canonical trim + sort order");
+  });
+
+  it("duplicate ids in confirm never execute twice (400 invalid_payload)", async () => {
+    let applied = 0;
+    const result = await executeBulkOperation({
+      actorId: ACTOR,
+      actorRole: "pro",
+      operation: "hide",
+      targetIds: ["l-1", "l-1"],
+      digest: "aa",
+      proposalExpiresAt: 9_999_999,
+      idempotencyKey: "k-dup",
+      signingKey: "test-key",
+      executedKeys: new Set(),
+      nowMs: 600,
+      applyItem: async () => {
+        applied += 1;
+        return { ok: true };
+      },
+      resolveListings: async () => ROWS,
+      env: {},
+    });
+    assert.equal(result.ok, false);
+    assert.equal((result as { code: string }).code, "invalid_payload");
+    assert.equal(applied, 0, "zero apply");
+  });
+
+  it("a canonical set applies each id exactly once", async () => {
+    const applied: string[] = [];
+    const minted = buildBulkProposal({
+      actorId: ACTOR,
+      listings: ROWS,
+      requestedIds: ["l-1", "l-2", "l-3"],
+      operation: "hide",
+      signingKey: "test-key",
+      nowMs: 500,
+    });
+    const result = await executeBulkOperation({
+      actorId: ACTOR,
+      actorRole: "pro",
+      operation: "hide",
+      targetIds: ["l-3", "l-1", "l-2"],
+      digest: minted.digest,
+      proposalExpiresAt: minted.proposal.expiresAt,
+      idempotencyKey: "k-once",
+      signingKey: "test-key",
+      executedKeys: new Set(),
+      nowMs: 600,
+      applyItem: async (id) => {
+        applied.push(id);
+        return { ok: true };
+      },
+      resolveListings: async () => ROWS,
+      env: {},
+    });
+    assert.equal(result.ok, true);
+    assert.equal(applied.length, 3, "each canonical id applied exactly once");
+    assert.equal(new Set(applied).size, 3, "no duplicates applied");
   });
 
   it("classification: owned / foreign / not_found / invalid, fail-closed", () => {
@@ -567,6 +641,50 @@ describe("F6.1 — bulk-listing HTTP boundary (preview → confirm)", () => {
         idempotencyKey: "k-many",
       });
     assert.equal(res.status, 400);
+  });
+
+  it("preview duplicate id → clear 400 invalid_payload", async () => {
+    const res = await request(app)
+      .post("/api/bulk-listings/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .send({ listingIds: ["l-1", "l-1"], operation: "hide" });
+    assert.equal(res.status, 400);
+    assert.equal(res.body.code, "invalid_payload");
+  });
+
+  it("confirm duplicate id → 400, zero apply", async () => {
+    const applied: string[] = [];
+    setBulkExecutorsForTests({
+      resolveListings: async () => ROWS,
+      applyItem: async (id) => {
+        applied.push(id);
+        return { ok: true };
+      },
+    });
+    const res = await request(app)
+      .post("/api/bulk-listings/confirm")
+      .set("Authorization", authHeader(ACTOR))
+      .send({
+        digest: "aa",
+        proposalExpiresAt: Date.now() + 60_000,
+        operation: "hide",
+        listingIds: ["l-1", "l-1"],
+        idempotencyKey: "k-dup-http",
+      });
+    assert.equal(res.status, 400);
+    assert.equal(res.body.code, "invalid_payload");
+    assert.deepEqual(applied, [], "zero apply");
+  });
+
+  it("empty / whitespace-only / non-string / >100-char ids → 400 (preview)", async () => {
+    for (const bad of [[], ["  "], [42], [null], ["x".repeat(101)]]) {
+      const res = await request(app)
+        .post("/api/bulk-listings/preview")
+        .set("Authorization", authHeader(ACTOR))
+        .send({ listingIds: bad, operation: "hide" });
+      assert.equal(res.status, 400, JSON.stringify(bad));
+      assert.equal(res.body.code, "invalid_payload");
+    }
   });
 
   it("consumer/unknown roles are rejected (403); no preview or execution", async () => {

@@ -83,6 +83,44 @@ function normalizeIds(raw: unknown[]): string[] {
 }
 
 /**
+ * ONE canonical target validation/normalization for the whole boundary
+ * (preview, digest, outcomes, execution loop). Identical semantics everywhere:
+ *   - non-array / empty / whitespace-only / non-string / >100-char IDs →
+ *     invalid payload (400);
+ *   - duplicate IDs → invalid payload (400) — a duplicate can never be
+ *     executed twice because the payload is rejected outright;
+ *   - valid IDs are returned in canonical sorted order — independent of the
+ *     caller's presentation order — and are deduplicated by construction.
+ */
+export function validateBulkTargetIds(
+  raw: unknown
+): { ok: true; ids: string[] } | { ok: false; message: string } {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return { ok: false, message: "Pasirinkite bent vieną skelbimą." };
+  }
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of raw) {
+    if (typeof entry !== "string") {
+      return { ok: false, message: "Neteisingas skelbimo identifikatorius." };
+    }
+    const s = entry.trim();
+    if (!s) {
+      return { ok: false, message: "Neteisingas skelbimo identifikatorius." };
+    }
+    if (s.length > 100) {
+      return { ok: false, message: "Neteisingas skelbimo identifikatorius." };
+    }
+    if (seen.has(s)) {
+      return { ok: false, message: "Pasikartojantis skelbimo identifikatorius." };
+    }
+    seen.add(s);
+    ids.push(s);
+  }
+  return { ok: true, ids: [...ids].sort() };
+}
+
+/**
  * Classify every requested target against the actor's ownership. Fail-closed:
  * banned listings are invalid, foreign listings are rejected, unknown ids are
  * not_found. Never throws.
@@ -184,17 +222,30 @@ export type BulkProposal = {
 export function buildBulkProposal(input: {
   actorId: string;
   listings: BulkListingRow[];
-  requestedIds: string[];
+  requestedIds: unknown;
   operation: BulkOperation;
   signingKey: string;
   nowMs?: number;
 }): { proposal: BulkProposal; digest: string } {
   const now = input.nowMs ?? Date.now();
   const expiresAt = now + BULK_PROPOSAL_TTL_MS;
+  const validated = validateBulkTargetIds(input.requestedIds);
+  if (!validated.ok) {
+    return {
+      proposal: {
+        operation: input.operation,
+        expiresAt,
+        items: [],
+        ownedCount: 0,
+        warnings: [validated.message],
+      },
+      digest: "",
+    };
+  }
   const { verdicts, ownedIds } = classifyBulkTargets({
     actorId: input.actorId,
     listings: input.listings,
-    requestedIds: normalizeIds(input.requestedIds),
+    requestedIds: validated.ids,
   });
   const warnings: string[] = [];
   for (const v of verdicts) {
@@ -253,6 +304,7 @@ export type BulkExecutionResult =
         | "unauthorized"
         | "empty_targets"
         | "too_many"
+        | "invalid_payload"
         | "disabled"
         | "duplicate";
       message: string;
@@ -290,12 +342,14 @@ export async function executeBulkOperation(input: {
   if (!bulkExecutionEnabled(input.env)) {
     return { ok: false, code: "disabled", message: "Bulk vykdymas išjungtas šioje aplinkoje." };
   }
-  if (!Array.isArray(input.targetIds) || input.targetIds.length === 0) {
-    return { ok: false, code: "empty_targets", message: "Nėra patvirtinamų skelbimų." };
+  const validated = validateBulkTargetIds(input.targetIds);
+  if (!validated.ok) {
+    return { ok: false, code: "invalid_payload", message: validated.message };
   }
-  if (input.targetIds.length > BULK_MAX_TARGETS) {
+  if (validated.ids.length > BULK_MAX_TARGETS) {
     return { ok: false, code: "too_many", message: `Daugiausia ${BULK_MAX_TARGETS} skelbimų vienu metu.` };
   }
+  const canonicalIds = validated.ids;
   const key = String(input.idempotencyKey ?? "").trim();
   if (!key || key.length > 160) {
     return { ok: false, code: "duplicate", message: "Trūksta idempotency rakto." };
@@ -308,7 +362,7 @@ export async function executeBulkOperation(input: {
   const { verdicts, ownedIds, foreignIds } = classifyBulkTargets({
     actorId: input.actorId,
     listings,
-    requestedIds: normalizeIds(input.targetIds),
+    requestedIds: canonicalIds,
   });
 
   // The digest must match the FULL proposal image: any target added, removed
@@ -333,7 +387,7 @@ export async function executeBulkOperation(input: {
   const scopedKey = `${input.actorId}:${operation}:${key}`;
   const claimed = !input.executedKeys.has(scopedKey);
   if (!claimed) {
-    for (const id of input.targetIds.map(String)) {
+    for (const id of canonicalIds) {
       const reason = "duplicate_request";
       outcomes.push({ id, status: "skipped", reason });
       audit.push({ actorId: input.actorId, action, targetId: id, outcome: `skipped:${reason}`, correlation: key, timestamp: now });
@@ -343,14 +397,16 @@ export async function executeBulkOperation(input: {
   input.executedKeys.add(scopedKey);
 
   const foreignSet = new Set(foreignIds);
-  for (const rawId of input.targetIds) {
-    const id = String(rawId).trim();
+  const appliedIds = new Set<string>();
+  for (const id of canonicalIds) {
     if (!ownedIds.includes(id)) {
       const reason = foreignSet.has(id) ? "not_owned" : "not_found";
       outcomes.push({ id, status: "failed", reason });
       audit.push({ actorId: input.actorId, action, targetId: id, outcome: `failed:${reason}`, correlation: key, timestamp: now });
       continue;
     }
+    if (appliedIds.has(id)) continue; // defense-in-depth: applyItem at most once per canonical id
+    appliedIds.add(id);
     try {
       const applied = await input.applyItem(id);
       if (applied.ok) {

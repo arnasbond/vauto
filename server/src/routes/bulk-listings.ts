@@ -20,6 +20,7 @@ import {
   bulkExecutionEnabled,
   canRunBulkOperations,
   executeBulkOperation,
+  validateBulkTargetIds,
   type BulkOperation,
 } from "../ai/bulk-listing-control.js";
 import {
@@ -91,10 +92,13 @@ router.post("/preview", async (req: AuthedRequest, res) => {
     if (!(BULK_OPERATIONS as readonly string[]).includes(operation)) {
       return res.status(400).json({ error: "Nepalaikoma operacija." });
     }
-    if (!Array.isArray(body.listingIds) || body.listingIds.length === 0) {
-      return res.status(400).json({ error: "Pasirinkite bent vieną skelbimą." });
+    // Identical validation semantics for preview and confirm (one canonical
+    // function): empty / non-string / >100-char / duplicate IDs → 400.
+    const validated = validateBulkTargetIds(body.listingIds);
+    if (!validated.ok) {
+      return res.status(400).json({ ok: false, code: "invalid_payload", error: validated.message });
     }
-    if (body.listingIds.length > BULK_MAX_TARGETS) {
+    if (validated.ids.length > BULK_MAX_TARGETS) {
       return res.status(400).json({ error: `Daugiausia ${BULK_MAX_TARGETS} skelbimų vienu metu.` });
     }
     const enabled = bulkExecutionEnabled();
@@ -102,7 +106,7 @@ router.post("/preview", async (req: AuthedRequest, res) => {
     const { proposal, digest } = buildBulkProposal({
       actorId,
       listings,
-      requestedIds: body.listingIds.map(String),
+      requestedIds: validated.ids,
       operation,
       signingKey: signingKey(),
     });
@@ -140,12 +144,15 @@ router.post("/confirm", async (req: AuthedRequest, res) => {
     const digest = String(body.digest ?? "").trim();
     const proposalExpiresAt = Number(body.proposalExpiresAt);
     const idempotencyKey = String(body.idempotencyKey ?? "").trim();
-    const listingIds = Array.isArray(body.listingIds) ? body.listingIds.map(String) : [];
+    const validated = validateBulkTargetIds(body.listingIds);
 
-    if (!digest || !idempotencyKey || !listingIds.length || !Number.isFinite(proposalExpiresAt)) {
+    if (!digest || !idempotencyKey || !validated.ok || !Number.isFinite(proposalExpiresAt)) {
+      if (!validated.ok) {
+        return res.status(400).json({ ok: false, code: "invalid_payload", error: validated.message });
+      }
       return res.status(400).json({ error: "Trūksta patvirtinimo duomenų." });
     }
-    if (listingIds.length > BULK_MAX_TARGETS) {
+    if (validated.ids.length > BULK_MAX_TARGETS) {
       return res.status(400).json({ error: `Daugiausia ${BULK_MAX_TARGETS} skelbimų vienu metu.` });
     }
 
@@ -156,7 +163,7 @@ router.post("/confirm", async (req: AuthedRequest, res) => {
       actorId,
       actorRole: req.authRole,
       operation,
-      targetIds: listingIds,
+      targetIds: validated.ids,
       digest,
       proposalExpiresAt,
       idempotencyKey,
