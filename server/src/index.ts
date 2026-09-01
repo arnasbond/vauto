@@ -11,6 +11,7 @@ import { aiRouter } from "./routes/ai.js";
 import { vautoServerRouter } from "./routes/vauto-server.js";
 import { vautoAgentRouter } from "./routes/vauto-agent.js";
 import { consequentialActionsRouter } from "./routes/consequential-actions.js";
+import { bulkListingsRouter } from "./routes/bulk-listings.js";
 import { vinReviewRouter } from "./routes/vin-review.js";
 import { markConfirmationBoundaryReady } from "./ai/confirmation/consequential-action-policy.js";
 import { createPostgresPendingActionStore } from "./ai/confirmation/consequential-action-store-postgres.js";
@@ -187,6 +188,9 @@ app.use(
   requireAuth,
   consequentialActionsRouter
 );
+/** F6.1 — professional seller bulk listing control (preview → human
+ *  confirmation → execution). Never reachable from LLM tool-call text. */
+app.use("/api/bulk-listings", actionRateLimiter, requireAuth, bulkListingsRouter);
 /** AI Maturity Phase 2C Round 3 — server-owned VIN confirmation authority.
  *  The LLM has no tool for this boundary; only the trusted client UI may
  *  request a confirmation receipt. */
