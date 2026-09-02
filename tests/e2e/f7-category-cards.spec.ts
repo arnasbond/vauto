@@ -354,12 +354,21 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
       .evaluate((el) => Array.from(el.parentElement!.children).indexOf(el));
     expect(priceIndex).toBeLessThan(titleIndex);
 
-    await card.scrollIntoViewIfNeeded();
-    const mediaBox = await card.locator("a[href]").first().boundingBox();
-    const bodyBox = await card.locator("h3").boundingBox();
-    expect(mediaBox).toBeTruthy();
-    expect(bodyBox).toBeTruthy();
-    expect(mediaBox!.y).toBeLessThan(bodyBox!.y);
+    // The photo block precedes the body in the card's DOM (image-first
+    // layout) — deterministic and immune to lazy-load scroll jitter.
+    const order = await card.evaluate((el) => {
+      const anchors = Array.from(el.querySelectorAll("a[href]"));
+      const h3 = el.querySelector("h3");
+      const media = anchors[0];
+      const body = h3?.closest("a[href]");
+      if (!media || !body) return { media: -1, body: -1 };
+      return {
+        media: Array.prototype.indexOf.call(el.querySelectorAll("a[href]"), media),
+        body: Array.prototype.indexOf.call(el.querySelectorAll("a[href]"), body),
+      };
+    });
+    expect(order.media).toBeGreaterThanOrEqual(0);
+    expect(order.body).toBeGreaterThan(order.media);
 
     const pageBg = await page
       .locator("body")

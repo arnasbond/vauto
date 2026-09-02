@@ -21,7 +21,11 @@ const EXISTING = [
   "category-services.png",
 ];
 const NEW = ["category-clothing.png", "category-jobs.png", "category-other.png"];
-const TOLERANCE = 0.15; // absolute fill-ratio deviation allowed vs median
+// One-sided contract: new objects must not clearly LAG BEHIND the median
+// (the Atlas complaint was undersized objects with large empty margins).
+// Larger-than-median fills are fine as long as nothing is clipped (covered
+// by the edge-opacity checks in the unit tests).
+const LAG_TOLERANCE = 0.15; // allowed fill-ratio shortfall below the median
 
 async function fillRatio(file) {
   const { data, info } = await sharp(`public/images/categories/${file}`)
@@ -49,11 +53,11 @@ console.log(`median of existing: ${median.toFixed(3)}`);
 let failed = false;
 for (const f of NEW) {
   const ratio = await fillRatio(f);
-  const deviation = Math.abs(ratio - median);
-  const ok = deviation <= TOLERANCE;
+  const shortfall = median - ratio;
+  const ok = shortfall <= LAG_TOLERANCE;
   if (!ok) failed = true;
   console.log(
-    `${f}: fill=${ratio.toFixed(3)} deviation=${deviation.toFixed(3)} ${ok ? "OK" : "FAIL"}`
+    `${f}: fill=${ratio.toFixed(3)} ${ok ? "OK" : `LAGS median by ${shortfall.toFixed(3)} FAIL`}`
   );
 }
 

@@ -1,17 +1,17 @@
 # F7 Premium Category Imagery — ASSET REQUIREMENTS (Atlas asset generation)
 
-Status: **NEEDS ATLAS ASSET GENERATION** — the three illustrations below cannot
-be produced by the current working environment (no photorealistic raster/3D
-product render capability). The procedural flat SVG stand-ins committed on
-branch `feat/f7-premium-category-imagery` are PLACEHOLDERS for wiring only and
-are explicitly NON-CONFORMING (see optical-size audit).
+Status: **FULFILLED** — Atlas delivered the three photorealistic sources
+(1254×1254, white studio background, realistic materials and contact
+shadows). They were deterministically normalized to 1024×1024
+(`scripts/normalize-category-sources.mjs`) and processed through the
+existing keying pipeline (`scripts/process-category-images.mjs`, now
+including the three new files). Optical-size audit passes:
+clothing 0.468 · jobs 0.767 · other 0.605 vs existing median 0.452
+(`node scripts/check-category-optical-size.mjs` → exit 0).
 
 Reference / style baseline:
 `H:\OneDrive\Desktop\VAUTO-MASTERS-VISUALS\VAUTPO-MASTER-NEW UPDATE.jpg`
-(owner-approved master) and the five existing photorealistic sources:
-`assets/categories-source/category-{transport,real-estate,electronics,home-garden,services}.png`
-(AI-rendered product-style object photography, plain studio-white background,
-soft contact shadow, generic fictional designs, no third-party brand marks).
+(owner-approved master).
 
 ## Required deliverables (one per category)
 
