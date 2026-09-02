@@ -1,13 +1,13 @@
 {
-  "name": "VAUTO — AI skelbimai: NT, transportas, darbas",
+  "name": "VAUTO — skelbimai ir paslaugos",
   "short_name": "VAUTO",
-  "description": "Parduokite ir raskite NT, techniką, paslaugas, darbą ir transportą visoje Lietuvoje. AI paruošia juodraštį — jūs patvirtinate.",
+  "description": "Parduokite ir raskite NT, transportą, elektroniką, madą, namų ir buities prekes, paslaugas bei darbą visoje Lietuvoje.",
   "id": "https://www.vauto.lt/",
   "scope": "https://www.vauto.lt/",
   "start_url": "https://www.vauto.lt/",
   "display": "standalone",
-  "background_color": "#0b0f17",
-  "theme_color": "#0b0f17",
+  "background_color": "#0B1220",
+  "theme_color": "#0B1220",
   "orientation": "portrait",
   "lang": "lt",
   "icons": [
@@ -15,13 +15,25 @@
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

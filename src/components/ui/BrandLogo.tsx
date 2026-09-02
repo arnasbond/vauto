@@ -1,24 +1,22 @@
+"use client";
+
+import { VautoMark } from "@/components/brand/VautoMark";
+
 type BrandLogoProps = {
   className?: string;
+  /** Compact mark-only variant for narrow/mobile surfaces. */
+  compact?: boolean;
 };
 
 /**
- * VAUTO wordmark — brand ink + primary dot.
+ * VAUTO brand logo — the single active identity component.
  *
- * Uses --vauto-text-main (not --vauto-ink) so the wordmark stays legible in
- * DARK theme: --vauto-ink is a LIGHT-only legacy token with no DARK override,
- * which previously rendered the wordmark at near-zero contrast against the
- * DARK header (red-team RT-P0-1, MASTER Wave 2 Final Remediation).
+ * Desktop/horizontal: canonical V mark + Outfit wordmark. Compact: mark only.
+ * The accessible name lives on the container (role="img" aria-label="VAUTO");
+ * every decorative SVG part is aria-hidden so screen readers never hear it
+ * twice. Theme-safe: the wordmark uses --vauto-text-main (has DARK override),
+ * the mark's emerald half uses the theme accent token.
  */
-export function BrandLogo({ className = "" }: BrandLogoProps) {
-  return (
-    <span
-      className={`inline-flex items-baseline gap-0.5 font-[family-name:var(--font-outfit)] text-[1.35rem] font-extrabold tracking-tight text-[var(--vauto-text-main)] ${className}`}
-    >
-      VAUTO
-      <span className="text-[var(--vauto-primary)]" aria-hidden>
-        .
-      </span>
-    </span>
-  );
+export function BrandLogo({ className = "", compact = false }: BrandLogoProps) {
+  return <VautoMark className={className} compact={compact} />;
 }
