@@ -84,11 +84,14 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
       await grid.scrollIntoViewIfNeeded();
       await expect(grid).toBeVisible();
 
+      // F7 — the home grid exposes EXACTLY the 8 user-visible categories
+      // (6 canonical verticals + Mada + Kita) from the shared registry.
+      const ALL_VISIBLE_CATEGORIES = [...CERTIFIED_VERTICALS, "Mada", "Kita"];
       const buttons = page.locator("[data-home-category-grid] button");
-      await expect(buttons).toHaveCount(CERTIFIED_VERTICALS.length);
+      await expect(buttons).toHaveCount(ALL_VISIBLE_CATEGORIES.length);
 
       const labels = (await buttons.allTextContents()).map((t) => t.trim());
-      for (const vertical of CERTIFIED_VERTICALS) {
+      for (const vertical of ALL_VISIBLE_CATEGORIES) {
         expect(labels, `${vertical} must be discoverable`).toContain(vertical);
       }
 
@@ -440,8 +443,8 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
 
     const grid = page.locator("[data-home-category-grid]");
     await grid.scrollIntoViewIfNeeded();
-    await expect(categoryButtons(page)).toHaveCount(6);
-    for (const label of CERTIFIED_VERTICALS) {
+    await expect(categoryButtons(page)).toHaveCount(8);
+    for (const label of [...CERTIFIED_VERTICALS, "Mada", "Kita"]) {
       await expect(page.locator("[data-home-category-grid]").getByText(label)).toBeVisible();
     }
 

@@ -3,16 +3,22 @@ import type { MarketplaceVerticalId } from "@/lib/marketplace-verticals";
 /**
  * MASTER Wave 2 correction — category-card visual language.
  *
- * Restrained, VAUTO-owned flat-illustration object imagery for the six
- * canonical verticals (converging toward docs/design-reference/chatgpt-visual-baseline).
+ * Restrained, VAUTO-owned flat-illustration object imagery for the canonical
+ * verticals (converging toward docs/design-reference/chatgpt-visual-baseline).
  * Source originals: assets/categories-source/*.png (regenerate served assets
  * via `node scripts/process-category-images.mjs`). Served as small, optimized,
  * transparent-background WebP tiles so they read correctly on both LIGHT and
  * DARK category cards, with a PNG fallback for non-WebP contexts.
+ *
+ * F7: the JOBS vertical intentionally has NO photo illustration — the old
+ * "office chair" tile is retired and the category falls back to its
+ * deterministic icon (a job is not an office chair).
  */
-export const CATEGORY_IMAGE_SRC: Record<
-  MarketplaceVerticalId,
-  { webp: string; webp2x: string; png: string; alt: string }
+export const CATEGORY_IMAGE_SRC: Partial<
+  Record<
+    MarketplaceVerticalId,
+    { webp: string; webp2x: string; png: string; alt: string }
+  >
 > = {
   transport: {
     webp: "/images/categories/category-transport.webp",
@@ -38,16 +44,10 @@ export const CATEGORY_IMAGE_SRC: Record<
     png: "/images/categories/category-services.png",
     alt: "Paslaugų kategorijos iliustracija — įrankis",
   },
-  jobs: {
-    webp: "/images/categories/category-jobs.webp",
-    webp2x: "/images/categories/category-jobs@2x.webp",
-    png: "/images/categories/category-jobs.png",
-    alt: "Darbo kategorijos iliustracija — biuro kėdė",
-  },
   home: {
     webp: "/images/categories/category-home-garden.webp",
     webp2x: "/images/categories/category-home-garden@2x.webp",
     png: "/images/categories/category-home-garden.png",
-    alt: "Namų ir sodo kategorijos iliustracija — namas su augalu",
+    alt: "Namų ir buities kategorijos iliustracija — namas su augalu",
   },
 };

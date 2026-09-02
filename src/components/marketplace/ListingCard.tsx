@@ -10,6 +10,7 @@ import {
 import { LISTING_CATEGORY_LABELS } from "@vauto/shared/category-registry";
 import { ListingImage } from "@/components/listing/ListingImage";
 import { Badge, IconButton } from "@/design-system";
+import { listingTrustBadges } from "@/lib/listing-verification";
 import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
@@ -53,12 +54,6 @@ export function resolveAiPriceSignal(
   return null;
 }
 
-function isListingVerified(listing: Listing): boolean {
-  return Boolean(
-    listing.isVerified || listing.providerVerified || listing.vinVerified
-  );
-}
-
 /**
  * ListingCard 2.0 — universal marketplace card (grid + list).
  * DS Badge / IconButton; hover lift + image zoom. No API changes.
@@ -77,7 +72,7 @@ export function ListingCard({
   const href = listingPath(listing);
   const resolvedPrice = priceColor || "var(--vauto-ink, #0f172a)";
   const aiPrice = resolveAiPriceSignal(listing);
-  const verified = isListingVerified(listing);
+  const trustBadges = listingTrustBadges(listing);
   const omniva = hasDeliveryCapability(listing);
   const categoryLabel =
     LISTING_CATEGORY_LABELS[listing.category as keyof typeof LISTING_CATEGORY_LABELS] ??
@@ -113,11 +108,16 @@ export function ListingCard({
   const badges = (
     <div className="flex flex-wrap gap-1">
       <FeedTierBadge listing={listing} />
-      {verified ? (
-        <Badge tone="success" className="text-[10px]">
-          Patvirtinta
+      {trustBadges.map((badge) => (
+        <Badge
+          key={badge.key}
+          tone="success"
+          className="text-[10px]"
+          data-trust-badge={badge.key}
+        >
+          {badge.label}
         </Badge>
-      ) : null}
+      ))}
       {aiPrice ? (
         <Badge
           tone={aiPrice.tone}
@@ -132,14 +132,18 @@ export function ListingCard({
   );
 
   // Compact (media-first, homepage discovery) density shows at most ONE
-  // trust/quality signal chip — promoted tier > verified > AI signal — so
+  // trust/quality signal chip — promoted tier > trust badge > AI signal — so
   // the small media area never competes with more than one badge.
   const feedTierLabel = feedTierBadgeLabel(resolveFeedVisibilityTier(listing));
   const compactBadge = feedTierLabel ? (
     <FeedTierBadge listing={listing} />
-  ) : verified ? (
-    <Badge tone="success" className="text-[10px]">
-      Patvirtinta
+  ) : trustBadges[0] ? (
+    <Badge
+      tone="success"
+      className="text-[10px]"
+      data-trust-badge={trustBadges[0].key}
+    >
+      {trustBadges[0].label}
     </Badge>
   ) : aiPrice ? (
     <Badge
@@ -171,13 +175,13 @@ export function ListingCard({
       >
         <Link
           href={href}
-          className="relative aspect-[4/3] w-[42%] max-w-[158px] shrink-0 self-start overflow-hidden rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)]"
+          className="relative aspect-[1/1] w-[46%] max-w-[176px] shrink-0 self-start overflow-hidden rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)]"
         >
           <ListingImage
             listing={listing}
             alt={listing.title}
             fill
-            sizes="(max-width: 640px) 42vw, 158px"
+            sizes="(max-width: 640px) 46vw, 176px"
             className="object-cover transition-transform duration-[200ms] group-hover:scale-105"
           />
           <div className="absolute left-1 top-1 z-[1]">{badges}</div>
@@ -253,8 +257,7 @@ export function ListingCard({
     >
       <div
         className={cn(
-          "relative overflow-hidden bg-[var(--ds-surface-muted)]",
-          compact ? "aspect-[1/1]" : "aspect-[4/3]"
+          "relative aspect-[1/1] overflow-hidden bg-[var(--ds-surface-muted)]"
         )}
       >
         <Link href={href} className="block h-full w-full">

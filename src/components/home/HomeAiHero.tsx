@@ -13,19 +13,9 @@ import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useCanonicalFacetQuery } from "@/hooks/useCanonicalFacetUrl";
 import { resolveVerticalId } from "@vauto/shared/marketplace-domain";
+import { VISIBLE_CATEGORY_BY_SLUG, type VisibleCategoryId } from "@vauto/shared/category-registry";
 import { isEmbeddedAgentChatVisible } from "@/lib/agent-chat-layout";
-import type { MarketplaceVerticalId } from "@/lib/marketplace-verticals";
-import type { ListingCategory } from "@/lib/types";
 import { cn } from "@/lib/cn";
-
-const VERTICAL_CATEGORY_MAP: Record<MarketplaceVerticalId, ListingCategory[]> = {
-  transport: ["vehicles", "transport"],
-  real_estate: ["real_estate"],
-  electronics: ["electronics"],
-  services: ["services", "tools"],
-  jobs: ["jobs"],
-  home: ["home"],
-};
 
 interface HomeAiHeroProps {
   seedQuery?: string | null;
@@ -56,14 +46,13 @@ export function HomeAiHero({
     setMarketplaceFilters,
   } = useVautoSearch();
   const categoryCounts = useMemo(() => {
-    const counts: Partial<Record<MarketplaceVerticalId, number>> = {};
-    for (const [vertical, categories] of Object.entries(VERTICAL_CATEGORY_MAP) as [
-      MarketplaceVerticalId,
-      ListingCategory[],
-    ][]) {
-      counts[vertical] = listings.filter((l) =>
-        categories.includes(l.category)
-      ).length;
+    const counts: Partial<Record<VisibleCategoryId, number>> = {};
+    for (const listing of listings) {
+      const visible = VISIBLE_CATEGORY_BY_SLUG[
+        listing.category as keyof typeof VISIBLE_CATEGORY_BY_SLUG
+      ];
+      if (!visible) continue;
+      counts[visible] = (counts[visible] ?? 0) + 1;
     }
     return counts;
   }, [listings]);
@@ -244,7 +233,7 @@ export function HomeAiHero({
             <HomeCategoryGrid
               counts={categoryCounts}
               onSelect={(query, _label, slug) => {
-                handleChip(query);
+                if (query) handleChip(query);
                 const verticalId = resolveVerticalId(slug);
                 if (verticalId) setVertical(verticalId);
               }}

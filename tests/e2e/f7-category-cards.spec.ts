@@ -25,6 +25,111 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     return grid;
   }
 
+  test("pagrindinis kategorijų tinklelis rodo lygiai 8 kategorijas iš to paties registry", async ({
+    page,
+  }) => {
+    await openHome(page);
+    const categoryGrid = page.locator("[data-home-category-grid]");
+    await expect(categoryGrid).toBeVisible({ timeout: 20_000 });
+    const buttons = categoryGrid.locator("button");
+    await expect(buttons).toHaveCount(8);
+    const labels = await buttons.allTextContents();
+    expect(labels.map((t) => t.trim()).sort()).toEqual(
+      [
+        "Transportas",
+        "Nekilnojamas turtas",
+        "Elektronika",
+        "Mada",
+        "Namai ir buitis",
+        "Paslaugos",
+        "Darbas",
+        "Kita",
+      ].sort()
+    );
+  });
+
+  test("„Darbas“ nenaudoja biuro kėdės iliustracijos", async ({ page }) => {
+    await openHome(page);
+    const jobsTile = page.locator(
+      '[data-home-category-grid] button[data-category-id="jobs"]'
+    );
+    await expect(jobsTile).toBeVisible({ timeout: 20_000 });
+    // The retired office-chair photo tile is gone — the category uses its
+    // deterministic icon (no <img> with a chair alt anywhere in the tile).
+    expect(
+      await jobsTile.locator("img").count(),
+      "jobs tile must not contain the retired chair photo"
+    ).toBe(0);
+    await expect(jobsTile).toHaveText(/Darbas/);
+  });
+
+  test("UI neeksponuoja techninio „SUPPORTED“ rodinio perjungikliuose", async ({
+    page,
+  }) => {
+    await openHome(page);
+    const modeLabels = await page
+      .locator("[data-view-mode]")
+      .evaluateAll((els) =>
+        els.map((el) => `${el.getAttribute("aria-label") ?? ""} ${el.getAttribute("title") ?? ""}`)
+      );
+    const joined = modeLabels.join(" ");
+    expect(joined, "no raw capability tokens in tooltips/labels").not.toContain(
+      "SUPPORTED"
+    );
+    expect(joined).not.toContain("PRIMARY");
+    expect(joined).not.toContain("NOT_APPLICABLE");
+  });
+
+  test("verification fail-closed: tik tikslios žymos, jokios bendros „Patvirtinta“", async ({
+    page,
+  }) => {
+    const grid = await openHome(page);
+    const vinCard = grid.locator('[data-listing-id="lt-auto-v70-pnv"]');
+    await expect(vinCard).toBeVisible({ timeout: 20_000 });
+    await expect(
+      vinCard.locator('[data-trust-badge="vin"]')
+    ).toHaveText("VIN patikrinta");
+    await expect(
+      grid.locator('[data-listing-id="lt-auto-v70-psv"] [data-trust-badge="provider"]')
+    ).toHaveText("Pardavėjas patvirtintas");
+    // The combined generic badge no longer exists anywhere.
+    await expect(page.getByText("Patvirtinta", { exact: true })).toHaveCount(0);
+  });
+
+  test("list→detail vientisumas: kortelė veda į realų detalės puslapį", async ({
+    page,
+  }) => {
+    const grid = await openHome(page);
+    const card = grid.locator('[data-listing-id="lt-auto-001"]');
+    await expect(card).toBeVisible({ timeout: 20_000 });
+    const expectedTitle = (await card.locator("h3").innerText()).trim();
+    await card.locator("a[href]").first().click();
+    await expect(page).toHaveURL(/\/listing\//, { timeout: 20_000 });
+    await expect(
+      page
+        .locator("h1:visible, [data-listing-detail-title]:visible, h2:visible")
+        .filter({ hasText: expectedTitle })
+        .first()
+    ).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("neegzistuojantis skelbimas: branded not-found su aiškiu grįžimo veiksmu", async ({
+    page,
+  }) => {
+    await forceOfflineCatalog(page);
+    await page.goto("/listing/?id=__neegzistuoja__");
+    await acceptGdprConsentIfPrompted(page);
+    const notFound = page.locator("[data-listing-not-found]");
+    await expect(notFound).toBeVisible({ timeout: 20_000 });
+    await expect(notFound).toContainText("Skelbimas nerastas");
+    const back = notFound.getByRole("link", { name: /Grįžti į skelbimus/i });
+    await expect(back).toBeVisible();
+    await back.click();
+    await expect(page.locator("[data-listing-grid]")).toBeVisible({
+      timeout: 20_000,
+    });
+  });
+
   test("kategorijų etiketės: „Mada“, „Namai ir buitis“, „Transportas“ ant kortelių", async ({
     page,
   }) => {

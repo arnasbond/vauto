@@ -69,7 +69,7 @@ ogRouter.get("/listing/:idOrSlug", async (req, res) => {
           "Cache-Control": "public, max-age=60",
         })
         .send(
-          `<!DOCTYPE html><html lang="lt"><head><meta charset="utf-8"/><title>Skelbimas nerastas - VAUTO</title><meta name="robots" content="noindex"/></head><body><p>Skelbimas nerastas. <a href="${origin}/">Grįžti į VAUTO</a></p></body></html>`
+          `<!DOCTYPE html><html lang="lt"><head><meta charset="utf-8"/><title>Skelbimas nerastas - VAUTO</title><meta name="robots" content="noindex"/><meta property="og:title" content="Skelbimas nerastas - VAUTO"/><meta name="viewport" content="width=device-width, initial-scale=1"/><style>body{margin:0;font-family:-apple-system,"Segoe UI",sans-serif;background:#f3f5f9;color:#0b1220;display:flex;align-items:center;justify-content:center;min-height:100vh}.card{background:#ffffff;border:1px solid #e2e7f0;border-radius:20px;box-shadow:0 1px 2px rgba(11,18,32,.05),0 12px 28px -10px rgba(11,18,32,.12);padding:48px 32px;text-align:center;max-width:420px;margin:16px}.brand{font-weight:800;letter-spacing:-0.02em;font-size:20px}.brand span{color:#10b981}h1{font-size:22px;margin:16px 0 8px}p{color:#5b6578;font-size:14px;line-height:1.5;margin:0 0 24px}a{display:inline-block;background:#10b981;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:12px}a:hover{background:#0d9f6e}</style></head><body><div class="card"><div class="brand">VAUTO<span>.</span></div><h1>Skelbimas nerastas</h1><p>Šis skelbimas nebeegzistuoja arba buvo paslėptas pardavėjo.</p><a href="${origin}/">Grįžti į VAUTO</a></div></body></html>`
         );
       return;
     }

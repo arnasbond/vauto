@@ -294,13 +294,21 @@ export function MarketplaceFilterBar({
             {enabledViewModesForVertical(query.verticalId).map(({ mode, enabled, mapLevel }) => {
               const Icon = mode === "list" ? List : mode === "grid" ? LayoutGrid : Map;
               const label = mode === "list" ? "Sąrašas" : mode === "grid" ? "Tinklelis" : "Žemėlapis";
+              const levelLabel =
+                mapLevel === "PRIMARY"
+                  ? "pagrindinis"
+                  : mapLevel === "SUPPORTED"
+                    ? "palaikomas"
+                    : mapLevel === "NOT_APPLICABLE"
+                      ? "netaikomas"
+                      : null;
               const isActive = activeViewMode === mode;
               return (
                 <button
                   key={mode}
                   type="button"
-                  title={mapLevel ? `${label} (${mapLevel})` : label}
-                  aria-label={mapLevel ? `${label} (${mapLevel})` : label}
+                  title={levelLabel ? `${label} (${levelLabel})` : label}
+                  aria-label={levelLabel ? `${label} (${levelLabel})` : label}
                   aria-pressed={isActive}
                   aria-disabled={!enabled}
                   disabled={!enabled}

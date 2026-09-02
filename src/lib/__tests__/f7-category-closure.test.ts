@@ -16,6 +16,7 @@ import {
   isListingPlaceholderUrl,
   resolveListingImage,
 } from "@/lib/listing-image";
+import { HOME_CATEGORIES } from "@/lib/marketplace-verticals";
 
 describe("F7 — 8 visible category parity", () => {
   it("exposes exactly 8 visible top-level categories with canonical labels", () => {
@@ -133,6 +134,39 @@ describe("F7 — „Mada“ subcategories via existing architecture", () => {
     // Non-clothing verticals never receive fashion kind chips.
     const electronics = getAiListingTagChips(["batai"], "electronics");
     assert.ok(!electronics.some((c) => /Avalyn|Drabuž|Aksesuar/.test(c)));
+  });
+});
+
+describe("F7 — home category grid registry parity", () => {
+  it("the home grid exposes EXACTLY the 8 visible categories from the same registry as filters", () => {
+    assert.equal(HOME_CATEGORIES.length, 8);
+    assert.deepEqual(
+      HOME_CATEGORIES.map((c) => c.label),
+      [
+        "Transportas",
+        "Nekilnojamas turtas",
+        "Elektronika",
+        "Mada",
+        "Namai ir buitis",
+        "Paslaugos",
+        "Darbas",
+        "Kita",
+      ]
+    );
+    // Same canonical source as the filter picker (visibleCategoryOptions).
+    assert.deepEqual(
+      HOME_CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
+      visibleCategoryOptions().map((o) => ({ id: o.id, label: o.label })),
+      "grid and filters share the SAME registry"
+    );
+  });
+
+  it("every home category has an icon and a deterministic query", () => {
+    for (const c of HOME_CATEGORIES) {
+      assert.ok(c.icon, `icon for ${c.id}`);
+      assert.equal(typeof c.query, "string");
+    }
+    assert.equal(HOME_CATEGORIES.find((c) => c.id === "other")!.query, "");
   });
 });
 

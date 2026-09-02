@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Package,
   Phone,
+  SearchX,
   ShieldCheck,
   Sparkles,
   Tag,
@@ -180,11 +181,38 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   if (!listing || listing.banned) {
     return (
       <AppShell variant="plain" hideNav>
-        <div className="py-12 text-center">
-          <p className="text-[var(--ds-text-muted,var(--vauto-subtle))]">Skelbimas nerastas.</p>
-          <Link href="/" className="mt-4 inline-block text-sm text-[var(--ds-brand,var(--vauto-teal))]">
-            ← Grįžti į skelbimus
-          </Link>
+        <div className="flex min-h-[60dvh] items-center justify-center px-4 py-12">
+          <div
+            className="w-full max-w-md rounded-[var(--ds-radius-panel)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] p-8 text-center shadow-[var(--ds-shadow-sm)]"
+            data-listing-not-found
+          >
+            <SearchX
+              className="mx-auto mb-4 h-12 w-12 text-[var(--ds-text-muted)]"
+              aria-hidden
+            />
+            <h1 className="font-[family-name:var(--font-outfit)] text-xl font-bold text-[var(--ds-text-primary)]">
+              Skelbimas nerastas
+            </h1>
+            <p className="mt-2 text-sm text-[var(--ds-text-secondary)]">
+              Šis skelbimas nebeegzistuoja arba buvo paslėptas pardavėjo.
+              Peržiūrėkite kitus skelbimus arba grįžkite į pagrindinį puslapį.
+            </p>
+            <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center rounded-[var(--ds-radius-control)] bg-[var(--ds-brand)] px-4 py-2.5 text-sm font-semibold text-[var(--ds-brand-contrast)] transition hover:bg-[var(--ds-brand-hover)]"
+              >
+                Grįžti į skelbimus
+              </Link>
+              <button
+                type="button"
+                onClick={() => window.history.back()}
+                className="inline-flex items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-strong)] px-4 py-2.5 text-sm font-semibold text-[var(--ds-text-primary)] transition hover:bg-[var(--ds-state-hover)]"
+              >
+                ← Atgal
+              </button>
+            </div>
+          </div>
         </div>
       </AppShell>
     );

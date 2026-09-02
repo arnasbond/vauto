@@ -2,33 +2,41 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { MARKETPLACE_VERTICALS } from "@/lib/marketplace-verticals";
+import { HOME_CATEGORIES, type HomeCategory } from "@/lib/marketplace-verticals";
 import { CATEGORY_IMAGE_SRC } from "@/lib/category-imagery";
 import { cn } from "@/lib/cn";
 
 type HomeCategoryGridProps = {
   onSelect: (query: string, label: string, slug: string) => void;
   className?: string;
-  /** Live listing counts per vertical — omitted/undefined verticals hide the count line. */
-  counts?: Partial<Record<(typeof MARKETPLACE_VERTICALS)[number]["id"], number>>;
+  /** Live listing counts per category — omitted/undefined categories hide the count line. */
+  counts?: Partial<Record<(typeof HOME_CATEGORIES)[number]["id"], number>>;
 };
 
 function formatListingCount(count: number): string {
   return `${count.toLocaleString("lt-LT")} skelbim${count === 1 ? "as" : count >= 2 && count <= 9 ? "ai" : "ų"}`;
 }
 
-function CategoryVisual({
-  vertical,
-}: {
-  vertical: (typeof MARKETPLACE_VERTICALS)[number];
-}) {
+/** Vertical imagery key for a visible category (legacy slugs fold). */
+const IMAGE_KEY_BY_CATEGORY: Partial<
+  Record<(typeof HOME_CATEGORIES)[number]["id"], keyof typeof CATEGORY_IMAGE_SRC>
+> = {
+  vehicles: "transport",
+  real_estate: "real_estate",
+  electronics: "electronics",
+  home: "home",
+  services: "services",
+};
+
+function CategoryVisual({ category }: { category: HomeCategory }) {
   const [broken, setBroken] = useState(false);
-  const image = CATEGORY_IMAGE_SRC[vertical.id];
-  const Icon = vertical.icon;
+  const imageKey = IMAGE_KEY_BY_CATEGORY[category.id];
+  const image = imageKey ? CATEGORY_IMAGE_SRC[imageKey] : undefined;
+  const Icon = category.icon;
 
   if (broken || !image) {
     return (
-      <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[var(--ds-brand-soft,#ecfdf5)] text-[var(--ds-brand)] sm:h-20 sm:w-20">
+      <span className="inline-flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-xl bg-[var(--ds-brand-soft,#ecfdf5)] text-[var(--ds-brand)] sm:h-[5.25rem] sm:w-[5.25rem] lg:h-24 lg:w-24">
         <Icon className="h-8 w-8" aria-hidden />
       </span>
     );
@@ -67,17 +75,17 @@ export function HomeCategoryGrid({ onSelect, className, counts }: HomeCategoryGr
         Kategorijos
       </p>
       <ul
-        className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6"
+        className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-8"
         aria-label="Pagrindinės skelbimų kategorijos"
       >
-        {MARKETPLACE_VERTICALS.map((vertical) => {
-          const count = counts?.[vertical.id];
+        {HOME_CATEGORIES.map((category) => {
+          const count = counts?.[category.id];
           return (
-            <li key={vertical.id} className="min-h-0">
+            <li key={category.id} className="min-h-0">
               {/*
                 The count caption is a SIBLING of <button>, not a descendant —
                 Stage 12B comprehension tests assert the button's exact
-                accessible text equals the canonical vertical label (e.g.
+                accessible text equals the canonical category label (e.g.
                 "Transportas"), so live listing counts must live outside the
                 button's text-content subtree while staying visually inside
                 the same card.
@@ -106,16 +114,16 @@ export function HomeCategoryGrid({ onSelect, className, counts }: HomeCategoryGr
                 />
                 <button
                   type="button"
-                  data-vertical-id={vertical.id}
-                  data-canonical-vertical={vertical.canonicalId}
+                  data-category-id={category.id}
+                  data-vertical-id={category.id}
                   onClick={() =>
-                    onSelect(vertical.query, vertical.label, vertical.id)
+                    onSelect(category.query, category.label, category.id)
                   }
                   className="flex w-full flex-col items-center gap-2 rounded-xl outline-none focus-visible:shadow-[var(--ds-focus-ring-ai)]"
                 >
-                  <CategoryVisual vertical={vertical} />
+                  <CategoryVisual category={category} />
                   <span className="text-[12px] font-semibold leading-tight text-[var(--ds-text-primary)]">
-                    {vertical.label}
+                    {category.label}
                   </span>
                 </button>
                 {typeof count === "number" && count > 0 ? (

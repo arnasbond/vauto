@@ -23,13 +23,13 @@ export interface AnonserNavLink {
   external?: boolean;
 }
 
-/** Primary links — VAUTO first; optional partner portal when configured. */
+/** Primary links — VAUTO first; only DELIBERATE partner integration links
+ *  (B2B portal + partner contacts). No generic/unverifiable URLs. */
 export function getAnonserNavLinks(): AnonserNavLink[] {
   const base = getAnonserPortalUrl();
   const vauto = getVautoPortalUrl();
   return [
     { label: "VAUTO", href: vauto, external: false },
-    { label: "Naujienos", href: `${base}/naujienos`, external: true },
     { label: "Verslui", href: `${base}/verslui`, external: true },
     { label: "Kontaktai", href: `${base}/kontaktai`, external: true },
   ];

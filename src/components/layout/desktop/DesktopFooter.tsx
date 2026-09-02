@@ -27,8 +27,9 @@ export function DesktopFooter() {
             <a
               key={link.href}
               href={link.href}
-              target="_blank"
-              rel="noopener noreferrer"
+              {...(link.external
+                ? { target: "_blank", rel: "noopener noreferrer" }
+                : {})}
               className="text-xs font-medium text-[var(--anonser-text-muted)] hover:text-[var(--anonser-primary)]"
             >
               {link.label}

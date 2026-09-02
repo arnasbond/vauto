@@ -124,7 +124,7 @@ export function mapVautoServerListing(
       description: listing.description,
       confidence: listing.confidence,
       attributes: attrs,
-      isVerified: listing.isVerified ?? true,
+      isVerified: listing.isVerified ?? false,
       requiresReview: listing.requiresReview ?? false,
       reviewNotice: listing.reviewNotice,
       imageAlt,
