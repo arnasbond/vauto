@@ -63,10 +63,19 @@ export type CsvParseResult =
       delimiter: "," | ";";
     };
 
-const FORMULA_PREFIXES = ["=", "+", "-", "@", "\t", "\r"];
+const FORMULA_SYMBOLS = ["=", "+", "-", "@"];
 
+/**
+ * Spreadsheet formula injection. Deterministic rule: a cell is rejected when
+ * it starts with a control prefix (tab/CR — OLE/DDE vector) OR when its
+ * first non-whitespace/control character is one of = + - @. Leading
+ * whitespace variants are therefore covered too, and the rule is identical
+ * for CSV and XML.
+ */
 export function isFormulaInjectionCell(cell: string): boolean {
-  return FORMULA_PREFIXES.some((p) => cell.startsWith(p));
+  if (cell.startsWith("\t") || cell.startsWith("\r")) return true;
+  const trimmed = cell.replace(/^[\s\u0000-\u001f]+/, "");
+  return FORMULA_SYMBOLS.some((p) => trimmed.startsWith(p));
 }
 
 /**
@@ -182,6 +191,7 @@ function parseCsvLine(
 ): { cells: string[] } | { error: string } {
   const cells: string[] = [];
   let cur = "";
+  let pending = false;
   let i = 0;
   while (i < line.length) {
     const ch = line[i]!;
@@ -210,20 +220,26 @@ function parseCsvLine(
         return { error: "po uždaromos kabutės leidžiamas tik atskyrimo simbolis." };
       }
       cells.push(field);
+      pending = false;
       i = j;
-      if (line[i] === delimiter) i += 1;
+      if (line[i] === delimiter) {
+        pending = true;
+        i += 1;
+      }
       continue;
     }
     if (ch === delimiter) {
       cells.push(cur);
       cur = "";
+      pending = true;
       i += 1;
       continue;
     }
+    pending = true;
     cur += ch;
     i += 1;
   }
-  cells.push(cur);
+  if (pending) cells.push(cur);
   return { cells };
 }
 
@@ -330,14 +346,22 @@ export function parseXml(input: Buffer | string): XmlParseResult {
     if (nodeCount > XML_MAX_NODES) {
       throw new Error(`XML mazgų skaičius viršija ${XML_MAX_NODES}.`);
     }
-    // src[pos] === "<"
-    if (src.startsWith("<!--", pos)) {
-      const end = src.indexOf("-->", pos);
-      if (end === -1) throw new Error("Neuždarytas XML komentaras.");
-      if (src.slice(pos, end).includes("--")) throw new Error("Netinkamas XML komentaras.");
-      pos = end + 3;
-      // A comment is not a node we keep; recurse into the next sibling.
-      return parseElement(depth);
+    // Skip leading comments ITERATIVELY (never via recursion — a document
+    // with tens of thousands of comments must fail the deterministic node
+    // budget, not overflow the stack).
+    for (;;) {
+      if (src.startsWith("<!--", pos)) {
+        nodeCount += 1;
+        if (nodeCount > XML_MAX_NODES) {
+          throw new Error(`XML mazgų skaičius viršija ${XML_MAX_NODES}.`);
+        }
+        const end = src.indexOf("-->", pos);
+        if (end === -1) throw new Error("Neuždarytas XML komentaras.");
+        if (src.slice(pos + 4, end).includes("--")) throw new Error("Netinkamas XML komentaras.");
+        pos = end + 3;
+        continue;
+      }
+      break;
     }
     if (src.startsWith("<![CDATA[", pos)) {
       const end = src.indexOf("]]>", pos);
@@ -391,7 +415,13 @@ export function parseXml(input: Buffer | string): XmlParseResult {
       if (pos >= len) throw new Error("Neuždaryta atributo reikšmė.");
       pos += 1; // closing quote
       if (value.length > XML_MAX_ATTR_VALUE) throw new Error("Per ilga atributo reikšmė.");
-      attributes[attrName.toLowerCase()] = value;
+      const key = attrName.toLowerCase();
+      // Fail-closed: case-equivalent duplicate attributes are rejected — no
+      // silent last-write-wins.
+      if (key in attributes) {
+        throw new Error(`Pasikartojantis atributas „${attrName}“ elemente <${name}>.`);
+      }
+      attributes[key] = value;
       if (Object.keys(attributes).length > XML_MAX_ATTRS_PER_ELEMENT) {
         throw new Error(`Per daug atributų (daugiausia ${XML_MAX_ATTRS_PER_ELEMENT}).`);
       }
@@ -410,8 +440,13 @@ export function parseXml(input: Buffer | string): XmlParseResult {
         return { kind: "element", name: name.toLowerCase(), attributes, children };
       }
       if (src.startsWith("<!--", pos)) {
+        nodeCount += 1;
+        if (nodeCount > XML_MAX_NODES) {
+          throw new Error(`XML mazgų skaičius viršija ${XML_MAX_NODES}.`);
+        }
         const end = src.indexOf("-->", pos);
         if (end === -1) throw new Error("Neuždarytas XML komentaras.");
+        if (src.slice(pos + 4, end).includes("--")) throw new Error("Netinkamas XML komentaras.");
         pos = end + 3;
         continue;
       }

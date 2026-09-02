@@ -19,7 +19,7 @@ const ACTOR = "seller-pro-1";
 function createApp() {
   const app = express();
   app.use(
-    express.text({
+    express.raw({
       type: ["text/csv", "application/xml", "text/xml", "text/plain"],
       limit: IMPORT_MAX_BYTES,
     })
@@ -99,6 +99,59 @@ describe("F6 Final — bulk import HTTP", () => {
       ["title", "price", "category", "location"]
     );
     assert.ok(res.body.reportText.includes("Santrauka"));
+    assert.match(res.body.note, /tik patikrintas/, "disabled import never claims drafts are created");
+  });
+
+  it("rejects INVALID UTF-8 bytes through the real Express route (original bytes, no pre-decoding)", async () => {
+    const invalid = Buffer.concat([
+      Buffer.from("title,price\nVolvo,", "utf8"),
+      Buffer.from([0xff, 0xfe, 0x41]),
+    ]);
+    const res = await request(app)
+      .post("/api/bulk-import/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .set("Content-Type", "text/csv")
+      .send(invalid);
+    assert.equal(res.status, 200, "preview answers with the parse error");
+    assert.ok(res.body.error, "invalid UTF-8 must be rejected");
+    assert.match(res.body.error, /UTF-8/);
+    assert.equal(res.body.importEnabled, false);
+  });
+
+  it("maps camelCase attribute columns end-to-end (attr:FuelType → fuelType)", async () => {
+    const csv = [
+      "title,price,category,location,attr:FuelType,attr:screenSize",
+      "Volvo,10900,vehicles,Vilnius,diesel,6.5",
+    ].join("\n");
+    const res = await request(app)
+      .post("/api/bulk-import/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .set("Content-Type", "text/csv")
+      .send(csv);
+    assert.equal(res.status, 200);
+    assert.deepEqual(
+      res.body.mapping.filter((m: { field: string | null }) => m.field?.startsWith("attribute:")),
+      [
+        { column: "attr:FuelType", field: "attribute:fuelType", ignored: false },
+        { column: "attr:screenSize", field: "attribute:screenSize", ignored: false },
+      ],
+      "canonical camelCase output keys preserved"
+    );
+    assert.deepEqual(res.body.rows[0].attributes, {
+      fuelType: "diesel",
+      screenSize: "6.5",
+    });
+  });
+
+  it("rejects case-equivalent duplicate XML attributes at the boundary", async () => {
+    const xml = '<listing title="T" fuelType="diesel" fueltype="petrol"/>';
+    const res = await request(app)
+      .post("/api/bulk-import/preview")
+      .set("Authorization", authHeader(ACTOR))
+      .set("Content-Type", "application/xml")
+      .send(xml);
+    assert.equal(res.status, 200);
+    assert.match(res.body.error, /Pasikartojantis atributas/);
   });
 
   it("previews a valid XML with per-vertical attributes", async () => {

@@ -151,10 +151,8 @@ export function BulkImportCard() {
                 />
                 <span>
                   {preview.importEnabled
-                    ? "Importas įjungtas."
-                    : "Importas dar neaktyvus — failas buvo tik patikrintas, JOKIE skelbimai nebuvo sukurti."}{" "}
-                  Importuojama tik į juodraščius ir niekada nepublikuojama
-                  automatiškai.
+                    ? "Importas įjungtas. Importuojama tik į juodraščius ir niekada nepublikuojama automatiškai."
+                    : "Importas šiuo metu išjungtas — failas buvo tik patikrintas, niekas nebuvo išsaugota ir jokie skelbimai nesukurti."}
                 </span>
               </div>
 

@@ -95,6 +95,22 @@ describe("F6 Final — CSV parser", () => {
     assert.equal(isFormulaInjectionCell("safe value"), false);
   });
 
+  it("rejects formula injection with leading whitespace/control variants", () => {
+    for (const p of [" =SUM(A1)", "\t=1+1", "  +1+1", "\u0009@cmd", "\r-2"]) {
+      const r = parseCsv(`title,price\n${p},10`);
+      assert.ok("error" in r, `prefix ${JSON.stringify(p)} must be rejected`);
+      if ("error" in r) assert.match(r.error, /pavojingu simboliu/);
+    }
+    assert.equal(isFormulaInjectionCell("  normalus tekstas"), false);
+    assert.equal(isFormulaInjectionCell("\t=1+1"), true);
+  });
+
+  it("rejects formula injection in tags and images cells", () => {
+    const r = parseCsv('title,price,tags,images\nVolvo,10,"=CMD(),normalus","https://x.lt/a.jpg"');
+    assert.ok("error" in r, "formula in tags cell must fail the whole file");
+    if ("error" in r) assert.match(r.error, /pavojingu simboliu/);
+  });
+
   it("rejects too many rows", () => {
     const lines = ["title,price"];
     for (let i = 0; i <= IMPORT_MAX_ROWS; i += 1) lines.push(`listing-${i},10`);
@@ -202,6 +218,126 @@ describe("F6 Final — XML parser", () => {
       const extracted = extractXmlRow(r.listingNodes[0]!);
       assert.equal(extracted.fields.title, "Butas 3k. & Žalia <gatvė>");
     }
+  });
+
+  it("rejects duplicate XML attributes (incl. case-equivalent) — no last-write-wins", () => {
+    const exact = parseXml('<listing title="A" title="B"/>');
+    assert.ok("error" in exact);
+    if ("error" in exact) assert.match(exact.error, /Pasikartojantis atributas/);
+
+    const caseEq = parseXml('<listing fuelType="diesel" fueltype="petrol"/>');
+    assert.ok("error" in caseEq, "case-equivalent duplicate attributes must be rejected");
+    if ("error" in caseEq) assert.match(caseEq.error, /Pasikartojantis atributas/);
+  });
+
+  it("recognizes camelCase attribute keys from both entry points with canonical output form", () => {
+    // CSV: attr:FuelType column maps to the canonical "fuelType" key.
+    const csv = buildImportPreview({
+      source: "csv",
+      columns: ["title", "price", "category", "location", "attr:FuelType"],
+      rows: [
+        {
+          line: 2,
+          fields: { title: "Volvo", price: "10", category: "vehicles", location: "Vilnius" },
+          images: [],
+          tags: [],
+          attributes: {},
+          ignored: [],
+        },
+      ],
+    });
+    assert.equal(csv.summary.ok, 1);
+    assert.deepEqual(csv.mapping[4], { column: "attr:FuelType", field: "attribute:fuelType", ignored: false });
+
+    // XML: <fuelType> child and <attributes><screenSize> map to canonical keys.
+    const xml = parseXml(
+      "<listing><title>T</title><price>10</price><category>electronics</category><location>Vilnius</location><fuelType>diesel</fuelType><attributes><screenSize>6.1</screenSize><salaryMin>1000</salaryMin></attributes></listing>"
+    );
+    assert.ok(!("error" in xml));
+    if (!("error" in xml)) {
+      const extracted = extractXmlRow(xml.listingNodes[0]!);
+      assert.equal(extracted.attributes.fuelType, "diesel");
+      assert.equal(extracted.attributes.screenSize, "6.1");
+      assert.equal(extracted.attributes.salaryMin, "1000");
+    }
+
+    // Listing-element attributes with camelCase names too.
+    const xmlAttr = parseXml('<listing title="T" fuelType="petrol" screenSize="5.5"/>');
+    assert.ok(!("error" in xmlAttr));
+    if (!("error" in xmlAttr)) {
+      const extracted = extractXmlRow(xmlAttr.listingNodes[0]!);
+      assert.equal(extracted.attributes.fuelType, "petrol");
+      assert.equal(extracted.attributes.screenSize, "5.5");
+    }
+  });
+
+  it("flags duplicate canonical fields and attribute elements as row errors", () => {
+    const xml = parseXml(
+      "<listing><title>TitleA</title><title>TitleB</title></listing>"
+    );
+    assert.ok(!("error" in xml));
+    if (!("error" in xml)) {
+      const extracted = extractXmlRow(xml.listingNodes[0]!);
+      assert.ok(extracted.duplicates.length > 0, "duplicate title must be reported");
+      const preview = buildImportPreview({
+        source: "xml",
+        columns: ["title"],
+        rows: [{ line: 1, ...extracted }],
+      });
+      assert.equal(preview.summary.errors, 1);
+      assert.match(
+        preview.rows[0]!.errors.join("|"),
+        /Pasikartojantis/
+      );
+    }
+  });
+
+  it("flags case-equivalent duplicate attribute elements (no silent overwrite)", () => {
+    const xml = parseXml(
+      "<listing><title>T</title><attributes><fuelType>diesel</fuelType><fueltype>petrol</fueltype></attributes></listing>"
+    );
+    assert.ok(!("error" in xml));
+    if (!("error" in xml)) {
+      const extracted = extractXmlRow(xml.listingNodes[0]!);
+      assert.ok(extracted.duplicates.length > 0, "case-equivalent attribute dup must be reported");
+    }
+  });
+
+  it("formula injection is detected in priceLabel, tags, images and attributes (XML row level)", () => {
+    const xml = parseXml(
+      '<listing><title>T</title><price>10</price><category>other</category><location>Vilnius</location><priceLabel> =CMD()</priceLabel><tags>=x</tags><images> @evil</images><attributes><make>\t=DDE</make></attributes></listing>'
+    );
+    assert.ok(!("error" in xml));
+    if (!("error" in xml)) {
+      const extracted = extractXmlRow(xml.listingNodes[0]!);
+      const preview = buildImportPreview({
+        source: "xml",
+        columns: ["title", "price", "category", "location"],
+        rows: [{ line: 1, ...extracted }],
+      });
+      assert.equal(preview.summary.errors, 1);
+      const joined = preview.rows[0]!.errors.join("|");
+      assert.match(joined, /kainos užrašas/);
+      assert.match(joined, /žyma/);
+      assert.match(joined, /nuotrauka/);
+      assert.match(joined, /make/);
+    }
+  });
+
+  it("a flood of leading comments fails the deterministic budget without stack overflow", () => {
+    let doc = "";
+    for (let i = 0; i < 30_000; i += 1) doc += `<!-- c${i} -->`;
+    doc += "<listing><title>a</title></listing>";
+    const r = parseXml(doc);
+    assert.ok("error" in r, "comment flood must hit the node budget deterministically");
+    if ("error" in r) assert.match(r.error, /mazgų skaičius/);
+
+    // A modest comment run still parses fine (no false positives).
+    let okDoc = "";
+    for (let i = 0; i < 100; i += 1) okDoc += `<!-- c${i} -->`;
+    okDoc += "<listing><title>a</title></listing>";
+    const ok = parseXml(okDoc);
+    assert.ok(!("error" in ok));
   });
 });
 

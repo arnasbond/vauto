@@ -46,7 +46,7 @@ const PREVIEW_RESPONSE = {
     byCategory: { vehicles: 1 },
   },
   reportText: "VAUTO masinio importo ataskaita\r\nSantrauka: 1 eilučių — tinkamos: 1.",
-  note: "Importas patenka tik į juodraščių būseną ir niekada nepublikuojamas automatiškai.",
+  note: "Importas šiuo metu išjungtas: failas buvo tik patikrintas, niekas nebuvo išsaugota — jokie skelbimai nesukurti.",
 };
 
 test.describe("Enterprise — masinis įkėlimas (F6 real import card)", () => {
@@ -117,7 +117,7 @@ test.describe("Enterprise — masinis įkėlimas (F6 real import card)", () => {
       timeout: 10_000,
     });
     await expect(
-      page.getByText(/Importas dar neaktyvus — failas buvo tik patikrintas/i)
+      page.getByText(/Importas šiuo metu išjungtas — failas buvo tik patikrintas/i)
     ).toBeVisible();
     await expect(page.getByText(/Tinkamos: 1/i)).toBeVisible();
     await expect(page.getByText(/Eil\. 2: Volvo V70/i)).toBeVisible();
@@ -130,9 +130,9 @@ test.describe("Enterprise — masinis įkėlimas (F6 real import card)", () => {
       page.getByRole("button", { name: /Atsisiųsti ataskaitą/i })
     ).toBeVisible();
 
-    // Nothing anywhere claims listings were created/published.
+    // Nothing anywhere claims listings were created/saved.
     await expect(page.getByText(/paruošta publikavimui/i)).toHaveCount(0);
-    await expect(page.getByText(/publikuojama/i).first()).toBeVisible();
+    await expect(page.getByText(/niekas nebuvo išsaugota/i).first()).toBeVisible();
   });
 
   test("netinkamas failo tipas atmetamas kliento pusėje be API kvietimo", async ({

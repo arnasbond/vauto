@@ -25,6 +25,7 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import { canRunBulkOperations } from "../ai/bulk-listing-control.js";
 import {
   IMPORT_MAX_BYTES,
+  decodeUtf8Strict,
   parseCsv,
   parseXml,
   type XmlNode,
@@ -39,8 +40,14 @@ import {
 
 const router = Router();
 
-/** Raw text upload: CSV/XML content arrives as the request body itself. */
-export const bulkImportTextParser = {
+/**
+ * Raw BINARY upload: the strict UTF-8 check must run on the ORIGINAL file
+ * bytes. `express.text` would decode (and silently mangle) invalid UTF-8
+ * BEFORE any validator — so the route consumes a Buffer via express.raw and
+ * the parser decodes it fatally itself. This is what the mount in
+ * server/src/index.ts uses.
+ */
+export const bulkImportBodyParser = {
   type: ["text/csv", "application/xml", "text/xml", "text/plain"],
   limit: IMPORT_MAX_BYTES,
 };
@@ -124,16 +131,39 @@ router.post("/preview", async (req: AuthedRequest, res: Response) => {
     res.status(403).json({ ok: false, code: "unauthorized", error: "Tik verslo pardavėjams." });
     return;
   }
-  if (typeof req.body !== "string" || req.body.trim().length === 0) {
+  const body = req.body;
+  if (!Buffer.isBuffer(body) || body.length === 0) {
     res.status(400).json({ ok: false, code: "invalid_payload", error: "Įkelkite CSV arba XML failo turinį." });
     return;
   }
-  if (Buffer.byteLength(req.body, "utf8") > IMPORT_MAX_BYTES) {
+  if (body.length > IMPORT_MAX_BYTES) {
     res.status(413).json({ ok: false, code: "too_large", error: `Failas per didelis (daugiausia ${IMPORT_MAX_BYTES} baitų).` });
     return;
   }
-  const source = sniffSource(req.body);
-  const preview = source === "xml" ? buildXmlPreview(req.body) : buildCsvPreview(req.body);
+  // Strict UTF-8 on the ORIGINAL bytes (fatal decoding inside the parsers).
+  // The buffer is handed to the parsers as-is — no pre-decoding anywhere.
+  const decoded = decodeUtf8Strict(body);
+  if ("error" in decoded) {
+    res.json({
+      ok: true,
+      importEnabled: bulkImportEnabled(),
+      source: null,
+      columns: [],
+      mapping: [],
+      rows: [],
+      summary: { total: 0, ok: 0, warnings: 0, errors: 1, byCategory: {} },
+      reportText: decoded.error,
+      error: decoded.error,
+      note: NOTE_IMPORT_DISABLED,
+    });
+    return;
+  }
+  if (decoded.text.trim().length === 0) {
+    res.status(400).json({ ok: false, code: "invalid_payload", error: "Failas tuščias." });
+    return;
+  }
+  const source = sniffSource(decoded.text);
+  const preview = source === "xml" ? buildXmlPreview(decoded.text) : buildCsvPreview(decoded.text);
   const hardError =
     preview.summary.errors > 0 && preview.rows.length === 0 ? preview.reportText : null;
 
@@ -147,10 +177,13 @@ router.post("/preview", async (req: AuthedRequest, res: Response) => {
     summary: preview.summary,
     reportText: preview.reportText,
     error: hardError,
-    note:
-      "Importas patenka tik į juodraščių būseną ir niekada nepublikuojamas automatiškai.",
+    note: NOTE_IMPORT_DISABLED,
   });
 });
+
+/** Honest, fail-closed wording — never claims drafts are created. */
+const NOTE_IMPORT_DISABLED =
+  "Importas šiuo metu išjungtas: failas buvo tik patikrintas, niekas nebuvo išsaugota — jokie skelbimai nesukurti.";
 
 /**
  * Persistence is fail-closed: no durable import execution exists yet (no

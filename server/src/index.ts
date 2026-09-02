@@ -197,7 +197,7 @@ app.use("/api/bulk-listings", actionRateLimiter, requireAuth, bulkListingsRouter
  *  persistence is fail-closed: no `draft` listing status exists yet). */
 app.use(
   "/api/bulk-import",
-  express.text({
+  express.raw({
     type: ["text/csv", "application/xml", "text/xml", "text/plain"],
     limit: BULK_IMPORT_MAX_BYTES,
   }),

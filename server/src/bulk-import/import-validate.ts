@@ -58,7 +58,7 @@ export type ImportPreviewResult = {
 const FIELD_ALIASES: Record<string, string[]> = {
   title: ["title", "pavadinimas", "name", "skelbimo pavadinimas"],
   price: ["price", "kaina", "price_eur"],
-  priceLabel: ["price_label", "kainos uzrasas", "price label"],
+  priceLabel: ["price_label", "kainos uzrasas", "price label", "priceLabel", "price label"],
   category: ["category", "kategorija", "category_slug"],
   location: ["location", "miestas", "city", "vieta"],
   description: ["description", "aprasymas", "aprašymas", "desc"],
@@ -104,8 +104,18 @@ const RESOLVED_ALIASES: Record<string, string> = (() => {
     for (const a of aliases) out[normalizeKey(a)] = field;
   }
   for (const key of ATTRIBUTE_KEYS) {
-    out[`attr:${key}`] = `attribute:${key}`;
+    // Normalized input form (e.g. "attr:fueltype", "attr:salary_min" is NOT
+    // auto-guessed) maps to the CANONICAL output key (e.g. "fuelType") —
+    // normalization never degrades the canonical form.
+    out[`attr:${normalizeKey(key)}`] = `attribute:${key}`;
   }
+  return out;
+})();
+
+/** Canonical camelCase key for any case/variant of an attribute name. */
+export const ATTRIBUTE_KEY_BY_NORMALIZED: Record<string, string> = (() => {
+  const out: Record<string, string> = {};
+  for (const key of ATTRIBUTE_KEYS) out[normalizeKey(key)] = key;
   return out;
 })();
 
@@ -166,23 +176,37 @@ export function extractXmlRow(node: XmlNode): {
   tags: string[];
   attributes: Record<string, string>;
   ignored: string[];
+  duplicates: string[];
 } {
   const fields: Record<string, string> = {};
   const images: string[] = [];
   const tags: string[] = [];
   const attributes: Record<string, string> = {};
   const ignored: string[] = [];
+  const duplicates: string[] = [];
   if (node.kind !== "element") {
-    return { fields, images, tags, attributes, ignored };
+    return { fields, images, tags, attributes, ignored, duplicates };
   }
 
+  const attrKeysSeen = new Set<string>();
   for (const [name, value] of Object.entries(node.attributes)) {
-    if ((ATTRIBUTE_KEYS as readonly string[]).includes(name)) {
-      attributes[name] = value;
+    const canonical = ATTRIBUTE_KEY_BY_NORMALIZED[normalizeKey(name)];
+    if (canonical) {
+      // Case-equivalent duplicates are already rejected by the parser, but
+      // the extraction layer guards again — no silent last-write-wins.
+      if (attrKeysSeen.has(canonical)) {
+        duplicates.push(`attributes.${canonical}`);
+        continue;
+      }
+      attrKeysSeen.add(canonical);
+      attributes[canonical] = value;
     } else {
       ignored.push(`@${name}`);
     }
   }
+
+  const fieldSeen = new Set<string>();
+  const attrChildSeen = new Set<string>();
 
   for (const child of node.children) {
     if (child.kind !== "element") continue;
@@ -190,9 +214,20 @@ export function extractXmlRow(node: XmlNode): {
     if (name === "attributes") {
       for (const attrChild of child.children) {
         if (attrChild.kind !== "element") continue;
-        const key = attrChild.name.toLowerCase();
+        const rawKey = attrChild.name;
+        const key = ATTRIBUTE_KEY_BY_NORMALIZED[normalizeKey(rawKey)];
         const value = elementText(attrChild) ?? "";
-        if ((ATTRIBUTE_KEYS as readonly string[]).includes(key)) {
+        if (key) {
+          if (attrChildSeen.has(key)) {
+            duplicates.push(`attributes.${rawKey}`);
+            continue;
+          }
+          attrChildSeen.add(key);
+          if (attrKeysSeen.has(key)) {
+            duplicates.push(`attributes.${rawKey}`);
+            continue;
+          }
+          attrKeysSeen.add(key);
           attributes[key] = value;
         } else {
           ignored.push(`attributes.${attrChild.name}`);
@@ -212,22 +247,39 @@ export function extractXmlRow(node: XmlNode): {
       continue;
     }
     if (mapped && !mapped.startsWith("attribute:")) {
+      if (fieldSeen.has(mapped)) {
+        duplicates.push(child.name);
+        continue;
+      }
+      fieldSeen.add(mapped);
       const value = elementText(child);
       if (value != null) fields[mapped] = value;
       continue;
     }
     if (mapped && mapped.startsWith("attribute:")) {
+      const canonical = mapped.slice("attribute:".length);
+      if (attrKeysSeen.has(canonical)) {
+        duplicates.push(child.name);
+        continue;
+      }
+      attrKeysSeen.add(canonical);
       const value = elementText(child);
-      if (value != null) attributes[mapped.slice("attribute:".length)] = value;
+      if (value != null) attributes[canonical] = value;
       continue;
     }
-    if ((ATTRIBUTE_KEYS as readonly string[]).includes(name)) {
-      attributes[name] = elementText(child) ?? "";
+    const directAttr = ATTRIBUTE_KEY_BY_NORMALIZED[normalizeKey(name)];
+    if (directAttr) {
+      if (attrKeysSeen.has(directAttr)) {
+        duplicates.push(child.name);
+        continue;
+      }
+      attrKeysSeen.add(directAttr);
+      attributes[directAttr] = elementText(child) ?? "";
       continue;
     }
     ignored.push(child.name);
   }
-  return { fields, images, tags, attributes, ignored };
+  return { fields, images, tags, attributes, ignored, duplicates };
 }
 
 export function buildImportPreview(input: {
@@ -240,6 +292,7 @@ export function buildImportPreview(input: {
     tags: string[];
     attributes: Record<string, string>;
     ignored: string[];
+    duplicates?: string[];
   }>;
 }): ImportPreviewResult {
   const mapping = input.columns.map((c) => ({
@@ -293,15 +346,34 @@ export function buildImportPreview(input: {
     } else if (categoryRaw && categoryRaw.trim() && category !== categoryRaw.trim().toLowerCase()) {
       warnings.push(`Kategorija „${categoryRaw.trim()}“ konvertuota į „${category}“.`);
     }
-    for (const [key, value] of Object.entries(raw.attributes)) {
-      if (isFormulaInjectionCell(value)) {
-        errors.push(`Atributo „${key}“ reikšmė prasideda pavojingu simboliu.`);
-      }
+
+    // Duplicates (case-equivalent XML attributes/fields): fail-closed errors,
+    // never silent last-write-wins.
+    for (const dup of raw.duplicates ?? []) {
+      errors.push(`Pasikartojantis laukas arba atributas: „${dup}“.`);
     }
-    for (const v of [title, location, description, priceRaw]) {
-      if (v != null && isFormulaInjectionCell(v)) {
-        errors.push("Laukas prasideda pavojingu simboliu (=, +, -, @, tab).");
-        break;
+
+    // Formula injection: EVERY imported field, including priceLabel, tags,
+    // images and attributes — with leading-whitespace/control variants.
+    const priceLabel = get("priceLabel");
+    const allValues: Array<[string, string]> = [
+      ["pavadinimas", title ?? ""],
+      ["kaina", priceRaw ?? ""],
+      ["kainos užrašas", priceLabel ?? ""],
+      ["kategorija", categoryRaw ?? ""],
+      ["vieta", location ?? ""],
+      ["aprašymas", description ?? ""],
+      ...raw.tags.map((t): [string, string] => ["žyma", t]),
+      ...raw.images.map((img): [string, string] => ["nuotrauka", img]),
+      ...Object.entries(raw.attributes).map(
+        ([k, v]): [string, string] => [`atributas „${k}“`, v]
+      ),
+    ];
+    for (const [label, value] of allValues) {
+      if (value != null && isFormulaInjectionCell(value)) {
+        errors.push(
+          `Laukas ${label} prasideda pavojingu simboliu (=, +, -, @, tab) — galima formulių injekcija.`
+        );
       }
     }
 
@@ -332,7 +404,7 @@ export function buildImportPreview(input: {
       ignoredFields: raw.ignored,
       title: title?.trim() || null,
       price,
-      priceLabel: get("priceLabel")?.trim() || null,
+      priceLabel: priceLabel?.trim() || null,
       category,
       location: location?.trim() || null,
       description: description?.trim() || null,
@@ -388,7 +460,7 @@ export function buildReportText(input: {
   }
   lines.push("");
   lines.push(
-    "Pastaba: importas patenka tik į juodraščių būseną ir niekada nepublikuojamas automatiškai."
+    "Pastaba: importas išjungtas — failas buvo tik patikrintas, jokie skelbimai neišsaugoti."
   );
   return lines.join("\r\n");
 }
