@@ -130,6 +130,150 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     });
   });
 
+  test("„Kita“ paspaudimas pritaiko canonical other filtrą ir rodo tik other rezultatus", async ({
+    page,
+  }) => {
+    await openHome(page);
+    const kita = page.locator(
+      '[data-home-category-grid] button[data-category-id="other"]'
+    );
+    await expect(kita).toBeVisible({ timeout: 20_000 });
+    await kita.click();
+
+    // Clear navigation to the search results view with the category filter.
+    await expect(page).toHaveURL(/\/search/, { timeout: 20_000 });
+    await expect(page.locator("[data-listing-card]").first()).toBeVisible({
+      timeout: 20_000,
+    });
+    const categories = await page
+      .locator("[data-listing-card]")
+      .evaluateAll((els) =>
+        els.map((el) => el.getAttribute("data-listing-category") ?? "")
+      );
+    expect(categories.length, "other results exist").toBeGreaterThan(0);
+    for (const c of categories) {
+      expect(c, "only canonical other listings are shown").toBe("other");
+    }
+  });
+
+  test("server/API skelbimas, kurio nėra vietiniame kataloge, hidratuoja detalę pagal ID", async ({
+    page,
+  }) => {
+    const SERVER_LISTING = {
+      id: "lt-srv-999",
+      title: "Serverinis svetimas skelbimas",
+      price: 1337,
+      priceLabel: "1337 €",
+      location: "Vilnius",
+      category: "other",
+      description: "Tik serverio kataloge.",
+      images: [],
+      sellerId: "srv-seller",
+      sellerName: "Serverinis",
+      status: "active",
+      createdAt: "2026-09-01T10:00:00.000Z",
+      slug: "serverinis-svetimas-skelbimas",
+      contact: "+37060000000",
+      tags: [],
+      attributes: {},
+      allowPastomatas: true,
+    };
+    // The listing is ONLY reachable via the server single-listing endpoint —
+    // it is not in the offline/local catalog at all.
+    await page.route("**/api/listings/lt-srv-999", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(SERVER_LISTING),
+      });
+    });
+
+    await forceOfflineCatalog(page);
+    await page.goto("/listing/?id=lt-srv-999");
+    await acceptGdprConsentIfPrompted(page);
+
+    // Unified data contract: the detail hydrates the same public listing
+    // from the server instead of showing a false "not found".
+    await expect(
+      page
+        .locator("h1:visible, [data-listing-detail-title]:visible")
+        .filter({ hasText: "Serverinis svetimas skelbimas" })
+        .first()
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator("[data-listing-not-found]")).toHaveCount(0);
+  });
+
+  test("kortelė iš serverinio katalogo veda į realų detalės puslapį", async ({
+    page,
+  }) => {
+    const SERVER_LISTING = {
+      id: "lt-srv-cat-1",
+      title: "Katalogo serverinis objektas",
+      price: 42,
+      priceLabel: "42 €",
+      location: "Kaunas",
+      category: "other",
+      description: "Serverinio feed objektas.",
+      images: [],
+      sellerId: "srv-seller",
+      sellerName: "Serverinis",
+      status: "active",
+      createdAt: "2026-09-01T10:00:00.000Z",
+      slug: "katalogo-serverinis-objektas",
+      contact: "+37060000001",
+      tags: [],
+      attributes: {},
+      allowPastomatas: true,
+    };
+    // Safety net FIRST (later registrations take precedence): any other API
+    // call stays offline and never leaves the machine.
+    await page.route("**/api/**", (route) =>
+      route.fulfill({ status: 404, contentType: "application/json", body: "{}" })
+    );
+    await page.route("**/api/health**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true, status: "ok" }),
+      })
+    );
+    await page.route("**/api/listings?*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([SERVER_LISTING]),
+      })
+    );
+    await page.route("**/api/listings/mine**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      })
+    );
+    await page.route("**/api/listings/lt-srv-cat-1", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(SERVER_LISTING),
+      })
+    );
+
+    await page.goto("/");
+    await acceptGdprConsentIfPrompted(page);
+
+    const card = page.locator('[data-listing-id="lt-srv-cat-1"]').first();
+    await expect(card).toBeVisible({ timeout: 25_000 });
+    await card.locator("a[href]").first().click();
+    await expect(page).toHaveURL(/\/listing\//, { timeout: 20_000 });
+    await expect(
+      page
+        .locator("h1:visible, [data-listing-detail-title]:visible")
+        .filter({ hasText: "Katalogo serverinis objektas" })
+        .first()
+    ).toBeVisible({ timeout: 20_000 });
+  });
+
   test("kategorijų etiketės: „Mada“, „Namai ir buitis“, „Transportas“ ant kortelių", async ({
     page,
   }) => {
@@ -173,6 +317,7 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     expect(priceIndex).toBeLessThan(titleIndex);
 
     // The photo block occupies the top of the card (image-first layout).
+    await card.scrollIntoViewIfNeeded();
     const mediaBox = await card.locator("a[href]").first().boundingBox();
     const bodyBox = await card.locator("h3").boundingBox();
     expect(mediaBox).toBeTruthy();

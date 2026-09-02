@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AiCommandBar } from "@/components/search/AiCommandBar";
 import { AgentChatStrip } from "@/components/home/AgentChatStrip";
 import { HomeCategoryGrid } from "@/components/home/HomeCategoryGrid";
@@ -12,6 +13,10 @@ import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useCanonicalFacetQuery } from "@/hooks/useCanonicalFacetUrl";
+import {
+  normalizeMarketplaceFilters,
+  type MarketplaceFilterState,
+} from "@/lib/marketplace-view";
 import { resolveVerticalId } from "@vauto/shared/marketplace-domain";
 import { VISIBLE_CATEGORY_BY_SLUG, type VisibleCategoryId } from "@vauto/shared/category-registry";
 import { isEmbeddedAgentChatVisible } from "@/lib/agent-chat-layout";
@@ -36,6 +41,7 @@ export function HomeAiHero({
   compact = false,
 }: HomeAiHeroProps) {
   const shell = useShellChrome();
+  const router = useRouter();
   const { messages, busy, open } = useVautoAgent();
   const { setVertical } = useCanonicalFacetQuery();
   const { listings } = useVauto();
@@ -233,9 +239,24 @@ export function HomeAiHero({
             <HomeCategoryGrid
               counts={categoryCounts}
               onSelect={(query, _label, slug) => {
-                if (query) handleChip(query);
                 const verticalId = resolveVerticalId(slug);
-                if (verticalId) setVertical(verticalId);
+                if (verticalId) {
+                  if (query) handleChip(query);
+                  setVertical(verticalId);
+                  return;
+                }
+                // Categories without a canonical vertical (Mada, Kita):
+                // apply the SAME canonical category filter the filter bar
+                // uses and navigate to the search results view — the button
+                // is never a no-op, even with an empty query.
+                setMarketplaceFilters(
+                  normalizeMarketplaceFilters({
+                    ...marketplaceFilters,
+                    category: slug as MarketplaceFilterState["category"],
+                  })
+                );
+                setSearchQuery("");
+                router.push("/search");
               }}
             />
 

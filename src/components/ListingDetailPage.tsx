@@ -32,6 +32,10 @@ import { SimilarListingsSection } from "@/components/listing/SimilarListingsSect
 import { resolveAiPriceSignal } from "@/components/marketplace/ListingCard";
 import { AiInsightCard, Badge, Card } from "@/design-system";
 import { formatListingPlaceLine, formatPrice } from "@/data/mockListings";
+import { apiFetchListingById } from "@/lib/api/client";
+import { isDataApiEnabled } from "@/lib/api/config";
+import { normalizeListing } from "@/lib/listing-normalize";
+import type { Listing } from "@/lib/types";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoBridge } from "@/context/VautoBridge";
 import { useSellerFlow } from "@/context/SellerFlowContext";
@@ -127,10 +131,37 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const [orderShippingOpen, setOrderShippingOpen] = useState(false);
   const [buyerTipsOpen, setBuyerTipsOpen] = useState(false);
 
-  // Prefer stable id (dashboard links); fall back to slug for SEO/pretty URLs.
+  // F7 — unified list→detail data contract. The feed catalog is a LIMITED
+  // slice (top-N / region); when the local lookup misses, the detail
+  // hydrates the SAME public listing from the server by id/slug under the
+  // same visibility rules. No per-listing exceptions; 404 means the listing
+  // truly does not exist publicly.
+  const [serverListing, setServerListing] = useState<Listing | null>(null);
+  const [serverLookupFailed, setServerLookupFailed] = useState(false);
+  useEffect(() => {
+    setServerListing(null);
+    setServerLookupFailed(false);
+    if (!hydrated || !(id || slug)) return;
+    const local = id ? findListing(id) : slug ? findListing(slug) : undefined;
+    if (local || !isDataApiEnabled()) return;
+    let cancelled = false;
+    void apiFetchListingById(id ?? slug!).then((res) => {
+      if (cancelled) return;
+      if (res.ok) setServerListing(normalizeListing(res.data));
+      else setServerLookupFailed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, id, slug]);
+
+  // Prefer stable id (dashboard links); fall back to slug for SEO/pretty URLs;
+  // last resort: the server-side public listing fetch (limited-slice feed).
   const listing =
     (id ? findListing(id) : undefined) ??
-    (slug ? findListing(slug) : undefined);
+    (slug ? findListing(slug) : undefined) ??
+    serverListing;
 
   useEffect(() => {
     if (listing?.id && !listing.banned) {
@@ -169,6 +200,18 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   }, [listing?.id, listing?.banned, listing?.title, listing?.category, listing?.price, wardrobeContext, trackEvent]);
 
   if (!hydrated) {
+    return (
+      <AppShell variant="plain" hideNav>
+        <div className="py-12 text-center">
+          <p className="text-[var(--ds-text-muted,var(--vauto-subtle))]">Kraunama...</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // Local lookup missed AND the server fallback is still in flight: keep the
+  // loading state (never flash a false "not found").
+  if (!listing && !serverLookupFailed && (id || slug) && isDataApiEnabled()) {
     return (
       <AppShell variant="plain" hideNav>
         <div className="py-12 text-center">

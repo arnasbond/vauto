@@ -574,6 +574,20 @@ export async function apiFetchListings(
   return dataFetch<Listing[]>(`/api/listings?${params.toString()}`);
 }
 
+/**
+ * F7 — single public listing by id (or slug). The feed catalog is a limited
+ * slice; this resolves ANY public listing under the same server visibility
+ * rules, so a card/deep link from outside the local slice still hydrates its
+ * detail. 404 → the listing truly does not exist publicly.
+ */
+export async function apiFetchListingById(
+  idOrSlug: string
+): Promise<ApiResult<Listing>> {
+  return dataFetch<Listing>(
+    `/api/listings/${encodeURIComponent(idOrSlug.trim())}`
+  );
+}
+
 export async function apiFetchAdminReviewQueue(): Promise<ApiResult<Listing[]>> {
   return dataFetch<Listing[]>("/api/admin/listings/review-queue");
 }
