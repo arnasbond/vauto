@@ -5,12 +5,24 @@ import {
 } from "./helpers/seed";
 
 /**
- * F7 — 8 category closure + listing card hierarchy (desktop & mobile).
+ * F7 — 8 category closure + premium imagery + listing card hierarchy.
  * The offline bundle ships a deterministic demo catalog (lt-* ids), so these
- * tests assert the REAL rendered contract against it: unified labels, „Mada“
- * for clothing, folded legacy slugs, card hierarchy (price → title → location
- * → attributes), the missing-photo placeholder and light-theme depth.
+ * tests assert the REAL rendered contract against it: 8 categories, unified
+ * labels, premium <img> illustrations for every category (Mada / Darbas /
+ * Kita included), card hierarchy, list→detail integrity and light/dark
+ * readability.
  */
+
+const ALL_CATEGORY_IDS = [
+  "vehicles",
+  "real_estate",
+  "electronics",
+  "clothing",
+  "home",
+  "services",
+  "jobs",
+  "other",
+];
 
 test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)", () => {
   test.setTimeout(90_000);
@@ -48,19 +60,54 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     );
   });
 
-  test("„Darbas“ nenaudoja biuro kėdės iliustracijos", async ({ page }) => {
+  test("„Darbas“ naudoja premium portfelio iliustraciją, ne biuro kėdę ir ne ikoną", async ({
+    page,
+  }) => {
     await openHome(page);
     const jobsTile = page.locator(
       '[data-home-category-grid] button[data-category-id="jobs"]'
     );
     await expect(jobsTile).toBeVisible({ timeout: 20_000 });
-    // The retired office-chair photo tile is gone — the category uses its
-    // deterministic icon (no <img> with a chair alt anywhere in the tile).
-    expect(
-      await jobsTile.locator("img").count(),
-      "jobs tile must not contain the retired chair photo"
-    ).toBe(0);
+    const jobsImg = jobsTile.locator("img");
+    await expect(jobsImg).toHaveCount(1);
+    await expect(jobsImg).toHaveAttribute("alt", /portfelis/i);
     await expect(jobsTile).toHaveText(/Darbas/);
+  });
+
+  test("visos 8 kategorijos renderina premium <img> — nė viena nenaudoja icon fallback", async ({
+    page,
+  }) => {
+    await openHome(page);
+    const tiles = page.locator("[data-home-category-grid] button");
+    await expect(tiles).toHaveCount(8);
+    for (const id of ALL_CATEGORY_IDS) {
+      const tile = page.locator(`[data-home-category-grid] button[data-category-id="${id}"]`);
+      await expect(tile.locator("img"), `${id} tile must render an image`).toHaveCount(1);
+    }
+    // No Lucide icon fallback squares anywhere in the grid.
+    await expect(page.locator("[data-home-category-grid] button svg")).toHaveCount(0);
+    // Desktop overflow check: the grid must not scroll horizontally.
+    const overflow = await page
+      .locator("[data-home-category-grid]")
+      .evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+  });
+
+  test("premium iliustracijos matomos light ir dark temose", async ({ page }) => {
+    for (const theme of ["light", "dark"] as const) {
+      await page.addInitScript((t) => {
+        localStorage.setItem("vauto_app_theme_v1", t);
+        document.documentElement.setAttribute("data-app-theme", t);
+      }, theme);
+      await page.emulateMedia({ colorScheme: theme });
+      await openHome(page);
+      for (const id of ["clothing", "jobs", "other"]) {
+        const img = page.locator(
+          `[data-home-category-grid] button[data-category-id="${id}"] img`
+        );
+        await expect(img, `${id} visible in ${theme}`).toBeVisible({ timeout: 15_000 });
+      }
+    }
   });
 
   test("UI neeksponuoja techninio „SUPPORTED“ rodinio perjungikliuose", async ({
@@ -92,7 +139,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     await expect(
       grid.locator('[data-listing-id="lt-auto-v70-psv"] [data-trust-badge="provider"]')
     ).toHaveText("Pardavėjas patvirtintas");
-    // The combined generic badge no longer exists anywhere.
     await expect(page.getByText("Patvirtinta", { exact: true })).toHaveCount(0);
   });
 
@@ -140,7 +186,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     await expect(kita).toBeVisible({ timeout: 20_000 });
     await kita.click();
 
-    // Clear navigation to the search results view with the category filter.
     await expect(page).toHaveURL(/\/search/, { timeout: 20_000 });
     await expect(page.locator("[data-listing-card]").first()).toBeVisible({
       timeout: 20_000,
@@ -178,8 +223,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
       attributes: {},
       allowPastomatas: true,
     };
-    // The listing is ONLY reachable via the server single-listing endpoint —
-    // it is not in the offline/local catalog at all.
     await page.route("**/api/listings/lt-srv-999", async (route) => {
       await route.fulfill({
         status: 200,
@@ -192,8 +235,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     await page.goto("/listing/?id=lt-srv-999");
     await acceptGdprConsentIfPrompted(page);
 
-    // Unified data contract: the detail hydrates the same public listing
-    // from the server instead of showing a false "not found".
     await expect(
       page
         .locator("h1:visible, [data-listing-detail-title]:visible")
@@ -279,14 +320,12 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
   }) => {
     const grid = await openHome(page);
 
-    // Clothing presents itself as „Mada“ (never „Apranga“ / „Mada ir apranga“).
     const clothing = grid.locator('[data-listing-id="lt-clo-001"]');
     await expect(clothing).toBeVisible({ timeout: 20_000 });
     await expect(
       clothing.locator("[data-listing-card-category]")
     ).toHaveText("Mada");
 
-    // Home family label is unified.
     const home = grid.locator('[data-listing-id="lt-home-001"]');
     await expect(home).toBeVisible({ timeout: 20_000 });
     await expect(
@@ -307,7 +346,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     const card = grid.locator('[data-listing-id="lt-auto-001"]');
     await expect(card).toBeVisible({ timeout: 20_000 });
 
-    // Price element comes BEFORE the title in the DOM (first-plane price).
     const priceIndex = await card
       .locator("[data-listing-card-price]")
       .evaluate((el) => Array.from(el.parentElement!.children).indexOf(el));
@@ -316,7 +354,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
       .evaluate((el) => Array.from(el.parentElement!.children).indexOf(el));
     expect(priceIndex).toBeLessThan(titleIndex);
 
-    // The photo block occupies the top of the card (image-first layout).
     await card.scrollIntoViewIfNeeded();
     const mediaBox = await card.locator("a[href]").first().boundingBox();
     const bodyBox = await card.locator("h3").boundingBox();
@@ -324,7 +361,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     expect(bodyBox).toBeTruthy();
     expect(mediaBox!.y).toBeLessThan(bodyBox!.y);
 
-    // Light theme depth: page background ≠ card background.
     const pageBg = await page
       .locator("body")
       .evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -389,5 +425,29 @@ test.describe("F7 — kortelių vientisumas (mobile)", () => {
     await expect(clothingListCard).toBeVisible({ timeout: 20_000 });
     await expect(clothingListCard).toContainText("Mada");
     await expect(clothingListCard.locator("h3")).toBeVisible();
+  });
+
+  test("mobile kategorijų tinklelis: 8 tiles be overflow su premium img", async ({
+    page,
+  }) => {
+    await forceOfflineCatalog(page);
+    await page.goto("/");
+    await acceptGdprConsentIfPrompted(page);
+
+    const grid = page.locator("[data-home-category-grid]");
+    await grid.scrollIntoViewIfNeeded();
+    await expect(grid).toBeVisible({ timeout: 20_000 });
+    await expect(grid.locator("button")).toHaveCount(8);
+    for (const id of ALL_CATEGORY_IDS) {
+      await expect(
+        grid.locator(`button[data-category-id="${id}"] img`),
+        `${id} has a premium image on mobile`
+      ).toHaveCount(1);
+    }
+    const overflow = await page.evaluate(() => {
+      const g = document.querySelector("[data-home-category-grid]");
+      return g ? g.scrollWidth - g.clientWidth : 999;
+    });
+    expect(overflow).toBeLessThanOrEqual(1);
   });
 });

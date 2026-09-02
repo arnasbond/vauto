@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { HOME_CATEGORIES, type HomeCategory } from "@/lib/marketplace-verticals";
-import { CATEGORY_IMAGE_SRC } from "@/lib/category-imagery";
+import { categoryImageFor } from "@/lib/category-imagery";
 import { cn } from "@/lib/cn";
 
 type HomeCategoryGridProps = {
@@ -17,23 +17,13 @@ function formatListingCount(count: number): string {
   return `${count.toLocaleString("lt-LT")} skelbim${count === 1 ? "as" : count >= 2 && count <= 9 ? "ai" : "ų"}`;
 }
 
-/** Vertical imagery key for a visible category (legacy slugs fold). */
-const IMAGE_KEY_BY_CATEGORY: Partial<
-  Record<(typeof HOME_CATEGORIES)[number]["id"], keyof typeof CATEGORY_IMAGE_SRC>
-> = {
-  vehicles: "transport",
-  real_estate: "real_estate",
-  electronics: "electronics",
-  home: "home",
-  services: "services",
-};
-
 function CategoryVisual({ category }: { category: HomeCategory }) {
   const [broken, setBroken] = useState(false);
-  const imageKey = IMAGE_KEY_BY_CATEGORY[category.id];
-  const image = imageKey ? CATEGORY_IMAGE_SRC[imageKey] : undefined;
+  const image = categoryImageFor(category.id);
   const Icon = category.icon;
 
+  // The Lucide icon is ONLY the broken/missing-image fallback — a healthy
+  // premium illustration must render an <img>.
   if (broken || !image) {
     return (
       <span className="inline-flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-xl bg-[var(--ds-brand-soft,#ecfdf5)] text-[var(--ds-brand)] sm:h-[5.25rem] sm:w-[5.25rem] lg:h-24 lg:w-24">
