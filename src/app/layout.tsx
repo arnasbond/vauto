@@ -35,45 +35,46 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
-  openGraph: {
-    type: "website",
-    locale: "lt_LT",
-    url: "/",
-    siteName: "VAUTO",
-    title: "VAUTO — AI skelbimai: NT, transportas, darbas ir paslaugos",
-    description:
-      "Parduokite ir raskite NT, techniką, paslaugas, darbą ir transportą visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija.",
-    images: [
-      {
-        url: "/icon-512.png",
-        width: 512,
-        height: 512,
-        alt: "VAUTO",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "VAUTO — AI skelbimai: NT, transportas, darbas ir paslaugos",
-    description:
-      "Parduokite ir raskite NT, techniką, paslaugas, darbą ir transportą visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija.",
-    images: ["/icon-512.png"],
-  },
-  other: {
-    google: "notranslate",
-  },
-  icons: {
-    icon: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
-    ],
-    apple: [{ url: "/icon-192.png", sizes: "192x192" }],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "VAUTO",
-  },
+openGraph: {
+type: "website",
+locale: "lt_LT",
+url: "/",
+siteName: "VAUTO",
+title: "VAUTO - AI skelbimai: NT, transportas, darbas ir paslaugos",
+description:
+"Parduokite ir raskite NT, technik�, paslaugas, darb� ir transport� visoje Lietuvoje. AI paruo�ia juodra�t� ir atrenka rezultatus - j�s patvirtinate. Kainos r��is yra rekomendacija.",
+images: [
+{
+url: "/og-1200x630.png",
+width: 1200,
+height: 630,
+alt: "VAUTO",
+},
+],
+},
+twitter: {
+card: "summary_large_image",
+title: "VAUTO - AI skelbimai: NT, transportas, darbas ir paslaugos",
+description:
+"Parduokite ir raskite NT, technik�, paslaugas, darb� ir transport� visoje Lietuvoje. AI paruo�ia juodra�t� ir atrenka rezultatus - j�s patvirtinate. Kainos r��is yra rekomendacija.",
+images: ["/og-1200x630.png"],
+},
+other: {
+google: "notranslate",
+},
+icons: {
+icon: [
+{ url: "/favicon.ico" },
+{ url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+{ url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+],
+apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+},
+appleWebApp: {
+capable: true,
+statusBarStyle: "black-translucent",
+title: "VAUTO",
+},
 };
 
 export const viewport: Viewport = {
@@ -81,7 +82,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: "#F4F7FC",
+  themeColor: "#0B1220",
 };
 
 /**
