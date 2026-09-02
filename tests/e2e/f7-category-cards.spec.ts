@@ -93,6 +93,59 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     expect(overflow).toBeLessThanOrEqual(1);
   });
 
+  test("desktop: 4×2 premium tinklelis — kortelės neperkreiptos, vaizdai telpa zonose", async ({
+    page,
+  }) => {
+    await openHome(page);
+    const grid = page.locator("[data-home-category-grid]");
+    await grid.scrollIntoViewIfNeeded();
+
+    // Premium multi-row layout: 4 columns × 2 rows — never 8 squeezed columns.
+    const cols = await page
+      .locator("[data-home-category-grid] li")
+      .first()
+      .evaluate((el) => getComputedStyle(el.parentElement!).gridTemplateColumns)
+      .then((t) => t.split(" ").length);
+    expect(cols).toBe(4);
+    const firstRowTops = await page
+      .locator("[data-home-category-grid] li")
+      .evaluateAll((els) =>
+        els.slice(0, 4).map((el) => Math.round(el.getBoundingClientRect().top))
+      );
+    const secondRowTops = await page
+      .locator("[data-home-category-grid] li")
+      .evaluateAll((els) =>
+        els.slice(4, 8).map((el) => Math.round(el.getBoundingClientRect().top))
+      );
+    expect(Math.max(...firstRowTops)).toBeLessThan(Math.min(...secondRowTops));
+
+    // No squeezed cards: every card keeps a healthy minimum width.
+    const widths = await page
+      .locator("[data-category-card]")
+      .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().width)));
+    for (const w of widths) expect(w).toBeGreaterThanOrEqual(160);
+
+    // Every image's bounding box fits inside its tile's image zone.
+    for (const id of ALL_CATEGORY_IDS) {
+      const tile = page.locator(`[data-category-card-id="${id}"]`);
+      const zone = tile.locator("[data-category-image-zone]");
+      const zoneBox = await zone.boundingBox();
+      const imgBox = await tile.locator("img").boundingBox();
+      expect(zoneBox).toBeTruthy();
+      expect(imgBox).toBeTruthy();
+      expect(imgBox!.x).toBeGreaterThanOrEqual(zoneBox!.x - 1);
+      expect(imgBox!.y).toBeGreaterThanOrEqual(zoneBox!.y - 1);
+      expect(imgBox!.x + imgBox!.width).toBeLessThanOrEqual(zoneBox!.x + zoneBox!.width + 1);
+      expect(imgBox!.y + imgBox!.height).toBeLessThanOrEqual(zoneBox!.y + zoneBox!.height + 1);
+    }
+
+    // No horizontal page overflow.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
+  });
+
   test("premium iliustracijos matomos light ir dark temose", async ({ page }) => {
     for (const theme of ["light", "dark"] as const) {
       await page.addInitScript((t) => {
@@ -453,10 +506,35 @@ test.describe("F7 — kortelių vientisumas (mobile)", () => {
         `${id} has a premium image on mobile`
       ).toHaveCount(1);
     }
+    // Mobile keeps 2 columns — never 8 squeezed.
+    const cols = await page
+      .locator("[data-home-category-grid] li")
+      .first()
+      .evaluate((el) => getComputedStyle(el.parentElement!).gridTemplateColumns)
+      .then((t) => t.split(" ").length);
+    expect(cols).toBe(2);
     const overflow = await page.evaluate(() => {
       const g = document.querySelector("[data-home-category-grid]");
       return g ? g.scrollWidth - g.clientWidth : 999;
     });
     expect(overflow).toBeLessThanOrEqual(1);
+
+    // The fixed bottom navigation must not PERMANENTLY cover the last
+    // category row: after scrolling the row to the center of the viewport
+    // it must sit fully above the nav (i.e. it can always be revealed).
+    const lastTile = page.locator("[data-category-card]").last();
+    await lastTile.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(150);
+    const clearance = await page.evaluate(() => {
+      const tile = document.querySelectorAll("[data-category-card]");
+      const nav = document.querySelector("[data-mobile-bottom-nav]");
+      const last = tile[tile.length - 1] as HTMLElement;
+      const navTop = nav ? (nav as HTMLElement).getBoundingClientRect().top : 0;
+      return navTop - last.getBoundingClientRect().bottom;
+    });
+    expect(
+      clearance,
+      "last category row must be fully revealable above the fixed bottom nav"
+    ).toBeGreaterThanOrEqual(-1);
   });
 });

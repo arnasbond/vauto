@@ -33,7 +33,10 @@ function CategoryVisual({ category }: { category: HomeCategory }) {
   }
 
   return (
-    <div className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 items-end justify-center sm:h-[5.25rem] sm:w-[5.25rem] lg:h-24 lg:w-24">
+    <div
+      data-category-image-zone
+      className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 items-end justify-center sm:h-[5.25rem] sm:w-[5.25rem] lg:h-24 lg:w-24"
+    >
       {/* Restrained grounding contact-shadow — an intentional, consistent
           "object on a surface" cue independent of each asset's own faint
           baked-in shadow, per MASTER's object-grounding depth cue. */}
@@ -58,14 +61,14 @@ function CategoryVisual({ category }: { category: HomeCategory }) {
 export function HomeCategoryGrid({ onSelect, className, counts }: HomeCategoryGridProps) {
   return (
     <div
-      className={cn("mt-4 w-full max-w-3xl", className)}
+      className={cn("mt-4 w-full max-w-4xl", className)}
       data-home-category-grid
     >
       <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[var(--ds-text-muted)]">
         Kategorijos
       </p>
       <ul
-        className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-8"
+        className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4"
         aria-label="Pagrindinės skelbimų kategorijos"
       >
         {HOME_CATEGORIES.map((category) => {
@@ -81,6 +84,8 @@ export function HomeCategoryGrid({ onSelect, className, counts }: HomeCategoryGr
                 the same card.
               */}
               <div
+                data-category-card
+                data-category-card-id={category.id}
                 className={cn(
                   "group relative flex h-full min-h-[8.25rem] w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl",
                   "border border-[var(--ds-border-subtle)] px-2 py-3 text-center",
@@ -112,15 +117,18 @@ export function HomeCategoryGrid({ onSelect, className, counts }: HomeCategoryGr
                   className="flex w-full flex-col items-center gap-2 rounded-xl outline-none focus-visible:shadow-[var(--ds-focus-ring-ai)]"
                 >
                   <CategoryVisual category={category} />
-                  <span className="text-[12px] font-semibold leading-tight text-[var(--ds-text-primary)]">
+                  {/* Titles wrap controllably (max 2 lines) so every card
+                      keeps the same height regardless of name length. */}
+                  <span className="line-clamp-2 min-h-[2.1rem] break-words text-[12px] font-semibold leading-tight text-[var(--ds-text-primary)]">
                     {category.label}
                   </span>
                 </button>
-                {typeof count === "number" && count > 0 ? (
-                  <span className="text-[10px] font-medium leading-tight text-[var(--ds-text-muted)]">
-                    {formatListingCount(count)}
-                  </span>
-                ) : null}
+                {/* Reserved count zone — uniform across cards with/without counts. */}
+                <span className="min-h-[1rem] text-[10px] font-medium leading-tight text-[var(--ds-text-muted)]">
+                  {typeof count === "number" && count > 0
+                    ? formatListingCount(count)
+                    : ""}
+                </span>
               </div>
             </li>
           );
