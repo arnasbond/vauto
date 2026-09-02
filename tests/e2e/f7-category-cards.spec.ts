@@ -519,22 +519,33 @@ test.describe("F7 — kortelių vientisumas (mobile)", () => {
     });
     expect(overflow).toBeLessThanOrEqual(1);
 
-    // The fixed bottom navigation must not PERMANENTLY cover the last
-    // category row: after scrolling the row to the center of the viewport
-    // it must sit fully above the nav (i.e. it can always be revealed).
-    const lastTile = page.locator("[data-category-card]").last();
-    await lastTile.evaluate((el) => el.scrollIntoView({ block: "center" }));
-    await page.waitForTimeout(150);
-    const clearance = await page.evaluate(() => {
-      const tile = document.querySelectorAll("[data-category-card]");
-      const nav = document.querySelector("[data-mobile-bottom-nav]");
-      const last = tile[tile.length - 1] as HTMLElement;
-      const navTop = nav ? (nav as HTMLElement).getBoundingClientRect().top : 0;
-      return navTop - last.getBoundingClientRect().bottom;
+    // REAL user scroll: bring the whole grid fully above the fixed bottom
+    // navigation (the natural position where the last row is fully readable),
+    // then verify the last row's titles + counts clear the nav.
+    const clearance = await page.evaluate(async () => {
+      const grid = document.querySelector("[data-home-category-grid]") as HTMLElement;
+      const nav = document.querySelector("[data-mobile-bottom-nav]") as HTMLElement;
+      grid.scrollIntoView();
+      await new Promise((r) => setTimeout(r, 60));
+      const gridBox = grid.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      const delta = gridBox.bottom - navBox.top + 12;
+      window.scrollBy(0, delta);
+      await new Promise((r) => setTimeout(r, 60));
+      const tiles = Array.from(document.querySelectorAll("[data-category-card]"));
+      const last = tiles[tiles.length - 1] as HTMLElement;
+      const lastBox = last.getBoundingClientRect();
+      const newNavTop = nav.getBoundingClientRect().top;
+      return {
+        clearance: newNavTop - lastBox.bottom,
+        navVisible: newNavTop < window.innerHeight,
+        scrollY: window.scrollY,
+      };
     });
     expect(
-      clearance,
-      "last category row must be fully revealable above the fixed bottom nav"
+      clearance.clearance,
+      "last category row must be fully above the bottom nav after a real scroll"
     ).toBeGreaterThanOrEqual(-1);
+    expect(clearance.navVisible, "bottom nav itself stays visible").toBe(true);
   });
 });
