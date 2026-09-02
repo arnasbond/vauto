@@ -14,7 +14,9 @@ import { optionalAuth } from "../../middleware/auth.js";
 import {
   bulkListingsRouter,
   setBulkExecutorsForTests,
+  setBulkStoreForTests,
 } from "../bulk-listings.js";
+import { createInMemoryBulkOperationStore } from "../../ai/bulk/bulk-store.js";
 import {
   BULK_OPERATIONS,
   buildBulkProposal,
@@ -57,6 +59,7 @@ const SAVED_ENV = { NODE_ENV: process.env.NODE_ENV, VAUTO_ENABLE_BULK_LISTING_OP
 
 afterEach(() => {
   setBulkExecutorsForTests(null);
+  setBulkStoreForTests(null);
   if (SAVED_ENV.NODE_ENV === undefined) delete process.env.NODE_ENV;
   else process.env.NODE_ENV = SAVED_ENV.NODE_ENV;
   if (SAVED_ENV.VAUTO_ENABLE_BULK_LISTING_OPS === undefined) delete process.env.VAUTO_ENABLE_BULK_LISTING_OPS;
@@ -398,6 +401,7 @@ describe("F6.1 — bulk-listing core (pure)", () => {
 describe("F6.1 — bulk-listing HTTP boundary (preview → confirm)", () => {
   beforeEach(() => {
     setBulkExecutorsForTests(null);
+    setBulkStoreForTests(createInMemoryBulkOperationStore());
   });
 
   it("preview lists own items; foreign ids surface as warnings, never executable", async () => {
@@ -574,7 +578,12 @@ describe("F6.1 — bulk-listing HTTP boundary (preview → confirm)", () => {
       });
     assert.equal(replay.status, 200);
     assert.equal(replay.body.executed, false);
-    assert.ok(replay.body.outcomes.every((o: { status: string }) => o.status === "skipped"));
+    assert.equal(replay.body.replayed, true, "durable replay returns the saved result");
+    assert.deepEqual(
+      replay.body.outcomes.map((o: { status: string }) => o.status),
+      ["success", "success"],
+      "saved outcomes are returned, not a re-execution"
+    );
     assert.deepEqual(applied, ["l-1", "l-2"], "no double execution");
   });
 
