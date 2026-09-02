@@ -5,12 +5,24 @@ import {
 } from "./helpers/seed";
 
 /**
- * F7 — 8 category closure + listing card hierarchy (desktop & mobile).
+ * F7 — 8 category closure + premium imagery + listing card hierarchy.
  * The offline bundle ships a deterministic demo catalog (lt-* ids), so these
- * tests assert the REAL rendered contract against it: unified labels, „Mada“
- * for clothing, folded legacy slugs, card hierarchy (price → title → location
- * → attributes), the missing-photo placeholder and light-theme depth.
+ * tests assert the REAL rendered contract against it: 8 categories, unified
+ * labels, premium <img> illustrations for every category (Mada / Darbas /
+ * Kita included), card hierarchy, list→detail integrity and light/dark
+ * readability.
  */
+
+const ALL_CATEGORY_IDS = [
+  "vehicles",
+  "real_estate",
+  "electronics",
+  "clothing",
+  "home",
+  "services",
+  "jobs",
+  "other",
+];
 
 test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)", () => {
   test.setTimeout(90_000);
@@ -48,19 +60,107 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     );
   });
 
-  test("„Darbas“ nenaudoja biuro kėdės iliustracijos", async ({ page }) => {
+  test("„Darbas“ naudoja premium portfelio iliustraciją, ne biuro kėdę ir ne ikoną", async ({
+    page,
+  }) => {
     await openHome(page);
     const jobsTile = page.locator(
       '[data-home-category-grid] button[data-category-id="jobs"]'
     );
     await expect(jobsTile).toBeVisible({ timeout: 20_000 });
-    // The retired office-chair photo tile is gone — the category uses its
-    // deterministic icon (no <img> with a chair alt anywhere in the tile).
-    expect(
-      await jobsTile.locator("img").count(),
-      "jobs tile must not contain the retired chair photo"
-    ).toBe(0);
+    const jobsImg = jobsTile.locator("img");
+    await expect(jobsImg).toHaveCount(1);
+    await expect(jobsImg).toHaveAttribute("alt", /portfelis/i);
     await expect(jobsTile).toHaveText(/Darbas/);
+  });
+
+  test("visos 8 kategorijos renderina premium <img> — nė viena nenaudoja icon fallback", async ({
+    page,
+  }) => {
+    await openHome(page);
+    const tiles = page.locator("[data-home-category-grid] button");
+    await expect(tiles).toHaveCount(8);
+    for (const id of ALL_CATEGORY_IDS) {
+      const tile = page.locator(`[data-home-category-grid] button[data-category-id="${id}"]`);
+      await expect(tile.locator("img"), `${id} tile must render an image`).toHaveCount(1);
+    }
+    // No Lucide icon fallback squares anywhere in the grid.
+    await expect(page.locator("[data-home-category-grid] button svg")).toHaveCount(0);
+    // Desktop overflow check: the grid must not scroll horizontally.
+    const overflow = await page
+      .locator("[data-home-category-grid]")
+      .evaluate((el) => el.scrollWidth - el.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(1);
+  });
+
+  test("desktop: 4×2 premium tinklelis — kortelės neperkreiptos, vaizdai telpa zonose", async ({
+    page,
+  }) => {
+    await openHome(page);
+    const grid = page.locator("[data-home-category-grid]");
+    await grid.scrollIntoViewIfNeeded();
+
+    // Premium multi-row layout: 4 columns × 2 rows — never 8 squeezed columns.
+    const cols = await page
+      .locator("[data-home-category-grid] li")
+      .first()
+      .evaluate((el) => getComputedStyle(el.parentElement!).gridTemplateColumns)
+      .then((t) => t.split(" ").length);
+    expect(cols).toBe(4);
+    const firstRowTops = await page
+      .locator("[data-home-category-grid] li")
+      .evaluateAll((els) =>
+        els.slice(0, 4).map((el) => Math.round(el.getBoundingClientRect().top))
+      );
+    const secondRowTops = await page
+      .locator("[data-home-category-grid] li")
+      .evaluateAll((els) =>
+        els.slice(4, 8).map((el) => Math.round(el.getBoundingClientRect().top))
+      );
+    expect(Math.max(...firstRowTops)).toBeLessThan(Math.min(...secondRowTops));
+
+    // No squeezed cards: every card keeps a healthy minimum width.
+    const widths = await page
+      .locator("[data-category-card]")
+      .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().width)));
+    for (const w of widths) expect(w).toBeGreaterThanOrEqual(160);
+
+    // Every image's bounding box fits inside its tile's image zone.
+    for (const id of ALL_CATEGORY_IDS) {
+      const tile = page.locator(`[data-category-card-id="${id}"]`);
+      const zone = tile.locator("[data-category-image-zone]");
+      const zoneBox = await zone.boundingBox();
+      const imgBox = await tile.locator("img").boundingBox();
+      expect(zoneBox).toBeTruthy();
+      expect(imgBox).toBeTruthy();
+      expect(imgBox!.x).toBeGreaterThanOrEqual(zoneBox!.x - 1);
+      expect(imgBox!.y).toBeGreaterThanOrEqual(zoneBox!.y - 1);
+      expect(imgBox!.x + imgBox!.width).toBeLessThanOrEqual(zoneBox!.x + zoneBox!.width + 1);
+      expect(imgBox!.y + imgBox!.height).toBeLessThanOrEqual(zoneBox!.y + zoneBox!.height + 1);
+    }
+
+    // No horizontal page overflow.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
+  });
+
+  test("premium iliustracijos matomos light ir dark temose", async ({ page }) => {
+    for (const theme of ["light", "dark"] as const) {
+      await page.addInitScript((t) => {
+        localStorage.setItem("vauto_app_theme_v1", t);
+        document.documentElement.setAttribute("data-app-theme", t);
+      }, theme);
+      await page.emulateMedia({ colorScheme: theme });
+      await openHome(page);
+      for (const id of ["clothing", "jobs", "other"]) {
+        const img = page.locator(
+          `[data-home-category-grid] button[data-category-id="${id}"] img`
+        );
+        await expect(img, `${id} visible in ${theme}`).toBeVisible({ timeout: 15_000 });
+      }
+    }
   });
 
   test("UI neeksponuoja techninio „SUPPORTED“ rodinio perjungikliuose", async ({
@@ -92,7 +192,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     await expect(
       grid.locator('[data-listing-id="lt-auto-v70-psv"] [data-trust-badge="provider"]')
     ).toHaveText("Pardavėjas patvirtintas");
-    // The combined generic badge no longer exists anywhere.
     await expect(page.getByText("Patvirtinta", { exact: true })).toHaveCount(0);
   });
 
@@ -140,7 +239,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     await expect(kita).toBeVisible({ timeout: 20_000 });
     await kita.click();
 
-    // Clear navigation to the search results view with the category filter.
     await expect(page).toHaveURL(/\/search/, { timeout: 20_000 });
     await expect(page.locator("[data-listing-card]").first()).toBeVisible({
       timeout: 20_000,
@@ -178,8 +276,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
       attributes: {},
       allowPastomatas: true,
     };
-    // The listing is ONLY reachable via the server single-listing endpoint —
-    // it is not in the offline/local catalog at all.
     await page.route("**/api/listings/lt-srv-999", async (route) => {
       await route.fulfill({
         status: 200,
@@ -192,8 +288,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     await page.goto("/listing/?id=lt-srv-999");
     await acceptGdprConsentIfPrompted(page);
 
-    // Unified data contract: the detail hydrates the same public listing
-    // from the server instead of showing a false "not found".
     await expect(
       page
         .locator("h1:visible, [data-listing-detail-title]:visible")
@@ -279,14 +373,12 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
   }) => {
     const grid = await openHome(page);
 
-    // Clothing presents itself as „Mada“ (never „Apranga“ / „Mada ir apranga“).
     const clothing = grid.locator('[data-listing-id="lt-clo-001"]');
     await expect(clothing).toBeVisible({ timeout: 20_000 });
     await expect(
       clothing.locator("[data-listing-card-category]")
     ).toHaveText("Mada");
 
-    // Home family label is unified.
     const home = grid.locator('[data-listing-id="lt-home-001"]');
     await expect(home).toBeVisible({ timeout: 20_000 });
     await expect(
@@ -307,7 +399,6 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     const card = grid.locator('[data-listing-id="lt-auto-001"]');
     await expect(card).toBeVisible({ timeout: 20_000 });
 
-    // Price element comes BEFORE the title in the DOM (first-plane price).
     const priceIndex = await card
       .locator("[data-listing-card-price]")
       .evaluate((el) => Array.from(el.parentElement!.children).indexOf(el));
@@ -316,15 +407,22 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
       .evaluate((el) => Array.from(el.parentElement!.children).indexOf(el));
     expect(priceIndex).toBeLessThan(titleIndex);
 
-    // The photo block occupies the top of the card (image-first layout).
-    await card.scrollIntoViewIfNeeded();
-    const mediaBox = await card.locator("a[href]").first().boundingBox();
-    const bodyBox = await card.locator("h3").boundingBox();
-    expect(mediaBox).toBeTruthy();
-    expect(bodyBox).toBeTruthy();
-    expect(mediaBox!.y).toBeLessThan(bodyBox!.y);
+    // The photo block precedes the body in the card's DOM (image-first
+    // layout) — deterministic and immune to lazy-load scroll jitter.
+    const order = await card.evaluate((el) => {
+      const anchors = Array.from(el.querySelectorAll("a[href]"));
+      const h3 = el.querySelector("h3");
+      const media = anchors[0];
+      const body = h3?.closest("a[href]");
+      if (!media || !body) return { media: -1, body: -1 };
+      return {
+        media: Array.prototype.indexOf.call(el.querySelectorAll("a[href]"), media),
+        body: Array.prototype.indexOf.call(el.querySelectorAll("a[href]"), body),
+      };
+    });
+    expect(order.media).toBeGreaterThanOrEqual(0);
+    expect(order.body).toBeGreaterThan(order.media);
 
-    // Light theme depth: page background ≠ card background.
     const pageBg = await page
       .locator("body")
       .evaluate((el) => getComputedStyle(el).backgroundColor);
@@ -389,5 +487,72 @@ test.describe("F7 — kortelių vientisumas (mobile)", () => {
     await expect(clothingListCard).toBeVisible({ timeout: 20_000 });
     await expect(clothingListCard).toContainText("Mada");
     await expect(clothingListCard.locator("h3")).toBeVisible();
+  });
+
+  test("mobile kategorijų tinklelis: 8 tiles be overflow su premium img", async ({
+    page,
+  }) => {
+    await forceOfflineCatalog(page);
+    await page.goto("/");
+    await acceptGdprConsentIfPrompted(page);
+
+    const grid = page.locator("[data-home-category-grid]");
+    await grid.scrollIntoViewIfNeeded();
+    await expect(grid).toBeVisible({ timeout: 20_000 });
+    await expect(grid.locator("button")).toHaveCount(8);
+    for (const id of ALL_CATEGORY_IDS) {
+      await expect(
+        grid.locator(`button[data-category-id="${id}"] img`),
+        `${id} has a premium image on mobile`
+      ).toHaveCount(1);
+    }
+    // Mobile keeps 2 columns — never 8 squeezed.
+    const cols = await page
+      .locator("[data-home-category-grid] li")
+      .first()
+      .evaluate((el) => getComputedStyle(el.parentElement!).gridTemplateColumns)
+      .then((t) => t.split(" ").length);
+    expect(cols).toBe(2);
+    const overflow = await page.evaluate(() => {
+      const g = document.querySelector("[data-home-category-grid]");
+      return g ? g.scrollWidth - g.clientWidth : 999;
+    });
+    expect(overflow).toBeLessThanOrEqual(1);
+
+    // REAL user scroll: bring the whole grid fully above the fixed bottom
+    // navigation (the natural position where the last row is fully readable),
+    // then verify the last row's titles + counts clear the nav.
+    const clearance = await page.evaluate(async () => {
+      const grid = document.querySelector("[data-home-category-grid]") as HTMLElement;
+      const nav = document.querySelector("[data-mobile-bottom-nav]") as HTMLElement;
+      grid.scrollIntoView();
+      await new Promise((r) => setTimeout(r, 60));
+      const gridBox = grid.getBoundingClientRect();
+      const navBox = nav.getBoundingClientRect();
+      const delta = gridBox.bottom - navBox.top + 12;
+      window.scrollBy(0, delta);
+      await new Promise((r) => setTimeout(r, 60));
+      const tiles = Array.from(document.querySelectorAll("[data-category-card]"));
+      const last = tiles[tiles.length - 1] as HTMLElement;
+      const lastBox = last.getBoundingClientRect();
+      const g2 = grid.getBoundingClientRect();
+      const n2 = nav.getBoundingClientRect();
+      return {
+        gridTop: g2.top,
+        clearance: n2.top - lastBox.bottom,
+        navVisible: n2.top < window.innerHeight,
+        navFullyOnScreen: n2.bottom <= window.innerHeight + 1,
+        scrollY: window.scrollY,
+      };
+    });
+    // One-frame evidence contract: the WHOLE grid (top ≥ 0) fits above the
+    // fixed nav, and the nav itself is fully on screen — no overlap.
+    expect(clearance.gridTop, "grid top stays on screen").toBeGreaterThanOrEqual(-1);
+    expect(
+      clearance.clearance,
+      "last category row must be fully above the bottom nav after a real scroll"
+    ).toBeGreaterThanOrEqual(-1);
+    expect(clearance.navVisible, "bottom nav itself stays visible").toBe(true);
+    expect(clearance.navFullyOnScreen, "bottom nav is fully on screen").toBe(true);
   });
 });

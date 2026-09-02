@@ -44,6 +44,8 @@ export const CATEGORY_IMAGE_FILES = [
   "category-services.png",
   "category-jobs.png",
   "category-home-garden.png",
+  "category-clothing.png",
+  "category-other.png",
 ];
 
 function isBackgroundLike(r, g, b) {
@@ -174,7 +176,10 @@ async function processOne(file) {
 
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
-  for (const f of CATEGORY_IMAGE_FILES) {
+  // Optional CLI filter: node scripts/process-category-images.mjs category-clothing.png ...
+  const targets =
+    process.argv.slice(2).length > 0 ? process.argv.slice(2) : CATEGORY_IMAGE_FILES;
+  for (const f of targets) {
     await processOne(f);
   }
 }

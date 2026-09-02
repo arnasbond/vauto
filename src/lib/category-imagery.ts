@@ -1,26 +1,23 @@
-import type { MarketplaceVerticalId } from "@/lib/marketplace-verticals";
+import type { VisibleCategoryId } from "@vauto/shared/category-registry";
 
 /**
- * MASTER Wave 2 correction — category-card visual language.
+ * F7 Premium Category Imagery — VAUTO-owned flat premium product
+ * illustrations for ALL 8 visible marketplace categories.
  *
- * Restrained, VAUTO-owned flat-illustration object imagery for the canonical
- * verticals (converging toward docs/design-reference/chatgpt-visual-baseline).
- * Source originals: assets/categories-source/*.png (regenerate served assets
- * via `node scripts/process-category-images.mjs`). Served as small, optimized,
- * transparent-background WebP tiles so they read correctly on both LIGHT and
- * DARK category cards, with a PNG fallback for non-WebP contexts.
+ * Contract: isolated object on a TRANSPARENT background, centered, soft
+ * contact shadow, no text/logos/people/scene, no green card background, no
+ * gradient backdrop, nothing clipped, readable in LIGHT and DARK themes.
  *
- * F7: the JOBS vertical intentionally has NO photo illustration — the old
- * "office chair" tile is retired and the category falls back to its
- * deterministic icon (a job is not an office chair).
+ * Source originals: assets/categories-source/*.png (regenerate served
+ * assets via `node scripts/process-category-images.mjs` for the six
+ * photorealistic originals and `node scripts/generate-category-illustrations.mjs`
+ * for the three F7 flat-premium additions — Mada, Darbas, Kita).
  */
-export const CATEGORY_IMAGE_SRC: Partial<
-  Record<
-    MarketplaceVerticalId,
-    { webp: string; webp2x: string; png: string; alt: string }
-  >
+export const CATEGORY_IMAGE_SRC: Record<
+  VisibleCategoryId,
+  { webp: string; webp2x: string; png: string; alt: string }
 > = {
-  transport: {
+  vehicles: {
     webp: "/images/categories/category-transport.webp",
     webp2x: "/images/categories/category-transport@2x.webp",
     png: "/images/categories/category-transport.png",
@@ -38,11 +35,11 @@ export const CATEGORY_IMAGE_SRC: Partial<
     png: "/images/categories/category-electronics.png",
     alt: "Elektronikos kategorijos iliustracija — nešiojamas kompiuteris",
   },
-  services: {
-    webp: "/images/categories/category-services.webp",
-    webp2x: "/images/categories/category-services@2x.webp",
-    png: "/images/categories/category-services.png",
-    alt: "Paslaugų kategorijos iliustracija — įrankis",
+  clothing: {
+    webp: "/images/categories/category-clothing.webp",
+    webp2x: "/images/categories/category-clothing@2x.webp",
+    png: "/images/categories/category-clothing.png",
+    alt: "Mados kategorijos iliustracija — kreminis megztinis ant pakabos",
   },
   home: {
     webp: "/images/categories/category-home-garden.webp",
@@ -50,4 +47,29 @@ export const CATEGORY_IMAGE_SRC: Partial<
     png: "/images/categories/category-home-garden.png",
     alt: "Namų ir buities kategorijos iliustracija — namas su augalu",
   },
+  services: {
+    webp: "/images/categories/category-services.webp",
+    webp2x: "/images/categories/category-services@2x.webp",
+    png: "/images/categories/category-services.png",
+    alt: "Paslaugų kategorijos iliustracija — įrankis",
+  },
+  jobs: {
+    webp: "/images/categories/category-jobs.webp",
+    webp2x: "/images/categories/category-jobs@2x.webp",
+    png: "/images/categories/category-jobs.png",
+    alt: "Darbo kategorijos iliustracija — odinis dokumentų portfelis",
+  },
+  other: {
+    webp: "/images/categories/category-other.webp",
+    webp2x: "/images/categories/category-other@2x.webp",
+    png: "/images/categories/category-other.png",
+    alt: "Kitos kategorijos iliustracija — kartoninė siuntos dėžė",
+  },
 };
+
+/** Premium imagery for a visible category (undefined only for broken files). */
+export function categoryImageFor(
+  id: VisibleCategoryId
+): { webp: string; webp2x: string; png: string; alt: string } | undefined {
+  return CATEGORY_IMAGE_SRC[id];
+}
