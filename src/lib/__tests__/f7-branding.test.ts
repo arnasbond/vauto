@@ -93,4 +93,58 @@ describe("F7 — branding closure (web/PWA)", () => {
     );
     assert.ok(!/gradient/i.test(splash));
   });
+
+  it("layout metadata contains NO U+FFFD replacement characters", () => {
+    const layout = readFileSync(p("src/app/layout.tsx"), "utf8");
+    assert.equal(
+      layout.includes("\uFFFD"),
+      false,
+      "no Unicode replacement symbols in metadata"
+    );
+    assert.ok(layout.includes("juodraštį"));
+    assert.ok(layout.includes("transportą"));
+    assert.ok(layout.includes("Kainos rėžis"));
+  });
+
+  it("horizontal lockup keeps the whole icon + wordmark inside its viewBox", () => {
+    const lockup = readFileSync(p("assets/brand/vauto-lockup.svg"), "utf8");
+    const vb = lockup.match(/viewBox="([^"]+)"/)?.[1]?.split(/\s+/).map(Number) ?? [];
+    assert.equal(vb.length, 4);
+    const [w, h] = [vb[2]!, vb[3]!];
+    // Wordmark: translate(82 y) + width 150 must end exactly at the canvas edge.
+    const word = lockup.match(/<g transform="translate\((\d+(?:\.\d+)?) (\d+(?:\.\d+)?)\) scale\(([^)]+)\)" fill="none"/);
+    assert.ok(word, "wordmark group present");
+    const wordX = Number(word![1]);
+    const wordScale = Number(word![3]);
+    // The wordmark was fitted to exactly 150 units wide (viewBox − icon − gap).
+    assert.ok(wordX + 150 * wordScale <= w + 0.6, "wordmark fits horizontally");
+    assert.ok(72 * wordScale <= h + 0.6, "wordmark fits vertically");
+    // Icon group is scaled INTO the canvas: 96 * iconScale ≤ canvas width.
+    const icon = lockup.match(/<g transform="translate\(0 (\d+(?:\.\d+)?)\) scale\(([^)]+)\)">/);
+    assert.ok(icon, "icon group present");
+    assert.ok(96 * Number(icon![2]) <= w + 0.6, "icon square fits the canvas");
+  });
+
+  it("OG composition keeps the mark and the wordmark separated and inside 1200x630", () => {
+    const og = readFileSync(p("assets/brand/vauto-og.svg"), "utf8");
+    const groups = [...og.matchAll(/<g transform="translate\(([^)]+)\) scale\(([^)]+)\)">/g)];
+    assert.equal(groups.length, 2);
+    const mark = {
+      x: Number(groups[0]![1].split(/[,\s]+/)[0]),
+      y: Number(groups[0]![1].split(/[,\s]+/)[1]),
+      s: Number(groups[0]![2]),
+    };
+    const word = {
+      x: Number(groups[1]![1].split(/[,\s]+/)[0]),
+      y: Number(groups[1]![1].split(/[,\s]+/)[1]),
+      s: Number(groups[1]![2]),
+    };
+    const markBottom = mark.y + 72 * mark.s;
+    assert.ok(mark.x >= 0 && mark.x + 96 * mark.s <= 1200, "mark inside width");
+    assert.ok(word.y + 72 * word.s <= 630, "wordmark inside height");
+    assert.ok(
+      markBottom <= word.y,
+      `mark (bottom ${markBottom}) must not overlap wordmark (top ${word.y})`
+    );
+  });
 });

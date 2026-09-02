@@ -40,9 +40,9 @@ type: "website",
 locale: "lt_LT",
 url: "/",
 siteName: "VAUTO",
-title: "VAUTO - AI skelbimai: NT, transportas, darbas ir paslaugos",
+title: "VAUTO — AI skelbimai: NT, transportas, darbas ir paslaugos",
 description:
-"Parduokite ir raskite NT, technik�, paslaugas, darb� ir transport� visoje Lietuvoje. AI paruo�ia juodra�t� ir atrenka rezultatus - j�s patvirtinate. Kainos r��is yra rekomendacija.",
+  "Parduokite ir raskite NT, techniką, paslaugas, darbą ir transportą visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija.",
 images: [
 {
 url: "/og-1200x630.png",
@@ -54,9 +54,9 @@ alt: "VAUTO",
 },
 twitter: {
 card: "summary_large_image",
-title: "VAUTO - AI skelbimai: NT, transportas, darbas ir paslaugos",
+title: "VAUTO — AI skelbimai: NT, transportas, darbas ir paslaugos",
 description:
-"Parduokite ir raskite NT, technik�, paslaugas, darb� ir transport� visoje Lietuvoje. AI paruo�ia juodra�t� ir atrenka rezultatus - j�s patvirtinate. Kainos r��is yra rekomendacija.",
+  "Parduokite ir raskite NT, techniką, paslaugas, darbą ir transportą visoje Lietuvoje. AI paruošia juodraštį ir atrenka rezultatus — jūs patvirtinate. Kainos rėžis yra rekomendacija.",
 images: ["/og-1200x630.png"],
 },
 other: {

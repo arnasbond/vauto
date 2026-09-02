@@ -12,16 +12,13 @@ import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 import {
   BRAND,
-  ICON_MARK_FIT,
-  ICON_SQUARE,
-  MARK_HALF_A,
-  MARK_HALF_B,
+  MARK_COLORS,
   iconSvg,
   lockupSvg,
   markMonoSvg,
   markSvg,
-  wordmarkSvg,
 } from "./brand-geometry.mjs";
+import { buildOgSvg, buildSheetSvg } from "./brand-compositions.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..", "..");
@@ -49,8 +46,9 @@ const pngExact = (svg, w, h) =>
     .toBuffer();
 
 // ---- canonical SVGs (committed assets) -------------------------------
-const markLight = markSvg({ a: BRAND.white, b: BRAND.emeraldLight });
-const markDark = markSvg({ a: BRAND.white, b: BRAND.emeraldDark });
+// Standalone marks: LIGHT file is for a WHITE surface, DARK file for NAVY.
+const markLight = markSvg(MARK_COLORS.light);
+const markDark = markSvg(MARK_COLORS.dark);
 const iconAny = iconSvg({ bg: BRAND.navy, a: BRAND.white, b: BRAND.emeraldLight });
 const iconMaskable = iconSvg({
   bg: BRAND.navy,
@@ -98,6 +96,7 @@ out("public/favicon.ico", packIco(favSizes, favPngs));
 
 // OG 1200x630: flat navy plate, V mark + geometric wordmark.
 const ogSvg = buildOgSvg();
+out("assets/brand/vauto-og.svg", Buffer.from(ogSvg));
 out("public/og-1200x630.png", await pngExact(ogSvg, 1200, 630));
 
 // ---- Android ----------------------------------------------------------
@@ -165,74 +164,11 @@ out("android/app/src/main/res/drawable/splash.png", await png(iconMaskable, 192)
 
 // ---- Contact sheet for the Atlas brand audit --------------------------
 console.log("Writing brand contact sheet…");
-out("docs/branding/vauto-brand-contact-sheet.png", await pngExact(buildSheetSvg(), 1280, 900));
+const sheetSvg = buildSheetSvg();
+out("docs/branding/vauto-brand-contact-sheet.svg", Buffer.from(sheetSvg));
+out("docs/branding/vauto-brand-contact-sheet.png", await pngExact(sheetSvg, 1280, 900));
 
 console.log("Done.");
-
-function buildOgSvg() {
-  const word = wordmarkSvg("#FFFFFF");
-  const inner = word.replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "");
-  const wordWidth = 224;
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">` +
-    `<rect width="1200" height="630" fill="${BRAND.navy}"/>` +
-    `<g transform="translate(504 180) scale(4)">` +
-    `<polygon points="${MARK_HALF_A}" fill="${BRAND.white}"/>` +
-    `<polygon points="${MARK_HALF_B}" fill="${BRAND.emeraldLight}"/>` +
-    `</g>` +
-    `<g transform="translate(${(1200 - wordWidth) / 2} 400)">${inner}</g>` +
-    `</svg>`
-  );
-}
-
-function buildSheetSvg() {
-  const iconInner = iconSvg({ bg: BRAND.navy, a: "#FFFFFF", b: "#10B981" })
-    .replace(/^<svg[^>]*>/, "")
-    .replace(/<\/svg>$/, "");
-  const lockupLightInner = lockupLight
-    .replace(/^<svg[^>]*>/, "")
-    .replace(/<\/svg>$/, "");
-  const lockupDarkInner = lockupDark
-    .replace(/^<svg[^>]*>/, "")
-    .replace(/<\/svg>$/, "");
-  const markInner = (a, b) =>
-    `<polygon points="${MARK_HALF_A}" fill="${a}"/><polygon points="${MARK_HALF_B}" fill="${b}"/>`;
-
-  let sizes = "";
-  const ladder = [16, 32, 48, 180, 192, 512, 1024];
-  ladder.forEach((s, i) => {
-    const x = 40 + i * 165;
-    const disp = s > 128 ? 0.75 : s <= 48 ? 2.2 : 1.1;
-    sizes +=
-      `<g transform="translate(${x} 430) scale(${disp})">${iconInner}</g>` +
-      `<text x="${x + 45}" y="560" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#5B6578">${s}×${s}</text>`;
-  });
-
-  return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 900">` +
-    `<rect width="1280" height="900" fill="#F3F5F9"/>` +
-    `<text x="40" y="56" font-family="sans-serif" font-size="28" font-weight="700" fill="#0B1220">VAUTO brand — F7 canonical set</text>` +
-    // Light mark on white
-    `<g transform="translate(40 90)"><rect width="280" height="220" rx="16" fill="#FFFFFF" stroke="#D7DFEB"/><g transform="translate(92 78) scale(2.1)">${markInner("#FFFFFF", "#10B981")}</g></g>` +
-    `<text x="180" y="348" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#5B6578">V mark (light)</text>` +
-    // Dark mark on navy
-    `<g transform="translate(360 90)"><rect width="280" height="220" rx="16" fill="#0B1220"/><g transform="translate(452 156) scale(2.1)">${markInner("#FFFFFF", "#34D399")}</g></g>` +
-    `<text x="500" y="348" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#5B6578">V mark (dark)</text>` +
-    // App icon + maskable
-    `<g transform="translate(680 90) scale(2.05)">${iconInner}</g>` +
-    `<text x="778" y="330" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#5B6578">App icon</text>` +
-    `<g transform="translate(940 90) scale(2.05)">${iconSvg({ bg: BRAND.navy, a: "#FFFFFF", b: "#10B981", maskable: true }).replace(/^<svg[^>]*>/, "").replace(/<\/svg>$/, "")}</g>` +
-    `<text x="1038" y="330" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#5B6578">Maskable</text>` +
-    `<text x="40" y="410" font-family="sans-serif" font-size="16" font-weight="600" fill="#0B1220">Size ladder (16 → 1024)</text>` +
-    sizes +
-    // Lockups
-    `<g transform="translate(40 620) scale(1.6)">${lockupLightInner}</g>` +
-    `<text x="40" y="700" font-family="sans-serif" font-size="14" fill="#5B6578">Lockup — light</text>` +
-    `<g transform="translate(40 730) scale(1.6)">${lockupDarkInner}</g>` +
-    `<text x="40" y="812" font-family="sans-serif" font-size="14" fill="#5B6578">Lockup — dark</text>` +
-    `</svg>`
-  );
-}
 
 /** Minimal ICO container: PNG-compressed entries for the given sizes. */
 function packIco(sizes, pngs) {
