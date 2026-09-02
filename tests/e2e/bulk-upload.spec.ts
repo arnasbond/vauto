@@ -1,79 +1,160 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import {
   acceptGdprConsentIfPrompted,
   forceOfflineCatalog,
   seedProUser,
 } from "./helpers/seed";
 
-async function mountBulkUploadHarness(page: Page) {
-  // Mirrors src/components/dashboard/BulkUploadCard.tsx (demo XML import contract).
-  await page.setContent(`
-    <html><body>
-      <section class="bulk-upload">
-        <p>Bulk Upload / API XML</p>
-        <h2>Įkelkite 100+ skelbimų vienu veiksmu</h2>
-        <pre>&lt;listing&gt;&lt;title&gt;VW Golf 2019&lt;/title&gt;&lt;/listing&gt;</pre>
-        <button type="button" id="import">Testuoti demo importą</button>
-        <p id="result" hidden></p>
-      </section>
-      <script>
-        document.getElementById('import').onclick = () => {
-          const el = document.getElementById('result');
-          el.hidden = false;
-          el.textContent = 'Demo feed apdorotas: 12 skelbimų paruošta publikavimui, 2 reikalauja VIN patikros.';
-        };
-      </script>
-    </body></html>
-  `);
-}
+/**
+ * F6 Final — real CSV/XML import card (replaces the demo BulkUploadCard).
+ *
+ * The card NEVER fabricates an import result: the server preview response is
+ * the only truth and `importEnabled` is fail-closed OFF. These tests assert
+ * the honest contract end-to-end with a locally-mocked preview endpoint
+ * (Playwright route interception — no request ever leaves the machine).
+ */
 
-test.describe("Enterprise — masinis įkėlimas (Bulk Upload)", () => {
+const PREVIEW_RESPONSE = {
+  ok: true,
+  importEnabled: false,
+  source: "csv",
+  columns: ["title", "price", "category", "location"],
+  mapping: [
+    { column: "title", field: "title", ignored: false },
+    { column: "price", field: "price", ignored: false },
+    { column: "category", field: "category", ignored: false },
+    { column: "location", field: "location", ignored: false },
+  ],
+  rows: [
+    {
+      line: 2,
+      verdict: "ok",
+      errors: [],
+      warnings: [],
+      ignoredFields: [],
+      title: "Volvo V70",
+      price: 10900,
+      category: "vehicles",
+      location: "Vilnius",
+    },
+  ],
+  summary: {
+    total: 1,
+    ok: 1,
+    warnings: 0,
+    errors: 0,
+    byCategory: { vehicles: 1 },
+  },
+  reportText: "VAUTO masinio importo ataskaita\r\nSantrauka: 1 eilučių — tinkamos: 1.",
+  note: "Importas patenka tik į juodraščių būseną ir niekada nepublikuojamas automatiškai.",
+};
+
+test.describe("Enterprise — masinis įkėlimas (F6 real import card)", () => {
   test.setTimeout(90_000);
   test.use({ viewport: { width: 1100, height: 900 } });
 
-  test("demo XML importas paruošia skelbimus publikavimui (BulkUpload kontraktas)", async ({
-    page,
-  }) => {
-    await mountBulkUploadHarness(page);
-    await expect(page.getByText(/Bulk Upload \/ API XML/i)).toBeVisible();
-    await page.getByRole("button", { name: /Testuoti demo importą/i }).click();
-    await expect(
-      page.getByText(/Demo feed apdorotas: 12 skelbimų/i)
-    ).toBeVisible();
-    await expect(page.getByText(/2 reikalauja VIN patikros/i)).toBeVisible();
-  });
-
-  test("galiojimo patikra: importo santrauka lieka matoma po scroll", async ({
-    page,
-  }) => {
-    await mountBulkUploadHarness(page);
-    await page.getByRole("button", { name: /Testuoti demo importą/i }).click();
-    const summary = page.getByText(/12 skelbimų paruošta publikavimui/i);
-    await expect(summary).toBeVisible();
-    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await expect(summary).toBeVisible();
-  });
-
-  test("Pro kabinete yra Kainodara skirtukas (BulkUpload host)", async ({
+  test("Pro kabinete Kainodara skirtukas rodo tikrą importo kortelę be demo klastotės", async ({
     page,
   }) => {
     await forceOfflineCatalog(page);
     await seedProUser(page);
     await page.goto("/profile/");
     await acceptGdprConsentIfPrompted(page);
-    // Soft presence check — desktop Pro dashboard hosts BulkUpload under Kainodara.
+
     const kainodara = page.getByRole("tab", { name: /Kainodara/i });
-    if (await kainodara.isVisible({ timeout: 15_000 }).catch(() => false)) {
-      await kainodara.click();
-      await expect(page.getByText(/Bulk Upload|Įkelkite 100\+/i).first()).toBeVisible({
-        timeout: 10_000,
-      });
-    } else {
-      // Mobile/private shell may hide Pro tabs — harness tests above still gate the contract.
+    if (!(await kainodara.isVisible({ timeout: 15_000 }).catch(() => false))) {
       test.info().annotations.push({
         type: "note",
-        description: "Kainodara tab not visible in this viewport/shell — harness covered import.",
+        description: "Kainodara tab not visible in this shell/viewport.",
       });
+      return;
     }
+    await kainodara.click();
+
+    // The real card is present and its file input is reachable by label
+    // (an accessibility contract in itself).
+    await expect(
+      page.getByText(/Masinis importas \(CSV \/ XML\)/i).first()
+    ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.locator("#bulk-import-file")
+    ).toBeAttached();
+
+    // The old mocked demo contract is GONE — nothing may pretend an import
+    // produced listings.
+    await expect(page.getByText(/Testuoti demo importą/i)).toHaveCount(0);
+    await expect(page.getByText(/12 skelbimų paruošta/i)).toHaveCount(0);
+  });
+
+  test("failo įkėlimas rodo serverio preview: tik informaciniai rezultatai, jokių skelbimų nesukuriama", async ({
+    page,
+  }) => {
+    await page.route("**/api/bulk-import/preview**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(PREVIEW_RESPONSE),
+      });
+    });
+
+    await forceOfflineCatalog(page);
+    await seedProUser(page);
+    await page.goto("/profile/");
+    await acceptGdprConsentIfPrompted(page);
+
+    const kainodara = page.getByRole("tab", { name: /Kainodara/i });
+    await expect(kainodara).toBeVisible({ timeout: 15_000 });
+    await kainodara.click();
+
+    await page.locator("#bulk-import-file").setInputFiles({
+      name: "import.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from("title,price,category,location\nVolvo V70,10900,vehicles,Vilnius"),
+    });
+
+    // Server truth, not client fiction: preview summary + fail-closed note.
+    await expect(page.getByText(/Failas: import\.csv/i)).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(
+      page.getByText(/Importas dar neaktyvus — failas buvo tik patikrintas/i)
+    ).toBeVisible();
+    await expect(page.getByText(/Tinkamos: 1/i)).toBeVisible();
+    await expect(page.getByText(/Eil\. 2: Volvo V70/i)).toBeVisible();
+
+    // Error report can be copied/downloaded.
+    await expect(
+      page.getByRole("button", { name: /Kopijuoti ataskaitą/i })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Atsisiųsti ataskaitą/i })
+    ).toBeVisible();
+
+    // Nothing anywhere claims listings were created/published.
+    await expect(page.getByText(/paruošta publikavimui/i)).toHaveCount(0);
+    await expect(page.getByText(/publikuojama/i).first()).toBeVisible();
+  });
+
+  test("netinkamas failo tipas atmetamas kliento pusėje be API kvietimo", async ({
+    page,
+  }) => {
+    await forceOfflineCatalog(page);
+    await seedProUser(page);
+    await page.goto("/profile/");
+    await acceptGdprConsentIfPrompted(page);
+
+    const kainodara = page.getByRole("tab", { name: /Kainodara/i });
+    await expect(kainodara).toBeVisible({ timeout: 15_000 });
+    await kainodara.click();
+
+    await page.locator("#bulk-import-file").setInputFiles({
+      name: "virus.exe",
+      mimeType: "application/octet-stream",
+      buffer: Buffer.from("MZ"),
+    });
+
+    await expect(
+      page.getByText(/Palaikomi tik \.csv ir \.xml failai/i)
+    ).toBeVisible({ timeout: 10_000 });
   });
 });
