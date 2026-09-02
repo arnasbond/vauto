@@ -9,7 +9,8 @@ import { B2BAnalyticsPanel } from "@/components/dashboard/B2BAnalyticsPanel";
 import { B2BBillingCard } from "@/components/dashboard/B2BBillingCard";
 import { B2BPlanCreditsCard } from "@/components/dashboard/B2BPlanCreditsCard";
 import { LaunchTrialBanner } from "@/components/dashboard/LaunchTrialBanner";
-import { BulkUploadCard } from "@/components/dashboard/BulkUploadCard";
+import { BulkImportCard } from "@/components/dashboard/BulkImportCard";
+import { BulkListingManager } from "@/components/dashboard/BulkListingManager";
 import { BusinessIdentityCard } from "@/components/dashboard/BusinessIdentityCard";
 import { BusinessMarketInsights } from "@/components/dashboard/BusinessMarketInsights";
 import { BusinessCockpitOverview } from "@/components/business/BusinessCockpitOverview";
@@ -26,7 +27,6 @@ import {
   SegmentedTabs,
   type SegmentedTabItem,
 } from "@/components/ui/surface";
-import { mockServiceBookings } from "@/lib/dashboard-mock";
 import { useVauto } from "@/context/VautoContext";
 import { useSellerListingAnalytics } from "@/hooks/useSellerListingAnalytics";
 import { apiFetchHealthDetails } from "@/lib/api/client";
@@ -91,6 +91,7 @@ export function ProBusinessDashboard({
     sellerAnalytics,
     openCheckout,
     apiActive,
+    refreshListingsCatalog,
   } = useVauto();
   const [stripeEnabled, setStripeEnabled] = useState(false);
 
@@ -105,7 +106,7 @@ export function ProBusinessDashboard({
   }, [apiActive]);
 
   const rating = computeSellerRating(reviews, user.id);
-  const serviceRating = rating.count > 0 ? rating.avg : 4.9;
+  const serviceRating = rating.count > 0 ? rating.avg : null;
   const showServices =
     user.businessType === "services" ||
     listings.some((l) => l.category === "services");
@@ -274,6 +275,11 @@ export function ProBusinessDashboard({
 
       {tab === "listings" && (
         <section>
+          <BulkListingManager
+            listings={listings}
+            actorRole={user.role}
+            onChanged={() => void refreshListingsCatalog()}
+          />
           <div className="space-y-3">
             {listings.length === 0 ? (
               <p className="vauto-panel p-8 text-center text-sm text-[var(--vauto-text-muted)]">
@@ -332,7 +338,7 @@ export function ProBusinessDashboard({
             />
           </div>
           <div id="business-import">
-            <BulkUploadCard />
+            <BulkImportCard />
           </div>
         </>
       )}
@@ -344,7 +350,7 @@ export function ProBusinessDashboard({
             user={user}
             rating={serviceRating}
           />
-          <ServiceCalendar bookings={mockServiceBookings()} />
+          <ServiceCalendar bookings={[]} />
         </div>
       )}
     </div>

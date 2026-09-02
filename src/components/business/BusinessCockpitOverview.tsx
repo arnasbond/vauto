@@ -39,36 +39,6 @@ function pct(part: number, whole: number): number {
   return Math.min(100, Math.round((part / whole) * 100));
 }
 
-function SparkBars({
-  values,
-  tone = "brand",
-}: {
-  values: number[];
-  tone?: "brand" | "ai" | "success";
-}) {
-  const max = Math.max(...values, 1);
-  const color =
-    tone === "ai"
-      ? "bg-[var(--ds-ai)]"
-      : tone === "success"
-        ? "bg-[var(--ds-success)]"
-        : "bg-[var(--ds-brand)]";
-  return (
-    <div className="mt-3 flex h-16 items-end gap-1" aria-hidden>
-      {values.map((v, i) => (
-        <div
-          key={i}
-          className={cn(
-            "flex-1 rounded-t-[var(--ds-radius-sm)] opacity-80",
-            color
-          )}
-          style={{ height: `${Math.max(12, Math.round((v / max) * 100))}%` }}
-        />
-      ))}
-    </div>
-  );
-}
-
 /**
  * Business Cockpit 2.0 — KPI, trendai, efektyvumas, AI rekomendacijos.
  * Tik UI; skaičiai iš esamų listing / analytics laukų (be naujos API).
@@ -150,39 +120,23 @@ export function BusinessCockpitOverview({
     });
 
     // Synthetic trend from totals (UI sparkline only — no historical API)
-    const viewTrend = [
-      Math.round(analytics.views * 0.55),
-      Math.round(analytics.views * 0.62),
-      Math.round(analytics.views * 0.7),
-      Math.round(analytics.views * 0.78),
-      Math.round(analytics.views * 0.88),
-      analytics.views,
-    ];
-    const contactTrend = [
-      Math.round(contacts * 0.5),
-      Math.round(contacts * 0.58),
-      Math.round(contacts * 0.66),
-      Math.round(contacts * 0.74),
-      Math.round(contacts * 0.85),
-      contacts,
-    ];
+    // REMOVED (F6 Final): fabricated multipliers presented as historical
+    // dynamics. Only the REAL current aggregate is shown; trend requires a
+    // real time-series endpoint that does not exist yet.
+    const trendAvailable = analytics.source === "server" && analytics.views > 0;
 
     const tips: string[] = [];
     if (highPrice > 0) {
       tips.push(
         `${highPrice} skelbimų kainos aukštesnės už rinkos vidurkį.`
       );
-    } else {
-      tips.push("3 skelbimų kainos aukštesnės už rinkos vidurkį.");
     }
     if (weakPhotos > 0) {
       tips.push(
         `${weakPhotos} skelbimams trūksta geresnės pagrindinės nuotraukos.`
       );
-    } else {
-      tips.push("2 skelbimams trūksta geresnės pagrindinės nuotraukos.");
     }
-    tips.push("Geriausias publikavimo laikas šiandien – 19:00.");
+    // No fabricated fallbacks: absent data is stated as absent, never invented.
 
     return {
       revenue,
@@ -195,8 +149,7 @@ export function BusinessCockpitOverview({
       categoryRows,
       market,
       priceRows,
-      viewTrend,
-      contactTrend,
+      trendAvailable,
       tips,
       soldCount: sold.length,
       activeCount: active.length,
@@ -262,7 +215,7 @@ export function BusinessCockpitOverview({
           }
         />
         <StatCard
-          label="AI sutaupytas laikas"
+          label="AI sutaupytas laikas (įvertinimas)"
           value={`~${derived.aiMinutes} min`}
           hint={`Piniginė: ${walletBalance.toLocaleString("lt-LT")} €`}
           trend={derived.aiMinutes > 0 ? "up" : "flat"}
@@ -280,7 +233,7 @@ export function BusinessCockpitOverview({
         <Card variant="elevated">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <p className="ds-label text-[var(--ds-text-muted)]">Trendai</p>
+              <p className="ds-label text-[var(--ds-text-muted)]">Rodikliai</p>
               <h3 className="font-[family-name:var(--font-outfit)] text-sm font-semibold text-[var(--ds-text-primary)]">
                 Peržiūrų dinamika
               </h3>
@@ -290,16 +243,30 @@ export function BusinessCockpitOverview({
               {analytics.views}
             </Badge>
           </div>
-          <SparkBars values={derived.viewTrend} tone="brand" />
-          <p className="mt-2 text-xs text-[var(--ds-text-muted)]">
-            Paskutinių periodų santykinis vaizdas pagal dabartines peržiūras.
-          </p>
+          {derived.trendAvailable ? (
+            <>
+              <p className="mt-3 text-sm text-[var(--ds-text-primary)]">
+                Dabartinis periodas: {analytics.views} peržiūrų.
+              </p>
+              <p className="mt-1 text-xs text-[var(--ds-text-muted)]">
+                Istorinių periodų duomenys dar neteikiami — dinamikos grafikas
+                atsiras, kai bus sukaupta laiko eilutė.
+              </p>
+            </>
+          ) : (
+            <p
+              className="mt-3 text-sm text-[var(--ds-text-muted)]"
+              data-metric-unavailable="views"
+            >
+              Duomenų šiuo metu nėra arba jie neprieinami.
+            </p>
+          )}
         </Card>
 
         <Card variant="elevated">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <p className="ds-label text-[var(--ds-text-muted)]">Trendai</p>
+              <p className="ds-label text-[var(--ds-text-muted)]">Rodikliai</p>
               <h3 className="font-[family-name:var(--font-outfit)] text-sm font-semibold text-[var(--ds-text-primary)]">
                 Kontaktų dinamika
               </h3>
@@ -309,10 +276,23 @@ export function BusinessCockpitOverview({
               {derived.contacts}
             </Badge>
           </div>
-          <SparkBars values={derived.contactTrend} tone="success" />
-          <p className="mt-2 text-xs text-[var(--ds-text-muted)]">
-            Skambučiai + pokalbiai — konversijos rodiklio pagrindas.
-          </p>
+          {derived.trendAvailable ? (
+            <>
+              <p className="mt-3 text-sm text-[var(--ds-text-primary)]">
+                Dabartinis periodas: {derived.contacts} kontaktų.
+              </p>
+              <p className="mt-1 text-xs text-[var(--ds-text-muted)]">
+                Skambučiai + pokalbiai — konversijos rodiklio pagrindas.
+              </p>
+            </>
+          ) : (
+            <p
+              className="mt-3 text-sm text-[var(--ds-text-muted)]"
+              data-metric-unavailable="contacts"
+            >
+              Duomenų šiuo metu nėra arba jie neprieinami.
+            </p>
+          )}
         </Card>
       </div>
 
@@ -421,15 +401,18 @@ export function BusinessCockpitOverview({
       <div id="business-ai" data-section="ai">
         <AiInsightCard
           title="AI verslo padėjėjas"
-          body={derived.tips.map((t) => `• ${t}`).join("\n")}
+          body={
+            derived.tips.length > 0
+              ? derived.tips.map((t) => `• ${t}`).join("\n")
+              : "Šiuo metu nėra duomenų, kuriais remiantis galėtume pateikti rekomendacijas."
+          }
           ctaLabel="Atidaryti AI rekomendacijas"
           onCta={onOpenAiTips}
           className="whitespace-pre-line"
         />
         <p className="mt-2 flex items-center gap-1.5 text-xs text-[var(--ds-text-muted)]">
           <Clock className="h-3.5 w-3.5" aria-hidden />
-          Patarimai generuojami iš jūsų skelbimų ir rinkos signalų — be papildomų
-          API kvietimų.
+          Rekomendacijos kildinamos tik iš jūsų realių skelbimų duomenų.
         </p>
       </div>
         </>
