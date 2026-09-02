@@ -535,17 +535,24 @@ test.describe("F7 — kortelių vientisumas (mobile)", () => {
       const tiles = Array.from(document.querySelectorAll("[data-category-card]"));
       const last = tiles[tiles.length - 1] as HTMLElement;
       const lastBox = last.getBoundingClientRect();
-      const newNavTop = nav.getBoundingClientRect().top;
+      const g2 = grid.getBoundingClientRect();
+      const n2 = nav.getBoundingClientRect();
       return {
-        clearance: newNavTop - lastBox.bottom,
-        navVisible: newNavTop < window.innerHeight,
+        gridTop: g2.top,
+        clearance: n2.top - lastBox.bottom,
+        navVisible: n2.top < window.innerHeight,
+        navFullyOnScreen: n2.bottom <= window.innerHeight + 1,
         scrollY: window.scrollY,
       };
     });
+    // One-frame evidence contract: the WHOLE grid (top ≥ 0) fits above the
+    // fixed nav, and the nav itself is fully on screen — no overlap.
+    expect(clearance.gridTop, "grid top stays on screen").toBeGreaterThanOrEqual(-1);
     expect(
       clearance.clearance,
       "last category row must be fully above the bottom nav after a real scroll"
     ).toBeGreaterThanOrEqual(-1);
     expect(clearance.navVisible, "bottom nav itself stays visible").toBe(true);
+    expect(clearance.navFullyOnScreen, "bottom nav is fully on screen").toBe(true);
   });
 });
