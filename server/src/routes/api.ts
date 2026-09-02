@@ -885,6 +885,9 @@ apiRouter.get("/listings/mine", requireAuth, async (req: AuthedRequest, res) => 
 
 apiRouter.get("/listings", async (req, res) => {
   try {
+    // F8 — public feed is a shared, cache-friendly resource: short TTL +
+    // stale-while-revalidate so repeat visits avoid a full refetch.
+    res.set("Cache-Control", "public, max-age=30, stale-while-revalidate=300");
     const page = await fetchListingsFeed({
       limit: req.query.limit ? Number(req.query.limit) : undefined,
       offset: req.query.offset ? Number(req.query.offset) : undefined,
@@ -908,6 +911,7 @@ apiRouter.get("/listings", async (req, res) => {
  */
 apiRouter.get("/listings/:id", async (req, res) => {
   try {
+    res.set("Cache-Control", "public, max-age=60, stale-while-revalidate=3600");
     const idOrSlug = String(req.params.id ?? "").trim();
     if (!idOrSlug || idOrSlug.length > 200) {
       res.status(400).json({ ok: false, code: "invalid_id" });

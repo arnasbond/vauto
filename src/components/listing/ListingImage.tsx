@@ -17,6 +17,8 @@ type ListingImageProps = {
   className?: string;
   width?: number;
   height?: number;
+  /** F8 — eager + preload for the page's LCP image (first grid card). */
+  priority?: boolean;
 };
 
 export function ListingImage({
@@ -27,6 +29,7 @@ export function ListingImage({
   className,
   width,
   height,
+  priority = false,
 }: ListingImageProps) {
   const primary = resolveListingImage(listing);
   const [src, setSrc] = useState(primary);
@@ -61,7 +64,7 @@ export function ListingImage({
       <img
         src={src}
         alt={alt}
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
         decoding="async"
         className={className}
         onError={handleError}
@@ -82,6 +85,7 @@ export function ListingImage({
       height={height}
       className={className}
       onError={handleError}
+      priority={priority}
     />
   );
 }

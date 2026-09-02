@@ -180,12 +180,13 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
       return (
         <>
           <div className="listing-card-row mt-1 space-y-2">
-            {visible.map((listing) => (
+            {visible.map((listing, index) => (
               <ListingCard
                 key={listing.id}
                 listing={listing}
                 layout="list"
                 priceColor="var(--ds-brand, var(--vauto-ink))"
+                priority={index === 0}
               />
             ))}
           </div>
@@ -208,12 +209,13 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
               : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4"
           )}
         >
-          {visible.map((listing) => (
+          {visible.map((listing, index) => (
             <ListingCard
               key={listing.id}
               listing={listing}
               layout="grid"
               priceColor="var(--ds-brand, var(--vauto-ink))"
+              priority={index === 0}
             />
           ))}
         </div>

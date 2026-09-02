@@ -12,6 +12,7 @@ import { ListingImage } from "@/components/listing/ListingImage";
 import { Badge, IconButton } from "@/design-system";
 import { listingTrustBadges } from "@/lib/listing-verification";
 import { listingPath } from "@/lib/seo";
+import { useMemo } from "react";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
 import { FeedTierBadge, feedTierCardClass } from "@/components/marketplace/FeedTierBadge";
@@ -36,6 +37,8 @@ export type ListingCardProps = {
    * omitted. Does not change "standard" rendering anywhere else.
    */
   variant?: "standard" | "compact";
+  /** F8 — eager + preload for the page's LCP image (first card in a grid). */
+  priority?: boolean;
 };
 
 /** AI kainos signalas iš appraisalScore / AI atranda žymos — tik UI. */
@@ -65,15 +68,22 @@ export function ListingCard({
   className,
   showHeart = true,
   variant = "standard",
+  priority = false,
 }: ListingCardProps) {
   const compact = variant === "compact";
   const { savedIds, toggleSave } = useVauto();
   const isSaved = savedIds.has(listing.id);
   const href = listingPath(listing);
   const resolvedPrice = priceColor || "var(--vauto-ink, #0f172a)";
-  const aiPrice = resolveAiPriceSignal(listing);
-  const trustBadges = listingTrustBadges(listing);
-  const omniva = hasDeliveryCapability(listing);
+  // F8 — derived values are computed once per render (attribute lines used
+  // twice; trust/omniva/AI signals are pure over `listing`).
+  const aiPrice = useMemo(() => resolveAiPriceSignal(listing), [listing]);
+  const trustBadges = useMemo(() => listingTrustBadges(listing), [listing]);
+  const omniva = useMemo(() => hasDeliveryCapability(listing), [listing]);
+  const attributeLines = useMemo(
+    () => cardAttributeLinesForListing(listing, 2),
+    [listing]
+  );
   const categoryLabel =
     LISTING_CATEGORY_LABELS[listing.category as keyof typeof LISTING_CATEGORY_LABELS] ??
     listing.category;
@@ -183,6 +193,7 @@ export function ListingCard({
             fill
             sizes="(max-width: 640px) 46vw, 176px"
             className="object-cover transition-transform duration-[200ms] group-hover:scale-105"
+            priority={priority}
           />
           <div className="absolute left-1 top-1 z-[1]">{badges}</div>
           {photoCount > 1 ? (
@@ -206,12 +217,12 @@ export function ListingCard({
           >
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
-          {cardAttributeLinesForListing(listing, 2).length > 0 ? (
+          {attributeLines.length > 0 ? (
             <ul
               className="mt-1 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] leading-tight text-[var(--ds-text-secondary)]"
               data-listing-card-attributes
             >
-              {cardAttributeLinesForListing(listing, 2).map((attr) => (
+              {attributeLines.map((attr) => (
                 <li key={attr.key} className="inline-flex items-center gap-1">
                   <span className="text-[var(--ds-text-muted)]">{attr.label}</span>
                   <span className="font-semibold text-[var(--ds-text-primary)]">
@@ -267,6 +278,7 @@ export function ListingCard({
             fill
             sizes="(max-width: 512px) 50vw, 25vw"
             className="object-cover transition-transform duration-[200ms] ease-[var(--ds-ease)] group-hover:scale-105"
+            priority={priority}
           />
         </Link>
         <div className="absolute left-2 top-2 z-[1] max-w-[70%]">
@@ -314,12 +326,12 @@ export function ListingCard({
           <h3 className="line-clamp-2 text-sm font-bold leading-snug text-[var(--ds-text-primary)]">
             {listing.title}
           </h3>
-          {cardAttributeLinesForListing(listing, 2).length > 0 ? (
+          {attributeLines.length > 0 ? (
             <ul
               className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] leading-tight text-[var(--ds-text-secondary)]"
               data-listing-card-attributes
             >
-              {cardAttributeLinesForListing(listing, 2).map((attr) => (
+              {attributeLines.map((attr) => (
                 <li key={attr.key} className="inline-flex items-center gap-1">
                   <span className="text-[var(--ds-text-muted)]">{attr.label}</span>
                   <span className="font-semibold text-[var(--ds-text-primary)]">

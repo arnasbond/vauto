@@ -52,12 +52,13 @@ export function HomeTrendingStrip({
         ) : null}
       </div>
       <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-6 lg:gap-3 lg:overflow-visible lg:px-0">
-        {featured.map((listing) => (
+        {featured.map((listing, index) => (
           <ListingCard
             key={listing.id}
             listing={listing}
             variant="compact"
             className="w-[150px] shrink-0 snap-start sm:w-[168px] lg:w-full"
+            priority={index === 0}
           />
         ))}
       </div>
