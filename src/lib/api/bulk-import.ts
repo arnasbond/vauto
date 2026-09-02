@@ -73,19 +73,48 @@ export function checkImportFile(file: {
   return { ok: true };
 }
 
+export function contentTypeForImportFile(name: string): "text/csv" | "application/xml" {
+  return name.trim().toLowerCase().endsWith(".xml")
+    ? "application/xml"
+    : "text/csv";
+}
+
+/**
+ * Build the raw-binary upload request. The body is the ORIGINAL file bytes
+ * (ArrayBuffer) — never a string. No text decoding happens anywhere on the
+ * client, so invalid UTF-8 reaches the server byte-for-byte and the server's
+ * fatal decoder can reject it.
+ */
+export function buildBulkImportRequest(
+  fileName: string,
+  buffer: ArrayBuffer
+): {
+  path: string;
+  options: {
+    method: "POST";
+    headers: { "Content-Type": string };
+    body: ArrayBuffer;
+  };
+} {
+  return {
+    path: "/api/bulk-import/preview",
+    options: {
+      method: "POST",
+      headers: { "Content-Type": contentTypeForImportFile(fileName) },
+      body: buffer,
+    },
+  };
+}
+
 export async function apiBulkImportPreview(
   file: File
 ): Promise<
   | { ok: true; data: ImportPreviewResponse }
   | { ok: false; error: string; status?: number }
 > {
-  const text = await file.text();
-  const contentType = file.name.trim().toLowerCase().endsWith(".xml")
-    ? "application/xml"
-    : "text/csv";
-  return dataFetch<ImportPreviewResponse>("/api/bulk-import/preview", {
-    method: "POST",
-    headers: { "Content-Type": contentType },
-    body: text,
-  });
+  // file.text() would pre-decode (and mangle) non-UTF-8 bytes — forbidden.
+  // arrayBuffer() hands the ORIGINAL bytes to fetch untouched.
+  const buffer = await file.arrayBuffer();
+  const req = buildBulkImportRequest(file.name, buffer);
+  return dataFetch<ImportPreviewResponse>(req.path, req.options);
 }

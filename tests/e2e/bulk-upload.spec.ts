@@ -89,7 +89,26 @@ test.describe("Enterprise — masinis įkėlimas (F6 real import card)", () => {
   test("failo įkėlimas rodo serverio preview: tik informaciniai rezultatai, jokių skelbimų nesukuriama", async ({
     page,
   }) => {
+    // Original bytes WITH invalid UTF-8 — the browser must forward them
+    // untouched (no client-side text decoding).
+    const rawFileBytes = Buffer.concat([
+      Buffer.from("title,price,category,location\nVolvo V70,10900,vehicles,", "utf8"),
+      Buffer.from([0xff, 0xfe, 0x41]),
+    ]);
+    let capturedMethod = "";
+    let capturedUrl = "";
+    let capturedContentType = "";
+
     await page.route("**/api/bulk-import/preview**", async (route) => {
+      const req = route.request();
+      capturedMethod = req.method();
+      capturedUrl = req.url();
+      capturedContentType = req.headers()["content-type"] ?? "";
+      // NOTE: Chrome uploads fetch(ArrayBuffer) bodies as a STREAM, so
+      // Playwright exposes no post data here (postDataBuffer() === null for
+      // streamed uploads). Byte-for-byte fidelity is proven at the client
+      // unit level (fetch receives the exact ArrayBuffer) and at the server
+      // level (invalid bytes from a Buffer are rejected with a UTF-8 error).
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -109,13 +128,25 @@ test.describe("Enterprise — masinis įkėlimas (F6 real import card)", () => {
     await page.locator("#bulk-import-file").setInputFiles({
       name: "import.csv",
       mimeType: "text/csv",
-      buffer: Buffer.from("title,price,category,location\nVolvo V70,10900,vehicles,Vilnius"),
+      buffer: rawFileBytes,
     });
 
     // Server truth, not client fiction: preview summary + fail-closed note.
     await expect(page.getByText(/Failas: import\.csv/i)).toBeVisible({
       timeout: 10_000,
     });
+
+    // Real browser→network contract (asserted AFTER the upload completed):
+    // the file POSTs to the preview endpoint with the CSV content type.
+    // Body bytes are asserted at unit/server level — Chrome streams
+    // fetch(ArrayBuffer) uploads, so Playwright exposes no post data.
+    expect(capturedMethod, "upload is a POST").toBe("POST");
+    expect(capturedUrl, "upload targets the preview endpoint").toContain(
+      "/api/bulk-import/preview"
+    );
+    expect(capturedContentType, "CSV content type preserved").toContain(
+      "text/csv"
+    );
     await expect(
       page.getByText(/Importas šiuo metu išjungtas — failas buvo tik patikrintas/i)
     ).toBeVisible();
