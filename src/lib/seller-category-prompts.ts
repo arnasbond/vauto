@@ -21,7 +21,7 @@ export const SELLER_CATEGORY_PROMPTS: SellerCategoryPrompt[] = [
   },
   {
     category: "real_estate",
-    label: "Nekilnojamasis turtas",
+    label: "Nekilnojamas turtas",
     prompt: "Nuomoju 2 kambarių butą Vilniuje, Naujamiestyje, 650 € per mėn",
   },
   {
@@ -36,12 +36,12 @@ export const SELLER_CATEGORY_PROMPTS: SellerCategoryPrompt[] = [
   },
   {
     category: "home",
-    label: "Namai ir sodas",
+    label: "Namai ir buitis",
     prompt: "Parduodu IKEA sofą, gera būklė, Šiauliai, 200 €",
   },
   {
     category: "clothing",
-    label: "Drabužiai",
+    label: "Mada",
     prompt: "Parduodu Nike Air Max 42 dydis, be dėvėjimo, Klaipėda, 80 €",
   },
   {

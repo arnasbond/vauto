@@ -340,7 +340,7 @@ export default function ApiePage() {
             </h2>
             <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
               Viena platforma — transportas, NT, elektronika, paslaugos, darbas,
-              namai ir sodas.
+              namai ir buitis.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -351,7 +351,7 @@ export default function ApiePage() {
             />
             <CategoryRow
               icon={Home}
-              title="Nekilnojamasis turtas"
+              title="Nekilnojamas turtas"
               description="Butai, namai, sklypai ir nuoma — aiškiai, be painiavos."
             />
             <CategoryRow
@@ -371,7 +371,7 @@ export default function ApiePage() {
             />
             <CategoryRow
               icon={Smartphone}
-              title="Namai ir sodas"
+              title="Namai ir buitis"
               description="Baldai, buitis, sodo technika — lygiavertė kategorija šalia transporto ir NT."
             />
           </div>

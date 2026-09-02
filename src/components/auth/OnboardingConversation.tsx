@@ -23,11 +23,11 @@ const QUESTIONS = [
     prompt: "Kokios kategorijos jums aktualiausios?",
     options: [
       "Transportas",
-      "Nekilnojamasis turtas",
+      "Nekilnojamas turtas",
       "Elektronika",
       "Paslaugos",
       "Darbas",
-      "Namai ir sodas",
+      "Namai ir buitis",
     ],
   },
   {

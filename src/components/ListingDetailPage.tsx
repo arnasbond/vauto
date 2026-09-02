@@ -10,6 +10,7 @@ import {
   MessageCircle,
   Package,
   Phone,
+  SearchX,
   ShieldCheck,
   Sparkles,
   Tag,
@@ -31,6 +32,10 @@ import { SimilarListingsSection } from "@/components/listing/SimilarListingsSect
 import { resolveAiPriceSignal } from "@/components/marketplace/ListingCard";
 import { AiInsightCard, Badge, Card } from "@/design-system";
 import { formatListingPlaceLine, formatPrice } from "@/data/mockListings";
+import { apiFetchListingById } from "@/lib/api/client";
+import { isDataApiEnabled } from "@/lib/api/config";
+import { normalizeListing } from "@/lib/listing-normalize";
+import type { Listing } from "@/lib/types";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoBridge } from "@/context/VautoBridge";
 import { useSellerFlow } from "@/context/SellerFlowContext";
@@ -126,10 +131,37 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const [orderShippingOpen, setOrderShippingOpen] = useState(false);
   const [buyerTipsOpen, setBuyerTipsOpen] = useState(false);
 
-  // Prefer stable id (dashboard links); fall back to slug for SEO/pretty URLs.
+  // F7 — unified list→detail data contract. The feed catalog is a LIMITED
+  // slice (top-N / region); when the local lookup misses, the detail
+  // hydrates the SAME public listing from the server by id/slug under the
+  // same visibility rules. No per-listing exceptions; 404 means the listing
+  // truly does not exist publicly.
+  const [serverListing, setServerListing] = useState<Listing | null>(null);
+  const [serverLookupFailed, setServerLookupFailed] = useState(false);
+  useEffect(() => {
+    setServerListing(null);
+    setServerLookupFailed(false);
+    if (!hydrated || !(id || slug)) return;
+    const local = id ? findListing(id) : slug ? findListing(slug) : undefined;
+    if (local || !isDataApiEnabled()) return;
+    let cancelled = false;
+    void apiFetchListingById(id ?? slug!).then((res) => {
+      if (cancelled) return;
+      if (res.ok) setServerListing(normalizeListing(res.data));
+      else setServerLookupFailed(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, id, slug]);
+
+  // Prefer stable id (dashboard links); fall back to slug for SEO/pretty URLs;
+  // last resort: the server-side public listing fetch (limited-slice feed).
   const listing =
     (id ? findListing(id) : undefined) ??
-    (slug ? findListing(slug) : undefined);
+    (slug ? findListing(slug) : undefined) ??
+    serverListing;
 
   useEffect(() => {
     if (listing?.id && !listing.banned) {
@@ -177,14 +209,53 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     );
   }
 
-  if (!listing || listing.banned) {
+  // Local lookup missed AND the server fallback is still in flight: keep the
+  // loading state (never flash a false "not found").
+  if (!listing && !serverLookupFailed && (id || slug) && isDataApiEnabled()) {
     return (
       <AppShell variant="plain" hideNav>
         <div className="py-12 text-center">
-          <p className="text-[var(--ds-text-muted,var(--vauto-subtle))]">Skelbimas nerastas.</p>
-          <Link href="/" className="mt-4 inline-block text-sm text-[var(--ds-brand,var(--vauto-teal))]">
-            ← Grįžti į skelbimus
-          </Link>
+          <p className="text-[var(--ds-text-muted,var(--vauto-subtle))]">Kraunama...</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!listing || listing.banned) {
+    return (
+      <AppShell variant="plain" hideNav>
+        <div className="flex min-h-[60dvh] items-center justify-center px-4 py-12">
+          <div
+            className="w-full max-w-md rounded-[var(--ds-radius-panel)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] p-8 text-center shadow-[var(--ds-shadow-sm)]"
+            data-listing-not-found
+          >
+            <SearchX
+              className="mx-auto mb-4 h-12 w-12 text-[var(--ds-text-muted)]"
+              aria-hidden
+            />
+            <h1 className="font-[family-name:var(--font-outfit)] text-xl font-bold text-[var(--ds-text-primary)]">
+              Skelbimas nerastas
+            </h1>
+            <p className="mt-2 text-sm text-[var(--ds-text-secondary)]">
+              Šis skelbimas nebeegzistuoja arba buvo paslėptas pardavėjo.
+              Peržiūrėkite kitus skelbimus arba grįžkite į pagrindinį puslapį.
+            </p>
+            <div className="mt-6 flex flex-col justify-center gap-2 sm:flex-row">
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center rounded-[var(--ds-radius-control)] bg-[var(--ds-brand)] px-4 py-2.5 text-sm font-semibold text-[var(--ds-brand-contrast)] transition hover:bg-[var(--ds-brand-hover)]"
+              >
+                Grįžti į skelbimus
+              </Link>
+              <button
+                type="button"
+                onClick={() => window.history.back()}
+                className="inline-flex items-center justify-center rounded-[var(--ds-radius-control)] border border-[var(--ds-border-strong)] px-4 py-2.5 text-sm font-semibold text-[var(--ds-text-primary)] transition hover:bg-[var(--ds-state-hover)]"
+              >
+                ← Atgal
+              </button>
+            </div>
+          </div>
         </div>
       </AppShell>
     );

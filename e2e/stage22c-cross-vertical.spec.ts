@@ -248,7 +248,7 @@ test.describe("Stage 22C — cross-vertical continuity (chromium)", () => {
     await expect(page.locator(RE_CARD).first()).toBeVisible({ timeout: 15_000 });
     await expect(
       page.locator('[data-ai-chip][data-chip-kind="vertical"]').first()
-    ).toContainText("Nekilnojamasis");
+    ).toContainText("Nekilnojamas");
 
     // Manual vertical switch → ELECTRONICS via drawer.
     await switchVerticalInDrawer(page, "ELECTRONICS");

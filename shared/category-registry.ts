@@ -19,19 +19,71 @@ export const LISTING_CATEGORY_IDS = [
 
 export type RegistryListingCategory = (typeof LISTING_CATEGORY_IDS)[number];
 
+/**
+ * F7 — canonical user-facing category labels. Canonical IDs are UNCHANGED;
+ * the user sees exactly 8 top-level categories. Legacy slugs fold into the
+ * closest visible category (never renamed, never removed):
+ *   transport → Transportas · tools → Namai ir buitis · rental → Kita.
+ */
 export const LISTING_CATEGORY_LABELS: Record<RegistryListingCategory, string> = {
   vehicles: "Transportas",
   transport: "Transportas",
   real_estate: "Nekilnojamas turtas",
-  clothing: "Mada ir apranga",
+  clothing: "Mada",
   electronics: "Elektronika",
   home: "Namai ir buitis",
-  tools: "Įrankiai",
-  rental: "Nuoma",
+  tools: "Namai ir buitis",
+  rental: "Kita",
   services: "Paslaugos",
   jobs: "Darbas",
   other: "Kita",
 };
+
+/** The 8 top-level categories the user can see (primary slug per category). */
+export const VISIBLE_CATEGORY_IDS = [
+  "vehicles",
+  "real_estate",
+  "electronics",
+  "clothing",
+  "home",
+  "services",
+  "jobs",
+  "other",
+] as const;
+
+export type VisibleCategoryId = (typeof VISIBLE_CATEGORY_IDS)[number];
+
+/** Which visible category a legacy slug belongs to (for filters/labels). */
+export const VISIBLE_CATEGORY_BY_SLUG: Record<RegistryListingCategory, VisibleCategoryId> = {
+  vehicles: "vehicles",
+  transport: "vehicles",
+  real_estate: "real_estate",
+  clothing: "clothing",
+  electronics: "electronics",
+  home: "home",
+  tools: "home",
+  rental: "other",
+  services: "services",
+  jobs: "jobs",
+  other: "other",
+};
+
+/** User-facing label for ANY canonical slug (legacy slugs fold into the 8). */
+export function listingCategoryLabel(category: unknown): string {
+  const slug = String(category ?? "other");
+  if (isListingCategoryId(slug)) {
+    return LISTING_CATEGORY_LABELS[VISIBLE_CATEGORY_BY_SLUG[slug]];
+  }
+  return LISTING_CATEGORY_LABELS.other;
+}
+
+/** Deterministic (label, slug) options for user-facing category pickers. */
+export function visibleCategoryOptions(): Array<{
+  id: VisibleCategoryId;
+  label: string;
+}> {
+  return VISIBLE_CATEGORY_IDS.map((id) => ({ id, label: LISTING_CATEGORY_LABELS[id] }));
+}
 
 /** Categories that use vehicle/VIN/OCR extractors. */
 export const VEHICLE_FAMILY_CATEGORIES = new Set<RegistryListingCategory>([

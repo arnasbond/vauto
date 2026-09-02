@@ -9,8 +9,8 @@ import {
 } from "@/data/mockListings";
 import { LISTING_CATEGORY_LABELS } from "@vauto/shared/category-registry";
 import { ListingImage } from "@/components/listing/ListingImage";
-import { VerifiedReputationBadge } from "@/components/reputation/VerifiedReputationBadge";
 import { Badge, IconButton } from "@/design-system";
+import { listingTrustBadges } from "@/lib/listing-verification";
 import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
@@ -54,12 +54,6 @@ export function resolveAiPriceSignal(
   return null;
 }
 
-function isListingVerified(listing: Listing): boolean {
-  return Boolean(
-    listing.isVerified || listing.providerVerified || listing.vinVerified
-  );
-}
-
 /**
  * ListingCard 2.0 — universal marketplace card (grid + list).
  * DS Badge / IconButton; hover lift + image zoom. No API changes.
@@ -78,7 +72,7 @@ export function ListingCard({
   const href = listingPath(listing);
   const resolvedPrice = priceColor || "var(--vauto-ink, #0f172a)";
   const aiPrice = resolveAiPriceSignal(listing);
-  const verified = isListingVerified(listing);
+  const trustBadges = listingTrustBadges(listing);
   const omniva = hasDeliveryCapability(listing);
   const categoryLabel =
     LISTING_CATEGORY_LABELS[listing.category as keyof typeof LISTING_CATEGORY_LABELS] ??
@@ -114,11 +108,16 @@ export function ListingCard({
   const badges = (
     <div className="flex flex-wrap gap-1">
       <FeedTierBadge listing={listing} />
-      {verified ? (
-        <Badge tone="success" className="text-[10px]">
-          Patvirtinta
+      {trustBadges.map((badge) => (
+        <Badge
+          key={badge.key}
+          tone="success"
+          className="text-[10px]"
+          data-trust-badge={badge.key}
+        >
+          {badge.label}
         </Badge>
-      ) : null}
+      ))}
       {aiPrice ? (
         <Badge
           tone={aiPrice.tone}
@@ -133,14 +132,18 @@ export function ListingCard({
   );
 
   // Compact (media-first, homepage discovery) density shows at most ONE
-  // trust/quality signal chip — promoted tier > verified > AI signal — so
+  // trust/quality signal chip — promoted tier > trust badge > AI signal — so
   // the small media area never competes with more than one badge.
   const feedTierLabel = feedTierBadgeLabel(resolveFeedVisibilityTier(listing));
   const compactBadge = feedTierLabel ? (
     <FeedTierBadge listing={listing} />
-  ) : verified ? (
-    <Badge tone="success" className="text-[10px]">
-      Patvirtinta
+  ) : trustBadges[0] ? (
+    <Badge
+      tone="success"
+      className="text-[10px]"
+      data-trust-badge={trustBadges[0].key}
+    >
+      {trustBadges[0].label}
     </Badge>
   ) : aiPrice ? (
     <Badge
@@ -160,22 +163,25 @@ export function ListingCard({
         data-listing-id={listing.id}
         data-listing-category={listing.category}
         className={cn(
-          "group flex gap-3 rounded-[var(--ds-radius-card)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] p-2.5",
+          "group flex gap-3 rounded-[var(--ds-radius-card)] border border-[var(--ds-card-border)] bg-[var(--ds-surface-card)] p-2.5",
+          "shadow-[var(--ds-card-shadow)]",
           "transition-[transform,box-shadow,border-color] duration-[180ms] ease-[var(--ds-ease)]",
-          "hover:-translate-y-[2px] hover:border-[var(--ds-border-strong)] hover:shadow-[var(--ds-shadow-md)]",
+          "hover:-translate-y-[2px] hover:border-[var(--ds-border-strong)] hover:shadow-[var(--ds-card-shadow-hover)]",
+          "active:translate-y-0 active:shadow-[var(--ds-shadow-xs)]",
+          "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-brand)]",
           feedTierCardClass(listing),
           className
         )}
       >
         <Link
           href={href}
-          className="relative aspect-[4/3] w-[42%] max-w-[158px] shrink-0 self-start overflow-hidden rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)]"
+          className="relative aspect-[1/1] w-[46%] max-w-[176px] shrink-0 self-start overflow-hidden rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)]"
         >
           <ListingImage
             listing={listing}
             alt={listing.title}
             fill
-            sizes="(max-width: 640px) 42vw, 158px"
+            sizes="(max-width: 640px) 46vw, 176px"
             className="object-cover transition-transform duration-[200ms] group-hover:scale-105"
           />
           <div className="absolute left-1 top-1 z-[1]">{badges}</div>
@@ -227,11 +233,6 @@ export function ListingCard({
               Omniva
             </p>
           ) : null}
-          {listing.sellerId ? (
-            <div className="mt-1">
-              <VerifiedReputationBadge userId={listing.sellerId} compact />
-            </div>
-          ) : null}
         </div>
         {heart ? <div className="shrink-0 self-start">{heart}</div> : null}
       </article>
@@ -244,17 +245,19 @@ export function ListingCard({
       data-listing-id={listing.id}
       data-listing-category={listing.category}
       className={cn(
-        "group overflow-hidden rounded-[var(--ds-radius-card)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)]",
+        "group overflow-hidden rounded-[var(--ds-radius-card)] border border-[var(--ds-card-border)] bg-[var(--ds-surface-card)]",
+        "shadow-[var(--ds-card-shadow)]",
         "transition-[transform,box-shadow,border-color] duration-[180ms] ease-[var(--ds-ease)]",
-        "hover:-translate-y-[3px] hover:border-[var(--ds-border-strong)] hover:shadow-[var(--ds-shadow-md)]",
+        "hover:-translate-y-[3px] hover:border-[var(--ds-border-strong)] hover:shadow-[var(--ds-card-shadow-hover)]",
+        "active:translate-y-0 active:shadow-[var(--ds-shadow-xs)]",
+        "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-brand)]",
         feedTierCardClass(listing),
         className
       )}
     >
       <div
         className={cn(
-          "relative overflow-hidden bg-[var(--ds-surface-muted)]",
-          compact ? "aspect-[1/1]" : "aspect-[4/3]"
+          "relative aspect-[1/1] overflow-hidden bg-[var(--ds-surface-muted)]"
         )}
       >
         <Link href={href} className="block h-full w-full">
@@ -271,6 +274,14 @@ export function ListingCard({
         </div>
         {heart ? (
           <div className="absolute right-2 top-2 z-[1]">{heart}</div>
+        ) : null}
+        {!compact ? (
+          <span
+            className="absolute bottom-2 left-2 z-[1] rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm"
+            data-listing-card-category
+          >
+            {categoryLabel}
+          </span>
         ) : null}
         {photoCount > 1 ? (
           <span className="absolute bottom-2 right-2 z-[1] rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
@@ -293,24 +304,22 @@ export function ListingCard({
         </Link>
       ) : (
         <Link href={href} className="block space-y-1.5 p-3.5">
-          <p className="text-[length:var(--ds-text-caption-size)] font-medium text-[var(--ds-text-muted)]">
-            {categoryLabel}
-          </p>
-          <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-bold leading-snug text-[var(--ds-text-primary)]">
-            {listing.title}
-          </h3>
           <p
             className="text-lg font-extrabold tracking-tight"
             style={{ color: resolvedPrice }}
+            data-listing-card-price
           >
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
-          {cardAttributeLinesForListing(listing, 3).length > 0 ? (
+          <h3 className="line-clamp-2 text-sm font-bold leading-snug text-[var(--ds-text-primary)]">
+            {listing.title}
+          </h3>
+          {cardAttributeLinesForListing(listing, 2).length > 0 ? (
             <ul
               className="flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] leading-tight text-[var(--ds-text-secondary)]"
               data-listing-card-attributes
             >
-              {cardAttributeLinesForListing(listing, 3).map((attr) => (
+              {cardAttributeLinesForListing(listing, 2).map((attr) => (
                 <li key={attr.key} className="inline-flex items-center gap-1">
                   <span className="text-[var(--ds-text-muted)]">{attr.label}</span>
                   <span className="font-semibold text-[var(--ds-text-primary)]">
@@ -337,19 +346,6 @@ export function ListingCard({
               </span>
             ) : null}
           </div>
-          {aiPrice ? (
-            <p
-              className="inline-flex items-center gap-1 rounded-full bg-[var(--ds-ai-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--ds-ai-strong)]"
-              data-ai-price-insight
-            >
-              {aiPrice.label}
-            </p>
-          ) : null}
-          {listing.sellerId ? (
-            <div className="px-0 pt-1">
-              <VerifiedReputationBadge userId={listing.sellerId} compact />
-            </div>
-          ) : null}
         </Link>
       )}
     </article>

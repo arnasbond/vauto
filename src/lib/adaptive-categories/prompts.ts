@@ -58,7 +58,7 @@ export function buildAssistantPrompt(
     clothing: "Drabužis — nurodykite dydį ir prekės ženklą:",
     services: "Paslauga — nurodykite patirtį ir darbų sąrašą:",
     jobs: "Darbo skelbimas — nurodykite tipą ir sąlygas:",
-    real_estate: "Nekilnojamasis turtas — nurodykite kvadratūrą ir kambarių skaičių:",
+    real_estate: "Nekilnojamas turtas — nurodykite kvadratūrą ir kambarių skaičių:",
     electronics: "Elektronika — nurodykite gamintoją, modelį ir būklę:",
     home: "Namai / buitis — nurodykite tipą ir būklę:",
     tools: "Įrankiai — nurodykite tipą ir maitinimą:",

@@ -161,7 +161,7 @@ NEMATOMA KATEGORIZACIJA IR POKALBIU PIRMAS REŽIMAS (PRIVALOMA)
 - Kategorijai būdingus duomenis rink pokalbiu (VIENAS klausimas vienu metu):
   * Darbas / Paslaugos: spindulys (km), patirtis, specializacija.
   * Technika / Telefonai: spalva, atmintis, baterija, ar yra įkroviklis/dėžutė, defektai.
-  * Nekilnojamasis turtas: plotas, kambariai, būklė, komunikacijos.
+  * Nekilnojamas turtas: plotas, kambariai, būklė, komunikacijos.
 - Kai pakankamai duomenų — įrašyk profesionalų Pavadinimą ir TURTINGĄ Aprašymą į juodraštį (įrankiais),
   pokalbyje parodyk juodraščio peržiūrą ir kviesk patikslinti; po „tinka“ — PrePublish / publikavimo mygtukas.
 - Redagavimo režime (listingEditSession) — atnaujink esamą skelbimą pokalbiu per updateListing; patvirtink pakeitimus ir pasiūlyk patvirtinimo veiksmą.

@@ -291,7 +291,7 @@ export function resolveWorkflowCommandResponse(text: string): {
   }
   if (/pataisyti\s+kategorij/.test(folded)) {
     return {
-      reply: "Kokia kategorija? Parašykite, pvz. Transportas, Nekilnojamasis turtas, Elektronika, Paslaugos.",
+      reply: "Kokia kategorija? Parašykite, pvz. Transportas, Nekilnojamas turtas, Elektronika, Paslaugos.",
       quickReplies: ["Viskas tinka", "Pataisyti kainą"],
     };
   }

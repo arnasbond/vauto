@@ -31,13 +31,13 @@ const PUBLIC_CATEGORY_LABELS: Partial<Record<ListingCategory, string>> = {
   vehicles: "Transportas",
   transport: "Transportas",
   electronics: "Elektronika",
-  clothing: "Apranga",
-  home: "Namai",
+  clothing: "Mada",
+  home: "Namai ir buitis",
   services: "Paslaugos",
-  real_estate: "NT",
+  real_estate: "Nekilnojamas turtas",
   jobs: "Darbas",
-  tools: "Įrankiai",
-  rental: "Nuoma",
+  tools: "Namai ir buitis",
+  rental: "Kita",
   other: "Kita",
 };
 

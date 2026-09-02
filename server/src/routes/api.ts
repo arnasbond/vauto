@@ -16,6 +16,7 @@ import { pool, runInTransaction } from "../db.js";
 import { getMigrationStatus, toPublicSchemaStatus } from "../migrate.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { fetchListingsFeed } from "../controllers/listing-controller.js";
+import { getPublicListingByIdOrSlug } from "../repository.js";
 import {
   listingNeedsPayoutMethod,
   rejectIfSellerHasNoPayout,
@@ -893,6 +894,31 @@ apiRouter.get("/listings", async (req, res) => {
       return;
     }
     res.json(page.items);
+  } catch (e) {
+    sendInternalError(res, e);
+  }
+});
+
+/**
+ * F7 — single public listing by id (or slug) for the list→detail contract.
+ * The feed catalog is a LIMITED slice; this endpoint resolves the SAME
+ * visibility rules (PUBLIC_LISTING_VISIBILITY_SQL) for any id/slug, so a
+ * shared/deep link or a card from a different catalog slice can always
+ * hydrate its detail. Hidden/deleted listings answer 404 (fail-closed).
+ */
+apiRouter.get("/listings/:id", async (req, res) => {
+  try {
+    const idOrSlug = String(req.params.id ?? "").trim();
+    if (!idOrSlug || idOrSlug.length > 200) {
+      res.status(400).json({ ok: false, code: "invalid_id" });
+      return;
+    }
+    const listing = await getPublicListingByIdOrSlug(idOrSlug);
+    if (!listing) {
+      res.status(404).json({ ok: false, code: "not_found", error: "Skelbimas nerastas." });
+      return;
+    }
+    res.json(listing);
   } catch (e) {
     sendInternalError(res, e);
   }

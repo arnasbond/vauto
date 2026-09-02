@@ -98,7 +98,7 @@ test.describe("Stage 18.3 — search-state URL persistence & classic interoperab
     });
     // Canonical interpretation facets are reflected.
     const chips = reAiChips(page);
-    await expect(chips.vertical.first()).toContainText("Nekilnojamasis", {
+    await expect(chips.vertical.first()).toContainText("Nekilnojamas", {
       timeout: 10_000,
     });
     await expect(chips.location.first()).toContainText("Telšiai", { timeout: 10_000 });

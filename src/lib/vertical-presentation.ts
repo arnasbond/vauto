@@ -338,7 +338,7 @@ const VERTICAL_UI_BASE: Record<VerticalPresentationId, VerticalUiTokensBase> = {
     searchBorder: "#a7e3cf",
     progress: "#10b981",
     fontClass: "font-sans",
-    verticalName: "Apranga",
+    verticalName: "Mada",
     tagline: "Drabužiai, batai ir aksesuarai",
   },
   goods: {
@@ -378,7 +378,7 @@ const VERTICAL_UI_BASE: Record<VerticalPresentationId, VerticalUiTokensBase> = {
     searchBorder: "#a7e3cf",
     progress: "#10b981",
     fontClass: "font-sans",
-    verticalName: "Nekilnojamasis turtas",
+    verticalName: "Nekilnojamas turtas",
     tagline: "Butai, namai, sklypai ir komercinės patalpos",
   },
   services: {
@@ -494,7 +494,7 @@ const VERTICAL_EXPERIENCES: Record<
   },
   fashion: {
     vertical: "fashion",
-    verticalName: "Apranga",
+    verticalName: "Mada",
     headline: "Drabužių ir aksesuarų paieška",
     description:
       "Lengvas stilius, dydžiai, būklė, prekės ženklai ir greitas foto įkėlimas.",
@@ -518,7 +518,7 @@ const VERTICAL_EXPERIENCES: Record<
   },
   real_estate: {
     vertical: "real_estate",
-    verticalName: "Nekilnojamasis turtas",
+    verticalName: "Nekilnojamas turtas",
     headline: "NT paieška",
     description:
       "Plotas, kambariai, aukštas, šildymas ir miestų NT paieška viename sraute.",
@@ -636,7 +636,7 @@ export function verticalShortLabel(id: VerticalPresentationId): string {
     case "transport":
       return "Transportas";
     case "fashion":
-      return "Apranga";
+      return "Mada";
     case "real_estate":
       return "NT";
     case "services":

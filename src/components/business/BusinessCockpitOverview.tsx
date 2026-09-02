@@ -162,11 +162,11 @@ export function BusinessCockpitOverview({
     transport: "Transportas",
     services: "Paslaugos",
     jobs: "Darbas",
-    home: "Namai",
+    home: "Namai ir buitis",
     clothing: "Mada",
-    real_estate: "NT",
-    tools: "Įrankiai",
-    rental: "Nuoma",
+    real_estate: "Nekilnojamas turtas",
+    tools: "Namai ir buitis",
+    rental: "Kita",
     other: "Kita",
   };
 

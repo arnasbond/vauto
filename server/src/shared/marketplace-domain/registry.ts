@@ -17,7 +17,7 @@ export const CANONICAL_VERTICALS: readonly MarketplaceVertical[] = [
   {
     id: "REAL_ESTATE",
     uiSlug: "real_estate",
-    label: "Nekilnojamasis turtas",
+    label: "Nekilnojamas turtas",
     description: "Butai, namai, sklypai — ne siuntomis pristatoma prekė.",
     listingKind: "REAL_ESTATE",
     searchQuery: "butas NT",
@@ -57,7 +57,7 @@ export const CANONICAL_VERTICALS: readonly MarketplaceVertical[] = [
   {
     id: "HOME_GARDEN",
     uiSlug: "home",
-    label: "Namai ir sodas",
+    label: "Namai ir buitis",
     description: "Baldai, sodo technika ir namų prekės.",
     listingKind: "PHYSICAL_GOOD",
     searchQuery: "namai sodas",

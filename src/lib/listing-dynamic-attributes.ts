@@ -1,5 +1,6 @@
 import { INTERNAL_LISTING_ATTR_KEYS } from "@/lib/listing-attributes";
 import type { Listing, ListingCategory } from "@/lib/types";
+import { classifyFashionKind, FASHION_KIND_LABELS } from "@/lib/clothing-catalog";
 import {
   ATTR_LABEL_LT,
   humanizeAttributeKeyLt,
@@ -359,13 +360,13 @@ const CATEGORY_AI_TAGS: Partial<Record<ListingCategory, string>> = {
   vehicles: "Transportas",
   transport: "Transportas",
   electronics: "Elektronika",
-  clothing: "Apranga",
-  home: "Namai",
+  clothing: "Mada",
+  home: "Namai ir buitis",
   services: "Paslaugos",
-  real_estate: "NT",
+  real_estate: "Nekilnojamas turtas",
   jobs: "Darbas",
-  tools: "Įrankiai",
-  rental: "Nuoma",
+  tools: "Namai ir buitis",
+  rental: "Kita",
   other: "Kita",
 };
 
@@ -418,11 +419,15 @@ export function getAiListingTagChips(
 
   for (const tag of tags ?? []) push(tag);
 
-  // Never inject #Apranga for non-clothing verticals.
+  // Never inject #Mada for non-clothing verticals.
   if (category && category !== "clothing" && CATEGORY_AI_TAGS[category]) {
     push(CATEGORY_AI_TAGS[category]!);
   } else if (category === "clothing") {
-    push("Apranga");
+    // F7: the clothing category presents itself as „Mada“ with an optional
+    // kind subcategory chip (Drabužiai / Avalynė / Aksesuarai) derived from
+    // the existing fashion architecture — never guessed when unknown.
+    const kind = classifyFashionKind({ text: (tags ?? []).join(" ") });
+    push(kind ? FASHION_KIND_LABELS[kind] : "Mada");
   }
 
   return chips.slice(0, 12);
