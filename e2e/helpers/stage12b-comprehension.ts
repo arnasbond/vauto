@@ -2,11 +2,11 @@ import { expect, type Locator, type Page, type Route } from "@playwright/test";
 
 export const CERTIFIED_VERTICALS = [
   "Transportas",
-  "Nekilnojamasis turtas",
+  "Nekilnojamas turtas",
   "Elektronika",
   "Paslaugos",
   "Darbas",
-  "Namai ir sodas",
+  "Namai ir buitis",
 ] as const;
 
 export const VEHICLE_ATTR_RE =

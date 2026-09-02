@@ -4,7 +4,7 @@ export const LITHUANIA_HOT_KEYWORDS = [
   { label: "Paslaugos", query: "meistras remontas" },
   { label: "Elektronika", query: "MacBook telefonas" },
   { label: "Darbas", query: "darbas Vilnius Kaunas Klaipėda" },
-  { label: "Namai ir sodas", query: "baldai žolės pjovimas" },
+  { label: "Namai ir buitis", query: "baldai žolės pjovimas" },
   { label: "Transportas", query: "transportas nuoma" },
   { label: "Mobilus telefonas", query: "mobilus telefonas" },
   { label: "Dviratis", query: "dviratis Lietuva" },

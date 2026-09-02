@@ -135,7 +135,7 @@ test.describe("Stage 18N — AI-native & vertical-adaptive UX", () => {
     await expect(page.locator("[data-home-h1]")).toBeVisible({ timeout: 20_000 });
 
     await expect(page.getByRole("button", { name: /Transportas/i }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: /Nekilnojamasis turtas|NT/i }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /Nekilnojamas turtas|NT/i }).first()).toBeVisible();
   });
 
   // 18N-9 + 18E: real-estate results NEVER show a delivery/Omniva capability.
@@ -296,7 +296,7 @@ test.describe("Stage 18N — AI-native & vertical-adaptive UX", () => {
     const locationChip = page.locator('[data-ai-chip][data-chip-field="location"]');
     await expect(verticalChip).toHaveCount(1, { timeout: 10_000 });
     const verticalText = await verticalChip.first().innerText();
-    expect(verticalText, "state A has a real vertical value").toContain("Nekilnojamasis");
+    expect(verticalText, "state A has a real vertical value").toContain("Nekilnojamas");
     await expect(locationChip.first()).toBeVisible({ timeout: 10_000 });
     const locationText = await locationChip.first().innerText();
     expect(locationText).toContain("Telšiai");
@@ -336,7 +336,7 @@ test.describe("Stage 18N — AI-native & vertical-adaptive UX", () => {
       .locator('[data-ai-chip][data-chip-kind="vertical"]')
       .first()
       .innerText();
-    expect(verticalTextBack, "state A vertical restored after Back").toContain("Nekilnojamasis");
+    expect(verticalTextBack, "state A vertical restored after Back").toContain("Nekilnojamas");
     await expect(page.locator('[data-ai-chip][data-chip-field="location"]').first()).toBeVisible({ timeout: 15_000 });
     expect(await page.locator('[data-ai-chip][data-chip-field="propertyType"]').count()).toBeGreaterThan(0);
     await expect(listRows.first()).toBeVisible({ timeout: 10_000 }); // LIST restored

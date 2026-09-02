@@ -69,14 +69,25 @@
   --ds-text-muted: #5b6578;
   --ds-text-inverse: #ffffff;
 
-  --ds-surface-page: #f6f7fa;
+  /* F7 — deeper light-theme separation: page → section → card. The page
+     background is slightly cooler than the card, and cards carry a soft
+     resting shadow so elevation reads even without a border change. */
+  --ds-surface-page: #f3f5f9;
   --ds-surface-card: #ffffff;
   --ds-surface-elevated: #ffffff;
-  --ds-surface-muted: #eef0f5;
+  --ds-surface-muted: #edf0f6;
   --ds-surface-inverse: #0b1220;
 
-  --ds-border-subtle: #e4e8f0;
+  --ds-border-subtle: #e2e7f0;
+  --ds-border-default: #d7dfeb;
   --ds-border-strong: #c7d0e2;
+
+  /* F7 — interaction states (hover / selected / pressed) as first-class
+     tokens; components must not improvise ad-hoc rgba values. */
+  --ds-state-hover: rgba(11, 18, 32, 0.04);
+  --ds-state-pressed: rgba(11, 18, 32, 0.07);
+  --ds-state-selected: rgba(16, 185, 129, 0.10);
+  --ds-state-selected-border: #10b981;
 
   --ds-success: #059669;
   --ds-success-soft: #ecfdf5;
@@ -149,10 +160,14 @@
   --ds-radius-full: 999px;
 
   /* ── Shadows (subtle; avoid stacking with strong borders) ── */
-  --ds-shadow-xs: 0 1px 2px rgba(11, 18, 32, 0.04);
+  --ds-shadow-xs: 0 1px 2px rgba(11, 18, 32, 0.05);
   --ds-shadow-sm: 0 1px 2px rgba(11, 18, 32, 0.05), 0 4px 12px -4px rgba(11, 18, 32, 0.08);
   --ds-shadow-md: 0 2px 4px rgba(11, 18, 32, 0.04), 0 12px 28px -10px rgba(11, 18, 32, 0.12);
   --ds-shadow-lg: 0 4px 8px rgba(11, 18, 32, 0.04), 0 24px 48px -16px rgba(11, 18, 32, 0.18);
+  /* F7 — card resting elevation in LIGHT theme only (dark keeps flat cards). */
+  --ds-card-border: var(--ds-border-subtle);
+  --ds-card-shadow: var(--ds-shadow-xs);
+  --ds-card-shadow-hover: var(--ds-shadow-md);
 
   /* ── Motion ── */
   --ds-duration-fast: 120ms;
@@ -183,7 +198,17 @@ html[data-ds-theme="dark"],
   --ds-surface-inverse: #f4f6fb;
 
   --ds-border-subtle: rgba(244, 246, 251, 0.1);
+  --ds-border-default: rgba(244, 246, 251, 0.16);
   --ds-border-strong: rgba(244, 246, 251, 0.22);
+
+  /* F7 — dark keeps flat cards; the same token NAMES resolve in both themes. */
+  --ds-state-hover: rgba(244, 246, 251, 0.06);
+  --ds-state-pressed: rgba(244, 246, 251, 0.10);
+  --ds-state-selected: rgba(52, 211, 153, 0.14);
+  --ds-state-selected-border: #34d399;
+  --ds-card-border: var(--ds-border-subtle);
+  --ds-card-shadow: none;
+  --ds-card-shadow-hover: var(--ds-shadow-md);
 
   --ds-success: #34d399;
   --ds-success-soft: rgba(52, 211, 153, 0.12);

@@ -209,6 +209,50 @@ export function isShoeSubcategory(sub: string): boolean {
   return SHOE_SUB_RE.test(sub);
 }
 
+/* ---------------------------------------------------------------------- */
+/* F7 — „Mada“ subkategorijos (naudojama esama architektūra).             */
+/* ---------------------------------------------------------------------- */
+
+export type FashionKind = "drabužiai" | "avalynė" | "aksesuarai";
+
+export const FASHION_KIND_LABELS: Record<FashionKind, string> = {
+  drabužiai: "Drabužiai",
+  avalynė: "Avalynė",
+  aksesuarai: "Aksesuarai",
+};
+
+const ACCESSORY_SUB_RE = /krepš|rankin|pinigin|dirž|šalik|kepur|skrybėl|akin|papuošal|laikrod|pinig|kuprin|perkūn|skėt|pirštin/i;
+
+/**
+ * Deterministic fashion-kind classification over the EXISTING architecture
+ * (subcategory tree + free text). Shoes win over clothing, accessories win
+ * over everything else only when no clothing/shoe signal exists — an
+ * unrecognized item returns null (never guessed, fail-closed).
+ */
+export function classifyFashionKind(input: {
+  subcategory?: string | null;
+  text?: string | null;
+}): FashionKind | null {
+  const sub = String(input.subcategory ?? "").trim();
+  const text = String(input.text ?? "").toLowerCase();
+
+  if (sub && ACCESSORY_SUB_RE.test(sub)) return "aksesuarai";
+  if (sub && isShoeSubcategory(sub)) return "avalynė";
+  if (sub && FASHION_CATEGORY_TREE_SIZE_SIGNAL_RE.test(sub)) return "drabužiai";
+  if (sub) return null;
+
+  if (ACCESSORY_SUB_RE.test(text)) return "aksesuarai";
+  if (/\bbat|batų|auli|šlepet|sandal|sportbač|nike air|adidas|puma|vans|converse/i.test(text)) {
+    return "avalynė";
+  }
+  if (/\b(suknel|striuk|palt|keln|džins|marškin|megztin|drabuž)/i.test(text)) {
+    return "drabužiai";
+  }
+  return null;
+}
+
+const FASHION_CATEGORY_TREE_SIZE_SIGNAL_RE = /suknel|striuk|palt|keln|džins|marškin|megztin|drabuž|maudym|palaidin|megzt|švark/i;
+
 export function isChildHeightSubcategory(group: string, sub: string): boolean {
   return group === "Vaikams" && /drabuž|amži|ūg/i.test(sub);
 }

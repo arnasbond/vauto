@@ -234,15 +234,19 @@ function verticalLabelFor(vertical: ListingCategory | "all"): string {
     case "vehicles":
       return "Transportas";
     case "real_estate":
-      return "Nekilnojamasis turtas";
+      return "Nekilnojamas turtas";
     case "clothing":
-      return "Apranga";
+      return "Mada";
     case "jobs":
       return "Darbas";
     case "services":
       return "Paslaugos";
     case "electronics":
       return "Elektronika";
+    case "home":
+      return "Namai ir buitis";
+    case "other":
+      return "Kita";
     default:
       return "Prekės";
   }

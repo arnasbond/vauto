@@ -465,7 +465,7 @@ export function tryHandleAgentQuickReply(
   if (matchesChip(trimmed, [/pataisyti kategorij/i])) {
     return {
       handled: true,
-      reply: "Kokia kategorija? Parašykite, pvz. Transportas, Nekilnojamasis turtas, Elektronika, Paslaugos.",
+      reply: "Kokia kategorija? Parašykite, pvz. Transportas, Nekilnojamas turtas, Elektronika, Paslaugos.",
       quickReplies: ["Viskas tinka", "Pataisyti kainą"],
     };
   }

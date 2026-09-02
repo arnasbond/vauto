@@ -66,8 +66,8 @@ const CATEGORY_OPTIONS: { value: ListingCategory; label: string }[] = [
   { value: "vehicles", label: "Transportas" },
   { value: "services", label: "Paslaugos" },
   { value: "jobs", label: "Darbas" },
-  { value: "home", label: "Namams" },
-  { value: "clothing", label: "Apranga" },
+  { value: "home", label: "Namai ir buitis" },
+  { value: "clothing", label: "Mada" },
   { value: "real_estate", label: "Nekilnojamas turtas" },
   { value: "other", label: "Kita" },
 ];

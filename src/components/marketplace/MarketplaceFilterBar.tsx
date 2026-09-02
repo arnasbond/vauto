@@ -18,8 +18,7 @@ import { Button, IconButton, Input, Modal, Select } from "@/design-system";
 import { cn } from "@/lib/cn";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
-import { LISTING_CATEGORY_LABELS } from "@vauto/shared/category-registry";
-import type { ListingCategory } from "@/lib/types";
+import { visibleCategoryOptions } from "@vauto/shared/category-registry";
 import { FacetFilterPanel } from "@/components/marketplace/FacetFilterPanel";
 import { useCanonicalFacetQuery } from "@/hooks/useCanonicalFacetUrl";
 import {
@@ -32,16 +31,10 @@ import {
   serializeFacetSearchParams,
 } from "@vauto/shared/marketplace-domain";
 
-const MARKETPLACE_CATEGORY_IDS = (
-  Object.keys(LISTING_CATEGORY_LABELS) as ListingCategory[]
-).filter((c) => c !== "transport");
-
+/** F7: exactly the 8 visible top-level categories (legacy slugs fold in). */
 const CATEGORY_OPTIONS: { value: string; label: string }[] = [
   { value: "all", label: "Visos kategorijos" },
-  ...MARKETPLACE_CATEGORY_IDS.map((value) => ({
-    value,
-    label: LISTING_CATEGORY_LABELS[value],
-  })),
+  ...visibleCategoryOptions().map(({ id, label }) => ({ value: id, label })),
 ];
 
 function FilterFields({

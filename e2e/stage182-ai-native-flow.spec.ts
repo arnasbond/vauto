@@ -90,7 +90,7 @@ test.describe("Stage 18.2 — AI-native universal marketplace flow", () => {
     const verticalChip = page.locator('[data-ai-chip][data-chip-kind="vertical"]');
     await expect(verticalChip).toHaveCount(1, { timeout: 10_000 });
     const stateAVertical = await verticalChip.first().innerText();
-    expect(stateAVertical).toContain("Nekilnojamasis");
+    expect(stateAVertical).toContain("Nekilnojamas");
 
     // State A: the narrow-mobile automatic default is LIST (Stage 22A.1-A) —
     // no explicit ?view was chosen, so the safe single-column presentation is
@@ -124,7 +124,7 @@ test.describe("Stage 18.2 — AI-native universal marketplace flow", () => {
       .locator('[data-ai-chip][data-chip-kind="vertical"]')
       .first()
       .innerText();
-    expect(verticalBack).toContain("Nekilnojamasis");
+    expect(verticalBack).toContain("Nekilnojamas");
 
     // Browser Forward → state B (explicit map) restored.
     await page.goForward({ waitUntil: "load" });

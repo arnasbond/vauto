@@ -83,7 +83,7 @@ export function buildListingEditPrompt(field: ListingWizardEditField): string {
     case "price":
       return "Kokia turėtų būti kaina? Parašykite sumą eurais, pvz. 1200 €.";
     case "category":
-      return "Kokia kategorija? Parašykite, pvz. Transportas, Nekilnojamasis turtas, Elektronika, Paslaugos.";
+      return "Kokia kategorija? Parašykite, pvz. Transportas, Nekilnojamas turtas, Elektronika, Paslaugos.";
     case "description":
       return "Parašykite naują aprašymą — pakeisiu esamą tekstą.";
     default:

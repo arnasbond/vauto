@@ -83,7 +83,7 @@ test.describe("Stage 21D — search continuity & recovery", () => {
 
     await expect(page.locator("[data-ai-interpretation]").first()).toBeVisible({ timeout: 10_000 });
     const chips = reAiChips(page);
-    await expect(chips.vertical.first()).toContainText("Nekilnojamasis");
+    await expect(chips.vertical.first()).toContainText("Nekilnojamas");
     await expect(chips.location.first()).toContainText("Telšiai");
     await expect(chips.propertyType.first()).toBeVisible();
     // Results rendered (real estate anchor card from the fixture).
