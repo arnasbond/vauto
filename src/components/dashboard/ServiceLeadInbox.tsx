@@ -14,16 +14,18 @@ import type { UserProfile } from "@/lib/types";
 interface ServiceLeadInboxProps {
   balance: number;
   user: UserProfile;
-  rating: number;
+  rating: number | null;
 }
 
 export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProps) {
   const { serviceLeads, openedServiceLeadIds, openServiceLead, showToast } = useVauto();
 
-  const topRatedPlus = isTopRatedPlus({
-    rating,
-    averageResponseMinutes: user.averageResponseMinutes,
-  });
+  const topRatedPlus =
+    rating != null &&
+    isTopRatedPlus({
+      rating,
+      averageResponseMinutes: user.averageResponseMinutes,
+    });
   const tier = coverageTier(user.serviceRadiusKm, user.serviceNationwide);
   const leads = serviceLeads.filter((lead) => serviceLeadMatchesProvider(lead, user));
 
@@ -49,17 +51,28 @@ export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProp
           <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
             {user.serviceNationwide
               ? "Visa Lietuva"
-              : `${user.serviceBaseCity ?? "Vilnius"} · ${user.serviceRadiusKm ?? 25} km`}{" "}
+              : [
+                  user.serviceBaseCity,
+                  user.serviceRadiusKm != null
+                    ? `${user.serviceRadiusKm} km`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}{" "}
             · {tier === "national" ? "Premium tarifas" : tier === "regional" ? "Regioninis tarifas" : "Vietinis tarifas"}
           </p>
         </div>
         <Zap className="h-5 w-5 text-[var(--ds-ai)]" />
       </div>
 
-      {topRatedPlus && (
+      {topRatedPlus && rating != null && (
         <div className="mb-3 flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300">
           <Award className="h-4 w-4" />
-          Top Rated Plus · {rating.toFixed(1)} ★ · atsako per {user.averageResponseMinutes ?? 12} min · -15% lead’ams
+          Top Rated Plus · {rating.toFixed(1)} ★
+          {user.averageResponseMinutes != null
+            ? ` · atsako per ${user.averageResponseMinutes} min`
+            : ""}{" "}
+          · -15% lead’ams
         </div>
       )}
 
@@ -73,7 +86,7 @@ export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProp
           });
           const canOpen = balance >= leadPrice || opened;
           const contact = opened
-            ? lead.contactPhone ?? "+370 612 44550"
+            ? lead.contactPhone ?? "Kontaktas neprieinamas"
             : lead.hiddenContact;
 
           return (

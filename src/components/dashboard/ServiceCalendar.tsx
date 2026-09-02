@@ -16,10 +16,13 @@ export function ServiceCalendar({ bookings }: { bookings: ServiceBooking[] }) {
           <Calendar className="h-4 w-4 text-[var(--ds-brand)]" />
           <h3 className="text-sm font-semibold text-[var(--vauto-text-heading)]">Artimiausi užsakymai</h3>
         </div>
-        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase text-amber-700 dark:text-amber-300">
-          Demo
-        </span>
       </div>
+      {bookings.length === 0 ? (
+        <p className="rounded-xl bg-[var(--vauto-surface-muted)] px-3 py-4 text-center text-xs text-[var(--vauto-text-muted)]">
+          Duomenų apie užsakymus šiuo metu nėra. Užsakymai atsiras gavus
+          lead’us iš pirkėjų.
+        </p>
+      ) : (
       <div className="space-y-3">
         {Object.entries(grouped).map(([date, items]) => (
           <div key={date}>
@@ -52,6 +55,7 @@ export function ServiceCalendar({ bookings }: { bookings: ServiceBooking[] }) {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

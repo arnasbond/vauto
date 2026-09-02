@@ -12,6 +12,8 @@ import { vautoServerRouter } from "./routes/vauto-server.js";
 import { vautoAgentRouter } from "./routes/vauto-agent.js";
 import { consequentialActionsRouter } from "./routes/consequential-actions.js";
 import { bulkListingsRouter } from "./routes/bulk-listings.js";
+import bulkImportRouter from "./routes/bulk-import.js";
+import { IMPORT_MAX_BYTES as BULK_IMPORT_MAX_BYTES } from "./bulk-import/import-parsers.js";
 import { vinReviewRouter } from "./routes/vin-review.js";
 import { markConfirmationBoundaryReady } from "./ai/confirmation/consequential-action-policy.js";
 import { createPostgresPendingActionStore } from "./ai/confirmation/consequential-action-store-postgres.js";
@@ -191,6 +193,18 @@ app.use(
 /** F6.1 — professional seller bulk listing control (preview → human
  *  confirmation → execution). Never reachable from LLM tool-call text. */
 app.use("/api/bulk-listings", actionRateLimiter, requireAuth, bulkListingsRouter);
+/** F6 Final — safe CSV/XML bulk import (parse/validate/preview only;
+ *  persistence is fail-closed: no `draft` listing status exists yet). */
+app.use(
+  "/api/bulk-import",
+  express.raw({
+    type: ["text/csv", "application/xml", "text/xml", "text/plain"],
+    limit: BULK_IMPORT_MAX_BYTES,
+  }),
+  actionRateLimiter,
+  requireAuth,
+  bulkImportRouter
+);
 /** AI Maturity Phase 2C Round 3 — server-owned VIN confirmation authority.
  *  The LLM has no tool for this boundary; only the trusted client UI may
  *  request a confirmation receipt. */
