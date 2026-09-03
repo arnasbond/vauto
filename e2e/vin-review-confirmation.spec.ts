@@ -137,7 +137,12 @@ async function installVinEndpoints(page: Page) {
  */
 async function installAgentStreamStub(
   page: Page,
-  opts: { candidateFlowState: "DRAFT_READY" | "AWAITING_CONFIRMATION" }
+  opts: {
+    candidateFlowState: "DRAFT_READY" | "AWAITING_CONFIRMATION";
+    /** F9 fail-closed regression: emit a vehicles draft WITHOUT the now
+     *  required condition — the PrePublish card must stay closed. */
+    omitCondition?: boolean;
+  }
 ) {
   const sentAgentBodies: CapturedCall[] = [];
   const sse = (body: unknown) => `data: ${JSON.stringify(body)}\n\n`;
@@ -166,6 +171,7 @@ async function installAgentStreamStub(
             category: "vehicles",
             confidence: 0.9,
             attributes: {
+              ...(opts.omitCondition ? {} : { condition: "Naudota" }),
               vin: String(action.value ?? ""),
               vinConfirmed: "true",
               vinConfirmedSource: "user_entered",
@@ -203,6 +209,7 @@ async function installAgentStreamStub(
           confidence: 0.9,
           listingFlowState: opts.candidateFlowState,
           attributes: {
+            ...(opts.omitCondition ? {} : { condition: "Naudota" }),
             make: "BMW",
             model: "320d",
             year: "2015",
@@ -560,5 +567,35 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     // Visible success: the card disappears and the assistant confirms:
     await expect(card).toHaveCount(0);
     await expect(page.locator(".agent-chat-strip")).toContainText("patvirtintas", { ignoreCase: true });
+  });
+
+  test("F9 fail-closed: pilnas transporto draft be būklės → PrePublish kortelė lieka uždaryta", async ({ page }) => {
+    await forceOfflineCatalog(page);
+    await seedDemoUser(page);
+    const { sentAgentBodies } = await installAgentStreamStub(page, {
+      candidateFlowState: "AWAITING_CONFIRMATION",
+      omitCondition: true,
+    });
+
+    await page.goto("/");
+    await acceptGdprConsentIfPrompted(page);
+    await openAgentChatOnHome(page);
+
+    const composer = chatComposer(page);
+    await expect(composer).toBeVisible();
+    await composer.fill("Parduodu BMW");
+    await composer.press("Enter");
+
+    // The chat message MUST reach the agent (stubbed) — fail otherwise:
+    await expect
+      .poll(() => sentAgentBodies.length, { timeout: 15_000 })
+      .toBeGreaterThan(0);
+
+    // The assistant reply is visible, but the incomplete vehicles draft
+    // (missing condition) must NEVER open the PrePublish modal:
+    await expect(
+      page.locator(".agent-chat-strip .agent-chat-bubble-assistant")
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-prepublish-modal="1"]')).toHaveCount(0);
   });
 });

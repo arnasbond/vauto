@@ -20,6 +20,12 @@ const GLOBAL_ATTRIBUTE_KEYS = new Set([
   // fashionCategory is clothing-only — never survive category switches to auto/parts.
   "skelbiuCategory",
   "_canonicalVertical",
+  // F9 — `condition` is a UNIVERSAL pre-publish fact (title/category/condition
+  // fail-closed contract). Some adaptive schemas (vehicles) do not carry a
+  // `condition` field, so the draft pipeline used to strip it before the
+  // readiness gate — leaving every legitimate vehicle draft blocked. Keep it
+  // category-neutral, exactly like the fact-conflict markers.
+  "condition",
 ]);
 
 /**
