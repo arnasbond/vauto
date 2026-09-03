@@ -76,12 +76,20 @@ export function isAdminRole(role: string | null | undefined): boolean {
 /**
  * Server RBAC: admin / super_admin role, or allowlisted operator
  * (elevated to super_admin on session — same Control Center owners).
+ * F10 P1-01 — a `super_admin` token claim is re-verified against the DB row:
+ * a forged token minted before the login clamp can no longer pass admin
+ * gates. `admin` keeps the canonical admin-1 fast path; everything else is
+ * DB/allowlist verified.
  */
 export async function userIsAdmin(req: AuthedRequest): Promise<boolean> {
   try {
     if (!req.authUserId) return false;
     if (isAdminRole(req.authRole)) {
-      if (req.authRole === "super_admin") return true;
+      if (req.authRole === "super_admin") {
+        const user = await getUser(req.authUserId);
+        if (user && user.role === "super_admin") return true;
+        return false;
+      }
       if (req.authUserId === "admin-1") return true;
     }
     const user = await getUser(req.authUserId);
