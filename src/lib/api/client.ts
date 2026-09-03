@@ -910,14 +910,46 @@ export async function apiUpdateUserAvatarImage(
   });
 }
 
+/**
+ * F9 — server-owned identity/authority fields must never be sent in a
+ * plain profile update: role, id (goes in the URL), authProvider, wallet,
+ * counters, billing and profileType are reconstructed by the server from
+ * the token and the authoritative DB row.
+ */
+const USER_EDITABLE_PROFILE_FIELDS = [
+  "name",
+  "phone",
+  "city",
+  "avatar",
+  "email",
+  "firstName",
+  "lastName",
+  "nickname",
+  "businessType",
+  "companyName",
+  "companyCode",
+  "vatCode",
+  "serviceBaseCity",
+  "serviceRadiusKm",
+  "serviceNationwide",
+  "serviceSpecialties",
+  "averageResponseMinutes",
+  "ageGroup",
+  "gender",
+  "hobbies",
+  "businessHours",
+] as const;
+
 export async function apiUpdateUser(
   user: UserProfile
 ): Promise<ApiResult<null>> {
-  const payload = {
-    ...user,
-    city: resolveListingCity(user.city),
-    avatar: sanitizeAvatarForApi(user.avatar),
-  };
+  const payload: Record<string, unknown> = {};
+  for (const key of USER_EDITABLE_PROFILE_FIELDS) {
+    const value = user[key as keyof UserProfile];
+    if (value !== undefined) payload[key] = value;
+  }
+  payload.city = resolveListingCity(user.city);
+  payload.avatar = sanitizeAvatarForApi(user.avatar);
   return dataFetch<null>(`/api/users/${user.id}`, {
     method: "PUT",
     body: JSON.stringify(payload),

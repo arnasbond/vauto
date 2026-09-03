@@ -41,6 +41,7 @@ for (const name of [
   "ensure-rich-sales-copy.ts",
   "omniva-locker-eligibility.ts",
   "listing-attributes-sanitize.ts",
+  "fact-conflict.ts",
 ]) {
   const raw = readFileSync(join(root, "shared", name), "utf8");
   writeFileSync(join(root, "server", "src", "shared", name), withJsExt(raw), "utf8");

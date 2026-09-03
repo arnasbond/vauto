@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AiCommandBar } from "@/components/search/AiCommandBar";
 import { AgentChatStrip } from "@/components/home/AgentChatStrip";
@@ -8,6 +8,7 @@ import { HomeCategoryGrid } from "@/components/home/HomeCategoryGrid";
 import { HomeTrendingStrip } from "@/components/home/HomeTrendingStrip";
 import { HomeHeroAtmosphere } from "@/components/home/HomeHeroAtmosphere";
 import { AiInterpretationChips } from "@/components/marketplace/AiInterpretationChips";
+import { SEARCH_CONTEXT_RESET_EVENT } from "@/lib/start-ai-seller-listing";
 import { useShellChrome } from "@/hooks/useShellChrome";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
@@ -74,6 +75,15 @@ export function HomeAiHero({
   const [draftSeed, setDraftSeed] = useState<string | null>(null);
   const [activeChip, setActiveChip] = useState<string | null>(null);
   const [liveDraft, setLiveDraft] = useState<string>("");
+
+  // F9 — a fresh sell session clears any previous search intent left in the
+  // hero draft („Rodyk visus" / stale query) so the interpretation block
+  // cannot bleed into the sell flow.
+  useEffect(() => {
+    const onReset = () => setLiveDraft("");
+    window.addEventListener(SEARCH_CONTEXT_RESET_EVENT, onReset);
+    return () => window.removeEventListener(SEARCH_CONTEXT_RESET_EVENT, onReset);
+  }, []);
 
   const handleSeedConsumed = useCallback(() => {
     onSeedConsumed?.();

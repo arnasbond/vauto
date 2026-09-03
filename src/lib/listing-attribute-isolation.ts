@@ -114,6 +114,21 @@ const YEAR_CONFLICT_DRAFT_STATE_KEYS = [
   "yearConflictCandidate",
 ] as const;
 
+/**
+ * F9 — canonical fact-conflict draft-state keys (price/city/condition).
+ * Same deterministic `${field}Conflict` + `${field}ConflictCandidate`
+ * convention (shared/fact-conflict): draft-only, stripped at the persistence
+ * boundary and redacted from model-visible context.
+ */
+export const FACT_CONFLICT_DRAFT_STATE_KEYS = [
+  "priceConflict",
+  "priceConflictCandidate",
+  "cityConflict",
+  "cityConflictCandidate",
+  "conditionConflict",
+  "conditionConflictCandidate",
+] as const;
+
 /** VIN/year review draft state only applies to vehicle drafts (vehicles + transport). */
 function isVinDraftStateCategory(category: ListingCategory): boolean {
   const key = listingToAdaptiveKey(category);
@@ -232,6 +247,8 @@ export function allowedAttributeKeysForCategory(category: ListingCategory): Set<
     for (const key of VIN_REVIEW_DRAFT_STATE_KEYS) allowed.add(key);
     for (const key of YEAR_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
   }
+  // F9 — fact-conflict markers are category-neutral draft state.
+  for (const key of FACT_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
   for (const [canonical, aliases] of Object.entries(ATTRIBUTE_ALIASES)) {
     if (allowed.has(canonical)) {
       for (const alias of aliases) allowed.add(alias);
@@ -274,6 +291,8 @@ export function activeAttributeKeysForListing(
     for (const key of VIN_REVIEW_DRAFT_STATE_KEYS) allowed.add(key);
     for (const key of YEAR_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
   }
+  // F9 — fact-conflict markers are category-neutral draft state.
+  for (const key of FACT_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
   allowed.add("_geoLat");
   allowed.add("_geoLng");
 

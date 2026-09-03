@@ -12,6 +12,7 @@ import {
 import { detectSellerListingIntent } from "@/lib/scoring";
 import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 import { VAUTO_IN_DOMAIN_RECOVERY } from "@vauto/shared/vauto-domain-autonomy";
+import type { AgentQuickReplyOption } from "@/lib/agent-quick-reply-contract";
 
 export type { ListingChatContext };
 
@@ -23,8 +24,12 @@ export interface AgentChatMessage {
   /** PDF/DOC/TXT badges shown in user bubbles */
   documentAttachments?: { fileName: string }[];
   toolCalls?: { name: string; result: unknown }[];
-  /** Structured quick replies from vision / proactive flows */
-  quickReplies?: string[];
+  /**
+   * F9 — quick replies are either legacy label strings or structured
+   * `{id,label,action,payload?}` chips; execution always keys off the
+   * structured action (see agent-quick-reply-contract).
+   */
+  quickReplies?: AgentQuickReplyOption[];
   /** Rich pre-publish listing preview card */
   prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
 }
@@ -477,7 +482,7 @@ export type VautoAgentAction =
 export interface VautoAgentResponse {
   ok: true;
   reply: string;
-  quickReplies?: string[];
+  quickReplies?: AgentQuickReplyOption[];
   prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
   toolCalls: { name: string; result: unknown }[];
   actions: VautoAgentAction;

@@ -106,6 +106,13 @@ const EXTRA_INTERNAL_KEYS = new Set([
   // (resolveYearConflictPatch), never public specs.
   "yearConflict",
   "yearConflictCandidate",
+  // F9 — canonical fact-conflict markers (price/city/condition) — draft-only.
+  "priceConflict",
+  "priceConflictCandidate",
+  "cityConflict",
+  "cityConflictCandidate",
+  "conditionConflict",
+  "conditionConflictCandidate",
 ]);
 
 const INTERNAL_LABEL_RE =

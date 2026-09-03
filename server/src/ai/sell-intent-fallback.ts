@@ -445,10 +445,20 @@ export function buildSellListingDraftFallback(
     }
     attributes.condition = "Gera";
   }
+  // F9 — user-spoken condition survives for EVERY category, not just fashion.
+  if (!attributes.condition) {
+    if (/\b(nauj[aą]|new)\b/i.test(text)) {
+      attributes.condition = "Nauja";
+    } else if (/\b(naudot[aą]?|used)\b/i.test(text)) {
+      attributes.condition = "Naudota";
+    }
+  }
   const listingDraft = {
     title,
     description: buildFallbackDescription({ title, category, make, location }),
-    price: 0,
+    // F9 — a price the user already said must survive the fallback; never
+    // silently zero it (the deterministic parser is the authority).
+    price: extractPriceFromSellText(text),
     location: sanitizeFallbackListingCity(location),
     contact: ctx.contact?.trim() || "",
     category,

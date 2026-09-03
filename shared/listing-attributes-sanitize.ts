@@ -61,6 +61,15 @@ export const EPHEMERAL_LISTING_ATTR_KEYS = new Set([
   "roomsConflictCandidate",
   "workTypeConflict",
   "workTypeConflictCandidate",
+  // F9 — canonical fact-conflict markers (price/city/condition) follow the
+  // same deterministic `${field}Conflict` + `${field}ConflictCandidate`
+  // convention (shared/fact-conflict). Draft-only; never persist.
+  "priceConflict",
+  "priceConflictCandidate",
+  "cityConflict",
+  "cityConflictCandidate",
+  "conditionConflict",
+  "conditionConflictCandidate",
 ]);
 
 export const ATTR_STRING_MAX = 500;

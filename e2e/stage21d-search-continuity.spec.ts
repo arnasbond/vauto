@@ -36,7 +36,7 @@ const RE_DEEP_LINK_WITH_Q =
   "&vertical=real_estate&location=Tel%C5%A1iai&price_max=120000&ca_propertyType=Butas&ca_rooms=1";
 
 /** Direct canonical URL entry WITHOUT a natural-language query. */
-const RE_DEEP_LINK_NO_Q =
+export const RE_DEEP_LINK_NO_Q =
   "/search?vertical=real_estate&location=Tel%C5%A1iai&price_max=120000&ca_propertyType=Butas&ca_rooms=1";
 
 function reAiChips(page: Page) {
@@ -78,6 +78,19 @@ async function openSearchPage(page: Page, url: string) {
 }
 
 test.describe("Stage 21D — search continuity & recovery", () => {
+  test.beforeEach(async ({ page }) => {
+    // F9 — deterministic fixture: force the OFFLINE demo catalog so the
+    // canonical lt-nt-004 anchor card comes from THIS build's fixtures —
+    // never from the production catalog (whose demo rows were purged).
+    await page.route("**/api/health**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: false, status: "offline-e2e" }),
+      });
+    });
+  });
+
   test("21D-A: query → interpretation chips → deterministic results", async ({ page }) => {
     await openResultsWithQuery(page, "butas Telšiai", 1440, 900, "re");
 

@@ -165,7 +165,7 @@ const CATEGORY_ALIASES: Record<string, RegistryListingCategory> = {
 };
 
 /** Infer a safe DB category from free-text title/description when AI label is novel. */
-function inferCategoryFromContext(
+export function inferCategoryFromContext(
   title?: string,
   description?: string
 ): RegistryListingCategory | null {
@@ -187,13 +187,27 @@ function inferCategoryFromContext(
   ) {
     return "tools";
   }
+  // F9 — car seat covers are HOME textiles, not vehicles: the explicit
+  // seat-cover rule runs BEFORE the generic `automobil` prefix rule so
+  // „automobilio sėdynių užvalkalai“ never lands in Transportas.
+  if (
+    /\b(sėdynių|sedyniu|sėdynės|sedynes|sėdyniu|sedynu)\s*(užvalkal|uzvalkal|užtiesal|uztiesal|apmušal|apmusal)\w*/i.test(
+      blob
+    )
+  ) {
+    return "home";
+  }
   if (/\b(automobil|auto\b|bmw|audi|volvo|toyota|citroen|vin\b)\w*/i.test(blob)) {
     return "vehicles";
   }
   if (/\b(priekab|trailer|motocikl|dvirač|dvirat|valtis)\w*/i.test(blob)) {
     return "transport";
   }
-  if (/\b(iphone|samsung|telefon|kompiuter|televiz|elektron|jbl|partybox)\w*/i.test(blob)) {
+  if (
+    /\b(iphone|samsung|telefon|kompiuter|televiz|elektron|jbl|partybox|klaviat|keyboard|monitor)\w*/i.test(
+      blob
+    )
+  ) {
     return "electronics";
   }
   if (/\b(suknel|kelnes|batai|striuk|mada|aprang|drabuž)\w*/i.test(blob)) {

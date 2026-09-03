@@ -1,6 +1,12 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import {
+  quickReplyKey,
+  quickReplyLabel,
+  isStructuredQuickReply,
+  type AgentQuickReplyOption,
+} from "@/lib/agent-quick-reply-contract";
 
 export function AgentChatBubble({
   role,
@@ -41,9 +47,9 @@ export function AgentQuickReplyChips({
   onSelect,
   embedded,
 }: {
-  options: string[];
+  options: AgentQuickReplyOption[];
   disabled?: boolean;
-  onSelect: (option: string) => void;
+  onSelect: (option: AgentQuickReplyOption) => void;
   /** Render inside assistant bubble — tighter layout for mobile */
   embedded?: boolean;
 }) {
@@ -60,9 +66,11 @@ export function AgentQuickReplyChips({
     >
       {options.map((option) => (
         <button
-          key={option}
+          key={quickReplyKey(option)}
           type="button"
           disabled={disabled}
+          data-qr-action={isStructuredQuickReply(option) ? option.action : undefined}
+          data-qr-id={isStructuredQuickReply(option) ? option.id : undefined}
           onClick={() => onSelect(option)}
           className={cn(
             "agent-quick-reply-chip touch-manipulation rounded-full border text-left font-medium leading-snug transition active:scale-[0.98] disabled:opacity-50",
@@ -71,7 +79,7 @@ export function AgentQuickReplyChips({
               : "min-h-[40px] px-3 py-2 text-[12px]"
           )}
         >
-          {option}
+          {quickReplyLabel(option)}
         </button>
       ))}
     </div>

@@ -1,4 +1,5 @@
 import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
+import { buildFactConflictQuestion } from "@vauto/shared/fact-conflict";
 import {
   AWAITING_PHOTOS_PROMPT,
   PROFILE_CITY_REQUIRED,
@@ -55,10 +56,30 @@ export function buildConversationalMissingPrompt(
     | "missingCity"
     | "missingPrice"
     | "missingPhone"
+    | "missingTitle"
+    | "missingCategory"
+    | "missingCondition"
+    | "activeConflict"
   >
 ): string {
+  // F9 — an open canonical fact conflict is THE single most important
+  // question; nothing else is asked in the same turn.
+  if (readiness.activeConflict) {
+    return buildFactConflictQuestion(readiness.activeConflict);
+  }
   if (readiness.missingAuth) {
     return "Norint publikuoti, reikia prisijungti — prisijunkite ir tęsime kaip asmeninis brokeris.";
+  }
+  // F9 — ONE question per turn: the most important gap first, in canonical
+  // order (title → category → condition → price → contact → city → photo).
+  if (readiness.missingTitle) {
+    return "Kokį daiktą parduodate? Parašykite prekės pavadinimą, pvz. „USB klaviatūra“.";
+  }
+  if (readiness.missingCategory) {
+    return "Kokiai kategorijai priskirti skelbimą? Pvz. Elektronika, Mada, Namai ir buitis, Transportas.";
+  }
+  if (readiness.missingCondition) {
+    return "Kokia prekės būklė? Pvz. „Nauja“ arba „Naudota“.";
   }
   if (readiness.missingPrice) {
     return "Kokią kainą norėtumėte matyti skelbime? Parašykite sumą eurais arba „Kainos sutartinės“.";

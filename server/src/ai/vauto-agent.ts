@@ -280,7 +280,7 @@ export interface VautoAgentRequest {
 export interface VautoAgentResponse {
   ok: true;
   reply: string;
-  quickReplies?: string[];
+  quickReplies?: QuickReplyWire[];
   prePublishCard?: import("./pre-publish-validation.js").ServerPrePublishCardPayload;
   prePublishRequirements?: import("./pre-publish-validation.js").ServerPrePublishRequirementsPayload;
   toolCalls: { name: string; result: unknown }[];
@@ -295,7 +295,7 @@ export type VautoAgentStreamEvent =
   | {
       type: "early_ack";
       reply: string;
-      quickReplies?: string[];
+      quickReplies?: QuickReplyWire[];
     }
   /** Progressive PrePublish draft fill from async Vision / OCR. */
   | {
@@ -341,16 +341,52 @@ function toolProgressMessage(name: string): string {
   return labels[name] ?? "Dirbu su jūsų užklausa…";
 }
 
-function pickQuickReplies(candidates: unknown): string[] | undefined {
+export interface AgentQuickReplyOptionWire {
+  id: string;
+  label: string;
+  action: string;
+}
+
+type QuickReplyWire = string | AgentQuickReplyOptionWire;
+
+const QUICK_REPLY_ID_MAX = 64;
+const QUICK_REPLY_LABEL_MAX = 120;
+const QUICK_REPLY_ACTION_MAX = 64;
+
+function sanitizeStructuredWire(c: unknown): AgentQuickReplyOptionWire | null {
+  if (!c || typeof c !== "object" || Array.isArray(c)) return null;
+  const o = c as Record<string, unknown>;
+  const ok = (v: unknown, max: number): v is string =>
+    typeof v === "string" && v.trim().length > 0 && v.length <= max;
+  // F9 — the wire contract carries NO payload: any payload key from the
+  // untrusted model result is discarded here.
+  if (!ok(o.id, QUICK_REPLY_ID_MAX)) return null;
+  if (!ok(o.label, QUICK_REPLY_LABEL_MAX)) return null;
+  if (!ok(o.action, QUICK_REPLY_ACTION_MAX)) return null;
+  return { id: o.id, label: o.label, action: o.action };
+}
+
+function pickQuickReplies(candidates: unknown): QuickReplyWire[] | undefined {
   if (!Array.isArray(candidates)) return undefined;
-  const chips = candidates.map((c) => String(c).trim()).filter(Boolean).slice(0, 4);
+  const chips = candidates
+    .map((c) => {
+      // F9 — structured chips pass through (payload stripped); malformed
+      // objects are DROPPED (never stringified to `[object Object]`).
+      if (c && typeof c === "object") {
+        return sanitizeStructuredWire(c);
+      }
+      const text = String(c).trim();
+      return text.length > 0 && text.length <= QUICK_REPLY_LABEL_MAX ? text : null;
+    })
+    .filter((c): c is QuickReplyWire => c !== null)
+    .slice(0, 4);
   return chips.length >= 2 ? chips : undefined;
 }
 
 function resolveAgentQuickReplies(
   toolCalls: { name: string; result: unknown }[],
   actions: AgentSideEffect | { type: "none" }
-): string[] | undefined {
+): QuickReplyWire[] | undefined {
   for (const call of [...toolCalls].reverse()) {
     const result = call.result as Record<string, unknown> | undefined;
     if (!result || typeof result !== "object") continue;
@@ -2293,9 +2329,23 @@ async function runVautoAgentInner(
     finalText = trustToolResult.message;
   }
 
+  // F9 — negotiator isolation: a listing-draft turn is NEVER hijacked by
+  // negotiation tools. Compute this BEFORE the negotiation overrides below
+  // so the twin can neither rewrite the draft reply nor win action
+  // precedence on a draft-creating turn.
+  const hasListingDraftAction =
+    sideEffect?.type === "listing_draft" ||
+    sideEffect?.type === "wardrobe_bulk" ||
+    toolCalls.some(
+      (t) =>
+        t.name === "create_listing_draft" ||
+        t.name === "postNewListing" ||
+        t.name === "analyzeWardrobePhoto"
+    );
+
   const negotiationToolCall = toolCalls.find((t) => t.name === "analyzeNegotiationTwin");
   const negotiationToolResult = negotiationToolCall?.result as { message?: string; ok?: boolean } | undefined;
-  if (negotiationToolResult?.ok && negotiationToolResult.message) {
+  if (!hasListingDraftAction && negotiationToolResult?.ok && negotiationToolResult.message) {
     finalText = negotiationToolResult.message;
   }
 
@@ -2352,7 +2402,7 @@ async function runVautoAgentInner(
 
   const bargainCall = toolCalls.find((t) => t.name === "proposeSmartBargaining");
   const bargainResult = bargainCall?.result as { ok?: boolean; message?: string; openerMessage?: string } | undefined;
-  if (bargainResult?.ok && (bargainResult.message || bargainResult.openerMessage)) {
+  if (!hasListingDraftAction && bargainResult?.ok && (bargainResult.message || bargainResult.openerMessage)) {
     finalText = bargainResult.message ?? bargainResult.openerMessage ?? finalText;
   }
 
@@ -2369,16 +2419,6 @@ async function runVautoAgentInner(
     "count" in searchToolCall.result
       ? Number((searchToolCall.result as { count?: number }).count)
       : searchSideEffect?.listingIds?.length ?? 0;
-
-  const hasListingDraftAction =
-    sideEffect?.type === "listing_draft" ||
-    sideEffect?.type === "wardrobe_bulk" ||
-    toolCalls.some(
-      (t) =>
-        t.name === "create_listing_draft" ||
-        t.name === "postNewListing" ||
-        t.name === "analyzeWardrobePhoto"
-    );
 
   const applyFilterCall = toolCalls.find(
     (t) => t.name === "applyFilter" || t.name === "clearAllFilters"
@@ -2409,14 +2449,18 @@ async function runVautoAgentInner(
     });
   }
 
-  const resolvedAction =
-    offerEffect ??
-    uiFilterEffect ??
-    navigateScreenEffect ??
-    sideEffect ??
-    microPaymentEffect ??
-    navigateEffect ??
-    ({ type: "none" } as const);
+  // F9 — action precedence: on a listing-draft turn the draft action wins;
+  // negotiation/micro-payment offers may only win on non-draft turns.
+  const resolvedAction = hasListingDraftAction
+    ? (sideEffect ?? offerEffect ?? uiFilterEffect ?? navigateScreenEffect ??
+      microPaymentEffect ?? navigateEffect ?? ({ type: "none" } as const))
+    : (offerEffect ??
+      uiFilterEffect ??
+      navigateScreenEffect ??
+      sideEffect ??
+      microPaymentEffect ??
+      navigateEffect ??
+      ({ type: "none" } as const));
 
   const quickReplies = resolveAgentQuickReplies(toolCalls, resolvedAction);
 
