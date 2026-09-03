@@ -579,6 +579,15 @@ export function applyVinStructuredReviewAction(
 const FIELD_CONFLICT_MARKER_KEYS = [
   "yearConflict",
   "yearConflictCandidate",
+  // F9 — canonical fact-conflict markers (shared/fact-conflict) carry the
+  // same draft-state authority: untrusted ingress (model/vision args) must
+  // never mint, overwrite or tombstone them.
+  "priceConflict",
+  "priceConflictCandidate",
+  "cityConflict",
+  "cityConflictCandidate",
+  "conditionConflict",
+  "conditionConflictCandidate",
 ] as const;
 
 /**

@@ -155,6 +155,11 @@ export function BottomNav() {
       return;
     }
     e.preventDefault();
+    // F9 — navigation must ALWAYS exit the active assistant mode: close the
+    // overlay, abort the in-flight stream and drop transient seller-chat
+    // state. A legitimate unpublished draft is preserved by the SellerFlow
+    // draft store (cancelSellerFlow only tears down the wizard step).
+    setAgentOpen(false);
     setSearchQuery("");
     setSearchLoading(false);
     clearAgentPinnedListings();

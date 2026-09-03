@@ -48,7 +48,6 @@ import {
   getServiceLeadsForProvider,
   getListingsPendingReview,
   getSellerListings,
-  getUser,
   getUserByEmail,
   insertListing,
   findListingByClientDraftId,
@@ -78,10 +77,8 @@ import {
   upsertChat,
   findChatIdByListingParticipants,
   upsertEscrow,
-  upsertUser,
   upsertUserPushToken,
   setUserProfileType,
-  updateUserAvatar,
   warnUser,
   getUserPreferences,
   upsertUserPreferences,
@@ -91,6 +88,7 @@ import {
   getUserOnboarding,
   upsertUserOnboarding,
 } from "../repository.js";
+import { getUser, upsertUser, updateUserAvatar } from "./user-store.js";
 import { seedIfEmpty } from "../seed-runtime.js";
 import {
   lookupVehicleOnServer,
@@ -162,6 +160,8 @@ import {
   validateServiceLeadCreate,
   validateUser,
   validateUserProfilePatch,
+  validateUserProfileUpdate,
+  SERVER_MANAGED_USER_FIELDS,
 } from "../validation.js";
 import {
   saveUserAvatarFromImage,
@@ -1857,22 +1857,54 @@ apiRouter.put("/users/:id", requireAuth, async (req: AuthedRequest, res) => {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
-    const parsed = validateUser(req.body);
+    // F9 — authority-field presence selects the explicit admin path: only an
+    // ADMIN payload carrying role/id/authProvider/wallet/... may change
+    // authority state. A payload without those fields (including an admin's
+    // own profile save) takes the plain DTO path where the server
+    // reconstructs identity from the token and the authoritative DB row.
+    const bodyIsRecord = req.body !== null && typeof req.body === "object";
+    const hasAuthorityFields =
+      bodyIsRecord &&
+      Object.keys(req.body).some((k) => SERVER_MANAGED_USER_FIELDS.has(k));
+    if (isAdmin(req) && hasAuthorityFields) {
+      const parsed = validateUser(req.body);
+      if (badRequest(res, parsed)) return;
+      const existing = await getUser(req.params.id);
+      const user: ApiUser = {
+        ...parsed.value,
+        id: req.params.id,
+        role: parsed.value.role ?? existing?.role ?? req.authRole ?? "private",
+      };
+      await upsertUser(user);
+      if (parsed.value.avatar) {
+        await updateUserAvatar(req.params.id, parsed.value.avatar);
+      }
+      res.json(user);
+      return;
+    }
+    // F9 — plain-user path: identity/authority fields are SERVER-OWNED.
+    // Well-formed `role`/`id`/`authProvider`/wallet/... values in the body
+    // are accepted but NEVER persisted (server authority wins); malformed
+    // or unknown values are rejected fail-closed. The authoritative role
+    // comes from the DB row, falling back to the token role.
+    const parsed = validateUserProfileUpdate(req.body);
     if (badRequest(res, parsed)) return;
-    const user: ApiUser = isAdmin(req)
-      ? parsed.value
-      : {
-          ...parsed.value,
-          role: req.authRole ?? parsed.value.role,
-          warned: undefined,
-          walletBalance: undefined,
-          soldCount: undefined,
-        };
-    await upsertUser({ ...user, id: req.params.id });
+    const existing = await getUser(req.params.id);
+    const user: ApiUser = {
+      ...parsed.value,
+      id: req.params.id,
+      role: existing?.role ?? req.authRole ?? "private",
+      warned: existing?.warned ?? false,
+      walletBalance: existing?.walletBalance ?? 0,
+      soldCount: existing?.soldCount ?? 0,
+      authProvider: existing?.authProvider,
+      profileType: existing?.profileType,
+    };
+    await upsertUser(user);
     if (parsed.value.avatar) {
       await updateUserAvatar(req.params.id, parsed.value.avatar);
     }
-    res.json({ ...user, id: req.params.id });
+    res.json(user);
   } catch (e) {
     sendInternalError(res, e);
   }

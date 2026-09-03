@@ -3,6 +3,11 @@ import { hasListingPhoto, isValidListingPhone } from "@/lib/listing-form-validat
 import { resolvePublishListingCity } from "@/lib/listing-location-context";
 import { buildConversationalMissingPrompt } from "@/lib/listing-conversational-flow";
 import {
+  buildFactConflictQuestion,
+  readActiveFactConflict,
+  type ActiveFactConflict,
+} from "@vauto/shared/fact-conflict";
+import {
   injectProfileContactsForPublish,
   resolveDraftContact,
 } from "@/lib/profile-listing-sync";
@@ -138,6 +143,18 @@ export interface PrePublishReadiness {
   missingCity: boolean;
   missingPrice: boolean;
   missingAuth: boolean;
+  /** F9 — the draft is a placeholder/empty (never "ready to publish"). */
+  missingTitle?: boolean;
+  /** F9 — no category assigned yet. */
+  missingCategory?: boolean;
+  /** F9 — condition required for this category and still unknown. */
+  missingCondition?: boolean;
+  /**
+   * F9 — an open deterministic fact conflict (price/city/condition). While
+   * active, pre-publish and publish are BLOCKED and exactly one typed
+   * question is asked.
+   */
+  activeConflict?: ActiveFactConflict | null;
   blockMessage: string;
   quickReplies: string[];
   syncedDraft: AiExtractedListing | null;
@@ -213,6 +230,20 @@ function resolveDraftPriceValue(
   }
   return 0;
 }
+
+const PLACEHOLDER_TITLE_RE = /^(naujas skelbimas|drabužių skelbimas|prekė)$/i;
+
+/** F9 — physical-item categories require an explicit condition. */
+export const CONDITION_REQUIRED_CATEGORIES = new Set([
+  "vehicles",
+  "transport",
+  "electronics",
+  "clothing",
+  "home",
+  "tools",
+  "other",
+  "rental",
+]);
 
 export function evaluatePrePublishReadiness(
   input: PrePublishCheckInput
@@ -303,21 +334,66 @@ export function evaluatePrePublishReadiness(
     attributes: syncedDraft?.attributes as Record<string, unknown> | undefined,
   });
 
+  // F9 — draft completeness signals the missing-guide must surface (one
+  // question at a time), so „Viskas paruošta" is never shown for an
+  // unfinished draft.
+  const draftTitle = String(syncedDraft?.title ?? "").trim();
+  const missingTitle =
+    !syncedDraft ||
+    !draftTitle ||
+    PLACEHOLDER_TITLE_RE.test(draftTitle);
+  const missingCategory = !syncedDraft?.category;
+  const conditionRequired =
+    syncedDraft?.category != null &&
+    CONDITION_REQUIRED_CATEGORIES.has(
+      coerceListingCategoryForDb(syncedDraft.category, {
+        title: draftTitle,
+        description: String(syncedDraft.description ?? ""),
+      })
+    );
+  const conditionValue = String(
+    syncedDraft?.attributes?.condition ?? ""
+  ).trim();
+  const missingCondition = conditionRequired && !conditionValue;
+
+  // F9 — an open canonical fact conflict blocks pre-publish AND publish
+  // until the user explicitly chooses A or B.
+  const activeConflict = syncedDraft
+    ? readActiveFactConflict({
+        ...(syncedDraft.attributes ?? {}),
+        price: syncedDraft.price,
+        city: syncedDraft.location,
+        condition: syncedDraft.attributes?.condition,
+      })
+    : null;
+
   // Photos are optional for PrePublish *preview* (text-first). Actual publish still
   // enforces a photo in SellerFlowContext.publishListing.
+  // F9 — fail-closed: an incomplete draft (placeholder title, no category,
+  // missing required condition, open conflict) can NEVER produce a PrePublish
+  // card, set listingPublishConfirmed, or reach the publish action.
   const ok =
-    !missingAuth && !missingPhone && !missingCity && !missingPrice;
+    !activeConflict &&
+    !missingAuth &&
+    !missingPhone &&
+    !missingCity &&
+    !missingPrice &&
+    !missingTitle &&
+    !missingCategory &&
+    !missingCondition;
 
-  const blockMessage = buildPrePublishBlockMessage({
-    missingPhoto,
-    missingPhone,
-    missingCity,
-    missingAuth,
-    missingPrice,
-    resolvedPhone,
-    resolvedCity,
-    hasPhoto,
-  });
+  const blockMessage = activeConflict
+    ? buildFactConflictQuestion(activeConflict)
+    : buildPrePublishBlockMessage({
+        missingPhoto,
+        missingPhone,
+        missingCity,
+        missingAuth,
+        missingPrice,
+        resolvedPhone,
+        resolvedCity,
+        hasPhoto,
+      });
 
   const quickReplies: string[] = [];
 
@@ -329,6 +405,10 @@ export function evaluatePrePublishReadiness(
       missingCity,
       missingPrice,
       missingAuth: true,
+      missingTitle,
+      missingCategory,
+      missingCondition,
+      activeConflict,
       blockMessage,
       quickReplies,
       syncedDraft,
@@ -345,6 +425,10 @@ export function evaluatePrePublishReadiness(
     missingCity,
     missingPrice,
     missingAuth: false,
+    missingTitle,
+    missingCategory,
+    missingCondition,
+    activeConflict,
     blockMessage,
     quickReplies,
     syncedDraft,
@@ -357,7 +441,20 @@ export function evaluatePrePublishReadiness(
 export function buildPrePublishMissingGuide(
   readiness: PrePublishReadiness
 ): string {
+  // F9 — an open conflict outranks every other gap: exactly ONE question.
+  if (readiness.activeConflict) {
+    return buildFactConflictQuestion(readiness.activeConflict);
+  }
   const hints: string[] = [];
+  if (readiness.missingTitle) {
+    hints.push("pasakykite, kokį daiktą parduodate (pavadinimą)");
+  }
+  if (readiness.missingCategory) {
+    hints.push("priskirkite skelbimą kategorijai");
+  }
+  if (readiness.missingCondition) {
+    hints.push("nurodykite prekės būklę (pvz. „Nauja“ arba „Naudota“)");
+  }
   if (readiness.missingPhoto) {
     hints.push("įkelkite bent vieną nuotrauką (fotoaparato piktograma arba nutempkite failą į pokalbį)");
   }

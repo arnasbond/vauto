@@ -20,6 +20,12 @@ const GLOBAL_ATTRIBUTE_KEYS = new Set([
   // fashionCategory is clothing-only — never survive category switches to auto/parts.
   "skelbiuCategory",
   "_canonicalVertical",
+  // F9 — `condition` is a UNIVERSAL pre-publish fact (title/category/condition
+  // fail-closed contract). Some adaptive schemas (vehicles) do not carry a
+  // `condition` field, so the draft pipeline used to strip it before the
+  // readiness gate — leaving every legitimate vehicle draft blocked. Keep it
+  // category-neutral, exactly like the fact-conflict markers.
+  "condition",
 ]);
 
 /**
@@ -112,6 +118,21 @@ const VIN_REVIEW_DRAFT_STATE_KEYS = [
 const YEAR_CONFLICT_DRAFT_STATE_KEYS = [
   "yearConflict",
   "yearConflictCandidate",
+] as const;
+
+/**
+ * F9 — canonical fact-conflict draft-state keys (price/city/condition).
+ * Same deterministic `${field}Conflict` + `${field}ConflictCandidate`
+ * convention (shared/fact-conflict): draft-only, stripped at the persistence
+ * boundary and redacted from model-visible context.
+ */
+export const FACT_CONFLICT_DRAFT_STATE_KEYS = [
+  "priceConflict",
+  "priceConflictCandidate",
+  "cityConflict",
+  "cityConflictCandidate",
+  "conditionConflict",
+  "conditionConflictCandidate",
 ] as const;
 
 /** VIN/year review draft state only applies to vehicle drafts (vehicles + transport). */
@@ -232,6 +253,8 @@ export function allowedAttributeKeysForCategory(category: ListingCategory): Set<
     for (const key of VIN_REVIEW_DRAFT_STATE_KEYS) allowed.add(key);
     for (const key of YEAR_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
   }
+  // F9 — fact-conflict markers are category-neutral draft state.
+  for (const key of FACT_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
   for (const [canonical, aliases] of Object.entries(ATTRIBUTE_ALIASES)) {
     if (allowed.has(canonical)) {
       for (const alias of aliases) allowed.add(alias);
@@ -274,6 +297,8 @@ export function activeAttributeKeysForListing(
     for (const key of VIN_REVIEW_DRAFT_STATE_KEYS) allowed.add(key);
     for (const key of YEAR_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
   }
+  // F9 — fact-conflict markers are category-neutral draft state.
+  for (const key of FACT_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
   allowed.add("_geoLat");
   allowed.add("_geoLng");
 

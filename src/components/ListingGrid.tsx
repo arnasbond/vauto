@@ -9,6 +9,7 @@ import { VisualSearchStrip } from "@/components/search/VisualSearchStrip";
 import { WantedEmptyState } from "@/components/wishlist/WantedEmptyState";
 import { MarketplaceFilterBar } from "@/components/marketplace/MarketplaceFilterBar";
 import { AiInterpretationChips } from "@/components/marketplace/AiInterpretationChips";
+import { SEARCH_CONTEXT_RESET_EVENT } from "@/lib/start-ai-seller-listing";
 import { ListingCard } from "@/components/marketplace/ListingCard";
 import { ListingGridSkeleton } from "@/components/marketplace/ListingCardSkeleton";
 import { ListingMapView } from "@/components/marketplace/ListingMapView";
@@ -109,6 +110,16 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     searchQuery.trim().length > 0
       ? ((heldQueryRef.current = searchQuery), searchQuery)
       : heldQueryRef.current;
+
+  // F9 — a fresh sell session clears the held interpretation query so the
+  // stale search readout cannot bleed into the listing flow.
+  useEffect(() => {
+    const onReset = () => {
+      heldQueryRef.current = "";
+    };
+    window.addEventListener(SEARCH_CONTEXT_RESET_EVENT, onReset);
+    return () => window.removeEventListener(SEARCH_CONTEXT_RESET_EVENT, onReset);
+  }, []);
 
   useEffect(() => {
     setNativeVisible(NATIVE_GRID_INITIAL);

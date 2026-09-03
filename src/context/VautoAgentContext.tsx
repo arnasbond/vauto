@@ -176,6 +176,7 @@ import {
 } from "@/lib/profile-listing-sync";
 import {
   buildPrePublishCardPayload,
+  CONDITION_REQUIRED_CATEGORIES,
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
 import { filterSessionListingImages, mergeSellerGallerySources } from "@/lib/listing-image";
@@ -199,6 +200,13 @@ import {
   transitionListingFlow,
 } from "@/lib/listing-conversational-flow";
 import { detectSellerListingIntent } from "@/lib/scoring";
+import {
+  isKnownQuickReplyAction,
+  quickReplyLabel,
+  type AgentQuickReplyAction,
+  type AgentQuickReplyOption,
+} from "@/lib/agent-quick-reply-contract";
+import { coerceListingCategoryForDb } from "@vauto/shared/category-registry";
 import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 import { ensureRichSalesCopyBeforePublish } from "@vauto/shared/ensure-rich-sales-copy";
 import {
@@ -238,6 +246,7 @@ import { logHeroContactReask, markHeroListingFlowStart } from "@/lib/hero-kpis";
 import {
   buildAiSellerListingSeed,
   requestChatComposerFocus,
+  requestSearchContextReset,
   sellerListingWelcome,
 } from "@/lib/start-ai-seller-listing";
 import { MARKETPLACE_VERTICAL_LABELS } from "@/lib/marketplace-verticals";
@@ -322,6 +331,11 @@ interface VautoAgentContextValue {
   }) => Promise<void>;
   /** Run modal/chip actions directly — never inject raw chip text as user messages. */
   handleDirectAgentChip: (chip: string) => Promise<boolean>;
+  /**
+   * F9 — structured quick-reply execution (machine-readable action, never
+   * the visible label). Unknown/forged actions fail closed.
+   */
+  executeStructuredQuickReply: (option: AgentQuickReplyAction) => Promise<boolean>;
   /** Hide pre-publish card and show field edit chips. */
   enterListingEditMode: () => void;
   /** When true, live pre-publish card is hidden (edit mode). */
@@ -835,7 +849,24 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
         // Do not re-pass imageUrl — already in orderedImageUrls (avoids 2→4 thumbs).
         applyAgentListingDraft(draft);
-        if (flowState === "AWAITING_CONFIRMATION") {
+        // F9 — fail-closed: an incomplete draft (placeholder title, missing
+        // category or required condition) can never flip the publish
+        // confirmation flag or surface the PrePublish card.
+        const confirmable =
+          draftTitle &&
+          !/^(naujas skelbimas|drabužių skelbimas|prekė)$/i.test(draftTitle) &&
+          Boolean(draft.category) &&
+          !(
+            draft.category != null &&
+            CONDITION_REQUIRED_CATEGORIES.has(
+              coerceListingCategoryForDb(draft.category, {
+                title: draftTitle,
+                description: String(draft.description ?? ""),
+              })
+            ) &&
+            !String(draft.attributes?.condition ?? "").trim()
+          );
+        if (flowState === "AWAITING_CONFIRMATION" && confirmable) {
           setListingPublishConfirmed(true);
           setHidePrePublishCard(false);
         } else {
@@ -1195,6 +1226,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       showConfirm,
       subscribeWishlist,
       recordSearchFilters,
+      sellerPreviewImage,
+      sessionPendingImageUrls,
       clearSearchFilters,
       openMicroPayment,
       setAgentPinnedListings,
@@ -2900,7 +2933,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
 
         if (
-          isPhotoIntentRoutingReply(res.reply, res.quickReplies) &&
+          isPhotoIntentRoutingReply(
+            res.reply,
+            res.quickReplies?.map(quickReplyLabel)
+          ) &&
           activePendingImageUrls?.length
         ) {
           retainPendingImageUrls = true;
@@ -2930,7 +2966,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         const appendSupervisorAssistant = (
           assistantText: string,
-          quickReplies?: string[],
+          quickReplies?: AgentQuickReplyOption[],
           prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload
         ) => {
           const text = assistantText.trim();
@@ -3013,7 +3049,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           typeof window !== "undefined" &&
           isAuthenticated &&
           myListingsForAgent.length > 0 &&
-          !options?.fromSearchBar
+          !options?.fromSearchBar &&
+          // F9 — negotiator isolation: never hijack a FRESH or in-flight sell
+          // session (freshListingSessionRef stays true until a titled draft
+          // lands, and the ≤1-user-message window is exactly the first sell
+          // turn) and never a listing-conversation input.
+          !freshListingSessionRef.current &&
+          !detectSellerListingIntent(trimmed)
         ) {
           const hasInactiveTwin = listings.some(
             (l) => l.sellerId === user.id && l.status !== "sold" && !l.isAiTwinActive
@@ -3041,7 +3083,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         // Remote API may still treat tech passport as a sellable object.
         // Auto-retry with the same photos + explicit sell text so Step 1 OCR continues.
-        const docAmbiguity = resolveDocumentAmbiguityRetry(res.quickReplies);
+        const docAmbiguity = resolveDocumentAmbiguityRetry(
+          res.quickReplies?.map(quickReplyLabel)
+        );
         if (
           docAmbiguity.shouldRetry &&
           docAmbiguity.preferredSellText &&
@@ -3140,7 +3184,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ).length;
             const browseActions = createBrowseAllAction(activeCount);
             if (!options?.fromSearchBar) {
-              applyActions(browseActions);
+              // F9 — stale-turn guard: a fresh sell session bumps the epoch;
+              // an in-flight browse/search turn from the PREVIOUS epoch must
+              // never re-pin results or re-seed the query after the wipe.
+              if (getSellerListingSessionEpoch() === epochAtSend) {
+                applyActions(browseActions);
+              }
             }
             return {
               ok: true,
@@ -3152,7 +3201,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           // except inside an active seller listing session (greeting must not become search).
           if (
             (!options?.fromSearchBar || isEmptySearchAction) &&
-            !(sellerListingIsolated && res.actions.type === "empty_search")
+            !(sellerListingIsolated && res.actions.type === "empty_search") &&
+            // F9 — stale-turn guard (same epoch contract as above).
+            getSellerListingSessionEpoch() === epochAtSend
           ) {
             applyActions(res.actions);
           }
@@ -3533,6 +3584,25 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setSearchVoiceMode,
   ]);
 
+  /**
+   * F9 — navigating into „Mano skelbimai“ ALWAYS exits the active assistant
+   * mode regardless of the entry point (bottom nav, dropdown, deep link):
+   * the overlay closes and the in-flight stream is aborted. The unpublished
+   * draft itself is untouched — SellerFlow's draft store keeps it.
+   */
+  useEffect(() => {
+    if (
+      !pathname ||
+      !(pathname === "/mano-skelbimai" || pathname.startsWith("/mano-skelbimai/"))
+    ) {
+      return;
+    }
+    agentStreamAbortRef.current?.abort();
+    agentStreamAbortRef.current = null;
+    setBusy(false);
+    setOpen(false);
+  }, [pathname]);
+
   const beginFreshListingChatSession = useCallback(() => {
     // Atomic wipe FIRST — abort SSE so stale draft_update / plane icon cannot flash.
     agentStreamAbortRef.current?.abort();
@@ -3571,6 +3641,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     clearPendingPhotoIntent();
     // Re-enable PrePublish for the next draft after paint (avoids one-frame flash).
     queueMicrotask(() => setHidePrePublishCard(false));
+    // F9 — clear the hero search-draft AND the grid's held interpretation
+    // query ("Rodyk visus" / previous search) so the stale AI-interpretation
+    // block unmounts at sell entry.
+    requestSearchContextReset();
   }, [
     cancelSellerFlow,
     clearSearchFilters,
@@ -3642,6 +3716,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const targetNorm = target.replace(/\/$/, "") || "/";
         if (current !== targetNorm) {
           router.push(target);
+        } else {
+          // F9 — already on the target route: still strip any `?q=` /
+          // vertical / facet params so a previous search context can never
+          // re-seed the fresh sell session on the next hydration.
+          const bare = window.location.pathname;
+          router.replace(bare.endsWith("/") ? bare : `${bare}/`);
         }
       }
       // Focus unlocked composer on next frames — no network wait.
@@ -3914,6 +3994,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setSearchInputMode,
       setSearchQuery,
       showToast,
+      buyerCoords,
       requestMediaConsent,
       setOpen,
       submitSellerContent,
@@ -3929,6 +4010,72 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     handleDirectAgentChipRef.current = handleDirectAgentChip;
   }, [handleDirectAgentChip]);
+
+  /**
+   * F9 — structured quick-reply executor. Execution keys off `action`/`id`
+   * (never the visible label). Unknown/forged actions FAIL CLOSED: nothing
+   * executes, a neutral reply lands in chat. No action may publish — the
+   * pre-publish card + separate human click remain the only publish path.
+   */
+  const executeStructuredQuickReply = useCallback(
+    async (option: AgentQuickReplyAction): Promise<boolean> => {
+      if (!isKnownQuickReplyAction(option.action)) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant" as const,
+            text: "Šis veiksmas šiuo metu nepalaikomas — aprašykite savais žodžiais.",
+          },
+        ].slice(-6));
+        touchAgentSessionActivity();
+        return true;
+      }
+      switch (option.action) {
+        case "missing_data_guide": {
+          // Real action: evaluate canonical readiness and ask ONE most
+          // important question (title → category → condition → price →
+          // phone → city → photo). Never claims "ready" for an unfinished
+          // draft.
+          const readiness = aiDraft
+            ? evaluatePrePublishReadiness({
+                isAuthenticated,
+                user,
+                draft: aiDraft,
+                previewImage: sellerPreviewImage,
+                pendingImageUrls: sessionPendingImageUrls,
+                orderedImageUrls: aiDraft?.orderedImageUrls,
+                geoCoords: buyerCoords,
+              })
+            : null;
+          const reply = aiDraft
+            ? buildConversationalMissingPrompt(readiness ?? {
+                missingAuth: !isAuthenticated,
+                missingPhoto: false,
+                missingCity: false,
+                missingPrice: false,
+                missingPhone: false,
+              })
+            : "Pirmiausia aprašykite, ką norite parduoti — tada parodysiu, ko trūksta iki publikavimo.";
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant" as const, text: reply },
+          ].slice(-6));
+          touchAgentSessionActivity();
+          return true;
+        }
+        default:
+          return true;
+      }
+    },
+    [
+      aiDraft,
+      buyerCoords,
+      isAuthenticated,
+      sellerPreviewImage,
+      sessionPendingImageUrls,
+      user,
+    ]
+  );
 
   const resetHomeAgentSession = useCallback(() => {
     sessionLockedPriceRef.current = null;
@@ -3994,6 +4141,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       streamThinkingLabel,
       sendAgentMessage,
       handleDirectAgentChip,
+      executeStructuredQuickReply,
       enterListingEditMode,
       hidePrePublishCard,
       listingPublishConfirmed,
@@ -4018,6 +4166,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       streamThinkingLabel,
       sendAgentMessage,
       handleDirectAgentChip,
+      executeStructuredQuickReply,
       enterListingEditMode,
       hidePrePublishCard,
       listingPublishConfirmed,

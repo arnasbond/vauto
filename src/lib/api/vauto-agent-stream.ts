@@ -2,6 +2,7 @@ import { getDataApiBaseUrl } from "@/lib/api/config";
 import { getAuthHeaders } from "@/lib/auth/session";
 import { trimAgentRequestBody } from "@/lib/agent-request-trim";
 import type { VautoAgentApiResult } from "@/lib/vauto-agent-client";
+import type { AgentQuickReplyOption } from "@/lib/agent-quick-reply-contract";
 import { AI_TIMEOUT_POLICY } from "@/lib/ai-timeout-policy";
 
 export type VautoAgentStreamEvent =
@@ -11,7 +12,7 @@ export type VautoAgentStreamEvent =
   | {
       type: "early_ack";
       reply: string;
-      quickReplies?: string[];
+      quickReplies?: AgentQuickReplyOption[];
     }
   | {
       type: "draft_update";

@@ -6,6 +6,7 @@ import {
   extractVisionChoiceChips,
   shouldClarifyPhotoUpload,
 } from "@/lib/vision-choice-chips";
+import type { AgentQuickReplyOption } from "@/lib/agent-quick-reply-contract";
 import type { AiExtractedListing } from "@/lib/types";
 
 export function PhotoClarificationPanel({
@@ -13,7 +14,7 @@ export function PhotoClarificationPanel({
   onSelectChip,
 }: {
   draft: AiExtractedListing;
-  onSelectChip: (chip: string) => void;
+  onSelectChip: (chip: AgentQuickReplyOption) => void;
 }) {
   if (!shouldClarifyPhotoUpload(draft)) return null;
 

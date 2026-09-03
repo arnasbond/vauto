@@ -175,10 +175,22 @@ export function saveReviews(reviews: SellerReview[]): void {
 }
 
 export function loadSearchIntent(): SearchIntentEvent[] | null {
+  const scopeId = getActiveUserScope();
+  if (scopeId) {
+    const scoped = read<SearchIntentEvent[]>(
+      scopedStorageKey(KEYS.searchIntent, scopeId)
+    );
+    if (scoped) return scoped;
+  }
   return read<SearchIntentEvent[]>(KEYS.searchIntent);
 }
 
 export function saveSearchIntent(events: SearchIntentEvent[]): void {
+  const scopeId = getActiveUserScope();
+  if (scopeId) {
+    write(scopedStorageKey(KEYS.searchIntent, scopeId), events);
+    return;
+  }
   write(KEYS.searchIntent, events);
 }
 

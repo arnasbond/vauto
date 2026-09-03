@@ -66,7 +66,7 @@ const ESCROW_STATUSES = new Set([
   "disputed",
   "cancelled",
 ]);
-const USER_ROLES = new Set(["private", "pro", "admin"]);
+const USER_ROLES = new Set(["private", "pro", "admin", "super_admin"]);
 const AUTH_PROVIDERS = new Set(["google", "apple", "phone"]);
 
 function ok<T>(value: T): ValidationResult<T> {
@@ -714,6 +714,184 @@ export interface UserProfilePatchInput {
   firstName?: string;
   lastName?: string;
   nickname?: string;
+}
+
+/**
+ * F9 — plain-user profile update DTO. Identity/authority fields are
+ * SERVER-OWNED: `id`, `role`, `authProvider`, `walletBalance`, `soldCount`,
+ * `warned`, `billingPlan`, `billingModel`, `profileType` may appear in the
+ * payload (legacy clients send the full profile) but are NEVER persisted —
+ * the server reconstructs them from the token and the authoritative DB row.
+ * Well-formed authority values are accepted-and-ignored; malformed or
+ * UNKNOWN values are rejected fail-closed. Any other unrecognized key is
+ * also rejected so nothing is ever dropped silently.
+ */
+export interface UserProfileUpdateInput {
+  name: string;
+  phone: string;
+  city: string;
+  avatar: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  nickname?: string;
+  businessType?: string;
+  companyName?: string;
+  companyCode?: string;
+  vatCode?: string;
+  serviceBaseCity?: string;
+  serviceRadiusKm?: number;
+  serviceNationwide?: boolean;
+  serviceSpecialties?: string[];
+  averageResponseMinutes?: number;
+  ageGroup?: ApiUser["ageGroup"];
+  gender?: ApiUser["gender"];
+  hobbies?: string[];
+  businessHours?: ApiUser["businessHours"];
+}
+
+export const SERVER_MANAGED_USER_FIELDS = new Set([
+  "id",
+  "role",
+  "authProvider",
+  "walletBalance",
+  "soldCount",
+  "warned",
+  "billingPlan",
+  "billingModel",
+  "profileType",
+]);
+
+const USER_EDITABLE_FIELDS = new Set([
+  "name",
+  "phone",
+  "city",
+  "avatar",
+  "email",
+  "firstName",
+  "lastName",
+  "nickname",
+  "businessType",
+  "companyName",
+  "companyCode",
+  "vatCode",
+  "serviceBaseCity",
+  "serviceRadiusKm",
+  "serviceNationwide",
+  "serviceSpecialties",
+  "averageResponseMinutes",
+  "ageGroup",
+  "gender",
+  "hobbies",
+  "businessHours",
+]);
+
+export function validateUserProfileUpdate(
+  body: unknown
+): ValidationResult<UserProfileUpdateInput> {
+  if (!isRecord(body)) return fail("Body must be an object");
+
+  for (const key of Object.keys(body)) {
+    if (SERVER_MANAGED_USER_FIELDS.has(key)) {
+      // Well-formed authority values are ignored (server authority wins);
+      // malformed ones are rejected fail-closed below.
+      if (key === "role") {
+        const role = optionalEnumString(body, "role", USER_ROLES);
+        if (!role.ok) return role;
+      } else if (key === "authProvider") {
+        const authProvider = optionalEnumString(body, "authProvider", AUTH_PROVIDERS);
+        if (!authProvider.ok) return authProvider;
+      } else if (key === "id") {
+        if (typeof body[key] !== "string") return fail("id is invalid");
+      } else if (key === "walletBalance" || key === "soldCount") {
+        if (typeof body[key] !== "number" || !Number.isFinite(body[key] as number)) {
+          return fail(`${key} is invalid`);
+        }
+      } else if (key === "warned") {
+        if (typeof body[key] !== "boolean") return fail("warned is invalid");
+      } else if (key === "billingPlan") {
+        const plan = optionalEnumString(body, "billingPlan", new Set(["free", "starter", "pro"]));
+        if (!plan.ok) return plan;
+      } else if (key === "billingModel") {
+        const model = optionalEnumString(body, "billingModel", new Set(["ppc", "subscription"]));
+        if (!model.ok) return model;
+      } else if (key === "profileType") {
+        const pt = optionalEnumString(body, "profileType", new Set(["private", "business"]));
+        if (!pt.ok) return pt;
+      }
+      continue;
+    }
+    if (!USER_EDITABLE_FIELDS.has(key)) {
+      return fail(`Unknown field "${key}" is not user-editable`);
+    }
+  }
+
+  const name = requiredString(body, "name", 160);
+  if (!name.ok) return name;
+  const phone = requiredString(body, "phone", 80);
+  if (!phone.ok) return phone;
+  const city = requiredString(body, "city", 120);
+  if (!city.ok) return city;
+  const avatar = requiredString(body, "avatar", 1000);
+  if (!avatar.ok) return avatar;
+  const email = optionalString(body, "email", 254);
+  if (!email.ok) return email;
+  const firstName = optionalString(body, "firstName", 80);
+  if (!firstName.ok) return firstName;
+  const lastName = optionalString(body, "lastName", 80);
+  if (!lastName.ok) return lastName;
+  const nickname = optionalString(body, "nickname", 80);
+  if (!nickname.ok) return nickname;
+  const businessType = optionalString(body, "businessType", 80);
+  if (!businessType.ok) return businessType;
+  const companyName = optionalString(body, "companyName", 200);
+  if (!companyName.ok) return companyName;
+  const companyCode = optionalString(body, "companyCode", 40);
+  if (!companyCode.ok) return companyCode;
+  const vatCode = optionalString(body, "vatCode", 40);
+  if (!vatCode.ok) return vatCode;
+  const serviceBaseCity = optionalString(body, "serviceBaseCity", 120);
+  if (!serviceBaseCity.ok) return serviceBaseCity;
+  const serviceRadiusKm = optionalNumber(body, "serviceRadiusKm", 0, 999);
+  if (!serviceRadiusKm.ok) return serviceRadiusKm;
+  const serviceNationwide = optionalBoolean(body, "serviceNationwide");
+  if (!serviceNationwide.ok) return serviceNationwide;
+  const serviceSpecialties = optionalStringArray(body, "serviceSpecialties", 40, 120);
+  if (!serviceSpecialties.ok) return serviceSpecialties;
+  const averageResponseMinutes = optionalNumber(body, "averageResponseMinutes", 0, 10_000);
+  if (!averageResponseMinutes.ok) return averageResponseMinutes;
+  const ageGroup = optionalEnumString(body, "ageGroup", new Set(["Youth", "Adult", "Senior"]));
+  if (!ageGroup.ok) return ageGroup;
+  const gender = optionalEnumString(body, "gender", new Set(["Male", "Female", "PreferNot"]));
+  if (!gender.ok) return gender;
+  const hobbies = optionalStringArray(body, "hobbies", 40, 80);
+  if (!hobbies.ok) return hobbies;
+  const businessHours = optionalBusinessHours(body);
+  if (!businessHours.ok) return businessHours;
+
+  return ok({
+    name: name.value,
+    phone: phone.value,
+    city: city.value,
+    avatar: avatar.value,
+    email: email.value,
+    firstName: firstName.value,
+    lastName: lastName.value,
+    nickname: nickname.value,
+    businessType: businessType.value,
+    companyName: companyName.value,
+    companyCode: companyCode.value,
+    vatCode: vatCode.value,
+    serviceBaseCity: serviceBaseCity.value,
+    serviceRadiusKm: serviceRadiusKm.value,
+    serviceNationwide: serviceNationwide.value,
+    serviceSpecialties: serviceSpecialties.value,
+    averageResponseMinutes: averageResponseMinutes.value,
+    ageGroup: ageGroup.value as ApiUser["ageGroup"],
+    gender: gender.value as ApiUser["gender"],
+    hobbies: hobbies.value,
+    businessHours: businessHours.value,
+  });
 }
 
 export function validateUserProfilePatch(

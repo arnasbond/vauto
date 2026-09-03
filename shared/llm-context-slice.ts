@@ -34,6 +34,14 @@ const FIELD_CONFLICT_MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
   "roomsConflictCandidate",
   "workTypeConflict",
   "workTypeConflictCandidate",
+  // F9 — canonical fact-conflict markers stay out of the model-visible
+  // slice: resolution is the deterministic reducer, never an LLM decision.
+  "priceConflict",
+  "priceConflictCandidate",
+  "cityConflict",
+  "cityConflictCandidate",
+  "conditionConflict",
+  "conditionConflictCandidate",
 ]);
 
 const MODEL_HIDDEN_ATTR_KEYS = new Set<string>([

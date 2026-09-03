@@ -115,6 +115,13 @@ jobs:
       - name: Stage 16 security / authz / migration chain
         run: npm run test:stage16-security --prefix server
 
+      - name: F9 release-readiness pack (auth role boundary + draft facts)
+        run: npx tsx --test src/routes/__tests__/f9-user-authority.test.ts src/ai/__tests__/f9-draft-fact-preservation.test.ts
+        working-directory: server
+
+      - name: F9 frontend unit pack (category parity + quick replies + missing guide)
+        run: node --import tsx --test src/lib/__tests__/f9-category-guards.test.ts src/lib/__tests__/f9-quick-reply-contract.test.ts src/lib/__tests__/f9-missing-guide.test.ts
+
       - name: Stage 16C migrate from zero (disposable Postgres)
         run: node scripts/migrate-from-zero.mjs
         env:

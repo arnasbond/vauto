@@ -33,6 +33,11 @@ import { filterSessionListingImages } from "@/lib/listing-image";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import { isDirectAgentActionChip } from "@/lib/direct-agent-actions";
 import { isVisionObjectSellChip } from "@/lib/vision-choice-chips";
+import {
+  isStructuredQuickReply,
+  quickReplyLabel,
+  type AgentQuickReplyOption,
+} from "@/lib/agent-quick-reply-contract";
 import { routeVinReviewChip } from "@/lib/vin-review-chips";
 import type { PrePublishVisibilityId } from "@/lib/listing-publish-visibility";
 import { runPublishSuccessCelebration } from "@/lib/publish-success-celebration";
@@ -91,6 +96,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     streamThinkingLabel,
     sendAgentMessage,
     handleDirectAgentChip,
+    executeStructuredQuickReply,
     enterListingEditMode,
     hidePrePublishCard,
     listingPublishConfirmed,
@@ -174,13 +180,13 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         )
           .filter(
             (chip) =>
-              !/^įkelti\s+nuotrauk/i.test(chip) &&
-              !/^ikelti\s+nuotrauk/i.test(chip) &&
-              !/^įkelti\s+technin/i.test(chip) &&
-              !/^ikelti\s+technin/i.test(chip) &&
-              !/^prisegti\s+nuotrauk/i.test(chip) &&
-              !/^judame\s+prie\s+prepublish/i.test(chip) &&
-              !/^patikslinti\s+metus/i.test(chip)
+              !/^įkelti\s+nuotrauk/i.test(quickReplyLabel(chip)) &&
+              !/^ikelti\s+nuotrauk/i.test(quickReplyLabel(chip)) &&
+              !/^įkelti\s+technin/i.test(quickReplyLabel(chip)) &&
+              !/^ikelti\s+technin/i.test(quickReplyLabel(chip)) &&
+              !/^prisegti\s+nuotrauk/i.test(quickReplyLabel(chip)) &&
+              !/^judame\s+prie\s+prepublish/i.test(quickReplyLabel(chip)) &&
+              !/^patikslinti\s+metus/i.test(quickReplyLabel(chip))
           )
           .slice(0, 4);
 
@@ -322,7 +328,14 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     });
   };
 
-  const handleDirectChip = async (option: string) => {
+  const handleDirectChip = async (option: AgentQuickReplyOption) => {
+    // F9 — structured chips execute by action/id, never by label; the raw
+    // object must NEVER reach the LLM. Unknown actions fail closed inside
+    // the executor.
+    if (isStructuredQuickReply(option)) {
+      await executeStructuredQuickReply(option);
+      return;
+    }
     // Object-sell chips must lock PrePublish locally — never fall into the photos nudge.
     if (isVisionObjectSellChip(option)) {
       const handled = await handleDirectAgentChip(option);

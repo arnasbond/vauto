@@ -165,7 +165,9 @@ export function resolveStructuredListingInputRoute(
 
 export interface ContactCaptureGatewayResponse {
   reply: string;
-  quickReplies?: string[];
+  // F9 — structured chips are bounded {id,label,action}; NO payload field
+  // exists in this contract (no action reads one).
+  quickReplies?: Array<string | { id: string; label: string; action: string }>;
   listingDraft: {
     title?: string;
     description?: string;
@@ -198,7 +200,16 @@ export function resolveContactCaptureResponse(input: {
 
   return {
     reply: buildListingContactUpdateReply(parsed),
-    quickReplies: ["Viskas tinka", "Suvesti trūkstamus duomenis"],
+    // F9 — the missing-data guide chip is a machine-readable action; the
+    // client executes it by `action`, never by the visible label.
+    quickReplies: [
+      "Viskas tinka",
+      {
+        id: "missing_data_guide",
+        label: "Suvesti trūkstamus duomenis",
+        action: "missing_data_guide",
+      },
+    ],
     listingDraft,
   };
 }

@@ -14,6 +14,10 @@ import {
 } from "@/lib/agent-chat-layout";
 import { extractAgentQuickReplies } from "@/lib/agent-reply-display";
 import { safeMessageKey, safeMessageText } from "@/lib/agent-message-safe";
+import {
+  isStructuredQuickReply,
+  type AgentQuickReplyOption,
+} from "@/lib/agent-quick-reply-contract";
 import type { ListingCategory } from "@/lib/types";
 import type { AgentChatMessage } from "@/lib/vauto-agent-client";
 import { cn } from "@/lib/cn";
@@ -56,6 +60,7 @@ export function FlowAgentStrip({
     streamThinkingLabel,
     sendAgentMessage,
     handleDirectAgentChip,
+    executeStructuredQuickReply,
     pendingVinReview,
     sendVinReviewAction,
   } = useVautoAgent();
@@ -81,7 +86,13 @@ export function FlowAgentStrip({
         ? lastAssistantMessage.quickReplies!.slice(0, 4)
         : extractAgentQuickReplies(lastAssistant);
 
-  const handleQuickReply = (option: string) => {
+  const handleQuickReply = (option: AgentQuickReplyOption) => {
+    // F9 — structured chips execute by action/id, never by label; the raw
+    // object must NEVER reach the LLM.
+    if (isStructuredQuickReply(option)) {
+      void executeStructuredQuickReply(option);
+      return;
+    }
     if (isVisionObjectSellChip(option)) {
       void handleDirectAgentChip(option);
       return;

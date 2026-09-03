@@ -524,6 +524,21 @@ export const AGENT_FUNCTION_DECLARATIONS = [
           description:
             "Marketplace aprašymas LT pagal kategoriją: electronics/tools — • specs (modelis, parametrai, būklė, komplektacija), mažiau poezijos; services — spektras + patirtis/garantijos + terminai/zona; clothing — dydis/audinys/prigludimas; vehicles — rida/būklė/aptarnavimai + šiltas hook. Markdown bullet'ai OK. Venk 1 eilutės santraukos. Auto raktai (rida/servisas) TIK category=vehicles.",
         },
+        price: {
+          type: "NUMBER",
+          description:
+            "Kaina eurais, jei vartotojas ją pateikė (15, 4500…). Nepateik — niekada neprasimanyk: praleisk lauką.",
+        },
+        city: {
+          type: "STRING",
+          description:
+            "Miestas, jei vartotojas jį pateikė (Kaišiadorys, Vilnius…). Nepateik — praleisk.",
+        },
+        condition: {
+          type: "STRING",
+          description:
+            "Būklė iš vartotojo žodžių: „Nauja“ / „Naudota“ / „Beveik nauja“ ir pan. Nepateik — praleisk.",
+        },
         attributes: {
           type: "OBJECT",
           description: "color, size, make, model, year, memory, storage, propertyType, clothingSize…",
@@ -544,6 +559,11 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         price: { type: "NUMBER" },
         city: { type: "STRING" },
         category: { type: "STRING" },
+        condition: {
+          type: "STRING",
+          description:
+            "Būklė iš vartotojo žodžių: „Nauja“ / „Naudota“. Nepateik — praleisk.",
+        },
         attributes: { type: "OBJECT" },
       },
     },
@@ -1492,24 +1512,30 @@ export async function executeAgentTool(
         description,
         fallback: "other",
       });
+      // F9 — canonical fact authority (shared/fact-conflict): valid explicit
+      // current-turn user text wins over ANY model source (top-level args or
+      // nested args.attributes); the profile is the LAST fallback. Malformed /
+      // NaN / negative / oversized values are rejected by the normalizers.
+      const lastUserText = String(ctx.lastUserQuery ?? "").trim();
+      const { parsePriceFromChatInput } = await import(
+        "./listing-chat-input.js"
+      );
+      const { extractCityFromText } = await import(
+        "./listing-contact-parse.js"
+      );
+      const { resolveFactConflictState, normalizePriceValue } = await import(
+        "../shared/fact-conflict.js"
+      );
       const { isNegotiablePriceChatInput, negotiablePricePatch } = await import(
         "../shared/negotiable-price.js"
       );
+
       const priceRaw = args.price != null ? String(args.price) : "";
       const negotiable =
         isNegotiablePriceChatInput(priceRaw) ||
         isNegotiablePriceChatInput(String(args.priceLabel ?? ""));
       const negoPatch = negotiable ? negotiablePricePatch() : null;
-      const priceArg = negoPatch
-        ? 0
-        : args.price != null && Number(args.price) > 0
-          ? Number(args.price)
-          : 0;
-      const locationArg = args.city
-        ? String(args.city).trim()
-        : args.location
-          ? String(args.location).trim()
-          : "";
+
       // Phase 2C: tool-call attributes are fully untrusted — strip EVERY vin*
       // authority marker the model may emit, and route any fresh `vin` value
       // through the candidate state machine (never a direct canonical write).
@@ -1525,10 +1551,63 @@ export async function executeAgentTool(
       const { vin: freshVin, ...strippedArgsAttrs } = stripUntrustedVinMarkers(
         rawArgsAttrs
       ) as Record<string, string>;
+      // F9 — nested model facts are a MODEL source, never above user text.
+      const {
+        price: nestedModelPrice,
+        condition: nestedModelCondition,
+        location: nestedModelCity,
+        ...plainAttrs
+      } = strippedArgsAttrs;
+
+      const textPrice = normalizePriceValue(
+        lastUserText ? parsePriceFromChatInput(lastUserText) : undefined
+      );
+      const modelPrice = normalizePriceValue(args.price);
+      const nestedPrice = normalizePriceValue(nestedModelPrice);
+      const pricePatch = resolveFactConflictState({
+        field: "price",
+        priorAttributes: {},
+        incomingValue: textPrice ?? modelPrice ?? nestedPrice,
+      });
+      const priceArg = negoPatch
+        ? 0
+        : typeof pricePatch.patch.price === "number"
+          ? pricePatch.patch.price
+          : 0;
+
+      const { normalizeCityValue, normalizeConditionValue, extractConditionFromText } =
+        await import("../shared/fact-conflict.js");
+      const textCity = normalizeCityValue(
+        lastUserText ? extractCityFromText(lastUserText) : undefined
+      );
+      const modelCity = normalizeCityValue(args.city ?? args.location);
+      const nestedCity = normalizeCityValue(nestedModelCity);
+      const cityPatch = resolveFactConflictState({
+        field: "city",
+        priorAttributes: {},
+        incomingValue: textCity ?? modelCity ?? nestedCity,
+      });
+      const locationArg =
+        (typeof cityPatch.patch.city === "string" ? cityPatch.patch.city : "") ||
+        normalizeCityValue(ctx.userCity) ||
+        "";
+
+      const textCondition = extractConditionFromText(lastUserText);
+      const modelCondition = normalizeConditionValue(args.condition);
+      const nestedCondition = normalizeConditionValue(nestedModelCondition);
+      const conditionPatch = resolveFactConflictState({
+        field: "condition",
+        priorAttributes: {},
+        incomingValue: textCondition ?? modelCondition ?? nestedCondition,
+      });
+
       let attributes: Record<string, string> = {
-        ...strippedArgsAttrs,
+        ...plainAttrs,
         ...(negoPatch?.attributes ?? {}),
       };
+      if (typeof conditionPatch.patch.condition === "string") {
+        attributes.condition = conditionPatch.patch.condition;
+      }
       if (freshVin) {
         attributes = applyVinExtractionCandidate(attributes, {
           value: freshVin,
@@ -2338,10 +2417,12 @@ export async function executeAgentTool(
     case "updateListingDraft": {
       const base = ctx.listingDraft ?? {};
       const patch: NonNullable<AgentToolContext["listingDraft"]> = { ...base };
+      // F9 — nested model facts extracted from args.attributes (model source).
+      let nestedPriceArg: string | undefined;
+      let nestedConditionArg: string | undefined;
+      let nestedCityArg: string | undefined;
       if (args.title != null) patch.title = String(args.title);
       if (args.description != null) patch.description = String(args.description);
-      if (args.price != null) patch.price = Number(args.price);
-      if (args.city != null) patch.location = resolveAgentDefaultCity(String(args.city));
       if (args.category != null) patch.category = String(args.category);
       if (args.attributes && typeof args.attributes === "object") {
         const incomingAttrs = Object.fromEntries(
@@ -2356,9 +2437,21 @@ export async function executeAgentTool(
         const { vin: freshVin, ...incomingAttrsRest } = stripUntrustedVinMarkers(
           incomingAttrs
         ) as Record<string, string>;
+        // F9 — nested facts (price/condition/city) are a MODEL source: they
+        // go through the canonical reducer below, never a direct attribute
+        // merge, so the model cannot bypass the user's text via nesting.
+        const {
+          price: nestedModelPrice,
+          condition: nestedModelCondition,
+          location: nestedModelCity,
+          ...nestedPlainAttrs
+        } = incomingAttrsRest;
+        nestedPriceArg = nestedModelPrice;
+        nestedConditionArg = nestedModelCondition;
+        nestedCityArg = nestedModelCity;
         patch.attributes = {
           ...(base.attributes ?? {}),
-          ...incomingAttrsRest,
+          ...nestedPlainAttrs,
         };
         if (freshVin) {
           patch.attributes = applyVinExtractionCandidate(patch.attributes, {
@@ -2373,6 +2466,130 @@ export async function executeAgentTool(
         });
       }
 
+      // F9 — canonical fact authority (shared/fact-conflict) for
+      // price/city/condition:
+      //   valid current-turn user text → previous canonical (conflict rule) →
+      //   model argument (top-level, then nested) → profile fallback.
+      // A conflicting new value NEVER silently overwrites the previous
+      // canonical fact — the deterministic reducer opens `${field}Conflict`
+      // + `${field}ConflictCandidate` and ONE typed question is asked.
+      const lastUserText = String(ctx.lastUserQuery ?? "").trim();
+      const { parsePriceFromChatInput } = await import(
+        "./listing-chat-input.js"
+      );
+      const { extractCityFromText } = await import(
+        "./listing-contact-parse.js"
+      );
+      const {
+        resolveFactConflictState,
+        normalizePriceValue,
+        normalizeCityValue,
+        normalizeConditionValue,
+        extractConditionFromText,
+        readActiveFactConflict,
+        readActiveFactConflictForField,
+        buildFactConflictQuestion,
+      } = await import("../shared/fact-conflict.js");
+
+      const priorView: Record<string, unknown> = {
+        ...(patch.attributes ?? {}),
+        price: base.price,
+        city: base.location,
+        condition: (base.attributes as Record<string, string> | undefined)?.condition,
+      };
+
+      const textPrice = normalizePriceValue(
+        lastUserText ? parsePriceFromChatInput(lastUserText) : undefined
+      );
+      const modelPrice = normalizePriceValue(args.price);
+      const nestedPrice = normalizePriceValue(nestedPriceArg);
+
+      const textCity = normalizeCityValue(
+        lastUserText ? extractCityFromText(lastUserText) : undefined
+      );
+      const modelCity = normalizeCityValue(args.city ?? args.location);
+      const nestedCity = normalizeCityValue(nestedCityArg);
+
+      const textCondition = extractConditionFromText(lastUserText);
+      const modelCondition = normalizeConditionValue(args.condition);
+      const nestedCondition = normalizeConditionValue(nestedConditionArg);
+
+      // F9 — HUMAN AUTHORITY BOUNDARY (deterministic): while a field's A/B
+      // conflict is ACTIVE and valid, the reducer receives ONLY a value
+      // explicitly extracted from the CURRENT user text. Model top-level and
+      // nested arguments can never choose A, choose B, inject a third C,
+      // overwrite markers or change the canonical — the model does not hold
+      // the resolution authority. Without an active conflict the source
+      // order stays: user text → valid model argument → profile fallback.
+      const priceIncoming = readActiveFactConflictForField("price", priorView)
+        ? textPrice
+        : (textPrice ?? modelPrice ?? nestedPrice);
+      const cityIncoming = readActiveFactConflictForField("city", priorView)
+        ? textCity
+        : (textCity ?? modelCity ?? nestedCity);
+      const conditionIncoming = readActiveFactConflictForField("condition", priorView)
+        ? textCondition
+        : (textCondition ?? modelCondition ?? nestedCondition);
+
+      const pricePatch = resolveFactConflictState({
+        field: "price",
+        priorAttributes: priorView,
+        incomingValue: priceIncoming,
+      });
+      const cityPatch = resolveFactConflictState({
+        field: "city",
+        priorAttributes: priorView,
+        incomingValue: cityIncoming,
+      });
+      const conditionPatch = resolveFactConflictState({
+        field: "condition",
+        priorAttributes: priorView,
+        incomingValue: conditionIncoming,
+      });
+
+      if (typeof pricePatch.patch.price === "number") {
+        patch.price = pricePatch.patch.price;
+      }
+      if (typeof cityPatch.patch.city === "string") {
+        patch.location = cityPatch.patch.city;
+      } else if (!patch.location) {
+        patch.location = normalizeCityValue(ctx.userCity) ?? "";
+      }
+      if (typeof conditionPatch.patch.condition === "string") {
+        patch.attributes = {
+          ...(patch.attributes ?? {}),
+          condition: conditionPatch.patch.condition,
+        };
+      }
+      // Deterministic markers land in the draft attributes ("" = tombstone).
+      const markerKeys = [
+        "priceConflict",
+        "priceConflictCandidate",
+        "cityConflict",
+        "cityConflictCandidate",
+        "conditionConflict",
+        "conditionConflictCandidate",
+      ];
+      const markers: Record<string, string> = {};
+      for (const key of markerKeys) {
+        const fromPrice = (pricePatch.patch as Record<string, unknown>)[key];
+        const fromCity = (cityPatch.patch as Record<string, unknown>)[key];
+        const fromCondition = (conditionPatch.patch as Record<string, unknown>)[key];
+        const value = [fromPrice, fromCity, fromCondition].find(
+          (v) => v !== undefined
+        );
+        if (value !== undefined) markers[key] = String(value);
+      }
+      for (const [key, value] of Object.entries(markers)) {
+        if (value === "") {
+          const next = { ...(patch.attributes ?? {}) };
+          delete next[key];
+          patch.attributes = next;
+        } else {
+          patch.attributes = { ...(patch.attributes ?? {}), [key]: value };
+        }
+      }
+
       const draft = {
         title: patch.title ?? "Skelbimas",
         description: patch.description ?? "",
@@ -2384,7 +2601,7 @@ export async function executeAgentTool(
         attributes: patch.attributes ?? {},
       };
 
-      const message = buildListingDraftUpdateReply({
+      let message = buildListingDraftUpdateReply({
         category: draft.category,
         title: draft.title,
         description: draft.description,
@@ -2392,6 +2609,17 @@ export async function executeAgentTool(
         location: draft.location,
         attributes: draft.attributes,
       });
+      // F9 — ONE typed question for the first open conflict; canonical facts
+      // stay untouched. No delimiter parsing anywhere.
+      const activeConflict = readActiveFactConflict({
+        ...(draft.attributes ?? {}),
+        price: draft.price,
+        city: draft.location,
+        condition: (draft.attributes as Record<string, string> | undefined)?.condition,
+      });
+      if (activeConflict) {
+        message += `\n\n${buildFactConflictQuestion(activeConflict)}`;
+      }
 
       const vinDisplayChips = buildVinReviewDisplayChips(draft.attributes);
       return {

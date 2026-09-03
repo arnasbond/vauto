@@ -82,6 +82,19 @@ async function applyMobileFilters(page: Page) {
 }
 
 test.describe("Stage 18.3 — search-state URL persistence & classic interoperability", () => {
+  test.beforeEach(async ({ page }) => {
+    // F9 — deterministic fixture: force the OFFLINE demo catalog so the
+    // canonical lt-nt-004 anchor card comes from THIS build's fixtures —
+    // never from the production catalog (whose demo rows were purged).
+    await page.route("**/api/health**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: false, status: "offline-e2e" }),
+      });
+    });
+  });
+
   test("18.3-A: AI-derived facets are URL-serialized and restore on /search", async ({ page }) => {
     // Homepage AI search path (deterministic `re` stub pins lt-nt-004). The
     // client canonical adapter interprets "butas Telšiai" → RE + Telšiai + Butas.

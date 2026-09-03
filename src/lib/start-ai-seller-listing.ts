@@ -118,6 +118,18 @@ export function aiSellerListingGreeting(fashion = false): string {
 export const CHAT_COMPOSER_FOCUS_EVENT = "vauto-chat-composer-focus";
 
 export function requestChatComposerFocus(): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(CHAT_COMPOSER_FOCUS_EVENT));
+if (typeof window === "undefined") return;
+window.dispatchEvent(new CustomEvent(CHAT_COMPOSER_FOCUS_EVENT));
+}
+
+/**
+ * F9 — a fresh sell session must not inherit the previous search intent
+ * (hero input draft, „Rodyk visus“ query, held interpretation chips). Hero
+ * and grid listen for this event and clear their local search-draft state.
+ */
+export const SEARCH_CONTEXT_RESET_EVENT = "vauto-search-context-reset";
+
+export function requestSearchContextReset(): void {
+if (typeof window === "undefined") return;
+window.dispatchEvent(new CustomEvent(SEARCH_CONTEXT_RESET_EVENT));
 }
