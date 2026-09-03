@@ -16,11 +16,14 @@ import {
   verifyOtp,
 } from "../services/otp.js";
 import { isSmsLive, sendOtpSms } from "../services/sms.js";
-import { getUser, getUserByEmail, getUserByPhoneDigits, upsertUser } from "../repository.js";
 import {
-  applyReferralOnSignup,
+  getUser,
+  getUserByEmail,
+  getUserByPhoneDigits,
+  upsertUser,
   attachReferralFields,
-} from "../referral/referral-service.js";
+} from "./user-store.js";
+import { applyReferralOnSignup } from "../referral/referral-service.js";
 import type { ApiUser } from "../types.js";
 import { exposeOtpDevHint } from "../demo-guards.js";
 import { requireAuth, sendAdminNotFound, type AuthedRequest } from "../middleware/auth.js";
@@ -34,10 +37,25 @@ import {
 } from "../shared/launch-promo.js";
 import {
   isAllowlistedAdminEmail,
+  normalizePhoneDigits,
   resolveAdminEmail,
+  resolveAdminPhone,
   shouldElevateToSuperAdmin,
   shouldUseCanonicalAdminId,
 } from "../lib/admin-allowlist.js";
+
+/**
+ * F10 P1-01 — a client-declared role can NEVER grant privileges by itself.
+ * Only the non-privileged "private" role passes through unchanged; "admin"
+ * is kept solely for the existing allowlist-verified admin flows (the
+ * handlers AND resolveLoginRole re-check the identity against the server
+ * allowlist); "super_admin" and any unknown value collapse to "private".
+ */
+export function clampClientDeclaredRole(raw: unknown): string {
+  const r = String(raw ?? "").trim().toLowerCase();
+  if (r === "admin") return "admin";
+  return "private";
+}
 
 export const authRouter = Router();
 
@@ -147,29 +165,6 @@ function resolveDisplayName(
   return cleaned || existing?.trim() || providerName(provider);
 }
 
-function resolveRole(
-  metaRole: string,
-  email?: string | null,
-  phone?: string | null,
-  name?: string | null,
-  nickname?: string | null,
-  firstName?: string | null
-): string {
-  if (
-    shouldElevateToSuperAdmin({
-      email,
-      phone,
-      name,
-      nickname,
-      firstName,
-      metaRole,
-    })
-  ) {
-    return "super_admin";
-  }
-  return metaRole;
-}
-
 const CANONICAL_ADMIN_ID = "admin-1";
 const CANONICAL_ADMIN_NAME = "VAUTO Admin";
 const CANONICAL_ADMIN_AVATAR =
@@ -189,7 +184,7 @@ function resolveSessionUserId(
 }
 
 /** Login must never downgrade an established account or re-prompt for account type. */
-function resolveLoginRole(
+export function resolveLoginRole(
   metaRole: string,
   existing: ApiUser | null,
   email?: string | null,
@@ -198,19 +193,25 @@ function resolveLoginRole(
   nickname?: string | null,
   firstName?: string | null
 ): string {
-  const adminRole = resolveRole(
-    metaRole,
+  // F10 P1-01 — fail-closed: elevated roles come ONLY from the server-side
+  // identity allowlist, never from the client-declared body role or from a
+  // (possibly forged legacy) DB row.
+  const isElevatedIdentity = shouldElevateToSuperAdmin({
     email,
     phone,
-    name ?? existing?.name,
-    nickname ?? existing?.nickname,
-    firstName ?? existing?.firstName
-  );
-  if (adminRole === "super_admin") return "super_admin";
-  if (existing?.role === "pro" || existing?.role === "super_admin") {
-    return existing.role;
+    name,
+    nickname,
+    firstName,
+  });
+  if (isElevatedIdentity) return "super_admin";
+
+  if (metaRole === "admin") {
+    if (isAllowlistedAdminEmail(email)) return "admin";
+    if (normalizePhoneDigits(phone) === resolveAdminPhone()) return "admin";
+    return "private";
   }
-  if (existing?.role) return existing.role;
+
+  if (existing?.role === "pro") return "pro";
   return "private";
 }
 
@@ -375,7 +376,7 @@ authRouter.post("/otp/verify", async (req, res) => {
       return;
     }
     const code = String(req.body?.code ?? "").trim();
-    const role = String(req.body?.role ?? "private");
+    const role = clampClientDeclaredRole(req.body?.role);
     const city = String(req.body?.city ?? "Vilnius");
     const businessType = req.body?.businessType
       ? String(req.body.businessType)
@@ -453,7 +454,7 @@ authRouter.post("/otp/verify", async (req, res) => {
 authRouter.post("/social", async (req, res) => {
   try {
     const provider = String(req.body?.provider ?? "google");
-    const role = String(req.body?.role ?? "private");
+    const role = clampClientDeclaredRole(req.body?.role);
     const email = req.body?.email ? String(req.body.email) : undefined;
     const city = String(req.body?.city ?? "Vilnius");
     const businessType = req.body?.businessType
@@ -675,6 +676,35 @@ authRouter.post("/social", async (req, res) => {
   }
 });
 
+/**
+ * F10 P1-01 — session/refresh role is IDENTITY-derived. A token claim or a
+ * (possibly forged legacy) DB row carrying super_admin/admin is honored ONLY
+ * for server-allowlisted identities; everyone else gets "private" (or their
+ * legitimate "pro" plan role).
+ */
+function resolveSessionRole(user: ApiUser, tokenRole?: string | null): string {
+  if (
+    shouldElevateToSuperAdmin({
+      email: user.email,
+      phone: user.phone,
+      name: user.name,
+      nickname: user.nickname,
+      firstName: user.firstName,
+    })
+  ) {
+    return "super_admin";
+  }
+  if (user.role === "pro") return "pro";
+  if (
+    tokenRole === "admin" &&
+    (isAllowlistedAdminEmail(user.email) ||
+      normalizePhoneDigits(user.phone) === resolveAdminPhone())
+  ) {
+    return "admin";
+  }
+  return "private";
+}
+
 authRouter.get("/session", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const user = await getUser(req.authUserId!);
@@ -682,21 +712,10 @@ authRouter.get("/session", requireAuth, async (req: AuthedRequest, res) => {
       res.status(404).json({ error: "User not found" });
       return;
     }
-    let role = req.authRole ?? user.role ?? "private";
-    if (
-      shouldElevateToSuperAdmin({
-        email: user.email,
-        phone: user.phone,
-        name: user.name,
-        nickname: user.nickname,
-        firstName: user.firstName,
-      })
-    ) {
-      role = "super_admin";
-      if (user.role !== "super_admin") {
-        await upsertUser({ ...user, role: "super_admin" });
-        user.role = "super_admin";
-      }
+    const role = resolveSessionRole(user, req.authRole);
+    if (role === "super_admin" && user.role !== "super_admin") {
+      await upsertUser({ ...user, role: "super_admin" });
+      user.role = "super_admin";
     }
     res.json({
       user,
@@ -716,20 +735,9 @@ authRouter.post("/refresh", requireAuth, async (req: AuthedRequest, res) => {
       res.status(404).json({ error: "User not found" });
       return;
     }
-    let role = req.authRole ?? user.role ?? "private";
-    if (
-      shouldElevateToSuperAdmin({
-        email: user.email,
-        phone: user.phone,
-        name: user.name,
-        nickname: user.nickname,
-        firstName: user.firstName,
-      })
-    ) {
-      role = "super_admin";
-      if (user.role !== "super_admin") {
-        await upsertUser({ ...user, role: "super_admin" });
-      }
+    const role = resolveSessionRole(user, req.authRole);
+    if (role === "super_admin" && user.role !== "super_admin") {
+      await upsertUser({ ...user, role: "super_admin" });
     }
     const token = signAccessToken({
       sub: userId,
