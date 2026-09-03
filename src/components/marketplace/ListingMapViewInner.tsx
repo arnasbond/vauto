@@ -26,6 +26,44 @@ import "leaflet/dist/leaflet.css";
 const CLUSTER_MAX_ZOOM = 13;
 const CLUSTER_RADIUS = 48;
 
+/**
+ * F8 — tile-ready contract. The production defect was tiles that downloaded
+ * (complete=true) but never received Leaflet's `.leaflet-tile-loaded` class,
+ * leaving them `visibility:hidden`. We no longer trust download completion
+ * alone: readiness requires at least ONE REALLY VISIBLE tile (the loaded
+ * class present in the DOM). The map's own `load` event and the DOM scan
+ * below both feed the state machine; when neither can prove a visible tile
+ * within the budget, the user gets the canonical degraded/list fallback —
+ * never a silent gray box.
+ */
+const MAP_TILE_TIMEOUT_MS = 8000;
+
+function MapReadinessSignals({
+  onLoad,
+  onTileError,
+}: {
+  onLoad: () => void;
+  onTileError: () => void;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    const handleLoad = () => onLoad();
+    const handleTileError = () => onTileError();
+    map.on("load", handleLoad);
+    map.on("tileerror", handleTileError);
+    return () => {
+      map.off("load", handleLoad);
+      map.off("tileerror", handleTileError);
+    };
+  }, [map, onLoad, onTileError]);
+  useEffect(() => {
+    // Mounted in a (re)created container: let layout settle, then re-measure.
+    const t = window.setTimeout(() => map.invalidateSize(), 0);
+    return () => window.clearTimeout(t);
+  }, [map]);
+  return null;
+}
+
 type GeoListing = ScoredListing & { latitude: number; longitude: number };
 
 type ClusterFeature = Supercluster.PointFeature<{
@@ -159,28 +197,36 @@ function MapContent({
   geoListings,
   onBoundsChange,
   provider,
+  onMapLoad,
+  onTileError,
 }: {
   clusters: Array<{ feature: ClusterFeature; lat: number; lng: number }>;
   index: Supercluster;
   geoListings: GeoListing[];
   onBoundsChange: (bounds: L.LatLngBounds, zoom: number) => void;
   provider: ReturnType<typeof resolveMapTileProvider>;
+  onMapLoad: () => void;
+  onTileError: () => void;
 }) {
   return (
     <>
-      <MapContainer
-        center={[55.1694, 23.8813]}
-        zoom={7}
-        maxZoom={18}
-        className="h-[min(70vh,520px)] w-full"
-        scrollWheelZoom
-      >
-        <TileLayer
-          attribution={provider.attribution}
-          url={provider.url}
-        />
-        <MapLayers onBoundsChange={onBoundsChange} />
-        <ClusterMarkers clusters={clusters} index={index} />
+        <MapContainer
+          center={[55.1694, 23.8813]}
+          zoom={7}
+          maxZoom={18}
+          className="h-[min(70vh,520px)] w-full"
+          scrollWheelZoom
+        >
+          <TileLayer
+            attribution={provider.attribution}
+            url={provider.url}
+          />
+          <MapReadinessSignals
+            onLoad={onMapLoad}
+            onTileError={onTileError}
+          />
+          <MapLayers onBoundsChange={onBoundsChange} />
+          <ClusterMarkers clusters={clusters} index={index} />
         {/* Minimal accessible popup: every visible geo listing is reachable
             as a keyboard/screen-reader fallback inside the map container. */}
         {geoListings.slice(0, 20).map((listing) => (
@@ -271,7 +317,10 @@ export function ListingMapViewInner({ listings }: { listings: ScoredListing[] })
   // Stage 22B — deterministic tile-failure detection. A failed tile image
   // must NOT crash search nor mutate canonical state: we show a graceful
   // degraded state that still surfaces the underlying result set.
-  const [tilesFailed, setTilesFailed] = useState(false);
+  // F8 — plus the READY contract: only a REALLY VISIBLE tile (the
+  // `.leaflet-tile-loaded` class actually present) marks the map ready;
+  // otherwise the degraded fallback appears after MAP_TILE_TIMEOUT_MS.
+  const [mapStatus, setMapStatus] = useState<"loading" | "ready" | "degraded">("loading");
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -280,12 +329,33 @@ export function ListingMapViewInner({ listings }: { listings: ScoredListing[] })
     const onError = (ev: Event) => {
       const target = ev.target as HTMLElement | null;
       if (target && target.tagName === "IMG" && target.closest(".leaflet-tile-container")) {
-        setTilesFailed(true);
+        setMapStatus("degraded");
       }
     };
     el.addEventListener("error", onError, true);
     return () => el.removeEventListener("error", onError, true);
   }, []);
+
+  useEffect(() => {
+    const started = Date.now();
+    const id = window.setInterval(() => {
+      const visibleTiles = document.querySelectorAll(".leaflet-tile-loaded").length;
+      if (visibleTiles > 0) {
+        setMapStatus((prev) => (prev === "degraded" ? prev : "ready"));
+        window.clearInterval(id);
+        return;
+      }
+      if (Date.now() - started >= MAP_TILE_TIMEOUT_MS) {
+        setMapStatus("degraded");
+        window.clearInterval(id);
+      }
+    }, 250);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const handleMapLoad = () => {
+    setMapStatus((prev) => (prev === "degraded" ? prev : "ready"));
+  };
 
   const clusters = useMemo(() => {
     const zoom = Math.round(view.zoom);
@@ -312,7 +382,7 @@ export function ListingMapViewInner({ listings }: { listings: ScoredListing[] })
     );
   }
 
-  if (tilesFailed) {
+  if (mapStatus === "degraded") {
     return (
       <div ref={containerRef} className="mt-3">
         <MapUnavailableState geoCount={geoListings.length} />
@@ -321,15 +391,33 @@ export function ListingMapViewInner({ listings }: { listings: ScoredListing[] })
   }
 
   return (
-    <div ref={containerRef} data-map-container="1" className="mt-3">
-      <div className="overflow-hidden rounded-2xl border border-[var(--vauto-border)] shadow-sm">
+    <div
+      ref={containerRef}
+      data-map-container="1"
+      data-map-status={mapStatus}
+      aria-busy={mapStatus === "loading"}
+      className="mt-3"
+    >
+      <div className="relative overflow-hidden rounded-2xl border border-[var(--vauto-border)] shadow-sm">
         <MapContent
           clusters={clusters}
           index={index}
           geoListings={geoListings}
           onBoundsChange={(bounds, zoom) => setView({ bounds, zoom })}
           provider={provider}
+          onMapLoad={handleMapLoad}
+          onTileError={() => setMapStatus("degraded")}
         />
+        {mapStatus === "loading" ? (
+          <div
+            data-map-loading="1"
+            aria-live="polite"
+            className="absolute inset-0 z-[500] flex flex-col items-center justify-center gap-2 bg-[var(--vauto-surface-page)]/95 text-sm text-[var(--vauto-text-subtle)]"
+          >
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--vauto-border-input)] border-t-[var(--vauto-primary)]" aria-hidden />
+            Žemėlapis kraunamas…
+          </div>
+        ) : null}
         <p
           data-map-footer="1"
           data-map-listing-count={geoListings.length}

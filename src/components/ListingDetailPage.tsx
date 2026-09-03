@@ -202,7 +202,10 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   if (!hydrated) {
     return (
       <AppShell variant="plain" hideNav>
-        <div className="py-12 text-center">
+        {/* F8 — full-height loading shell: the real detail content is tall;
+            reserving the viewport height up front prevents the footer (and
+            everything below) from shifting when content hydrates. */}
+        <div className="flex min-h-[100dvh] items-center justify-center">
           <p className="text-[var(--ds-text-muted,var(--vauto-subtle))]">Kraunama...</p>
         </div>
       </AppShell>
@@ -214,7 +217,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   if (!listing && !serverLookupFailed && (id || slug) && isDataApiEnabled()) {
     return (
       <AppShell variant="plain" hideNav>
-        <div className="py-12 text-center">
+        <div className="flex min-h-[100dvh] items-center justify-center">
           <p className="text-[var(--ds-text-muted,var(--vauto-subtle))]">Kraunama...</p>
         </div>
       </AppShell>

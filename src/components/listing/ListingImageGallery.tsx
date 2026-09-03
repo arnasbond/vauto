@@ -90,7 +90,7 @@ export function ListingImageGallery({
 type="button"
 onClick={() => setZoomOpen(true)}
 className="relative block h-[min(52vh,480px)] max-h-[560px] w-full cursor-zoom-in lg:h-[min(58vh,520px)]"
-aria-label="Padidinti nuotrauk�"
+aria-label="Padidinti nuotrauką"
 >
 {brokenSrcs.has(activeSrc) ? (
 <ListingImagePlaceholder className="h-full w-full" />
@@ -242,7 +242,6 @@ onError={() => markBroken(src)}
                     fill
                     sizes="100vw"
                     className="object-contain"
-                    priority
                     onError={() => markBroken(images[activeIndex] ?? activeSrc)}
                   />
                 )}

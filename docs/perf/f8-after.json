@@ -1,95 +1,336 @@
 {
-  "generatedAt": "2026-09-02T20:50:45.392Z",
+  "generatedAt": "2026-09-03T06:13:47.006Z",
+  "runs": 3,
   "results": {
     "home-390-slow4g": {
       "path": "/",
       "viewport": "390x844",
       "network": "slow-4g",
       "cpu": 4,
-      "loadMs": 9408,
-      "lcp": 8584,
-      "cls": 0.0001752558141677883,
-      "imgBytes": 112620,
-      "jsBytes": 592438,
-      "cssBytes": 43016,
-      "imgCount": 8,
-      "jsCount": 23,
-      "reqCount": 53
+      "runs": [
+        {
+          "loadMs": 12198,
+          "lcp": 7324,
+          "lcpElement": "SPAN.font-[family-name:var(--font-outfit)] text-[1.35rem] font-ex",
+          "cls": 0,
+          "imgBytes": 112620,
+          "jsBytes": 747088,
+          "cssBytes": 43165,
+          "imgCount": 8,
+          "jsCount": 40,
+          "reqCount": 78
+        },
+        {
+          "loadMs": 12212,
+          "lcp": 7256,
+          "lcpElement": "SPAN.font-[family-name:var(--font-outfit)] text-[1.35rem] font-ex",
+          "cls": 0,
+          "imgBytes": 112620,
+          "jsBytes": 747088,
+          "cssBytes": 43165,
+          "imgCount": 8,
+          "jsCount": 40,
+          "reqCount": 78
+        },
+        {
+          "loadMs": 12261,
+          "lcp": 7312,
+          "lcpElement": "SPAN.font-[family-name:var(--font-outfit)] text-[1.35rem] font-ex",
+          "cls": 0,
+          "imgBytes": 112620,
+          "jsBytes": 747088,
+          "cssBytes": 43165,
+          "imgCount": 8,
+          "jsCount": 40,
+          "reqCount": 78
+        }
+      ],
+      "median": {
+        "loadMs": 12212,
+        "lcp": 7312,
+        "lcpElement": "SPAN.font-[family-name:var(--font-outfit)] text-[1.35rem] font-ex",
+        "cls": 0,
+        "imgBytes": 112620,
+        "imgCount": 8,
+        "jsBytes": 747088,
+        "jsCount": 40,
+        "reqCount": 78
+      }
     },
     "search-390-slow4g": {
       "path": "/search",
       "viewport": "390x844",
       "network": "slow-4g",
       "cpu": 4,
-      "loadMs": 9004,
-      "lcp": 6276,
-      "cls": 0.2750554549596013,
-      "imgBytes": 0,
-      "jsBytes": 715061,
-      "cssBytes": 43016,
-      "imgCount": 0,
-      "jsCount": 33,
-      "reqCount": 56
+      "runs": [
+        {
+          "loadMs": 10327,
+          "lcp": 6252,
+          "lcpElement": "P.search-hero-subtitle mt-2 text-sm",
+          "cls": 0.01590715761331875,
+          "imgBytes": 30374,
+          "jsBytes": 738325,
+          "cssBytes": 43165,
+          "imgCount": 1,
+          "jsCount": 38,
+          "reqCount": 68
+        },
+        {
+          "loadMs": 11545,
+          "lcp": 6476,
+          "lcpElement": "P.search-hero-subtitle mt-2 text-sm",
+          "cls": 0.000028112633680792526,
+          "imgBytes": 30374,
+          "jsBytes": 738325,
+          "cssBytes": 43165,
+          "imgCount": 1,
+          "jsCount": 38,
+          "reqCount": 68
+        },
+        {
+          "loadMs": 11366,
+          "lcp": 6420,
+          "lcpElement": "P.search-hero-subtitle mt-2 text-sm",
+          "cls": 0.13974966581601653,
+          "imgBytes": 30374,
+          "jsBytes": 738325,
+          "cssBytes": 43165,
+          "imgCount": 1,
+          "jsCount": 38,
+          "reqCount": 68
+        }
+      ],
+      "median": {
+        "loadMs": 11366,
+        "lcp": 6420,
+        "lcpElement": "P.search-hero-subtitle mt-2 text-sm",
+        "cls": 0.01590715761331875,
+        "imgBytes": 30374,
+        "imgCount": 1,
+        "jsBytes": 738325,
+        "jsCount": 38,
+        "reqCount": 68
+      }
     },
     "detail-390-slow4g": {
-      "path": "/listing/?id=lt-auto-001",
+      "path": "/listing/?id=f8-local-listing",
       "viewport": "390x844",
       "network": "slow-4g",
       "cpu": 4,
-      "loadMs": 9024,
-      "lcp": 6300,
-      "cls": 0.10900473933649289,
-      "imgBytes": 0,
-      "jsBytes": 648734,
-      "cssBytes": 43525,
-      "imgCount": 0,
-      "jsCount": 32,
-      "reqCount": 60
+      "runs": [
+        {
+          "loadMs": 8230,
+          "lcp": 6532,
+          "lcpElement": "P.ds-body-sm mt-2",
+          "cls": 0,
+          "imgBytes": 0,
+          "jsBytes": 648553,
+          "cssBytes": 73539,
+          "imgCount": 0,
+          "jsCount": 32,
+          "reqCount": 61
+        },
+        {
+          "loadMs": 8165,
+          "lcp": 6384,
+          "lcpElement": "P.ds-body-sm mt-2",
+          "cls": 0,
+          "imgBytes": 0,
+          "jsBytes": 648553,
+          "cssBytes": 73539,
+          "imgCount": 0,
+          "jsCount": 32,
+          "reqCount": 61
+        },
+        {
+          "loadMs": 8160,
+          "lcp": 6404,
+          "lcpElement": "P.ds-body-sm mt-2",
+          "cls": 0,
+          "imgBytes": 0,
+          "jsBytes": 648553,
+          "cssBytes": 73539,
+          "imgCount": 0,
+          "jsCount": 32,
+          "reqCount": 61
+        }
+      ],
+      "median": {
+        "loadMs": 8165,
+        "lcp": 6404,
+        "lcpElement": "P.ds-body-sm mt-2",
+        "cls": 0,
+        "imgBytes": 0,
+        "imgCount": 0,
+        "jsBytes": 648553,
+        "jsCount": 32,
+        "reqCount": 61
+      }
     },
     "home-390-fast3g": {
       "path": "/",
       "viewport": "390x844",
       "network": "fast-3g",
       "cpu": 4,
-      "loadMs": 9803,
-      "lcp": 9120,
-      "cls": 0.0001752558141677883,
-      "imgBytes": 112620,
-      "jsBytes": 590545,
-      "cssBytes": 43016,
-      "imgCount": 8,
-      "jsCount": 22,
-      "reqCount": 52
+      "runs": [
+        {
+          "loadMs": 9815,
+          "lcp": 5396,
+          "lcpElement": "IMG.relative h-full w-full object-contain drop-shadow-[0_5px_8px",
+          "cls": 0.00013953616638129286,
+          "imgBytes": 112620,
+          "jsBytes": 747088,
+          "cssBytes": 43165,
+          "imgCount": 8,
+          "jsCount": 40,
+          "reqCount": 79
+        },
+        {
+          "loadMs": 10071,
+          "lcp": 6084,
+          "lcpElement": "SPAN.mt-1.5 block",
+          "cls": 0,
+          "imgBytes": 112620,
+          "jsBytes": 747996,
+          "cssBytes": 43165,
+          "imgCount": 8,
+          "jsCount": 41,
+          "reqCount": 80
+        },
+        {
+          "loadMs": 9834,
+          "lcp": 5368,
+          "lcpElement": "IMG.relative h-full w-full object-contain drop-shadow-[0_5px_8px",
+          "cls": 0.00016478556791695535,
+          "imgBytes": 112620,
+          "jsBytes": 747996,
+          "cssBytes": 43165,
+          "imgCount": 8,
+          "jsCount": 41,
+          "reqCount": 80
+        }
+      ],
+      "median": {
+        "loadMs": 9834,
+        "lcp": 5396,
+        "lcpElement": "IMG.relative h-full w-full object-contain drop-shadow-[0_5px_8px",
+        "cls": 0.00013953616638129286,
+        "imgBytes": 112620,
+        "imgCount": 8,
+        "jsBytes": 747996,
+        "jsCount": 41,
+        "reqCount": 80
+      }
     },
     "home-1440": {
       "path": "/",
       "viewport": "1440x900",
       "network": "none",
       "cpu": 0,
-      "loadMs": 4863,
-      "lcp": 896,
-      "cls": 0.000044907022274734224,
-      "imgBytes": 112620,
-      "jsBytes": 626274,
-      "cssBytes": 43016,
-      "imgCount": 8,
-      "jsCount": 27,
-      "reqCount": 57
+      "runs": [
+        {
+          "loadMs": 3682,
+          "lcp": 876,
+          "lcpElement": "DIV.absolute inset-0 bg-cover bg-bottom bg-no-repeat",
+          "cls": 0.057382716049382713,
+          "imgBytes": 112620,
+          "jsBytes": 658540,
+          "cssBytes": 43165,
+          "imgCount": 8,
+          "jsCount": 30,
+          "reqCount": 61
+        },
+        {
+          "loadMs": 3402,
+          "lcp": 956,
+          "lcpElement": "DIV.absolute inset-0 bg-cover bg-bottom bg-no-repeat",
+          "cls": 0,
+          "imgBytes": 112620,
+          "jsBytes": 658540,
+          "cssBytes": 43165,
+          "imgCount": 8,
+          "jsCount": 30,
+          "reqCount": 61
+        },
+        {
+          "loadMs": 3372,
+          "lcp": 928,
+          "lcpElement": "DIV.absolute inset-0 bg-cover bg-bottom bg-no-repeat",
+          "cls": 0.057382716049382713,
+          "imgBytes": 112620,
+          "jsBytes": 658540,
+          "cssBytes": 43165,
+          "imgCount": 8,
+          "jsCount": 30,
+          "reqCount": 61
+        }
+      ],
+      "median": {
+        "loadMs": 3402,
+        "lcp": 928,
+        "lcpElement": "DIV.absolute inset-0 bg-cover bg-bottom bg-no-repeat",
+        "cls": 0.057382716049382713,
+        "imgBytes": 112620,
+        "imgCount": 8,
+        "jsBytes": 658540,
+        "jsCount": 30,
+        "reqCount": 61
+      }
     },
     "detail-1440": {
       "path": "/listing/?id=lt-auto-001",
       "viewport": "1440x900",
       "network": "none",
       "cpu": 0,
-      "loadMs": 4821,
-      "lcp": 804,
-      "cls": 0.11801983986685796,
-      "imgBytes": 0,
-      "jsBytes": 628363,
-      "cssBytes": 43525,
-      "imgCount": 0,
-      "jsCount": 28,
-      "reqCount": 53
+      "runs": [
+        {
+          "loadMs": 2616,
+          "lcp": 1100,
+          "lcpElement": "P.mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[var(-",
+          "cls": 0.0013082661779165595,
+          "imgBytes": 0,
+          "jsBytes": 628182,
+          "cssBytes": 43674,
+          "imgCount": 0,
+          "jsCount": 28,
+          "reqCount": 52
+        },
+        {
+          "loadMs": 2594,
+          "lcp": 916,
+          "lcpElement": "P.mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[var(-",
+          "cls": 0,
+          "imgBytes": 0,
+          "jsBytes": 628182,
+          "cssBytes": 43674,
+          "imgCount": 0,
+          "jsCount": 28,
+          "reqCount": 52
+        },
+        {
+          "loadMs": 2288,
+          "lcp": 792,
+          "lcpElement": "P.mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[var(-",
+          "cls": 0,
+          "imgBytes": 0,
+          "jsBytes": 628182,
+          "cssBytes": 43674,
+          "imgCount": 0,
+          "jsCount": 28,
+          "reqCount": 52
+        }
+      ],
+      "median": {
+        "loadMs": 2594,
+        "lcp": 916,
+        "lcpElement": "P.mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[var(-",
+        "cls": 0,
+        "imgBytes": 0,
+        "imgCount": 0,
+        "jsBytes": 628182,
+        "jsCount": 28,
+        "reqCount": 52
+      }
     }
   }
 }
