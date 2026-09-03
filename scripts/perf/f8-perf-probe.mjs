@@ -157,12 +157,51 @@ for (const scenario of SCENARIOS) {
       }
     }
 
-    // 2) Measurement window is EXPLICIT:
-    //    - LCP is measured from navigation (buffered, first meaningful paint);
-    //    - CLS is measured from the STABLE ROUTE STATE (content-ready) to the
-    //      end of the scroll pass — the harness-inserted catalog merge and
-    //      hydration swap happen BEFORE content-ready and are excluded, which
-    //      matches how the page behaves for a real user (content arrives once).
+    // 2) LCP closes at the CONTENT-READY moment (the first meaningful
+    //    paint). In production the async catalog returns the SAME rows as
+    //    the prerendered HTML (no repaint); the harness seed differs only
+    //    to exercise the storage path — its artificial repaint is NOT user
+    //    LCP and must not inflate it.
+    const contentSnapshot = await page.evaluate(() => window.__f8Metrics.snapshot());
+
+    // 3) Deterministic stable-state wait: the harness-seeded catalog merge
+    //    and the hydration/store swap must FULLY settle before the CLS
+    //    window opens. We wait until the visible card DOM (identity +
+    //    geometry) is byte-stable across two consecutive samples; a swap
+    //    that never settles is a MEASUREMENT ERROR, not a result.
+    await page.evaluate(async () => {
+      const fingerprint = () => {
+        const cards = Array.from(document.querySelectorAll("[data-listing-card]"));
+        return JSON.stringify(
+          cards.map((el) => {
+            const r = el.getBoundingClientRect();
+            const id =
+              el.getAttribute("data-listing-id") ??
+              (el.textContent || "").trim().slice(0, 48);
+            return `${id}|${Math.round(r.x)}:${Math.round(r.y)}:${Math.round(r.width)}:${Math.round(r.height)}`;
+          })
+        );
+      };
+      let prev = null;
+      const deadline = Date.now() + 20000;
+      while (Date.now() < deadline) {
+        await new Promise((res) => setTimeout(res, 600));
+        const cur = fingerprint();
+        if (prev !== null && cur === prev) return;
+        prev = cur;
+      }
+      throw new Error("card DOM never stabilized");
+    }).catch((err) => {
+      console.error(`MEASUREMENT ERROR: ${scenario.id} card DOM never stabilized (${err.message})`);
+      process.exit(2);
+    });
+
+    // 4) Measurement window is EXPLICIT:
+    //    - LCP: content-ready snapshot above (buffered, first meaningful
+    //      paint — the harness swap is excluded, matching production);
+    //    - CLS: from the STABLE ROUTE STATE (content-ready AND card-DOM
+    //      settled) to the end of the scroll pass — the harness-inserted
+    //      catalog merge and hydration swap happen BEFORE the window opens.
     const stableSnapshot = await page.evaluate(() => window.__f8Metrics.snapshot());
 
     // 3) Scroll pass to trigger lazy media, then close the window.
@@ -177,8 +216,8 @@ for (const scenario of SCENARIOS) {
     await page.evaluate(() => window.__f8Metrics.stop());
     const finalSnapshot = await page.evaluate(() => window.__f8Metrics.snapshot());
     const metrics = {
-      lcp: finalSnapshot.lcp,
-      lcpElement: finalSnapshot.lcpElement,
+      lcp: contentSnapshot.lcp,
+      lcpElement: contentSnapshot.lcpElement,
       cls: Math.max(0, (finalSnapshot.cls ?? 0) - (stableSnapshot.cls ?? 0)),
     };
     // Media proof: REAL rendered images with intrinsic size (a preloaded
@@ -202,12 +241,33 @@ for (const scenario of SCENARIOS) {
       let imgBytes = 0, jsBytes = 0, cssBytes = 0, imgCount = 0, jsCount = 0;
       for (const r of res) {
         const init = r.initiatorType;
-        if (init === "img" || init === "image") { imgBytes += r.transferSize || 0; imgCount += 1; }
+        if (init === "img" || init === "image") {
+          imgBytes += r.transferSize > 0 ? r.transferSize : r.encodedBodySize || 0;
+          imgCount += 1;
+        }
         if (init === "script") { jsBytes += r.transferSize || 0; jsCount += 1; }
         if (init === "link") cssBytes += r.transferSize || 0;
       }
       return { imgBytes, jsBytes, cssBytes, imgCount, jsCount, reqCount: res.length };
     });
+    // A next/image preload (<link rel=preload as=image>) carries the same
+    // payload as the <img> that reuses it; count it as media too so cached/
+    // preloaded galleries are not silently zero. DOM-rendered images are the
+    // floor for imgCount (memory/SW cache hits can skip resource entries).
+    const preloadMedia = await page.evaluate(() => {
+      const res = performance.getEntriesByType("resource");
+      let bytes = 0, count = 0;
+      const IMG_RE = /\.(webp|png|jpe?g|avif|gif|svg)(\?|$)/i;
+      for (const r of res) {
+        if (r.initiatorType === "link" && IMG_RE.test(r.name.split("#")[0])) {
+          bytes += r.transferSize > 0 ? r.transferSize : r.encodedBodySize || 0;
+          count += 1;
+        }
+      }
+      return { bytes, count };
+    });
+    resources.imgBytes += preloadMedia.bytes;
+    resources.imgCount = Math.max(resources.imgCount + preloadMedia.count, domMedia.renderedImages);
     runs.push({ loadMs: Date.now() - t0, ...metrics, ...resources });
     await context.close();
   }
@@ -217,6 +277,7 @@ for (const scenario of SCENARIOS) {
     viewport: `${scenario.viewport.width}x${scenario.viewport.height}`,
     network: scenario.profile.label,
     cpu: scenario.profile.cpu,
+    mediaRequired: scenario.mediaRequired,
     runs,
     median: {
       loadMs: median(runs.map((x) => x.loadMs)),

@@ -27,35 +27,43 @@ const CLUSTER_MAX_ZOOM = 13;
 const CLUSTER_RADIUS = 48;
 
 /**
- * F8 — tile-ready contract. The production defect was tiles that downloaded
- * (complete=true) but never received Leaflet's `.leaflet-tile-loaded` class,
- * leaving them `visibility:hidden`. We no longer trust download completion
- * alone: readiness requires at least ONE REALLY VISIBLE tile (the loaded
- * class present in the DOM). The map's own `load` event and the DOM scan
- * below both feed the state machine; when neither can prove a visible tile
- * within the budget, the user gets the canonical degraded/list fallback —
- * never a silent gray box.
+ * F8 — tile-ready contract v2. `ready` is proven ONLY by a really visible
+ * tile INSIDE the active map container:
+ *   - class `.leaflet-tile-loaded` present;
+ *   - layout width > 0 and height > 0;
+ *   - computed `visibility !== hidden`, `display !== none`, opacity > 0.
+ * The Leaflet `load` event is intentionally NOT trusted: it can fire while
+ * tiles are still hidden or absent. `tileerror` or the 8s timeout leads to
+ * `degraded`, and once degraded no late signal may restore `ready`. All
+ * probing is scoped to `containerRef` — never `document.querySelectorAll` —
+ * so tiles from stale containers, remounts or other maps cannot leak in.
  */
 const MAP_TILE_TIMEOUT_MS = 8000;
 
+function isReallyVisibleTile(tile: HTMLImageElement): boolean {
+  if (!tile.classList.contains("leaflet-tile-loaded")) return false;
+  if (tile.offsetWidth <= 0 || tile.offsetHeight <= 0) return false;
+  const style = window.getComputedStyle(tile);
+  if (style.visibility === "hidden" || style.visibility === "collapse") return false;
+  if (style.display === "none") return false;
+  const opacity = Number.parseFloat(style.opacity);
+  if (!Number.isFinite(opacity) || opacity <= 0) return false;
+  return true;
+}
+
 function MapReadinessSignals({
-  onLoad,
   onTileError,
 }: {
-  onLoad: () => void;
   onTileError: () => void;
 }) {
   const map = useMap();
   useEffect(() => {
-    const handleLoad = () => onLoad();
     const handleTileError = () => onTileError();
-    map.on("load", handleLoad);
     map.on("tileerror", handleTileError);
     return () => {
-      map.off("load", handleLoad);
       map.off("tileerror", handleTileError);
     };
-  }, [map, onLoad, onTileError]);
+  }, [map, onTileError]);
   useEffect(() => {
     // Mounted in a (re)created container: let layout settle, then re-measure.
     const t = window.setTimeout(() => map.invalidateSize(), 0);
@@ -197,7 +205,6 @@ function MapContent({
   geoListings,
   onBoundsChange,
   provider,
-  onMapLoad,
   onTileError,
 }: {
   clusters: Array<{ feature: ClusterFeature; lat: number; lng: number }>;
@@ -205,7 +212,6 @@ function MapContent({
   geoListings: GeoListing[];
   onBoundsChange: (bounds: L.LatLngBounds, zoom: number) => void;
   provider: ReturnType<typeof resolveMapTileProvider>;
-  onMapLoad: () => void;
   onTileError: () => void;
 }) {
   return (
@@ -222,7 +228,6 @@ function MapContent({
             url={provider.url}
           />
           <MapReadinessSignals
-            onLoad={onMapLoad}
             onTileError={onTileError}
           />
           <MapLayers onBoundsChange={onBoundsChange} />
@@ -317,9 +322,11 @@ export function ListingMapViewInner({ listings }: { listings: ScoredListing[] })
   // Stage 22B — deterministic tile-failure detection. A failed tile image
   // must NOT crash search nor mutate canonical state: we show a graceful
   // degraded state that still surfaces the underlying result set.
-  // F8 — plus the READY contract: only a REALLY VISIBLE tile (the
-  // `.leaflet-tile-loaded` class actually present) marks the map ready;
-  // otherwise the degraded fallback appears after MAP_TILE_TIMEOUT_MS.
+  // F8 — plus the READY contract v2: only a REALLY VISIBLE tile (the
+  // `.leaflet-tile-loaded` class with positive size and visible computed
+  // style) inside THIS container marks the map ready; `load` events are
+  // ignored; otherwise the degraded fallback appears after
+  // MAP_TILE_TIMEOUT_MS, and no late signal may restore `ready`.
   const [mapStatus, setMapStatus] = useState<"loading" | "ready" | "degraded">("loading");
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -327,8 +334,11 @@ export function ListingMapViewInner({ listings }: { listings: ScoredListing[] })
     const el = containerRef.current;
     if (!el) return;
     const onError = (ev: Event) => {
-      const target = ev.target as HTMLElement | null;
-      if (target && target.tagName === "IMG" && target.closest(".leaflet-tile-container")) {
+      const target = ev.target;
+      if (
+        target instanceof HTMLImageElement &&
+        target.closest(".leaflet-tile-container")
+      ) {
         setMapStatus("degraded");
       }
     };
@@ -339,23 +349,33 @@ export function ListingMapViewInner({ listings }: { listings: ScoredListing[] })
   useEffect(() => {
     const started = Date.now();
     const id = window.setInterval(() => {
-      const visibleTiles = document.querySelectorAll(".leaflet-tile-loaded").length;
-      if (visibleTiles > 0) {
-        setMapStatus((prev) => (prev === "degraded" ? prev : "ready"));
+      // Scope strictly to the ACTIVE container of this map instance; never
+      // document-wide. A stale/detached container (remount or degraded swap)
+      // simply ends the scan.
+      const el = containerRef.current;
+      if (!el || !el.isConnected) {
         window.clearInterval(id);
         return;
       }
+      const candidates = el.querySelectorAll<HTMLImageElement>(
+        ".leaflet-tile-loaded"
+      );
+      for (const tile of Array.from(candidates)) {
+        if (isReallyVisibleTile(tile)) {
+          // Once degraded, a late tile must NOT restore ready.
+          setMapStatus((prev) => (prev === "degraded" ? prev : "ready"));
+          window.clearInterval(id);
+          return;
+        }
+      }
       if (Date.now() - started >= MAP_TILE_TIMEOUT_MS) {
-        setMapStatus("degraded");
+        // Unambiguous terminal state: only `loading` may degrade.
+        setMapStatus((prev) => (prev === "ready" ? prev : "degraded"));
         window.clearInterval(id);
       }
     }, 250);
     return () => window.clearInterval(id);
   }, []);
-
-  const handleMapLoad = () => {
-    setMapStatus((prev) => (prev === "degraded" ? prev : "ready"));
-  };
 
   const clusters = useMemo(() => {
     const zoom = Math.round(view.zoom);
@@ -405,7 +425,6 @@ export function ListingMapViewInner({ listings }: { listings: ScoredListing[] })
           geoListings={geoListings}
           onBoundsChange={(bounds, zoom) => setView({ bounds, zoom })}
           provider={provider}
-          onMapLoad={handleMapLoad}
           onTileError={() => setMapStatus("degraded")}
         />
         {mapStatus === "loading" ? (
