@@ -3,8 +3,9 @@
 import Image from "next/image";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
+import { ChevronLeft, ChevronRight, ImageOff, X, ZoomIn } from "lucide-react";
 import { getListingGalleryImages } from "@/lib/listing-image";
+import { ListingImagePlaceholder } from "@/components/listing/ListingImagePlaceholder";
 import type { Listing } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -38,10 +39,22 @@ export function ListingImageGallery({
   const images = getListingGalleryImages(listing);
   const [activeIndex, setActiveIndex] = useState(0);
   const [zoomOpen, setZoomOpen] = useState(false);
+  // F8 — unified broken-image contract: one-shot swap to the local neutral
+  // placeholder per src (no retry loops, no broken glyphs, light+dark safe).
+  const [brokenSrcs, setBrokenSrcs] = useState<Set<string>>(new Set());
+  const markBroken = useCallback((src: string) => {
+    setBrokenSrcs((prev) => {
+      if (prev.has(src)) return prev;
+      const next = new Set(prev);
+      next.add(src);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     setActiveIndex(0);
     setZoomOpen(false);
+    setBrokenSrcs(new Set());
   }, [listing.id]);
 
   useEffect(() => {
@@ -73,21 +86,26 @@ export function ListingImageGallery({
   return (
     <div className={cn("w-full", className)}>
       <div className="relative overflow-hidden rounded-2xl border border-[var(--vauto-border-subtle)] bg-[var(--vauto-surface-tint)]">
-        <button
-          type="button"
-          onClick={() => setZoomOpen(true)}
-          className="relative block h-[min(52vh,480px)] max-h-[560px] w-full cursor-zoom-in lg:h-[min(58vh,520px)]"
-          aria-label="Padidinti nuotrauką"
-        >
-          <Image
-            src={activeSrc}
-            alt={resolveImageAlt(listing, activeIndex)}
-            title={activeIndex === 0 ? listing.imageTitle ?? listing.title : undefined}
-            fill
-            sizes="(max-width: 768px) 100vw, 640px"
-            className="object-contain"
-            priority
-          />
+<button
+type="button"
+onClick={() => setZoomOpen(true)}
+className="relative block h-[min(52vh,480px)] max-h-[560px] w-full cursor-zoom-in lg:h-[min(58vh,520px)]"
+aria-label="Padidinti nuotrauką"
+>
+{brokenSrcs.has(activeSrc) ? (
+<ListingImagePlaceholder className="h-full w-full" />
+) : (
+<Image
+src={activeSrc}
+alt={resolveImageAlt(listing, activeIndex)}
+title={activeIndex === 0 ? listing.imageTitle ?? listing.title : undefined}
+fill
+sizes="(max-width: 768px) 100vw, 640px"
+className="object-contain"
+priority
+onError={() => markBroken(activeSrc)}
+/>
+)}
           <span className="pointer-events-none absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
             <ZoomIn className="h-3.5 w-3.5" aria-hidden />
             Priartinti
@@ -143,15 +161,25 @@ export function ListingImageGallery({
                   ? "border-[var(--vauto-primary)] ring-2 ring-[var(--vauto-primary)]/25"
                   : "border-transparent opacity-80 hover:opacity-100"
               )}
-            >
-              <Image
-                src={src}
-                alt=""
-                fill
-                sizes="80px"
-                className="object-cover"
-              />
-            </button>
+>
+{brokenSrcs.has(src) ? (
+<span
+  aria-label={`Nuotrauka ${index + 1} — nepasiekiama`}
+  className="flex h-full w-full items-center justify-center bg-[var(--vauto-surface-tint)]"
+>
+  <ImageOff className="h-5 w-5 text-[var(--vauto-subtle)]" aria-hidden />
+</span>
+) : (
+<Image
+src={src}
+alt=""
+fill
+sizes="80px"
+className="object-cover"
+onError={() => markBroken(src)}
+/>
+)}
+</button>
           ))}
         </div>
       ) : null}
@@ -203,14 +231,20 @@ export function ListingImageGallery({
                 className="relative h-[min(85dvh,900px)] w-full max-w-5xl"
                 onClick={(e) => e.stopPropagation()}
               >
-                <Image
-                  src={images[activeIndex] ?? activeSrc}
-                  alt={resolveImageAlt(listing, activeIndex)}
-                  fill
-                  sizes="100vw"
-                  className="object-contain"
-                  priority
-                />
+                {brokenSrcs.has(images[activeIndex] ?? activeSrc) ? (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <ListingImagePlaceholder className="h-full w-full" />
+                  </div>
+                ) : (
+                  <Image
+                    src={images[activeIndex] ?? activeSrc}
+                    alt={resolveImageAlt(listing, activeIndex)}
+                    fill
+                    sizes="100vw"
+                    className="object-contain"
+                    onError={() => markBroken(images[activeIndex] ?? activeSrc)}
+                  />
+                )}
               </div>
             </div>,
             document.body

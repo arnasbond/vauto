@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+// F8 — plain <img> with responsive srcSet (next/image unoptimized = no srcset).
 import { HOME_CATEGORIES, type HomeCategory } from "@/lib/marketplace-verticals";
 import { categoryImageFor } from "@/lib/category-imagery";
 import { cn } from "@/lib/cn";
@@ -45,12 +45,18 @@ function CategoryVisual({ category }: { category: HomeCategory }) {
         className="absolute bottom-[6%] h-[12%] w-[58%] rounded-[50%]"
         style={{ background: "var(--cc-contact-shadow)", filter: "blur(4px)" }}
       />
-      <Image
+      {/* F8 — responsive media: the 1x file (240px) goes to standard-DPI
+          screens, the @2x (480px) only to retina. Same premium geometry. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
         src={image.webp2x}
+        srcSet={`${image.webp} 1x, ${image.webp2x} 2x`}
+        sizes="96px"
         alt={image.alt}
         width={160}
         height={160}
         loading="lazy"
+        decoding="async"
         className="relative h-full w-full object-contain drop-shadow-[0_5px_8px_rgba(0,0,0,0.14)] transition-transform duration-200 ease-[var(--ds-ease)] group-hover:scale-[1.06]"
         onError={() => setBroken(true)}
       />

@@ -781,8 +781,14 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [apiActive, setApiActive] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [listings, setListings] = useState<Listing[]>(
-    shouldShowDemoCatalog() ? markListingDemoFlags(INITIAL_LISTINGS) : []
+  // F8 — the INITIAL state is normalized exactly like the post-load path.
+  // Previously the first paint used raw demo rows and the async load swapped
+  // in normalized ones → identical content re-ranked → visible card shuffle
+  // (CLS 0.3+) on slow networks. Same transform up front ⇒ no swap.
+  const [listings, setListings] = useState<Listing[]>(() =>
+    shouldShowDemoCatalog()
+      ? normalizeListings(markListingDemoFlags(INITIAL_LISTINGS))
+      : []
   );
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [activeFilterIds, setActiveFilterIds] = useState<Set<string>>(

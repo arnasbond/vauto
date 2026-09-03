@@ -152,12 +152,15 @@ export function isHomeAgentChatActive(
   return messages.some((m) => m.role === "user");
 }
 
-/** Embedded agent chat on dashboard / secondary pages (includes assistant-only edit opener). */
+/** Embedded agent chat on dashboard / secondary pages (includes assistant-only edit opener).
+ *  F8 — `busy` alone no longer swaps the layout: conductor/init busy pulses
+ *  caused a transient hero↔chat swap and a large CLS on the home page.
+ *  Visibility is driven by REAL content (user/assistant turns); an in-flight
+ *  stream always has at least a user turn, so nothing is lost. */
 export function isEmbeddedAgentChatVisible(
   messages: AgentChatMessage[],
-  busy: boolean
+  _busy: boolean
 ): boolean {
-  if (busy) return true;
   return messages.some((m) => m.role === "user" || m.role === "assistant");
 }
 

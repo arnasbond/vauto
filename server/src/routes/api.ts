@@ -18,6 +18,12 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import { fetchListingsFeed } from "../controllers/listing-controller.js";
 import { getPublicListingByIdOrSlug } from "../repository.js";
 import {
+  cachePolicyForStatus,
+  LISTING_FEED_CACHE,
+  LISTING_SINGLE_CACHE,
+  NO_STORE,
+} from "./listing-cache.js";
+import {
   listingNeedsPayoutMethod,
   rejectIfSellerHasNoPayout,
 } from "../billing/payment-gates.js";
@@ -889,12 +895,15 @@ apiRouter.get("/listings", async (req, res) => {
       limit: req.query.limit ? Number(req.query.limit) : undefined,
       offset: req.query.offset ? Number(req.query.offset) : undefined,
     });
+    // F8 — public 200 responses only; errors fall through to no-store.
+    res.set("Cache-Control", cachePolicyForStatus(LISTING_FEED_CACHE, res.statusCode));
     if (req.query.meta === "1") {
       res.json(page);
       return;
     }
     res.json(page.items);
   } catch (e) {
+    res.set("Cache-Control", NO_STORE);
     sendInternalError(res, e);
   }
 });
@@ -910,16 +919,20 @@ apiRouter.get("/listings/:id", async (req, res) => {
   try {
     const idOrSlug = String(req.params.id ?? "").trim();
     if (!idOrSlug || idOrSlug.length > 200) {
+      res.set("Cache-Control", NO_STORE);
       res.status(400).json({ ok: false, code: "invalid_id" });
       return;
     }
     const listing = await getPublicListingByIdOrSlug(idOrSlug);
     if (!listing) {
+      res.set("Cache-Control", NO_STORE);
       res.status(404).json({ ok: false, code: "not_found", error: "Skelbimas nerastas." });
       return;
     }
+    res.set("Cache-Control", cachePolicyForStatus(LISTING_SINGLE_CACHE, res.statusCode));
     res.json(listing);
   } catch (e) {
+    res.set("Cache-Control", NO_STORE);
     sendInternalError(res, e);
   }
 });
