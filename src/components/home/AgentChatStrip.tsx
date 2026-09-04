@@ -163,12 +163,14 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
 
   const showLivePrePublishCard =
     Boolean(livePrePublishCard) &&
+    // F12/VIN — a trusted VIN candidate awaiting the human decision takes
+    // precedence over the PrePublish card in EVERY flow state (DRAFT_READY,
+    // AWAITING_CONFIRMATION, listingPublishConfirmed and any combination):
+    // the modal must not exist in the DOM while the review is open.
+    !pendingVinReview &&
     (listingPublishConfirmed ||
       aiDraft?.listingFlowState === "AWAITING_CONFIRMATION" ||
-      // F12 — a complete DRAFT_READY draft renders the card (preview mode),
-      // BUT a trusted VIN candidate awaiting the human decision takes
-      // precedence: the modal overlay must not intercept the VIN card.
-      (aiDraft?.listingFlowState === "DRAFT_READY" && !pendingVinReview)) &&
+      aiDraft?.listingFlowState === "DRAFT_READY") &&
     !busy &&
     !isPublishingListing &&
     !hidePrePublishCard &&

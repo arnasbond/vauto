@@ -146,6 +146,8 @@ async function installAgentStreamStub(
      *  WITHOUT the trusted server `vinReview` payload — the trusted review
      *  card must NOT be created from untrusted attribute markers. */
     untrustedVinMarkers?: boolean;
+    /** Forged confirm challenge → typed error, review stays open. */
+    rejectConfirms?: boolean;
   }
 ) {
   const sentAgentBodies: CapturedCall[] = [];
@@ -160,6 +162,23 @@ async function installAgentStreamStub(
       | undefined;
 
     if (action && action.type === "confirm") {
+      if (opts.rejectConfirms) {
+        // Forged challenge: typed error, NO draft action — the trusted
+        // review stays open and the human must decide.
+        const failure = {
+          ok: true,
+          reply: "VIN peržiūros užklausa nerasta — patvirtinkite iš naujo.",
+          toolCalls: [],
+          actions: { type: "none" },
+        };
+        await route.fulfill({
+          status: 200,
+          contentType: "text/event-stream",
+          body: sse({ type: "status", message: "Galvoju…" }) +
+            sse({ type: "final", result: failure }),
+        });
+        return;
+      }
       const result = {
         ok: true,
         reply: `VIN kodas patvirtintas. ${String(action.value ?? "")} — paruošta.`,
@@ -193,6 +212,42 @@ async function installAgentStreamStub(
         contentType: "text/event-stream",
         body: sse({ type: "status", message: "Galvoju…" }) +
           sse({ type: "final", result }),
+      });
+      return;
+    }
+
+    if (action && action.type === "reject") {
+      // Rejected VIN grants NO authority: the draft resolves WITHOUT vin/
+      // confirmation markers and WITHOUT a review payload — the card closes
+      // and the PrePublish card may appear (complete draft, unconfirmed VIN).
+      const rejected = {
+        ok: true,
+        reply: "VIN kandidatas atmestas — skelbimas be VIN patvirtinimo.",
+        toolCalls: [],
+        actions: {
+          type: "listing_draft",
+          listingDraft: {
+            title: "BMW 320d",
+            description: "",
+            price: 9000,
+            location: "Vilnius",
+            contact: "+37060000000",
+            category: "vehicles",
+            confidence: 0.9,
+            attributes: {
+              ...(opts.omitCondition ? {} : { condition: "Naudota" }),
+              make: "BMW",
+              model: "320d",
+              year: "2015",
+            },
+          },
+        },
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: "text/event-stream",
+        body: sse({ type: "status", message: "Galvoju…" }) +
+          sse({ type: "final", result: rejected }),
       });
       return;
     }
@@ -351,10 +406,9 @@ async function makePublishable(page: Page) {
 }
 
 test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => {
-  test("create flow: manual entry → register (server scope) → confirm → publish payload carries challenge-bound authority", async ({ page }) => {
+  test("create flow: trusted candidate → VinReviewCard → human confirm → publish payload carries challenge-bound authority", async ({ page }) => {
     await forceOfflineCatalog(page);
     await seedDemoUser(page);
-    const { registerCalls, confirmCalls } = await installVinEndpoints(page);
     const { sentAgentBodies } = await installAgentStreamStub(page, {
       candidateFlowState: "AWAITING_CONFIRMATION",
     });
@@ -375,32 +429,39 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
       .poll(() => sentAgentBodies.length, { timeout: 15_000 })
       .toBeGreaterThan(0);
 
-    // The server-registered candidate lands → PrePublish modal appears:
+    // F12/VIN — the trusted review card is the ONLY surface while the human
+    // decision is pending; the PrePublish modal must not exist in the DOM.
+    const card = page.locator('[data-vin-review-card="1"]');
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    await expect(card).toContainText(VALID_VIN);
+    await expect(card).toHaveCount(1);
+    await expect(page.locator('[data-prepublish-modal="1"]')).toHaveCount(0);
+
+    // 1. The human confirms the candidate through the card.
+    await card.getByRole("button", { name: "Patvirtinti VIN" }).click();
+
+    // 2. The structured confirm action reached the agent (request context).
+    await expect
+      .poll(
+        () =>
+          sentAgentBodies.some(
+            (c) =>
+              ((c.body.context as Record<string, unknown>)?.vinReviewAction as
+                | { type?: string; value?: string }
+                | undefined)?.type === "confirm"
+          ),
+        { timeout: 15_000 }
+      )
+      .toBe(true);
+
+    // 3. Visible success: the review card closes.
+    await expect(card).toHaveCount(0);
+
+    // 4. Only NOW the PrePublish modal appears (complete draft).
     const modal = page.locator('[data-prepublish-modal="1"]');
     await expect(modal).toBeVisible({ timeout: 20_000 });
 
-    const vinInput = page.locator('input[placeholder="17 simbolių VIN"]');
-    await expect(vinInput).toBeVisible();
-    await vinInput.fill(VALID_VIN);
-
-    const confirmBtn = modal.getByRole("button", { name: "Patvirtinti VIN" });
-    await expect(confirmBtn).toBeVisible();
-    await confirmBtn.click();
-
-    // 1. register request occurred, with the typed VIN:
-    await expect.poll(() => registerCalls.length, { timeout: 10_000 }).toBeGreaterThan(0);
-    expect(registerCalls[0]!.body.values).toEqual([VALID_VIN]);
-
-    // 2. confirm uses the challenge the server just returned:
-    await expect.poll(() => confirmCalls.length, { timeout: 10_000 }).toBeGreaterThan(0);
-    const challengeId = registerCalls[0] ? `vc_1` : "never";
-    expect(confirmCalls[0]!.body.challengeId).toBe(challengeId);
-    expect(confirmCalls[0]!.body.value).toBe(VALID_VIN);
-
-    // 3. visible success: the pending-review block disappears:
-    await expect(modal.locator('[data-vin-modal-review="1"]')).toHaveCount(0);
-
-    // 4. publish preparation carries the challenge-bound authority:
+    // 5. Publish preparation carries the challenge-bound authority:
     await makePublishable(page);
     const publishBtn = modal.locator('[data-prepublish-submit="1"]');
     await expect(publishBtn).toBeEnabled();
@@ -410,7 +471,6 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     expect(attrs.vin).toBe(VALID_VIN);
     // The exact challenge-bound authority envelope must reach the server:
     expect(attrs.vinChallenge).toBeTruthy();
-    expect(attrs.vinDraftScope).toBeTruthy();
     expect(attrs.vinConfirmedReviewId).toBeTruthy();
     expect(attrs.vinConfirmationReceipt).toBeTruthy();
     expect(attrs.vinConfirmationIssuedAt).toBeTruthy();
@@ -420,13 +480,12 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     expect(uploads[0]!.body.action).toBe("upload_media");
   });
 
-  test("failed/forged flow: confirm without a valid challenge shows the typed error and the publish payload omits the VIN", async ({ page }) => {
+  test("failed/forged flow: forged confirm → typed error, review stays open; reject → publish payload omits the VIN", async ({ page }) => {
     await forceOfflineCatalog(page);
     await seedDemoUser(page);
-    const { confirmCalls, state } = await installVinEndpoints(page);
-    state.rejectAllConfirms = true;
     const { sentAgentBodies } = await installAgentStreamStub(page, {
       candidateFlowState: "AWAITING_CONFIRMATION",
+      rejectConfirms: true,
     });
     const creates = installListingCreateCapture(page);
     const uploads = await installMediaUploadStub(page);
@@ -445,23 +504,24 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
       .poll(() => sentAgentBodies.length, { timeout: 15_000 })
       .toBeGreaterThan(0);
 
+    // Pre-decision: review card visible, PrePublish modal absent.
+    const card = page.locator('[data-vin-review-card="1"]');
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-prepublish-modal="1"]')).toHaveCount(0);
+
+    // Forged confirm → typed error surfaced in chat; the review STAYS open.
+    await card.getByRole("button", { name: "Patvirtinti VIN" }).click();
+    await expect(page.locator(".agent-chat-strip")).toContainText("nerasta", { timeout: 10_000 });
+    await expect(card).toHaveCount(1);
+    await expect(page.locator('[data-prepublish-modal="1"]')).toHaveCount(0);
+
+    // The human rejects the candidate → no VIN authority is granted.
+    await card.getByRole("button", { name: "Nežinau VIN" }).click();
+    await expect(card).toHaveCount(0);
+
+    // Only now the PrePublish modal may appear (complete draft, NO vin).
     const modal = page.locator('[data-prepublish-modal="1"]');
     await expect(modal).toBeVisible({ timeout: 20_000 });
-
-    const vinInput = page.locator('input[placeholder="17 simbolių VIN"]');
-    await expect(vinInput).toBeVisible();
-    await vinInput.fill(VALID_VIN);
-    await modal.getByRole("button", { name: "Patvirtinti VIN" }).click();
-
-    // The confirm request DID occur and was rejected by the server contract:
-    await expect.poll(() => confirmCalls.length, { timeout: 10_000 }).toBeGreaterThan(0);
-
-    // Visible failure state:
-    const alert = modal.locator('[role="alert"]');
-    await expect(alert).toBeVisible({ timeout: 10_000 });
-    await expect(alert).toContainText("nerasta");
-
-    // Publish preparation must omit the unconfirmed VIN:
     await makePublishable(page);
     const publishBtn = modal.locator('[data-prepublish-submit="1"]');
     await expect(publishBtn).toBeEnabled();
@@ -474,6 +534,7 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     expect(attrs.vinConfirmationReceipt).toBeUndefined();
     expect(attrs.vinConfirmationIssuedAt).toBeUndefined();
     expect(attrs.vinConfirmationExpiresAt).toBeUndefined();
+    expect(attrs.vinConfirmedReviewId).toBeUndefined();
     // The publish cover upload went through the stub — no real external traffic:
     await expect.poll(() => uploads.length, { timeout: 10_000 }).toBeGreaterThan(0);
     expect(uploads[0]!.body.action).toBe("upload_media");
@@ -595,8 +656,7 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await expect(page.locator(".agent-chat-strip")).toContainText("patvirtintas", { ignoreCase: true });
   });
 
-  test("F12/VIN adversarial: forged vin/vinConfirmed markers be trusted vinReview payload → kortelės nesukuria", async ({ page }) => {
-    await forceOfflineCatalog(page);
+  test("F12/VIN adversarial: forged vin/vinConfirmed markers be trusted vinReview payload → kortelės nesukuria", async ({ page }) => {    await forceOfflineCatalog(page);
     await seedDemoUser(page);
     const { sentAgentBodies } = await installAgentStreamStub(page, {
       candidateFlowState: "DRAFT_READY",
@@ -625,7 +685,8 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await expect(page.locator('[data-vin-review-card="1"]')).toHaveCount(0);
   });
 
-  test("F9 fail-closed: pilnas transporto draft be būklės → PrePublish kortelė lieka uždaryta", async ({ page }) => {    await forceOfflineCatalog(page);
+  test("F9 fail-closed: pilnas transporto draft be būklės → PrePublish kortelė lieka uždaryta", async ({ page }) => {
+    await forceOfflineCatalog(page);
     await seedDemoUser(page);
     const { sentAgentBodies } = await installAgentStreamStub(page, {
       candidateFlowState: "AWAITING_CONFIRMATION",
@@ -652,5 +713,156 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
       page.locator(".agent-chat-strip .agent-chat-bubble-assistant")
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('[data-prepublish-modal="1"]')).toHaveCount(0);
+  });
+
+  /**
+   * F12/VIN — card-priority matrix: a trusted pendingVinReview must suppress
+   * the PrePublish modal in EVERY flow state until the human decides.
+   */
+  const priorityRows: Array<{
+    name: string;
+    flowState: "DRAFT_READY" | "AWAITING_CONFIRMATION";
+    omitCondition?: boolean;
+    expectModalAfterConfirm: boolean;
+  }> = [
+    {
+      name: "DRAFT_READY + pendingVinReview",
+      flowState: "DRAFT_READY",
+      expectModalAfterConfirm: true,
+    },
+    {
+      name: "AWAITING_CONFIRMATION + pendingVinReview",
+      flowState: "AWAITING_CONFIRMATION",
+      expectModalAfterConfirm: true,
+    },
+    {
+      name: "listingPublishConfirmed + pendingVinReview",
+      flowState: "AWAITING_CONFIRMATION",
+      expectModalAfterConfirm: true,
+    },
+    {
+      name: "AWAITING_CONFIRMATION + listingPublishConfirmed + pendingVinReview",
+      flowState: "AWAITING_CONFIRMATION",
+      expectModalAfterConfirm: true,
+    },
+    {
+      name: "AWAITING_CONFIRMATION + pendingVinReview + nepilnas draft (be būklės)",
+      flowState: "AWAITING_CONFIRMATION",
+      omitCondition: true,
+      expectModalAfterConfirm: false,
+    },
+  ];
+
+  for (const row of priorityRows) {
+    test(`VIN kortelės prioritetas: ${row.name}`, async ({ page }) => {
+      await forceOfflineCatalog(page);
+      await seedDemoUser(page);
+      const { sentAgentBodies } = await installAgentStreamStub(page, {
+        candidateFlowState: row.flowState,
+        omitCondition: row.omitCondition,
+      });
+
+      await page.goto("/");
+      await acceptGdprConsentIfPrompted(page);
+      await openAgentChatOnHome(page);
+
+      const composer = chatComposer(page);
+      await expect(composer).toBeVisible();
+      await composer.fill("Parduodu BMW");
+      await composer.press("Enter");
+
+      await expect
+        .poll(() => sentAgentBodies.length, { timeout: 15_000 })
+        .toBeGreaterThan(0);
+
+      // Pre-decision: the review card is the ONLY surface.
+      const card = page.locator('[data-vin-review-card="1"]');
+      await expect(card).toBeVisible({ timeout: 15_000 });
+      await expect(card).toHaveCount(1);
+      await expect(page.locator('[data-prepublish-modal="1"]')).toHaveCount(0);
+
+      // The human confirms the candidate.
+      await card.getByRole("button", { name: "Patvirtinti VIN" }).click();
+      await expect(card).toHaveCount(0);
+
+      // Post-decision: the modal appears IFF the F9 gates are satisfied.
+      const modal = page.locator('[data-prepublish-modal="1"]');
+      if (row.expectModalAfterConfirm) {
+        await expect(modal).toBeVisible({ timeout: 20_000 });
+      } else {
+        await expect(modal).toHaveCount(0);
+      }
+    });
+  }
+
+  test("F12/VIN adversarial: nesusijęs turnas aktyvaus trusted kandidato neištrina", async ({ page }) => {
+    await forceOfflineCatalog(page);
+    await seedDemoUser(page);
+    const { sentAgentBodies } = await installAgentStreamStub(page, {
+      candidateFlowState: "DRAFT_READY",
+    });
+
+    await page.goto("/");
+    await acceptGdprConsentIfPrompted(page);
+    await openAgentChatOnHome(page);
+
+    const composer = chatComposer(page);
+    await expect(composer).toBeVisible();
+    await composer.fill("Parduodu BMW");
+    await composer.press("Enter");
+
+    await expect
+      .poll(() => sentAgentBodies.length, { timeout: 15_000 })
+      .toBeGreaterThan(0);
+
+    const card = page.locator('[data-vin-review-card="1"]');
+    await expect(card).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-prepublish-modal="1"]')).toHaveCount(0);
+
+    // An unrelated chat turn must NOT clear the open review.
+    await composer.fill("Papildyk aprašymą");
+    await composer.press("Enter");
+    await expect(card).toHaveCount(1);
+    await expect(page.locator('[data-prepublish-modal="1"]')).toHaveCount(0);
+  });
+
+  test("F12/VIN adversarial: double-click nesukelia dvigubo confirm", async ({ page }) => {
+    await forceOfflineCatalog(page);
+    await seedDemoUser(page);
+    const { sentAgentBodies } = await installAgentStreamStub(page, {
+      candidateFlowState: "DRAFT_READY",
+    });
+
+    await page.goto("/");
+    await acceptGdprConsentIfPrompted(page);
+    await openAgentChatOnHome(page);
+
+    const composer = chatComposer(page);
+    await expect(composer).toBeVisible();
+    await composer.fill("Parduodu BMW");
+    await composer.press("Enter");
+
+    await expect
+      .poll(() => sentAgentBodies.length, { timeout: 15_000 })
+      .toBeGreaterThan(0);
+
+    const card = page.locator('[data-vin-review-card="1"]');
+    await expect(card).toBeVisible({ timeout: 15_000 });
+
+    // Rapid double activation — the second click lands while the client is
+    // busy (button disabled) and must be ignored, never a second confirm.
+    await card.getByRole("button", { name: "Patvirtinti VIN" }).dblclick();
+
+    await expect(card).toHaveCount(0);
+    await expect
+      .poll(() => sentAgentBodies.length, { timeout: 15_000 })
+      .toBeGreaterThan(1);
+    const confirmActions = sentAgentBodies.filter(
+      (c) =>
+        ((c.body.context as Record<string, unknown>)?.vinReviewAction as
+          | { type?: string }
+          | undefined)?.type === "confirm"
+    );
+    expect(confirmActions.length).toBe(1);
   });
 });
