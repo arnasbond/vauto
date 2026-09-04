@@ -19,6 +19,8 @@ export const VERTICAL_TO_LISTING_CATEGORY: Record<VerticalId, string> = {
   SERVICES: "services",
   JOBS: "jobs",
   HOME_GARDEN: "home",
+  CLOTHING: "clothing",
+  OTHER: "other",
 };
 
 export type AddListingSearchState = {

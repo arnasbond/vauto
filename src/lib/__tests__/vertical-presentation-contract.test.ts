@@ -29,9 +29,11 @@ function listing(overrides: Partial<Listing>): Listing {
 
 test("22A-1: covers every canonical vertical (no parallel registry)", () => {
   assert.deepEqual(Object.keys(VERTICAL_PRESENTATION_CONTRACTS).sort(), [
+    "CLOTHING",
     "ELECTRONICS",
     "HOME_GARDEN",
     "JOBS",
+    "OTHER",
     "REAL_ESTATE",
     "SERVICES",
     "TRANSPORT",

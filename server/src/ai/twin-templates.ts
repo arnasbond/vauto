@@ -72,7 +72,7 @@ export function pickTwinTemplate(
       dealReady,
       sellerNotification: dealReady
         ? `${sellerFirst}, pirkėjas siūlo ≥ min (${min} €) — patvirtinkite žmogumi.`
-        : `${sellerFirst}, AI dvynys nurodė kainos ribą ${min} €.`,
+        : `${sellerFirst}, AI Derybininkas nurodė kainos ribą ${min} €.`,
     };
   }
 
@@ -82,7 +82,7 @@ export function pickTwinTemplate(
       autoReply: twinTemplateText("still_available", min),
       escalate: false,
       dealReady: false,
-      sellerNotification: `${sellerFirst}, AI dvynys patvirtino, kad dar aktualu.`,
+      sellerNotification: `${sellerFirst}, AI Derybininkas patvirtino, kad dar aktualu.`,
     };
   }
 
@@ -91,6 +91,6 @@ export function pickTwinTemplate(
     autoReply: twinTemplateText("escalate_human", min),
     escalate: true,
     dealReady: false,
-    sellerNotification: `${sellerFirst}, AI dvynys perdavė pokalbį jums.`,
+    sellerNotification: `${sellerFirst}, AI Derybininkas perdavė pokalbį jums.`,
   };
 }

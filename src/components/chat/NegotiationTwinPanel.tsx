@@ -96,7 +96,7 @@ export function NegotiationTwinPanel({
         <Bot className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-300" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-semibold text-emerald-900 dark:text-emerald-100">
-            AI dvynys
+            AI Derybininkas
           </span>
           <span className="block truncate text-[11px] text-emerald-800 dark:text-emerald-200">
             {enabled ? "Aktyvus · šabloniniai atsakymai" : "Išjungtas · bakstelėkite nustatymams"}
@@ -159,7 +159,7 @@ export function NegotiationTwinPanel({
               onChange={(e) => setSellerConsent(e.target.checked)}
               className="mt-0.5 accent-emerald-600"
             />
-            Sutinku, kad AI dvynys atsakytų pirkėjams mano vardu tik šiais šablonais
+            Sutinku, kad AI Derybininkas atsakytų pirkėjams mano vardu tik šiais šablonais
           </label>
           <button
             type="button"

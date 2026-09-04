@@ -143,14 +143,14 @@ export function ManoSkelbimaiDashboard({
     const ok = await showConfirm({
       title: "AI Optimizuoti?",
       message:
-        "AI dvynys padės atsakyti pirkėjams ir pagerinti skelbimo matomumą. Norėsite tęsti?",
+        "AI Derybininkas padės atsakyti pirkėjams ir pagerinti skelbimo matomumą. Norėsite tęsti?",
       confirmLabel: "Taip, tęsti",
       cancelLabel: "Atšaukti",
     });
     if (!ok) return;
     openMicroPayment({
       reason:
-        "AI dvynys — šabloniniai atsakymai + perdavimas žmogui pagal jūsų minimalią kainą.",
+        "AI Derybininkas — šabloniniai atsakymai + perdavimas žmogui pagal jūsų minimalią kainą.",
       price: 4.99,
       product: "generic",
       voiceConfirmPhrase: "Taip, apmokėti",

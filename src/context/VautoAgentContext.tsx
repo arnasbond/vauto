@@ -249,7 +249,9 @@ import {
   requestSearchContextReset,
   sellerListingWelcome,
 } from "@/lib/start-ai-seller-listing";
-import { MARKETPLACE_VERTICAL_LABELS } from "@/lib/marketplace-verticals";
+import { HOME_CATEGORIES } from "@/lib/marketplace-verticals";
+import { getPendingSlot, consumePendingSlot, clearPendingSlot } from "@/lib/pending-slot";
+import { isConditionAnswer } from "@/lib/agent-listing-chat-input";
 import {
   listingCategoryForVertical,
   type VerticalId,
@@ -871,9 +873,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           setHidePrePublishCard(false);
         } else {
           setListingPublishConfirmed(false);
-          if (flowState === "DRAFT_READY") {
-            setHidePrePublishCard(true);
-          }
+          // F12 — DRAFT_READY keeps the PrePublish card VISIBLE (preview
+          // mode). The F9 fail-closed readiness gate still blocks publish
+          // for incomplete drafts; the card must not silently vanish while
+          // the assistant copy promises it.
+          setHidePrePublishCard(false);
         }
       }
       if (actions.type === "wardrobe_bulk") {
@@ -2262,6 +2266,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         !shouldBypassPhotosNudge(trimmed) &&
         isListingConversationInput(trimmed, listingChatContext)
       ) {
+        // F12 — the answer bound to a pending missing-field slot: release it.
+        if (getPendingSlot() !== null && isConditionAnswer(trimmed)) {
+          consumePendingSlot();
+        }
         tryApplyListingChatInput(trimmed, aiDraft, (patch) => {
           const nextState =
             transitionListingFlow(
@@ -3065,7 +3073,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             window.sessionStorage.setItem(AI_TWIN_NUDGE_KEY, String(Date.now()));
             const firstName = user.name?.trim().split(/\s+/)[0] || "drauge";
             const voc = toLithuanianVocative(firstName);
-            aiTwinNudge = `Labas, ${voc}! Pastebėjau, kad jūsų skelbimai sulauktų daugiau pardavimų su aktyvuotu AI Derybininku. Nurodykite minimalią kainą pokalbyje ir aš paleisiu jūsų dvynį į darbą!`;
+            aiTwinNudge = `Labas, ${voc}! Pastebėjau, kad jūsų skelbimai sulauktų daugiau pardavimų su aktyvuotu AI Derybininku. Nurodykite minimalią kainą pokalbyje ir aš paleisiu jūsų AI Derybininką į darbą!`;
           }
         }
 
@@ -3641,6 +3649,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     clearPendingPhotoIntent();
     // Re-enable PrePublish for the next draft after paint (avoids one-frame flash).
     queueMicrotask(() => setHidePrePublishCard(false));
+    // F12 — no stale pending slot may survive a fresh session.
+    clearPendingSlot();
     // F9 — clear the hero search-draft AND the grid's held interpretation
     // query ("Rodyk visus" / previous search) so the stale AI-interpretation
     // block unmounts at sell entry.
@@ -3706,7 +3716,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ? undefined
             : verticalId
               ? listingWizardOpenedChips(listingCategory)
-              : [...MARKETPLACE_VERTICAL_LABELS],
+              : // F12 — the sell picker serves the SAME 8 canonical
+                // categories as the home grid (incl. Mada + Kita).
+                HOME_CATEGORIES.map((c) => c.label),
         },
       ]);
       setOpen(true);

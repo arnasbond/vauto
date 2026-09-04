@@ -264,7 +264,7 @@ export function tryHandleAgentQuickReply(
     return {
       handled: true,
       reply:
-        "Supratau. Skelbimas bus patalpintas standartiniu režimu. Jei vėliau norėsite, kad AI dvynys derėtųsi už jus, funkciją bet kada galėsite aktyvuoti skiltyje „Mano skelbimai“. Skelbimą publikuojam?",
+        "Supratau. Skelbimas bus patalpintas standartiniu režimu. Jei vėliau norėsite, kad AI Derybininkas derėtųsi už jus, funkciją bet kada galėsite aktyvuoti skiltyje „Mano skelbimai“. Skelbimą publikuojam?",
       quickReplies: ["Taip, publikuoti", "Ne, dar pataisysiu"],
     };
   }

@@ -619,6 +619,13 @@ function collectDraftFollowUpGaps(draft: {
 
   const gaps: string[] = [];
   if (!(Number(draft.price) > 0)) gaps.push("kainą");
+  // F12 — physical-goods drafts still missing a condition must NOT be
+  // announced as "ready to check in the PrePublish card" (the F9 fail-closed
+  // gate would keep the card closed): ask for the condition first.
+  const conditionRequired =
+    !/^(jobs|services|real_estate)$/.test(cat) &&
+    !pick("condition", "būklė");
+  if (conditionRequired) gaps.push("būklę");
   if (isVehicle) {
     if (!pick("mileage", "odometer", "rida")) gaps.push("ridą (km)");
     if (!pick("techInspection", "ta", "inspectionValidUntil", "taValidUntil")) {

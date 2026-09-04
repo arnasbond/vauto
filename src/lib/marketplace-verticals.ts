@@ -36,6 +36,8 @@ const VERTICAL_ICONS: Record<VerticalUiSlug, LucideIcon> = {
   services: Wrench,
   jobs: Briefcase,
   home: Home,
+  clothing: Shirt,
+  other: Package,
 };
 
 /** Equal-weight marketplace verticals — labels/ids from Stage 13A registry. */

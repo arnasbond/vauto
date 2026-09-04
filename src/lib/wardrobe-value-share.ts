@@ -18,7 +18,7 @@ export function buildWardrobeValueShareCopy(params: {
 
   return {
     url,
-    facebook: `✨ ${first} atskleidė savo VAUTO Spintą — ${count} prekės, bendra vertė ${total} €! AI dvynys jau derasi ir padeda parduoti. Peržiūrėk: ${url}`,
-    instagram: `👗 Mano spintos vertė: ${total} €\n✨ ${count} prekės jau VAUTO ekosistemoje\n🤖 AI dvynys derasi už mane\n👉 ${url}\n#vauto #spinta #secondhand #mada`,
+    facebook: `✨ ${first} atskleidė savo VAUTO Spintą — ${count} prekės, bendra vertė ${total} €! AI Derybininkas jau derasi ir padeda parduoti. Peržiūrėk: ${url}`,
+    instagram: `👗 Mano spintos vertė: ${total} €\n✨ ${count} prekės jau VAUTO ekosistemoje\n🤖 AI Derybininkas derasi už mane\n👉 ${url}\n#vauto #spinta #secondhand #mada`,
   };
 }

@@ -178,6 +178,18 @@ function scoreIntent(text: string): { intent: VautoIntent; confidence: number; r
     return { intent: "UNKNOWN", confidence: 0.2, reasonCode: "adversarial_prompt" };
   }
 
+  // F12 — bare field-vocabulary answers (condition synonyms) are NEVER a
+  // search intent: they answer the assistant's pending missing-field
+  // question. Deterministic, so a stray "Naudota" cannot hijack the sell
+  // flow into a zero-result global search.
+  const trimmed = text.trim();
+  if (
+    trimmed.length <= 80 &&
+    /^(nauj\w*|naudot\w*|beveik\s+nauj\w*|kaip\s+nauj\w*|used|new|like\s+new)$/i.test(trimmed)
+  ) {
+    return { intent: "UNKNOWN", confidence: 0.3, reasonCode: "field_answer" };
+  }
+
   const hits: Array<{ intent: VautoIntent; w: number; code: string }> = [];
   if (SELL.test(text)) hits.push({ intent: "SELL", w: 0.92, code: "rule_sell" });
   if (BUY.test(text)) hits.push({ intent: "BUY", w: 0.9, code: "rule_buy" });
