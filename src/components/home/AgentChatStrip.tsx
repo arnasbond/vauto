@@ -165,9 +165,10 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     Boolean(livePrePublishCard) &&
     (listingPublishConfirmed ||
       aiDraft?.listingFlowState === "AWAITING_CONFIRMATION" ||
-      // F12 — a complete DRAFT_READY draft also renders the card (preview
-      // mode); the assistant copy promises it and it must not disappear.
-      aiDraft?.listingFlowState === "DRAFT_READY") &&
+      // F12 — a complete DRAFT_READY draft renders the card (preview mode),
+      // BUT a trusted VIN candidate awaiting the human decision takes
+      // precedence: the modal overlay must not intercept the VIN card.
+      (aiDraft?.listingFlowState === "DRAFT_READY" && !pendingVinReview)) &&
     !busy &&
     !isPublishingListing &&
     !hidePrePublishCard &&
@@ -451,7 +452,12 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
       </div>
 
-      {pendingVinReview && !busy && !showLivePrePublishCard ? (
+      {/* F12/VIN — card lifecycle contract: a trusted deterministic VIN
+          candidate ALWAYS renders while it awaits the human decision. The
+          PrePublish card state is INDEPENDENT and must never suppress the
+          active VIN review card (it previously did — the card vanished from
+          the DOM at DRAFT_READY/AWAITING_CONFIRMATION). */}
+      {pendingVinReview && !busy ? (
         <VinReviewCard
           review={pendingVinReview}
           busy={busy}

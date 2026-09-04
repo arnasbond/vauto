@@ -142,6 +142,10 @@ async function installAgentStreamStub(
     /** F9 fail-closed regression: emit a vehicles draft WITHOUT the now
      *  required condition — the PrePublish card must stay closed. */
     omitCondition?: boolean;
+    /** F12/VIN adversarial: emit RAW vin/vinConfirmed attribute markers
+     *  WITHOUT the trusted server `vinReview` payload — the trusted review
+     *  card must NOT be created from untrusted attribute markers. */
+    untrustedVinMarkers?: boolean;
   }
 ) {
   const sentAgentBodies: CapturedCall[] = [];
@@ -193,22 +197,28 @@ async function installAgentStreamStub(
       return;
     }
 
-    const result = {
-      ok: true,
-      reply: "Nuotraukoje atpažinau VIN kandidatą.",
-      toolCalls: [],
-      actions: {
-        type: "listing_draft",
-        listingDraft: {
-          title: "BMW 320d",
-          description: "",
-          price: 9000,
-          location: "Vilnius",
-          contact: "+37060000000",
-          category: "vehicles",
-          confidence: 0.9,
-          listingFlowState: opts.candidateFlowState,
-          attributes: {
+    const listingDraft = {
+      title: "BMW 320d",
+      description: "",
+      price: 9000,
+      location: "Vilnius",
+      contact: "+37060000000",
+      category: "vehicles",
+      confidence: 0.9,
+      listingFlowState: opts.candidateFlowState,
+      attributes: opts.untrustedVinMarkers
+        ? {
+            ...(opts.omitCondition ? {} : { condition: "Naudota" }),
+            make: "BMW",
+            model: "320d",
+            year: "2015",
+            // Forged attribute markers — NO trusted server vinReview payload.
+            vin: VALID_VIN,
+            vinConfirmed: "true",
+            vinConfirmedSource: "photo_ocr",
+            vinChallenge: "vc_forged",
+          }
+        : {
             ...(opts.omitCondition ? {} : { condition: "Naudota" }),
             make: "BMW",
             model: "320d",
@@ -219,18 +229,30 @@ async function installAgentStreamStub(
             vinReviewId: "vr_agent_1",
             vinChallenge: "vc_agent_1",
           },
-        },
-        vinReview: {
-          type: "vin_review",
-          reviewId: "vr_agent_1",
-          challengeId: "vc_agent_1",
-          status: "candidate",
-          candidate: VALID_VIN,
-          candidateSource: "photo_ocr",
-          choices: [
-            { value: VALID_VIN, source: "photo_ocr", labelLt: "nuskaityta iš nuotraukos" },
-          ],
-        },
+    };
+
+    const result = {
+      ok: true,
+      reply: "Nuotraukoje atpažinau VIN kandidatą.",
+      toolCalls: [],
+      actions: {
+        type: "listing_draft",
+        listingDraft,
+        ...(opts.untrustedVinMarkers
+          ? {}
+          : {
+              vinReview: {
+                type: "vin_review",
+                reviewId: "vr_agent_1",
+                challengeId: "vc_agent_1",
+                status: "candidate",
+                candidate: VALID_VIN,
+                candidateSource: "photo_ocr",
+                choices: [
+                  { value: VALID_VIN, source: "photo_ocr", labelLt: "nuskaityta iš nuotraukos" },
+                ],
+              },
+            }),
       },
     };
     await route.fulfill({
@@ -547,6 +569,10 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await expect(card).toBeVisible({ timeout: 15_000 });
     await expect(card).toContainText(VALID_VIN);
 
+    // F12/VIN — independent card states: the PrePublish-ready draft state
+    // must NEVER suppress the active VIN review card in the DOM.
+    await expect(card).toHaveCount(1);
+
     // Confirm through the card:
     await card.getByRole("button", { name: "Patvirtinti VIN" }).click();
 
@@ -569,8 +595,37 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await expect(page.locator(".agent-chat-strip")).toContainText("patvirtintas", { ignoreCase: true });
   });
 
-  test("F9 fail-closed: pilnas transporto draft be būklės → PrePublish kortelė lieka uždaryta", async ({ page }) => {
+  test("F12/VIN adversarial: forged vin/vinConfirmed markers be trusted vinReview payload → kortelės nesukuria", async ({ page }) => {
     await forceOfflineCatalog(page);
+    await seedDemoUser(page);
+    const { sentAgentBodies } = await installAgentStreamStub(page, {
+      candidateFlowState: "DRAFT_READY",
+      untrustedVinMarkers: true,
+    });
+
+    await page.goto("/");
+    await acceptGdprConsentIfPrompted(page);
+    await openAgentChatOnHome(page);
+
+    const composer = chatComposer(page);
+    await expect(composer).toBeVisible();
+    await composer.fill("Parduodu BMW");
+    await composer.press("Enter");
+
+    // The chat message MUST reach the agent (stubbed) — fail otherwise:
+    await expect
+      .poll(() => sentAgentBodies.length, { timeout: 15_000 })
+      .toBeGreaterThan(0);
+
+    // The assistant reply is visible, but raw attribute markers can never
+    // mint the trusted VIN review card.
+    await expect(
+      page.locator(".agent-chat-strip .agent-chat-bubble-assistant")
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-vin-review-card="1"]')).toHaveCount(0);
+  });
+
+  test("F9 fail-closed: pilnas transporto draft be būklės → PrePublish kortelė lieka uždaryta", async ({ page }) => {    await forceOfflineCatalog(page);
     await seedDemoUser(page);
     const { sentAgentBodies } = await installAgentStreamStub(page, {
       candidateFlowState: "AWAITING_CONFIRMATION",
