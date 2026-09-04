@@ -850,7 +850,8 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await expect(page.locator(".agent-chat-strip")).toContainText("patvirtintas", { ignoreCase: true });
   });
 
-  test("F12/VIN adversarial: forged vin/vinConfirmed markers be trusted vinReview payload → kortelės nesukuria", async ({ page }) => {    await forceOfflineCatalog(page);
+  test("F12/VIN adversarial: forged vin/vinConfirmed markers be trusted vinReview payload → kortelės nesukuria", async ({ page }) => {
+    await forceOfflineCatalog(page);
     await seedDemoUser(page);
     const { sentAgentBodies } = await installAgentStreamStub(page, {
       candidateFlowState: "DRAFT_READY",
