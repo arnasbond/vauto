@@ -18,7 +18,7 @@ import {
   normalizeMarketplaceFilters,
   type MarketplaceFilterState,
 } from "@/lib/marketplace-view";
-import { resolveVerticalId } from "@vauto/shared/marketplace-domain";
+import { resolveVerticalId, type VerticalId } from "@vauto/shared/marketplace-domain";
 import { VISIBLE_CATEGORY_BY_SLUG, type VisibleCategoryId } from "@vauto/shared/category-registry";
 import { isEmbeddedAgentChatVisible } from "@/lib/agent-chat-layout";
 import { cn } from "@/lib/cn";
@@ -35,6 +35,19 @@ const EXAMPLE_CHIPS = [
   "MacBook Pro M3 Max naudotas, puikios būklės",
   "Ekonomiškas dyzelinis universalas iki 7 000 €",
 ] as const;
+
+/**
+ * F7 contract — home category cards navigate to the /search results view for
+ * categories WITHOUT a dedicated presentation vertical. CLOTHING and OTHER
+ * became canonical SELL-FLOW verticals (F12 8-vertical parity), but their
+ * home navigation must keep the canonical-category-filter /search path
+ * (`resolveVerticalId` now resolves them, so the presentation branch must
+ * stay excluded explicitly).
+ */
+const HOME_NAV_EXCLUDED_VERTICALS: ReadonlySet<VerticalId> = new Set([
+  "CLOTHING",
+  "OTHER",
+]);
 
 export function HomeAiHero({
   seedQuery,
@@ -250,12 +263,12 @@ export function HomeAiHero({
               counts={categoryCounts}
               onSelect={(query, _label, slug) => {
                 const verticalId = resolveVerticalId(slug);
-                if (verticalId) {
+                if (verticalId && !HOME_NAV_EXCLUDED_VERTICALS.has(verticalId)) {
                   if (query) handleChip(query);
                   setVertical(verticalId);
                   return;
                 }
-                // Categories without a canonical vertical (Mada, Kita):
+                // Categories without a home-presentation vertical (Mada, Kita):
                 // apply the SAME canonical category filter the filter bar
                 // uses and navigate to the search results view — the button
                 // is never a no-op, even with an empty query.
