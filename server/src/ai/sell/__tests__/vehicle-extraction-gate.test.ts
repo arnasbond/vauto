@@ -29,7 +29,7 @@ import {
 const VALID_VIN = "WBAZZZ8VZM1234567";
 
 /** Vehicle-shaped text proven to reach the field-update branch for every category. */
-const VEHICLE_TEXT = "Rida 160000 km, automatinė, 2019 metų";
+const VEHICLE_TEXT = "Rida 160000 km, automatinė, 2019 metų, kaina 160000";
 
 function vehicleAttributes(): Record<string, string> {
   return {

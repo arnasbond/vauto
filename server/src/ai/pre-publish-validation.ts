@@ -7,7 +7,12 @@ import {
   draftHasSatisfiedPrice,
   NEGOTIABLE_PRICE_LABEL,
 } from "../shared/negotiable-price.js";
-import { coerceListingCategoryForDb } from "../shared/category-registry.js";
+import {
+  coerceListingCategoryForDb,
+  CONDITION_REQUIRED_CATEGORIES,
+} from "../shared/category-registry.js";
+import { readActiveFactConflict } from "../shared/fact-conflict.js";
+import { isGenericListingDraftTitle } from "../shared/listing-organism.js";
 
 export {
   isPublishConfirmationPhrase,
@@ -54,6 +59,10 @@ export function buildPrePublishBlockMessage(opts: {
   missingCity: boolean;
   missingAuth?: boolean;
   missingPrice?: boolean;
+  missingTitle?: boolean;
+  missingCategory?: boolean;
+  missingCondition?: boolean;
+  activeConflict?: ReturnType<typeof readActiveFactConflict>;
   resolvedPhone?: string;
   resolvedCity?: string;
   hasPhoto?: boolean;
@@ -64,6 +73,10 @@ export function buildPrePublishBlockMessage(opts: {
     missingPhone: opts.missingPhone,
     missingCity: opts.missingCity,
     missingPrice: opts.missingPrice ?? false,
+    missingTitle: opts.missingTitle ?? false,
+    missingCategory: opts.missingCategory ?? false,
+    missingCondition: opts.missingCondition ?? false,
+    activeConflict: opts.activeConflict ?? null,
   });
 }
 
@@ -74,9 +87,12 @@ export function evaluateServerPrePublishReadiness(input: {
   userCity?: string;
   contact?: string;
   listingDraft?: {
+    title?: string;
+    description?: string;
     location?: string;
     price?: number;
     priceLabel?: string;
+    category?: string;
     attributes?: Record<string, string>;
   };
   pendingImageUrls?: string[];
@@ -92,6 +108,10 @@ export function evaluateServerPrePublishReadiness(input: {
   missingCity: boolean;
   missingPrice: boolean;
   missingAuth: boolean;
+  missingTitle: boolean;
+  missingCategory: boolean;
+  missingCondition: boolean;
+  activeConflict: ReturnType<typeof readActiveFactConflict>;
   resolvedPhone: string;
   resolvedCity: string;
   hasPhoto: boolean;
@@ -119,9 +139,46 @@ export function evaluateServerPrePublishReadiness(input: {
     attributes: input.listingDraft?.attributes,
   });
 
+  // P0 — ONE readiness authority: the SAME canonical F9 gates the client
+  // PrePublish readiness enforces (generic title, missing category, missing
+  // condition for physical goods, open fact conflicts) also block the server
+  // readiness — no parallel heuristic may claim „ready“.
+  const draftTitle = String(input.listingDraft?.title ?? "").trim();
+  const missingTitle =
+    !input.listingDraft || isGenericListingDraftTitle(draftTitle);
+  const missingCategory = !String(input.listingDraft?.category ?? "").trim();
+  const conditionRequired =
+    Boolean(input.listingDraft?.category) &&
+    CONDITION_REQUIRED_CATEGORIES.has(
+      coerceListingCategoryForDb(input.listingDraft?.category ?? "", {
+        title: draftTitle,
+        description: String(input.listingDraft?.description ?? ""),
+        fallback: "other",
+      })
+    );
+  const conditionValue = String(
+    input.listingDraft?.attributes?.condition ?? ""
+  ).trim();
+  const missingCondition = conditionRequired && !conditionValue;
+  const activeConflict = input.listingDraft
+    ? readActiveFactConflict({
+        ...(input.listingDraft.attributes ?? {}),
+        price: input.listingDraft.price,
+        city: input.listingDraft.location,
+        condition: input.listingDraft.attributes?.condition,
+      })
+    : null;
+
   // Photos optional for PrePublish preview (text-first); publish still enforces photo client-side.
   const ok =
-    !missingAuth && !missingPhone && !missingCity && !missingPrice;
+    !activeConflict &&
+    !missingAuth &&
+    !missingPhone &&
+    !missingCity &&
+    !missingPrice &&
+    !missingTitle &&
+    !missingCategory &&
+    !missingCondition;
 
   const blockMessage = buildPrePublishBlockMessage({
     missingPhoto,
@@ -129,6 +186,10 @@ export function evaluateServerPrePublishReadiness(input: {
     missingCity,
     missingAuth,
     missingPrice,
+    missingTitle,
+    missingCategory,
+    missingCondition,
+    activeConflict,
     resolvedPhone,
     resolvedCity,
     hasPhoto,
@@ -143,6 +204,10 @@ export function evaluateServerPrePublishReadiness(input: {
     missingCity,
     missingPrice,
     missingAuth,
+    missingTitle,
+    missingCategory,
+    missingCondition,
+    activeConflict,
     resolvedPhone,
     resolvedCity,
     hasPhoto,

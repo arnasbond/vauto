@@ -164,4 +164,36 @@ export function normCityForFilter(loc: string): string {
   return normalizeLtLocationKey(nominative.split(/[,/\s]/)[0] ?? nominative);
 }
 
+/**
+ * P0 — extract a known Lithuanian city from free user text in ANY case form
+ * („Kaune“, „Vilniuje“ …) and return the nominative name. Unknown text yields
+ * undefined — never invent a city.
+ */
+export function extractLtCityNominativeFromText(text: string): string | undefined {
+  const tokens = String(text ?? "")
+    .split(/[^\p{L}]+/u)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 3);
+  for (const token of tokens) {
+    const hit = LT_CITY_NOMINATIVE[normalizeLtLocationKey(token)];
+    if (hit) return hit;
+  }
+  return undefined;
+}
+
+/**
+ * P0 — remove known Lithuanian city tokens (any case form) from free text so
+ * object-name extraction (title synthesis) is not polluted by the location.
+ */
+export function stripKnownLtCityTokens(text: string): string {
+  return String(text ?? "").replace(/[\p{L}\p{M}]+/gu, (token) =>
+    LT_CITY_NOMINATIVE[normalizeLtLocationKey(token)] ? " " : token
+  );
+}
+
+/** P0 — true when the token is a known Lithuanian city in any case form. */
+export function isKnownLtCityToken(token: string): boolean {
+  return Boolean(LT_CITY_NOMINATIVE[normalizeLtLocationKey(token)]);
+}
+
 export const LT_LOCATION_AGENT_HINT = `VIETOVĖS (PRIVALOMA): Atpažink lietuviškus vietovardžius bet kuriuo linksniu (Vilniuje, Kaune, Klaipėdoje, Šiauliuose, Panevėžyje, Pasvalyje ir t.t.) ir searchListings.city / postNewListing.city perduok TIK vardininku (Vilnius, Kaunas, Klaipėda, Šiauliai, Panevėžys, Pasvalys). Jei vartotojas neįvardina miesto — NEPERDUOK city parametro; paieška ir B2B analitika vyksta visoje Lietuvoje.`;

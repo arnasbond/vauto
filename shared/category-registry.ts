@@ -271,6 +271,21 @@ export function coerceListingCategoryForDb(
   return normalized;
 }
 
+/**
+ * F9 — physical-item categories require an explicit condition. Single
+ * canonical source shared by the client and the server PrePublish readiness.
+ */
+export const CONDITION_REQUIRED_CATEGORIES = new Set<RegistryListingCategory>([
+  "vehicles",
+  "transport",
+  "electronics",
+  "clothing",
+  "home",
+  "tools",
+  "other",
+  "rental",
+]);
+
 export function isVehicleFamilyCategory(category: unknown): boolean {
   return VEHICLE_FAMILY_CATEGORIES.has(normalizeListingCategoryId(category));
 }

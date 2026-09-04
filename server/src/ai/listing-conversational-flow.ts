@@ -13,6 +13,7 @@ export {
   TEXT_DRAFT_READY_CHIPS,
   TEXT_DRAFT_READY_GATE,
   VEHICLE_SPEC_COPY_OFFER,
+  buildDraftReadyChatChips,
   buildDraftReadyChatReply,
   buildDraftingCompletePhotosPrompt,
   buildPostVisionHeroMessage,
@@ -21,6 +22,7 @@ export {
   dispatchListingFlowTurn,
   inferListingFlowState,
   isAmendListingIntent,
+  isGenericListingDraftTitle,
   isHeroFlowLocked,
   isImmediatePublishCommand,
   isPrepareListingIntent,
@@ -40,6 +42,7 @@ import {
   PROFILE_PHONE_REQUIRED,
   buildDraftingCompletePhotosPrompt,
 } from "../shared/listing-organism.js";
+import { buildFactConflictQuestion } from "../shared/fact-conflict.js";
 
 export function buildConversationalMissingPrompt(input: {
   missingAuth?: boolean;
@@ -47,9 +50,28 @@ export function buildConversationalMissingPrompt(input: {
   missingCity?: boolean;
   missingPrice?: boolean;
   missingPhone?: boolean;
+  missingTitle?: boolean;
+  missingCategory?: boolean;
+  missingCondition?: boolean;
+  activeConflict?: import("../shared/fact-conflict.js").ActiveFactConflict | null;
 }): string {
+  // P0 — question priority parity with the client's canonical missing guide:
+  // an open fact conflict is THE most important question, then title →
+  // category → condition → auth/contact/city/price per the existing policy.
+  if (input.activeConflict) {
+    return buildFactConflictQuestion(input.activeConflict);
+  }
   if (input.missingAuth) {
     return "Norint publikuoti, reikia prisijungti — prisijunkite ir tęsime kaip asmeninis brokeris.";
+  }
+  if (input.missingTitle) {
+    return "Kokį daiktą parduodate? Parašykite prekės pavadinimą, pvz. „USB klaviatūra“.";
+  }
+  if (input.missingCategory) {
+    return "Kokiai kategorijai priskirti skelbimą? Pvz. Elektronika, Mada, Namai ir buitis, Transportas.";
+  }
+  if (input.missingCondition) {
+    return "Kokia prekės būklė? Pvz. „Nauja“ arba „Naudota“.";
   }
   if (input.missingPrice) {
     return "Kokią kainą norėtumėte matyti skelbime? Parašykite sumą eurais arba „Kainos sutartinės“.";

@@ -261,6 +261,8 @@ import {
   type VinReviewSideEffectPayload,
   type VinReviewStructuredAction,
 } from "@vauto/shared/vin-review";
+import { isGenericListingDraftTitle } from "@vauto/shared/listing-organism";
+import { resolveListingDraftForWire } from "@/lib/agent-wire-context";
 import { listingWizardOpenedChips } from "@/lib/agent-flow-wizard-orchestrator";
 import type { ListingCategory } from "@/lib/types";
 const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
@@ -843,10 +845,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           sessionLockedPriceRef.current = Number(draft.price);
         }
         const draftTitle = String(draft.title ?? "").trim();
-        if (
-          draftTitle &&
-          !/^(naujas skelbimas|drabužių skelbimas|prekė)$/i.test(draftTitle)
-        ) {
+        if (draftTitle && !isGenericListingDraftTitle(draftTitle)) {
           freshListingSessionRef.current = false;
         }
         // Do not re-pass imageUrl — already in orderedImageUrls (avoids 2→4 thumbs).
@@ -856,7 +855,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         // confirmation flag or surface the PrePublish card.
         const confirmable =
           draftTitle &&
-          !/^(naujas skelbimas|drabužių skelbimas|prekė)$/i.test(draftTitle) &&
+          !isGenericListingDraftTitle(draftTitle) &&
           Boolean(draft.category) &&
           !(
             draft.category != null &&
@@ -1863,24 +1862,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             : priceFromExistingDraft != null && priceFromExistingDraft > 0
               ? priceFromExistingDraft
               : null;
+      // P0 — the current turn's facts (price, city, condition, attributes)
+      // live in the USER TEXT, never in a synthetic draft fabricated from a
+      // price lock. When there is no real draft, there is NO draft: the
+      // server must route the turn through fresh-create extraction.
       let draftForTurn = aiDraft
         ? effectivePrice != null &&
           (!(aiDraft.price > 0) || aiDraft.price !== effectivePrice)
           ? { ...aiDraft, price: effectivePrice }
           : aiDraft
-        : effectivePrice != null
-          ? ({
-              title: "Naujas skelbimas",
-              description: "",
-              price: effectivePrice,
-              location: user.city || "",
-              contact: user.phone || "",
-              category: "other",
-              confidence: 0,
-              attributes: {},
-              listingFlowState: "DRAFTING_TEXT",
-            } as import("@/lib/types").AiExtractedListing)
-          : null;
+        : null;
       if (draftForTurn && effectivePrice != null && draftForTurn.price === effectivePrice) {
         updateAiDraft({ price: effectivePrice });
       }
@@ -2667,8 +2658,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           wireVisionUrls = capImageUrlsForAgentWire(compressed);
         }
         const isGenericDraftTitle = (t?: string) =>
-          !t?.trim() ||
-          /^(naujas skelbimas|drabužių skelbimas|prekė)$/i.test(t.trim());
+          isGenericListingDraftTitle(t);
         const isolateSearchFromSeller =
           shouldIsolateSellerListingFromSearch() ||
           freshListingSessionRef.current ||
@@ -2683,36 +2673,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             isGenericDraftTitle(draftForTurn?.title ?? aiDraft?.title));
         const lockedPriceForContext = sessionLockedPriceRef.current;
         const baseListingDraft = sellerWizardContext.listingDraft;
-        const listingDraftForContext =
-          omitPriorListingDraft &&
-          isGenericDraftTitle(baseListingDraft?.title ?? draftForTurn?.title)
-            ? lockedPriceForContext != null && lockedPriceForContext > 0
-              ? {
-                  title: undefined,
-                  description: undefined,
-                  price: lockedPriceForContext,
-                  location: draftForTurn?.location || user.city || "",
-                  category: draftForTurn?.category || "other",
-                  listingFlowState: draftForTurn?.listingFlowState,
-                }
-              : undefined
-            : baseListingDraft
-              ? {
-                  ...baseListingDraft,
-                  ...(lockedPriceForContext != null && lockedPriceForContext > 0
-                    ? { price: lockedPriceForContext }
-                    : {}),
-                }
-              : lockedPriceForContext != null && lockedPriceForContext > 0
-                ? {
-                    title: draftForTurn?.title || "Naujas skelbimas",
-                    description: draftForTurn?.description,
-                    price: lockedPriceForContext,
-                    location: draftForTurn?.location || user.city || "",
-                    category: draftForTurn?.category || "other",
-                    listingFlowState: draftForTurn?.listingFlowState,
-                  }
-                : baseListingDraft;
+        // P0 — the generic seed („Naujas skelbimas“ / empty title) is UI-only
+        // start state: it is NEVER shipped as an authoritative existing draft,
+        // and the current turn's price must never synthesize a price-carrier
+        // draft from it. Only a draft with a CONCRETE title may cross the wire
+        // (with the locked price overlaid as before).
+        const listingDraftForContext = resolveListingDraftForWire({
+          baseDraft: baseListingDraft as
+            | import("@/lib/agent-wire-context").WireListingDraft
+            | undefined,
+          lockedPrice: lockedPriceForContext,
+        }) as typeof baseListingDraft;
         const wireSessionMessages = sessionMessagesForSearch ?? sessionMessages;
         const agentBody = {
           messages: wireSessionMessages.map((m) => ({
