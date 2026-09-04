@@ -46,9 +46,9 @@ const STAGE_13A_SOURCE_PATHS = [
 ] as const;
 
 describe("Stage 13A category domain", () => {
-  it("A — exactly six root verticals", () => {
-    assert.equal(CANONICAL_VERTICALS.length, 6);
-    assert.equal(VERTICAL_IDS.length, 6);
+  it("A — exactly eight canonical root verticals", () => {
+    assert.equal(CANONICAL_VERTICALS.length, 8);
+    assert.equal(VERTICAL_IDS.length, 8);
     assert.deepEqual(
       CANONICAL_VERTICALS.map((v) => v.id),
       [...VERTICAL_IDS]
@@ -146,14 +146,15 @@ describe("Stage 13A category domain", () => {
 
   it("I — unknown category is fail-closed", () => {
     assert.equal(resolveVerticalId("nope"), null);
-    assert.equal(resolveVerticalId("clothing"), null);
+    // F12 — clothing/other ARE canonical verticals now (8-vertical parity).
+    assert.equal(resolveVerticalId("clothing"), "CLOTHING");
+    assert.equal(resolveVerticalId("other"), "OTHER");
     assert.equal(resolveVerticalId("tools"), null);
     assert.equal(resolveVerticalId("rental"), null);
-    assert.equal(resolveVerticalId("other"), null);
     assert.equal(getCategorySchema("nope"), null);
     assert.equal(canUsePlatformPayment("nope"), false);
     assert.equal(canStartOffer("fashion"), false);
-    assert.equal(canApply("clothing"), false);
+    assert.equal(canApply("tools"), false);
     assert.deepEqual(getCategoryCapabilities("unknown"), FAIL_CLOSED_CAPABILITIES);
     const unknown = validateListingAttributes("nope", {});
     assert.equal(unknown.ok, false);
