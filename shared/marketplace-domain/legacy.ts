@@ -9,6 +9,8 @@ const UI_SLUG_TO_ID: Record<VerticalUiSlug, VerticalId> = {
   services: "SERVICES",
   jobs: "JOBS",
   home: "HOME_GARDEN",
+  clothing: "CLOTHING",
+  other: "OTHER",
 };
 
 /**
@@ -97,6 +99,10 @@ export function verticalIdToUiSlug(id: VerticalId): VerticalUiSlug {
       return "jobs";
     case "HOME_GARDEN":
       return "home";
+    case "CLOTHING":
+      return "clothing";
+    case "OTHER":
+      return "other";
     default: {
       const _exhaustive: never = id;
       return _exhaustive;

@@ -58,11 +58,11 @@ describe("F5 — presentation contract parity (client)", () => {
     }
   });
 
-  it("legacy clothing/fashion resolves to the universal path (no canonical vertical)", () => {
-    assert.equal(verticalIdForListingCategory("clothing"), null);
-    assert.equal(presentationContractForListing({ category: "clothing" }), null);
-    const universal = enabledViewModesForVertical(null);
-    assert.equal(universal.length, 3, "universal list/grid/map defaults");
+  it("legacy clothing/fashion resolves to the canonical CLOTHING vertical", () => {
+    assert.equal(verticalIdForListingCategory("clothing"), "CLOTHING");
+    const contract = presentationContractForListing({ category: "clothing" });
+    assert.ok(contract);
+    assert.equal(contract!.verticalId, "CLOTHING");
   });
 
   it("canonical listing categories map to the right contract", () => {

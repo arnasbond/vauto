@@ -18,7 +18,7 @@ export const SMART_ONBOARDING_SLIDES = [
   {
     icon: Bot,
     title: "AI asistentas, kuris niekada nemiega",
-    body: "Kai pirkėjas parašo naktį ar dera dėl kainos, tavo AI dvynys atsako už tave – mandagiai, šiltai ir pagal tavo taisykles. Tu ilsėsies, o derybos vyks 24 valandas per parą.",
+    body: "Kai pirkėjas parašo naktį ar dera dėl kainos, tavo AI Derybininkas atsako už tave – mandagiai, šiltai ir pagal tavo taisykles. Tu ilsėsies, o derybos vyks 24 valandas per parą.",
   },
   {
     icon: Camera,

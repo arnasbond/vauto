@@ -7,6 +7,8 @@ export const VERTICAL_IDS = [
   "SERVICES",
   "JOBS",
   "HOME_GARDEN",
+  "CLOTHING",
+  "OTHER",
 ] as const;
 
 export type VerticalId = (typeof VERTICAL_IDS)[number];
@@ -19,6 +21,8 @@ export const VERTICAL_UI_SLUGS = [
   "services",
   "jobs",
   "home",
+  "clothing",
+  "other",
 ] as const;
 
 export type VerticalUiSlug = (typeof VERTICAL_UI_SLUGS)[number];

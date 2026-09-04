@@ -164,7 +164,10 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
   const showLivePrePublishCard =
     Boolean(livePrePublishCard) &&
     (listingPublishConfirmed ||
-      aiDraft?.listingFlowState === "AWAITING_CONFIRMATION") &&
+      aiDraft?.listingFlowState === "AWAITING_CONFIRMATION" ||
+      // F12 — a complete DRAFT_READY draft also renders the card (preview
+      // mode); the assistant copy promises it and it must not disappear.
+      aiDraft?.listingFlowState === "DRAFT_READY") &&
     !busy &&
     !isPublishingListing &&
     !hidePrePublishCard &&

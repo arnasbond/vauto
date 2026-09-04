@@ -35,6 +35,7 @@ import {
   isNegotiablePriceChatInput,
   negotiablePricePatch,
 } from "@vauto/shared/negotiable-price";
+import { extractConditionFromText } from "@vauto/shared/fact-conflict";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
 /** Require currency OR price keyword — never match bare years like 2007. */
@@ -71,9 +72,13 @@ export function isListingConversationInput(
   text: string,
   ctx: ListingChatContext
 ): boolean {
-  if (!ctx.hasListingDraft && !ctx.sellerFlowActive) return false;
   const t = text.trim();
   if (!t) return false;
+  // F12 — a bare condition answer is FIELD VOCABULARY, never a meaningful
+  // standalone search; bind it to the sell flow even when the draft is
+  // temporarily unmounted (pending-slot retention).
+  if (isConditionAnswer(t)) return true;
+  if (!ctx.hasListingDraft && !ctx.sellerFlowActive) return false;
   if (isListingWorkflowCommand(t)) return false;
   if (textContainsListingContactSignals(t)) return true;
   if (isManualFillIntent(t)) return true;
@@ -84,6 +89,13 @@ export function isListingConversationInput(
   // Active draft: treat informal corrections as UPDATE_LISTING_DRAFT (ChatGPT-style).
   if (ctx.hasListingDraft && t.length <= 500) return true;
   return t.length <= 120;
+}
+
+/** F12 — canonical condition vocabulary (shared/fact-conflict normalizer). */
+export function isConditionAnswer(text: string): boolean {
+  const t = text.trim();
+  if (t.length > 80) return false;
+  return extractConditionFromText(t) !== undefined;
 }
 
 /** Remove unwanted description phrases from natural-language edit requests. */
@@ -218,6 +230,18 @@ export function tryApplyListingChatInput(
   if (!aiDraft) return null;
 
   const flow = aiDraft.listingFlowState;
+
+  // F12 — a bare condition answer binds DIRECTLY into attributes.condition
+  // (answers the pending missing-field question; never falls to search).
+  const conditionAnswer = extractConditionFromText(text);
+  if (conditionAnswer !== undefined) {
+    const nextAttrs = {
+      ...(aiDraft.attributes ?? {}),
+      condition: conditionAnswer,
+    };
+    updateAiDraft({ attributes: nextAttrs });
+    return `Įrašiau būklę: ${conditionAnswer}.`;
+  }
 
   // Vehicle specs — only for vehicle/transport drafts (never hijack fashion/RE/etc.).
   const vehicleFamily =

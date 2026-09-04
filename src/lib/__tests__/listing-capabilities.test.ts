@@ -23,8 +23,9 @@ function makeListing(partial: Partial<Listing>): Listing {
 test("18E: Omniva/delivery ONLY applies to canonical shippable physical goods", () => {
   assert.equal(hasDeliveryCapability(makeListing({ category: "electronics", allowPastomatas: true })), true);
   assert.equal(hasDeliveryCapability(makeListing({ category: "home", allowPastomatas: true })), true);
-  // Non-canonical goods (clothing/tools) are fail-closed — no Omniva.
-  assert.equal(hasDeliveryCapability(makeListing({ category: "clothing", allowPastomatas: true })), false);
+  // F12 — clothing is a canonical shippable physical-good vertical.
+  assert.equal(hasDeliveryCapability(makeListing({ category: "clothing", allowPastomatas: true })), true);
+  // Non-canonical goods (tools/rental) are fail-closed — no Omniva.
   assert.equal(hasDeliveryCapability(makeListing({ category: "tools", allowPastomatas: true })), false);
   // Real estate / services / jobs / vehicles must NEVER show delivery.
   assert.equal(hasDeliveryCapability(makeListing({ category: "real_estate", allowPastomatas: true })), false);
@@ -35,11 +36,11 @@ test("18E: Omniva/delivery ONLY applies to canonical shippable physical goods", 
 });
 
 test("18E: isShippableGoods is derived from the canonical capability model (fail-closed)", () => {
-  for (const cat of ["electronics", "home"]) {
+  for (const cat of ["electronics", "home", "clothing"]) {
     assert.equal(isShippableGoods(cat as never), true, cat);
   }
   // Canonical model declares supportsShipping=false (or unknown→fail-closed) for these.
-  for (const cat of ["clothing", "tools", "rental", "other", "real_estate", "services", "jobs", "vehicles", "transport"]) {
+  for (const cat of ["tools", "rental", "other", "real_estate", "services", "jobs", "vehicles", "transport"]) {
     assert.equal(isShippableGoods(cat as never), false, cat);
   }
   assert.equal(isShippableGoods(undefined), false);

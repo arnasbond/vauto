@@ -64,6 +64,26 @@ export const CANONICAL_VERTICALS: readonly MarketplaceVertical[] = [
     capabilities: VERTICAL_CAPABILITIES.HOME_GARDEN,
     attributes: VERTICAL_ATTRIBUTES.HOME_GARDEN,
   },
+  {
+    id: "CLOTHING",
+    uiSlug: "clothing",
+    label: "Mada",
+    description: "Drabužiai, avalynė ir aksesuarai.",
+    listingKind: "PHYSICAL_GOOD",
+    searchQuery: "drabužiai",
+    capabilities: VERTICAL_CAPABILITIES.CLOTHING,
+    attributes: VERTICAL_ATTRIBUTES.CLOTHING,
+  },
+  {
+    id: "OTHER",
+    uiSlug: "other",
+    label: "Kita",
+    description: "Visos kitos prekės be aiškios kategorijos.",
+    listingKind: "PHYSICAL_GOOD",
+    searchQuery: "kita",
+    capabilities: VERTICAL_CAPABILITIES.OTHER,
+    attributes: VERTICAL_ATTRIBUTES.OTHER,
+  },
 ] as const satisfies readonly MarketplaceVertical[];
 
 const BY_ID = Object.fromEntries(

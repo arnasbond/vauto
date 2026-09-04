@@ -263,6 +263,8 @@ export const VERTICAL_PRESENTATION_CONTRACTS: Record<
   SERVICES: buildContract("SERVICES"),
   JOBS: buildContract("JOBS"),
   HOME_GARDEN: buildContract("HOME_GARDEN"),
+  CLOTHING: buildContract("CLOTHING"),
+  OTHER: buildContract("OTHER"),
 };
 
 export function presentationContractForVertical(

@@ -247,7 +247,7 @@ test("18.2-A: capability model is canonical — no invented shipping (18.2-H)", 
     assert.equal(canUseShipping(cat), false, `${cat} cannot ship`);
   }
   // Where test fixture uses clothing/other, canonical model is fail-closed for non-supported goods.
-  assert.equal(canUseShipping("clothing"), false);
+  assert.equal(canUseShipping("clothing"), true);
   assert.equal(canUseShipping("tools"), false);
   // A canonical physical-good vertical is derivable from the schema — never hardcoded here.
   const schema = getCategorySchema("ELECTRONICS");

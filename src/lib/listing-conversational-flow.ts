@@ -1,5 +1,6 @@
 import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
 import { buildFactConflictQuestion } from "@vauto/shared/fact-conflict";
+import { activatePendingSlot } from "@/lib/pending-slot";
 import {
   AWAITING_PHOTOS_PROMPT,
   PROFILE_CITY_REQUIRED,
@@ -72,25 +73,34 @@ export function buildConversationalMissingPrompt(
   }
   // F9 — ONE question per turn: the most important gap first, in canonical
   // order (title → category → condition → price → contact → city → photo).
+  // F12 — each gap question LOCKS a pending slot so the user's answer can
+  // never be re-classified as a global search intent.
   if (readiness.missingTitle) {
+    activatePendingSlot("title");
     return "Kokį daiktą parduodate? Parašykite prekės pavadinimą, pvz. „USB klaviatūra“.";
   }
   if (readiness.missingCategory) {
+    activatePendingSlot("category");
     return "Kokiai kategorijai priskirti skelbimą? Pvz. Elektronika, Mada, Namai ir buitis, Transportas.";
   }
   if (readiness.missingCondition) {
+    activatePendingSlot("condition");
     return "Kokia prekės būklė? Pvz. „Nauja“ arba „Naudota“.";
   }
   if (readiness.missingPrice) {
+    activatePendingSlot("price");
     return "Kokią kainą norėtumėte matyti skelbime? Parašykite sumą eurais arba „Kainos sutartinės“.";
   }
   if (readiness.missingPhone) {
+    activatePendingSlot("phone");
     return PROFILE_PHONE_REQUIRED;
   }
   if (readiness.missingCity) {
+    activatePendingSlot("city");
     return PROFILE_CITY_REQUIRED;
   }
   if (readiness.missingPhoto) {
+    activatePendingSlot("photo");
     return AWAITING_PHOTOS_PROMPT;
   }
   // Soft AI confirmation — never use as a red validation error toast.
