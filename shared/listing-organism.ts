@@ -89,6 +89,26 @@ export const POST_VISION_PUBLISH_CHIPS = [
 /** Step 3 chips — open PrePublish or edit. */
 export const TEXT_DRAFT_READY_CHIPS = ["🚀 Publikuoti", "✏️ Papildyti"] as const;
 
+/**
+ * P0 — generic seed titles are UI-only start state. Only clearly defined
+ * placeholder formats match (exact seeds + the category-prefixed seed
+ * „Kategorija — naujas skelbimas“); a legitimate user title that merely
+ * CONTAINS the phrase stays concrete.
+ */
+export function isGenericListingDraftTitle(title?: string | null): boolean {
+  const t = String(title ?? "")
+    .trim()
+    .toLowerCase();
+  if (!t) return true;
+  if (t === "naujas skelbimas" || t === "drabužių skelbimas" || t === "prekė") {
+    return true;
+  }
+  if (/^.+?\s+[—–-]\s+naujas skelbimas$/.test(t)) {
+    return true;
+  }
+  return false;
+}
+
 /** Lean Step-1 sell greeting — physical goods (photos / packaging tips). */
 export const LEAN_SELL_GREETING =
   "Pasirinkite kategoriją arba aprašykite objektą / prekę laisvai. Nuotrauka nebūtina pirmam žingsniui — padėsiu su antrašte, kaina ir lokacija. Publikuojate jūs.";
@@ -569,29 +589,71 @@ export function dispatchListingFlowTurn(input: {
  * Single warm chat sentence after draft synthesis.
  * Rich title/description belong only on listingDraft → PrePublish.
  * When facts are missing, invite the seller to continue the dialogue.
+ *
+ * P0 honesty contract:
+ * - a generic/empty title is NEVER announced as „paruošiau pilną“;
+ * - „pilną“ is claimed only when the canonical readiness is ok (readinessOk)
+ *   or, absent the canonical signal, when the draft is concrete AND has no
+ *   follow-up gaps;
+ * - missing facts produce exactly ONE most-important question.
  */
-export function buildDraftReadyChatReply(draft: {
-  title?: string;
-  description?: string;
-  price?: number;
-  location?: string;
-  category?: string;
-  attributes?: Record<string, string | string[] | undefined>;
-}): string {
+export function buildDraftReadyChatReply(
+  draft: {
+    title?: string;
+    description?: string;
+    price?: number;
+    location?: string;
+    category?: string;
+    attributes?: Record<string, string | string[] | undefined>;
+  },
+  opts?: { readinessOk?: boolean }
+): string {
   const title = draft.title?.trim();
-  const ready = title
-    ? (() => {
-        const short =
-          title.length > 72 ? `${title.slice(0, 69).trim()}…` : title;
-        return `Paruošiau pilną „${short}“ skelbimo juodraštį!`;
-      })()
-    : "Paruošiau pilną skelbimo juodraštį!";
-
-  const gaps = collectDraftFollowUpGaps(draft);
-  if (gaps.length) {
-    return `${ready} Jei turite, parašykite: ${gaps.join(", ")} — arba atidarykite PrePublish kortelę ir patikrinkite.`;
+  if (isGenericListingDraftTitle(title)) {
+    // P0 — the generic seed is UI-only state: never claim a full draft, ask
+    // the single most important question (what is being sold).
+    return "Supratau — ruošiu juodraštį. Kokį konkretų daiktą ar objektą parduodate? Parašykite pavadinimą, pvz. „iPhone 15 Pro 256 GB“.";
   }
-  return `${ready} Galite patikrinti PrePublish kortelėje arba parašyti, ką norite pakeisti.`;
+  const gaps = collectDraftFollowUpGaps(draft);
+  // P0 — ONE readiness authority: „Paruošiau pilną“ is allowed ONLY on the
+  // explicit canonical readiness signal. Absent/false → fail-closed wording.
+  const complete = opts?.readinessOk === true;
+  const short = title
+    ? title.length > 72
+      ? `${title.slice(0, 69).trim()}…`
+      : title
+    : "";
+  if (gaps.length) {
+    const named = short ? ` „${short}“` : "";
+    return `Paruošiau juodraštį${named}. Jei turite, parašykite: ${gaps[0]} — arba atidarykite PrePublish kortelę ir patikrinkite.`;
+  }
+  if (complete) {
+    return `Paruošiau pilną${short ? ` „${short}“` : ""} skelbimo juodraštį! Galite patikrinti PrePublish kortelėje arba parašyti, ką norite pakeisti.`;
+  }
+  return `Paruošiau juodraštį${short ? ` „${short}“` : ""} — patikrinkite PrePublish kortelėje.`;
+}
+
+/**
+ * P0 — the publish chip is decided by the SINGLE canonical readiness source.
+ * `readinessOk === true` (computed via the canonical PrePublish readiness)
+ * is the ONLY way „🚀 Publikuoti“ appears. Absent/false → fail-closed: at
+ * most the „Papildyti“ chip; generic/empty titles get no chips at all. There
+ * is no parallel title/gaps/price readiness heuristic here.
+ */
+export function buildDraftReadyChatChips(
+  draft: {
+    title?: string;
+    description?: string;
+    price?: number;
+    location?: string;
+    category?: string;
+    attributes?: Record<string, string | string[] | undefined>;
+  },
+  opts?: { readinessOk?: boolean }
+): string[] {
+  if (isGenericListingDraftTitle(draft.title)) return [];
+  if (opts?.readinessOk !== true) return ["✏️ Papildyti"];
+  return [...TEXT_DRAFT_READY_CHIPS];
 }
 
 function collectDraftFollowUpGaps(draft: {
@@ -633,7 +695,7 @@ function collectDraftFollowUpGaps(draft: {
     }
     if (!pick("transmission", "gearbox")) gaps.push("pavarų dėžę");
   }
-  return gaps.slice(0, 3);
+  return gaps.slice(0, 1);
 }
 
 /**

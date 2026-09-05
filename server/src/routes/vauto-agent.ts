@@ -9,6 +9,7 @@ import { getAdminAgentContext } from "../repository.js";
 import { trimVautoAgentRequest } from "../ai/agent-request-trim.js";
 import { hasAgentAiKey } from "../load-env.js";
 import { resolveAuthenticatedAgentContext } from "../ai/user-agent-context.js";
+import { isGenericListingDraftTitle } from "../shared/listing-organism.js";
 
 export const vautoAgentRouter = Router();
 
@@ -109,9 +110,11 @@ async function buildAgentRequest(req: AuthedRequest) {
     Boolean(clientContext.omitPriorListingDraft) ||
     Boolean(clientContext.freshListingSession);
   const priorTitle = String(clientContext.listingDraft?.title ?? "").trim();
-  const priorTitleIsGeneric =
-    !priorTitle ||
-    /^(naujas skelbimas|drabužių skelbimas|prekė)$/i.test(priorTitle);
+  // P0 — a generic seed title is UI-only state. The route boundary never
+  // re-synthesizes a price-carrier draft from it: the generic draft is
+  // dropped entirely and the turn runs through fresh-create extraction
+  // (the current user text is the single fact authority).
+  const priorTitleIsGeneric = isGenericListingDraftTitle(priorTitle);
   const userCtx = await resolveAuthenticatedAgentContext(req.authUserId, {
     userName: clientContext.userName,
     accountType: clientContext.accountType,
@@ -138,16 +141,10 @@ async function buildAgentRequest(req: AuthedRequest) {
               listings: [],
               myListings: [],
               myListingsSummary: "",
-              // Keep a real Vision draft; strip only stale/generic titles.
+              // Keep a real Vision draft; strip only stale/generic titles —
+              // never fabricate a price-carrier draft from a generic seed.
               listingDraft: priorTitleIsGeneric
-                ? clientContext.listingDraft?.price &&
-                  Number(clientContext.listingDraft.price) > 0
-                  ? {
-                      ...clientContext.listingDraft,
-                      title: undefined,
-                      description: undefined,
-                    }
-                  : undefined
+                ? undefined
                 : clientContext.listingDraft,
               omitPriorListingDraft: true,
               freshListingSession:

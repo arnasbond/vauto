@@ -99,6 +99,7 @@ import {
 import {
   AWAITING_PHOTOS_NUDGE,
   buildConversationalMissingPrompt,
+  buildDraftReadyChatChips,
   buildDraftReadyChatReply,
   buildDraftingCompletePhotosPrompt,
   buildPostVisionHeroMessage,
@@ -106,11 +107,11 @@ import {
   dispatchListingFlowTurn,
   inferListingFlowState,
   isHeroFlowLocked,
+  isGenericListingDraftTitle,
   isPublishReadyIntent,
   isVisionObjectSellChip,
   nounFromVisionObjectSellChip,
   PRE_PUBLISH_CARD_INTRO,
-  TEXT_DRAFT_READY_CHIPS,
   shouldBypassPhotosNudge,
   transitionListingFlow,
 } from "./listing-conversational-flow.js";
@@ -677,7 +678,17 @@ async function runVautoAgentInner(
 
   const lastUserText = scrubProfanity(lastUserTextRaw);
 
-  let listingDraft = req.context.listingDraft;
+  let listingDraft: typeof req.context.listingDraft | null =
+    req.context.listingDraft;
+  // P0 — a generic seed draft („Naujas skelbimas“ / empty / category-prefixed
+  // placeholder) is UI-only start state and can NEVER be treated as an
+  // authoritative existing draft. Route it to the fresh-create path so the
+  // current user text is the single fact authority (title/category/price/
+  // city/condition/attributes). A forged generic draft sent straight to the
+  // server cannot bypass this boundary.
+  if (listingDraft && isGenericListingDraftTitle(listingDraft.title)) {
+    listingDraft = null;
+  }
   const pendingChatImages = req.context.pendingImageUrls?.filter(Boolean).slice(0, 10);
   const pendingDocs = req.context.pendingDocuments?.filter(Boolean) ?? [];
   if (pendingDocs.length) {
@@ -730,7 +741,7 @@ async function runVautoAgentInner(
       return {
         ok: true,
         reply: `${badge}\n\nPerskaičiau turinį ir įrašiau į juodraštį. Parašyk kainą, miestą ar ką skelbi — papildysiu.`,
-        quickReplies: TEXT_DRAFT_READY_CHIPS.slice(0, 4),
+        quickReplies: buildDraftReadyChatChips(documentDraft),
         toolCalls: [
           {
             name: "ingestChatDocuments",
@@ -870,7 +881,9 @@ async function runVautoAgentInner(
       userCity: req.context.userCity,
       listingFlowState: nextFlowState,
     });
-    const warmAck = buildDraftReadyChatReply(nextDraft);
+    const warmAck = buildDraftReadyChatReply(nextDraft, {
+      readinessOk: Boolean(gateway.prePublishCard),
+    });
     const reply = gateway.prePublishCard
       ? warmAck
       : [warmAck, gateway.reply].filter(Boolean).join(" ");
@@ -879,7 +892,7 @@ async function runVautoAgentInner(
       reply,
       ...(gateway.prePublishCard
         ? { prePublishCard: gateway.prePublishCard }
-        : { quickReplies: [...TEXT_DRAFT_READY_CHIPS] }),
+        : { quickReplies: buildDraftReadyChatChips(nextDraft, { readinessOk: false }) }),
       toolCalls: [],
       actions: {
         type: "listing_draft",
@@ -1241,10 +1254,25 @@ async function runVautoAgentInner(
       const vinReply = challengeOutcome
         ? vinChallengeOutcomeReply(challengeOutcome)
         : vinReviewOutcomeReply(reduction.outcome, action);
+      // P0 — ONE readiness authority: the publish chip and the „pilną“ claim
+      // require the canonical readiness to be ok. While a VIN review is
+      // pending (or any canonical blocker exists), no publish is offered.
+      const vinReadinessOk = evaluateServerPrePublishReadiness({
+        isAuthenticated: req.context.isAuthenticated,
+        profilePhone: req.context.profilePhone,
+        profileEmail: req.context.profileEmail,
+        userCity: req.context.userCity,
+        contact: req.context.contact,
+        listingDraft: nextDraft,
+        pendingImageUrls: req.context.pendingImageUrls,
+        geoCityHint: req.context.geoCityHint,
+      }).ok;
       return {
         ok: true,
-        reply: `${vinReply} ${buildDraftReadyChatReply(nextDraft)}`,
-        quickReplies: buildVinReviewDisplayChips(nextAttrs) ?? [...TEXT_DRAFT_READY_CHIPS],
+        reply: `${vinReply} ${buildDraftReadyChatReply(nextDraft, { readinessOk: vinReadinessOk })}`,
+        quickReplies:
+          buildVinReviewDisplayChips(nextAttrs) ??
+          buildDraftReadyChatChips(nextDraft, { readinessOk: vinReadinessOk }),
         toolCalls: [],
         actions: {
           type: "listing_draft",
@@ -1426,10 +1454,23 @@ async function runVautoAgentInner(
               : "Puiku — atnaujinau juodraštį!";
       const vinReviewChips = buildVinReviewDisplayChips(mergedAttrs);
       const vinReviewPayload = buildVinReviewSideEffect(mergedAttrs);
+      // P0 — the single canonical readiness source decides whether the reply
+      // may claim „paruošiau pilną“ / offer the „Publikuoti“ chip.
+      const readinessOk = evaluateServerPrePublishReadiness({
+        isAuthenticated: req.context.isAuthenticated,
+        profilePhone: req.context.profilePhone,
+        profileEmail: req.context.profileEmail,
+        userCity: req.context.userCity,
+        contact: req.context.contact,
+        listingDraft: nextDraft,
+        pendingImageUrls: req.context.pendingImageUrls,
+        geoCityHint: req.context.geoCityHint,
+      }).ok;
       return {
         ok: true,
-        reply: `${intro} ${buildDraftReadyChatReply(nextDraft)}`,
-        quickReplies: vinReviewChips ?? [...TEXT_DRAFT_READY_CHIPS],
+        reply: `${intro} ${buildDraftReadyChatReply(nextDraft, { readinessOk })}`,
+        quickReplies:
+          vinReviewChips ?? buildDraftReadyChatChips(nextDraft, { readinessOk }),
         toolCalls: [],
         actions: {
           type: "listing_draft",
@@ -2522,7 +2563,7 @@ async function runVautoAgentInner(
     try {
       const mediaRetry = await resolveChatMediaAttachmentResponse({
         imageUrls: pendingChatImages,
-        listingDraft,
+        listingDraft: listingDraft ?? undefined,
         userCity: req.context.userCity,
         contact: req.context.contact,
         userText: lastUserText,

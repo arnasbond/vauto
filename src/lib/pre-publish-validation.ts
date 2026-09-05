@@ -19,7 +19,12 @@ import {
   NEGOTIABLE_PRICE_LABEL,
   isNegotiableListingPrice,
 } from "@vauto/shared/negotiable-price";
-import { coerceListingCategoryForDb } from "@vauto/shared/category-registry";
+import {
+  coerceListingCategoryForDb,
+  CONDITION_REQUIRED_CATEGORIES,
+} from "@vauto/shared/category-registry";
+export { CONDITION_REQUIRED_CATEGORIES } from "@vauto/shared/category-registry";
+import { isGenericListingDraftTitle } from "@vauto/shared/listing-organism";
 import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import {
@@ -231,20 +236,6 @@ function resolveDraftPriceValue(
   return 0;
 }
 
-const PLACEHOLDER_TITLE_RE = /^(naujas skelbimas|drabužių skelbimas|prekė)$/i;
-
-/** F9 — physical-item categories require an explicit condition. */
-export const CONDITION_REQUIRED_CATEGORIES = new Set([
-  "vehicles",
-  "transport",
-  "electronics",
-  "clothing",
-  "home",
-  "tools",
-  "other",
-  "rental",
-]);
-
 export function evaluatePrePublishReadiness(
   input: PrePublishCheckInput
 ): PrePublishReadiness {
@@ -339,9 +330,7 @@ export function evaluatePrePublishReadiness(
   // unfinished draft.
   const draftTitle = String(syncedDraft?.title ?? "").trim();
   const missingTitle =
-    !syncedDraft ||
-    !draftTitle ||
-    PLACEHOLDER_TITLE_RE.test(draftTitle);
+    !syncedDraft || isGenericListingDraftTitle(draftTitle);
   const missingCategory = !syncedDraft?.category;
   const conditionRequired =
     syncedDraft?.category != null &&

@@ -135,8 +135,24 @@ export function parsePriceFromChatInput(text: string): number | null {
   if (t.length <= 80) {
     const bare = t.match(PRICE_BARE_IN_SHORT_RE);
     if (bare?.[1]) {
-      const n = Number.parseInt(bare[1], 10);
-      if (Number.isFinite(n) && n >= 50 && !isLikelyVehicleYear(n)) return n;
+      // P0 — a bare amount is a price ONLY when the message is essentially
+      // about the price: brand/model tokens („WH-1000XM5“, „DDF484“,
+      // „LEGO Technic 42171“) and multi-word sentences never count. A number
+      // leading the text and followed by a sentence end stays a price.
+      const isLeadingAmount = /^\d[\d.,]*(?:\s*(?:€|eur[\p{L}]*))?\s*(?:[.!]|$)/iu.test(t);
+      const contextWords = t
+        .replace(/€|eur[\p{L}]*/giu, " ")
+        .replace(/\d[\d.,\s-]*/g, " ")
+        .split(/\s+/)
+        .filter(
+          (w) =>
+            /\p{L}{2,}/u.test(w) &&
+            !/^(parduodu|parduosiu|noriu|norėčiau|noreciau|siūlau|siulau|teikiu|parduoti)$/iu.test(w)
+        );
+      if (isLeadingAmount || contextWords.length <= 1) {
+        const n = Number.parseInt(bare[1], 10);
+        if (Number.isFinite(n) && n >= 50 && !isLikelyVehicleYear(n)) return n;
+      }
     }
   }
 
