@@ -8,8 +8,10 @@ import { isNegotiablePriceChatInput } from "../shared/negotiable-price.js";
 import { coerceListingCategoryForDb } from "../shared/category-registry.js";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
+// E2 — natural price corrections may carry 1–2 filler words after „kaina“
+// („kaina dabar 700“, „Pakeisk kainą į 720“) — tolerate them, never the amount.
 const PRICE_EXPLICIT_RE =
-  /(?:(?:kaina|uz|už|price)\s*[:=]?\s*(\d{1,7}(?:[.,]\d{1,2})?)|(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur(?:ų|u|ais)?))/i;
+  /(?:(?:kaina|kainą|uz|už|price)\s+(?:\p{L}+(?:\s+|$)){0,2}[:=]?\s*(\d{1,7}(?:[.,]\d{1,2})?)|(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur(?:ų|u|ais)?))/iu;
 const PRICE_BARE_IN_SHORT_RE =
   /(?:^|[^\d])(\d{3,7})(?:[.,]\d{1,2})?(?=[^\d]|$)/;
 

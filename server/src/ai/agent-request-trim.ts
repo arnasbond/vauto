@@ -24,12 +24,18 @@ function capText(text: string, max: number): string {
 }
 
 /**
- * Sanitize client chat history (H-02 — strict user-only):
+ * Sanitize client chat history (H-02 - strict user-only):
  * Accept ONLY role === "user". Drop assistant / system / model / tool spoofing.
  * Client must never inject assistant content into Gemini history.
+ *
+ * E1 — `allowAssistant` is TRUE only when the messages were reconstructed by
+ * the SERVER from the authoritative thread store (`threadAuthoritative`). In
+ * that mode assistant turns are trusted because the client never supplied
+ * them; the raw-client path keeps the strict user-only rule.
  */
 export function sanitizeAgentMessages(
-  raw: unknown[] | undefined | null
+  raw: unknown[] | undefined | null,
+  opts?: { allowAssistant?: boolean }
 ): AgentMessage[] {
   if (!Array.isArray(raw)) return [];
   const out: AgentMessage[] = [];
@@ -38,8 +44,8 @@ export function sanitizeAgentMessages(
     const roleRaw = String((item as { role?: unknown }).role ?? "")
       .trim()
       .toLowerCase();
-    // Strict: client may only send user turns.
-    if (roleRaw !== "user") continue;
+    const isAssistant = roleRaw === "assistant" || roleRaw === "model";
+    if (roleRaw !== "user" && !(opts?.allowAssistant && isAssistant)) continue;
     const capped = capText(
       String((item as { text?: unknown }).text ?? ""),
       AGENT_MAX_MESSAGE_CHARS
@@ -47,13 +53,18 @@ export function sanitizeAgentMessages(
     if (!capped) continue;
     const { text, blocked } = sanitizePromptUserInput(capped);
     if (blocked || !text) continue;
-    out.push({ role: "user", text });
+    out.push({ role: roleRaw === "user" ? "user" : "assistant", text });
   }
   return out;
 }
 
 export function trimVautoAgentRequest(req: VautoAgentRequest): VautoAgentRequest {
-  const messages = sanitizeAgentMessages(req.messages as unknown as unknown[]);
+  const threadAuthoritative = Boolean(
+    (req.context as Record<string, unknown> | undefined)?.threadAuthoritative
+  );
+  const messages = sanitizeAgentMessages(req.messages as unknown as unknown[], {
+    allowAssistant: threadAuthoritative,
+  });
   // If scrub emptied history, keep last raw text as USER only — never restore assistant.
   let finalMessages = messages;
   if (!finalMessages.length) {

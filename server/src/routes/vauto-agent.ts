@@ -4,12 +4,16 @@ import type { VautoAgentResponse } from "../ai/vauto-agent.js";
 import { normalizeAgentRouteError } from "../ai/agent-errors.js";
 import { MAX_ADMIN_PROJECT_CONTEXT_CHARS } from "../ai/agent-system-instruction.js";
 import type { AuthedRequest } from "../middleware/auth.js";
-import { userIsAdmin } from "../middleware/auth.js";
+import { optionalAuth, requireAuth, userIsAdmin } from "../middleware/auth.js";
 import { getAdminAgentContext } from "../repository.js";
 import { trimVautoAgentRequest } from "../ai/agent-request-trim.js";
 import { hasAgentAiKey } from "../load-env.js";
 import { resolveAuthenticatedAgentContext } from "../ai/user-agent-context.js";
 import { isGenericListingDraftTitle } from "../shared/listing-organism.js";
+import {
+  claimThreadForUser,
+  runThreadTurn,
+} from "../agent-core/thread-service.js";
 
 export const vautoAgentRouter = Router();
 
@@ -176,15 +180,85 @@ vautoAgentRouter.post("/", async (req: AuthedRequest, res) => {
       });
     }
 
-    const result = await runVautoAgent(built.request);
-    res.json(result);
+    // E1.1 — SINGLE entry point: the legacy JSON endpoint delegates to the
+    // SAME ThreadService as /stream. There is no path that bypasses the
+    // server-authoritative thread boundary.
+    const threadId = String(req.body?.threadId ?? "").trim() || null;
+    const anonSessionToken = String(req.body?.anonSessionToken ?? "").trim() || null;
+    const turnId = String(req.body?.turnId ?? "").trim() || null;
+    const threadTurn = await runThreadTurn({
+      threadId,
+      anonSessionToken,
+      turnId,
+      authUserId: req.authUserId ?? null,
+      clientMessages: (req.body?.messages ?? []) as Array<{
+        role?: string;
+        text?: string;
+      }>,
+      context: built.request.context as Record<string, unknown>,
+    });
+    res.json({ ...threadTurn.response, thread: threadTurn.thread });
   } catch (e) {
+    const raw = e instanceof Error ? e.message : String(e);
+    if (/thread_ownership_violation/.test(raw)) {
+      res.status(403).json({ ok: false, code: "thread_ownership_violation", error: raw });
+      return;
+    }
+    if (/turn_in_progress/.test(raw)) {
+      res.status(409).json({ ok: false, code: "turn_in_progress", error: raw });
+      return;
+    }
+    if (/turn_indeterminate/.test(raw)) {
+      res.status(409).json({ ok: false, code: "turn_indeterminate", error: raw });
+      return;
+    }
+    if (/turn_ledger_conflict/.test(raw)) {
+      res.status(500).json({ ok: false, code: "turn_ledger_conflict", error: raw });
+      return;
+    }
+    if (/thread_update_contention/.test(raw)) {
+      res.status(409).json({ ok: false, code: "thread_update_contention", error: raw });
+      return;
+    }
     const err = normalizeAgentRouteError(e);
     res.status(err.status).json({
       ok: false,
       code: err.code,
       error: err.message,
     });
+  }
+});
+
+/**
+ * E1 — anonymous → authenticated thread attach. Only the session that holds
+ * the server-issued anon token can bind the thread; an already-bound thread
+ * can never be hijacked.
+ */
+vautoAgentRouter.post("/threads/:threadId/claim", optionalAuth, async (req: AuthedRequest, res) => {
+  try {
+    if (!req.authUserId) {
+      res.status(401).json({ ok: false, code: "auth_required", error: "Prisijunkite." });
+      return;
+    }
+    const anonSessionToken = String(req.body?.anonSessionToken ?? "").trim();
+    if (!anonSessionToken) {
+      res.status(400).json({ ok: false, code: "invalid_request", error: "anonSessionToken is required" });
+      return;
+    }
+    const result = await claimThreadForUser(
+      req.params.threadId,
+      req.authUserId,
+      anonSessionToken
+    );
+    if (!result.ok) {
+      const status = result.reason === "not_found" ? 404 : 403;
+      res.status(status).json({ ok: false, code: result.reason });
+      return;
+    }
+    res.json({ ok: true, threadId: result.threadId, version: result.version });
+  } catch (e) {
+    const err = normalizeAgentRouteError(e);
+    res.status(err.status).json({ ok: false, code: err.code, error: err.message });
   }
 });
 
@@ -264,14 +338,50 @@ vautoAgentRouter.post("/stream", async (req: AuthedRequest, res) => {
         pendingVision > 0 ? "Jungiuosi prie Vision…" : "Ieškau kataloge…",
     });
 
-    const result = await runVautoAgent(built.request, {
-      onEvent: (event) => writeEvent(event),
-    });
+    // E1 — server-authoritative thread boundary: the client supplies the
+    // current user message + optional threadId; conversation history and
+    // structured state come from the server thread store (assistant turns
+    // are written only by the server). Client messages are used ONLY to
+    // extract the new user turn — never to reconstruct canonical history.
+    const threadId = String(req.body?.threadId ?? "").trim() || null;
+    const anonSessionToken = String(req.body?.anonSessionToken ?? "").trim() || null;
+    const turnId = String(req.body?.turnId ?? "").trim() || null;
+    let threadTurn;
+    try {
+      threadTurn = await runThreadTurn({
+        threadId,
+        anonSessionToken,
+        turnId,
+        authUserId: req.authUserId ?? null,
+        clientMessages: (req.body?.messages ?? []) as Array<{
+          role?: string;
+          text?: string;
+        }>,
+        context: built.request.context as Record<string, unknown>,
+        onEvent: (event) => writeEvent(event),
+      });
+    } catch (threadErr) {
+      const message = threadErr instanceof Error ? threadErr.message : String(threadErr);
+      const code = /ownership/.test(message)
+        ? "thread_ownership_violation"
+        : /empty_user_turn/.test(message)
+          ? "invalid_request"
+          : /turn_in_progress/.test(message)
+            ? "turn_in_progress"
+            : /turn_indeterminate/.test(message)
+              ? "turn_indeterminate"
+              : /turn_ledger_conflict/.test(message)
+                ? "turn_ledger_conflict"
+                : "thread_update_contention";
+      writeEvent({ type: "error", code, message });
+      res.end();
+      return;
+    }
 
-    writeEvent({ type: "final", result } satisfies {
-      type: "final";
-      result: VautoAgentResponse;
-    });
+    writeEvent({
+      type: "final",
+      result: { ...threadTurn.response, thread: threadTurn.thread },
+    } satisfies { type: "final"; result: VautoAgentResponse & { thread: unknown } });
     res.end();
   } catch (e) {
     const err = normalizeAgentRouteError(e);

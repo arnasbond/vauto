@@ -263,6 +263,13 @@ import {
 } from "@vauto/shared/vin-review";
 import { isGenericListingDraftTitle } from "@vauto/shared/listing-organism";
 import { resolveListingDraftForWire } from "@/lib/agent-wire-context";
+import {
+  persistAgentThreadLink,
+  readAgentThreadLink,
+  clearAgentThreadId,
+} from "@/lib/agent-thread-link";
+import { apiClaimAgentThread } from "@/lib/api/client";
+import { mintAgentTurnId } from "@/lib/agent-turn-id";
 import { listingWizardOpenedChips } from "@/lib/agent-flow-wizard-orchestrator";
 import type { ListingCategory } from "@/lib/types";
 const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
@@ -2685,6 +2692,35 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           lockedPrice: lockedPriceForContext,
         }) as typeof baseListingDraft;
         const wireSessionMessages = sessionMessagesForSearch ?? sessionMessages;
+        // E1.1 — anonymous threads require the server-issued token for
+        // continuation. If the user is now authenticated and a token is
+        // stored, claim the thread first (ownership moves to the JWT userId),
+        // then continue without the token.
+        const threadLink = readAgentThreadLink();
+        if (threadLink?.anonSessionToken && user?.id && threadLink.threadId) {
+          const claimed = await apiClaimAgentThread(
+            threadLink.threadId,
+            threadLink.anonSessionToken
+          );
+          if (claimed.ok) {
+            // Ownership moved to the JWT userId — the anon token is no longer
+            // needed and is removed from storage.
+            persistAgentThreadLink({
+              threadId: threadLink.threadId,
+              version: claimed.data.version ?? threadLink.version,
+            });
+          } else {
+            // Any claim failure (already_bound / token_mismatch / not_found)
+            // means the link is unusable — forget it; the server self-heals
+            // with a fresh thread on the next turn.
+            clearAgentThreadId();
+          }
+        }
+        const refreshedLink = readAgentThreadLink();
+        // E1.4 — stable turnId per user message: generated once per send and
+        // REUSED for any automatic retry of THIS request (the SSE soft-retry
+        // re-sends the same body). A new user message gets a new turnId.
+        const requestTurnId = mintAgentTurnId();
         const agentBody = {
           messages: wireSessionMessages.map((m) => ({
             role: m.role,
@@ -2692,6 +2728,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               m.text?.trim() ||
               (m.imageUrls?.length ? "[Nuotraukos įkeltos]" : m.text ?? ""),
           })),
+          // E1 — attach to the server-authoritative thread when known. The
+          // server ignores client history for canonical reconstruction.
+          threadId: refreshedLink?.threadId ?? undefined,
+          // E1.1 — anonymous continuation proof; never shown in UI/logs.
+          anonSessionToken: refreshedLink?.anonSessionToken ?? undefined,
+          // E1.4 — exactly-once key for this user turn.
+          turnId: requestTurnId,
           context: {
             ...memoryContext,
             userCity: effectiveUserCity,
@@ -2897,7 +2940,35 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         setStreamThinkingLabelNow("Galvoju…");
 
+        // E1 — server-authoritative thread metadata: the server owns the
+        // conversation. The client only remembers the threadId/version and
+        // refreshes them from every final response.
+        const threadMeta = (res as unknown as {
+          thread?: {
+            threadId?: string;
+            version?: number;
+            anonSessionToken?: string;
+          };
+        }).thread;
+        if (threadMeta?.threadId) {
+          persistAgentThreadLink({
+            threadId: threadMeta.threadId,
+            version: threadMeta.version ?? 0,
+            ...(threadMeta.anonSessionToken
+              ? { anonSessionToken: threadMeta.anonSessionToken }
+              : {}),
+          });
+        }
+
         if (!res.ok) {
+          // E1 — a stale/foreign thread self-heals: forget the link, the next
+          // turn starts a fresh server thread.
+          if (
+            res.code === "thread_ownership_violation" ||
+            res.code === "thread_update_contention"
+          ) {
+            clearAgentThreadId();
+          }
           const message = buddyMessageForAgentFailure(res.error, res.code);
           setMessages((prev) => {
             const usersOnly = prev.filter((m) => m.role === "user");

@@ -1437,7 +1437,9 @@ export async function executeAgentTool(
       }
 
       /** UI search bar — raw user/Gemini query only; category lives in filters, never appended. */
-      const searchQuery = (searchKeyword || query || category || "").trim();
+      // E2 — when the parser consumes the raw token as a category („butas“ →
+      // real_estate), the recorded query still echoes the USER's words.
+      const searchQuery = (searchKeyword || query || rawForIntent || category || "").trim();
 
       // Soft category for keyword searches; hard category for pure category browse.
       const softCategoryForUi = Boolean(searchKeyword && category && !categoryBrowse);

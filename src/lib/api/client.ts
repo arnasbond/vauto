@@ -890,6 +890,24 @@ export async function apiUpdateUserAvatar(
   });
 }
 
+/**
+ * E1.1 — hand an anonymous agent thread over to the authenticated user.
+ * The server-issued anon token is the ownership proof; after a successful
+ * claim the client must drop the token (ownership moves to the JWT userId).
+ */
+export async function apiClaimAgentThread(
+  threadId: string,
+  anonSessionToken: string
+): Promise<ApiResult<{ threadId: string; version: number }>> {
+  return dataFetch<{ threadId: string; version: number }>(
+    `/api/vauto-agent/threads/${encodeURIComponent(threadId)}/claim`,
+    {
+      method: "POST",
+      body: JSON.stringify({ anonSessionToken }),
+    }
+  );
+}
+
 export async function apiUpdateUserProfile(patch: {
   firstName?: string;
   lastName?: string;
