@@ -26,6 +26,7 @@ import {
   isAdvisoryInterrogative,
   isBareAmbiguousNoun,
   isExplicitWantedRequest,
+  isNonExecutionDiscovery,
   isInterrogative,
 } from "./planner-signals.js";
 import type { PlannerContextInput, PlannerDecision } from "./planner-types.js";
@@ -259,18 +260,15 @@ export function applyDeterministicClamps(
     };
   }
 
-  // 3b. E2.8 — ADVISORY SEMANTIC CLASS IS A DETERMINISTIC POLICY
-  //     BOUNDARY. If the current utterance is advice-seeking
-  //     (isAdvisoryInterrogative — a semantic class that already excludes
-  //     explicit search verbs), the FINAL decision is ALWAYS advisory:
-  //     context_question + model routing + advisoryContext=true. The LLM
-  //     planner may contribute reasoning/context but can NEVER override
-  //     this class — no clarify buy/sell echo, no catalog fast-path, no
-  //     turn with advisoryContext unset. This runs BEFORE the ordinary
-  //     intent/routing clamps so every LLM output (clarify_ambiguous,
-  //     dialog, context_question, low- or high-confidence catalog_search)
-  //     converges to the same advisory decision.
-  if (isAdvisoryInterrogative(text)) {
+  // 3b. E2.8 — DISCOVERY/ADVISORY SEMANTIC CLASS IS A DETERMINISTIC
+  //     POLICY BOUNDARY (generalized: interrogative/uncertainty/advice
+  //     utterances WITHOUT an explicit execution directive). The FINAL
+  //     decision is ALWAYS advisory: context_question + model routing +
+  //     advisoryContext=true. The LLM planner may contribute reasoning/
+  //     context but can NEVER override this class — no clarify buy/sell
+  //     echo, no catalog fast-path, no turn with advisoryContext unset.
+  //     Extracted facets are PARAMETERS ONLY — never execution authority.
+  if (isNonExecutionDiscovery(text)) {
     clamped.push("advisory_interrogative_override");
     return {
       clamped,

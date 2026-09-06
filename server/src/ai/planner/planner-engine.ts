@@ -43,8 +43,9 @@ import {
   PUBLISH_INTENT_MARKER_RE,
   QUESTION_MARKER_RE,
   SEARCH_VERB_RE,
-  isAdvisoryInterrogative,
+  isExplicitExecutionDirective,
   isExplicitWantedRequest,
+  isNonExecutionDiscovery,
   productNounScore,
 } from "./planner-signals.js";
 import type {
@@ -257,10 +258,11 @@ function planTurnInner(input: PlannerContextInput): PlannerDecision {
       });
     }
 
-    // E2.8 — ADVISORY anti-search: advice-seeking utterances must never
-    // become catalog_search via facet signals. Explicit search verbs keep
-    // the search intent.
-    if (isAdvisoryInterrogative(text)) {
+    // E2.8 — DISCOVERY/ADVISORY anti-execution: interrogative, uncertainty
+    // and advice utterances (without an explicit execution directive) must
+    // never become catalog_search via facet signals. Explicit directives
+    // keep the search intent.
+    if (isNonExecutionDiscovery(text)) {
       return decision("context_question", "model", {
         goal: "answer an advice-seeking question",
         action: "dialog_reply",
@@ -279,6 +281,20 @@ function planTurnInner(input: PlannerContextInput): PlannerDecision {
         action: "create_user_requirement",
         reasons: ["explicit_wanted_request"],
         confidence: 1,
+      });
+    }
+
+    // E2.8 — explicit EXECUTION DIRECTIVES (imperative / polite-modal /
+    // want-verb) authorize the catalog search even when structured facets
+    // are thin („Parodyk, kas yra iki 20000").
+    if (isExplicitExecutionDirective(text)) {
+      return decision("catalog_search", "deterministic_search", {
+        goal: "serve an explicit search request",
+        continuationOf: input.hasSearchSession ? "search_session" : "none",
+        action: "catalog_search",
+        tool: "searchListings",
+        reasons: ["execution_directive"],
+        confidence: 0.95,
       });
     }
 

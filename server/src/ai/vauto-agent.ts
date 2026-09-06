@@ -176,9 +176,9 @@ import { extractCityFromText } from "./listing-contact-parse.js";
 // E2.8 — provenance boundary for model-suggested identity attributes.
 import { groundBrandAttributesInUserText } from "./agent-ui-tools.js";
 import {
-  isAdvisoryInterrogative,
   isBareAmbiguousNoun,
   isExplicitWantedRequest,
+  isNonExecutionDiscovery,
   extractGroundedVehicleMake,
 } from "./planner/planner-signals.js";
 import { resolveUniversalSearchQuery } from "./search/universal-search-query.js";
@@ -2060,14 +2060,15 @@ async function runVautoAgentInner(
   const plannerForcesSearch =
     plannerDecision.routing === "deterministic_search";
   // E2.8 — the search-bar fast-path is a legitimate shortcut for REAL
-  // searches, but an advice-seeking utterance must NEVER be forced into it:
-  // the advisory semantic class always wins over fromSearchBar. The same
-  // holds for explicit WANTED requests — the wanted registration executor
-  // owns those turns (fromSearchBar is ORIGIN metadata, not authority).
+  // searches, but a DISCOVERY/ADVISORY utterance must NEVER be forced
+  // into it: the discovery semantic class always wins over fromSearchBar.
+  // The same holds for explicit WANTED requests — the wanted registration
+  // executor owns those turns (fromSearchBar is ORIGIN metadata, not
+  // authority).
   const fromSearchBarRealSearch =
     Boolean(req.context.fromSearchBar) &&
     !detectServerSellIntent(lastUserText) &&
-    !isAdvisoryInterrogative(lastUserText) &&
+    !isNonExecutionDiscovery(lastUserText) &&
     !isExplicitWantedRequest(lastUserText);
   const forceCatalogSearch =
     Boolean(lastUserText) &&

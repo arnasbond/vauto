@@ -769,3 +769,74 @@ describe("E2.8 — first-class explicit wanted intent (real homepage boundary)",
     );
   });
 });
+
+describe("E2.8 — discovery vs execution authority (real homepage boundary)", () => {
+  const DISCOVERY =
+    "Turiu apie 20 tūkst. eurų šeimos automobiliui, bet visiškai nežinau, ką rinktis. Nuo ko pradėtum?";
+
+  it("production discovery sentence → conversational advisory, NO search, NO facets, NO wanted", async () => {
+    const stream = await runHomepageTurnWithLlmPlanner(
+      DISCOVERY,
+      LLM_SEARCH_DECISION,
+      "Galite pradėti nuo kėbulo tipo — sedanas, universalas ar SUV? Patarsiu toliau."
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(!tools.includes("searchListings"), "no catalog execution");
+    assert.equal(
+      (stream.finalResult!.actions as Record<string, unknown>).type,
+      "none",
+      "no facet materialization side effect"
+    );
+    assert.match(stream.finalResult!.reply, /kėbulo|Patarsiu/i);
+    assert.equal(stream.errorEvent, null);
+  });
+
+  it("uncertainty without a question mark → advisory (Nežinau ką rinktis. Nuo ko pradėtum)", async () => {
+    const stream = await runHomepageTurnWithLlmPlanner(
+      "Nežinau ką rinktis. Nuo ko pradėtum?",
+      LLM_SEARCH_DECISION,
+      "Rekomenduoju pradėti nuo biudžeto ir kėbulo tipo."
+    );
+    assert.ok(
+      !stream.finalResult!.toolCalls.some((t) => t.name === "searchListings")
+    );
+    assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none");
+  });
+
+  it("polite modal directive EXECUTES (Gal gali surasti Kia Sportage iki 20000?)", async () => {
+    const stream = await runHomepageTurnWithLlmPlanner(
+      "Gal gali surasti Kia Sportage iki 20000?",
+      LLM_SEARCH_DECISION,
+      "Radau 1 variantą.",
+      [fc("searchListings", { query: "Kia Sportage iki 20000" })]
+    );
+    assert.ok(
+      stream.finalResult!.toolCalls.some((t) => t.name === "searchListings"),
+      "explicit directive executes despite the interrogative form"
+    );
+  });
+
+  it("„Ar verta ieškoti…?\" stays advisory despite search vocabulary", async () => {
+    const stream = await runHomepageTurnWithLlmPlanner(
+      "Ar verta ieškoti Kia Sportage iki 20000?",
+      LLM_SEARCH_DECISION,
+      "Galiu patarti: jei norite rinkos vaizdo, galiu parodyti dabartinius variantus."
+    );
+    assert.ok(
+      !stream.finalResult!.toolCalls.some((t) => t.name === "searchListings")
+    );
+    assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none");
+  });
+
+  it("„Ką manai apie Kia Sportage iki 20000?\" → advisory, no execution", async () => {
+    const stream = await runHomepageTurnWithLlmPlanner(
+      "Ką manai apie Kia Sportage iki 20000?",
+      LLM_SEARCH_DECISION,
+      "Kia Sportage yra patikimas pasirinkimas — norėtumėte peržiūrėti skelbimus?"
+    );
+    assert.ok(
+      !stream.finalResult!.toolCalls.some((t) => t.name === "searchListings")
+    );
+    assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none");
+  });
+});

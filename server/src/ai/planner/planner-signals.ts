@@ -74,6 +74,47 @@ export function isAdvisoryInterrogative(text: string): boolean {
   return ADVISORY_MARKER_RE.test(t) && !SEARCH_VERB_RE.test(t.toLowerCase());
 }
 
+/**
+ * E2.8 — EXECUTION DIRECTIVE semantic class: the user explicitly REQUESTS
+ * catalog execution. Imperative search verbs, polite request modals and
+ * explicit want-verbs count as directives. „Ar verta ieškoti…?" does NOT
+ * (a meta-question about searching is not a request to search); „ieškau
+ * patarimo" does NOT (advice-seeking, not catalog seeking).
+ */
+export const EXECUTION_DIRECTIVE_RE =
+  /\b(?:surask(?:ite)?|rask(?:ite)?|ieškok(?:ite)?|paieškok(?:ite)?|parodyk(?:ite)?|atrask(?:ite)?|ieškau(?!\s+(?:patarimo|patarimą|pagalbos|patarimų))|ieskau|find|search|show\s+me|noriu\s+(?:rasti|pirkti|pamatyti|peržiūrėti)|(?:gal|ar)\s+(?:gali(?:te)?|galėtum(?:ėte)?)\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti))\b/iu;
+
+export function isExplicitExecutionDirective(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  return EXECUTION_DIRECTIVE_RE.test(t);
+}
+
+/**
+ * E2.8 — DISCOVERY/ADVISORY communicative-act class. An interrogative
+ * utterance or an uncertainty/advice phrase („nežinau, ką rinktis", „nuo
+ * ko pradėtum", „ką manai", „ar verta", „kas geriau", „rinktumeisi",
+ * „ieškau patarimo", …) is a reasoning request — NEVER catalog execution
+ * authority, regardless of extracted facets or model confidence. An
+ * explicit EXECUTION DIRECTIVE takes precedence over the interrogative
+ * form („Gal gali surasti…?" stays search).
+ */
+const DISCOVERY_CLASS_RE =
+  /\b(nežinau\s*,?\s*(?:ko|ką|kokį|kokią|kokio|kokios|kurį|kurią|kurio)|ką\s+(?:rinktis|rinktumeisi|rinktumėtės|rinkčiausi|rinktis|rekomenduotum(?:ėte|et)?|patartum(?:ėte|et)?|manai|daryti|pirkti|žiūrėti)|nuo\s+ko\s+pradėt(?:um|i|i)?|kas\s+(?:geriau|geresnis|tinka|tiktų|labiausiai\s+tiktų)|kaip\s+manai|ar\s+verta\b|nesu\s+tikr(?:a|as)\b|ieškau\s+patarimo|noriu\s+suprasti|koks\s+geriausias|rinktumeisi|rinktumėtės|pasiūlyk(?:ite)?|patark(?:ite)?)\b/iu;
+
+export function isNonExecutionDiscovery(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (isExplicitWantedRequest(t)) return false;
+  if (META_ASSISTANT_QUESTION_RE.test(t.toLowerCase())) return false;
+  const advisoryOrDiscovery =
+    isAdvisoryInterrogative(t) ||
+    isInterrogative(t) ||
+    DISCOVERY_CLASS_RE.test(t);
+  if (!advisoryOrDiscovery) return false;
+  return !isExplicitExecutionDirective(t);
+}
+
 /** Dialog stopwords — a phrase containing any of these is NOT a product noun. */
 export const DIALOG_STOPWORD_RE =
   /\b(pad[ėe]k|papasakok|paaiškink|paaiskink|parodyk|rodyk|noriu|gal|prašau|prasau|patark|duok|aš|as|man|mano|persigalvojau)\b/i;

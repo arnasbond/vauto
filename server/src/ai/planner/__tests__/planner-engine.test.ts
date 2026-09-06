@@ -106,12 +106,20 @@ describe("E2 — planner centralization (deterministic reasoning authority)", ()
   });
 
   it("E2.1 — no default 'everything else = search'; unclear intent is dialog", () => {
-    for (const text of ["Nežinau nuo ko pradėti", "Man reikia patarimo", "Aš persigalvojau", "Padėk man", "Papasakok daugiau"]) {
+    for (const text of ["Man reikia patarimo", "Aš persigalvojau", "Padėk man", "Papasakok daugiau"]) {
       const d = planTurn(ctx({ lastUserText: text }));
       assert.notEqual(d.intent, "catalog_search", text);
       assert.equal(d.routing, "model", text);
       assert.equal(d.intent, "dialog", text);
     }
+  });
+
+  it("E2.8 — uncertainty phrases are discovery/advisory, not plain dialog", () => {
+    const d = planTurn(ctx({ lastUserText: "Nežinau nuo ko pradėti" }));
+    assert.equal(d.intent, "context_question");
+    assert.equal(d.routing, "model");
+    assert.equal(d.advisoryContext, true);
+    assert.notEqual(d.intent, "catalog_search");
   });
 
   it("E2.1 — AI-down: obvious search keeps the deterministic capability; unclear becomes honest dialog", () => {
