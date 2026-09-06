@@ -93,6 +93,8 @@ describe("F9 — profile update authority boundary", () => {
     const token = signAccessToken({ sub: "admin-1", role: "super_admin" });
 
     // Whitelisted client shape: NO role/id/authority fields in the body.
+    // (P0 — email is server-managed identity and is not part of the
+    //  user-editable client shape anymore.)
     const res = await request(app)
       .put("/api/users/admin-1")
       .set("Authorization", `Bearer ${token}`)
@@ -101,7 +103,6 @@ describe("F9 — profile update authority boundary", () => {
         phone: "+37060000000",
         city: "Kaišiadorys",
         avatar: "https://cdn.example.com/avatar.png",
-        email: "user@example.com",
       });
 
     assert.equal(res.status, 200);
@@ -204,6 +205,7 @@ describe("F9 — profile update authority boundary", () => {
     const token = signAccessToken({ sub: "admin-1", role: "super_admin" });
 
     // Same shape the client whitelist sends for a chat-extracted contact.
+    // (P0 — email is server-managed identity, not part of the shape.)
     const res = await request(app)
       .put("/api/users/admin-1")
       .set("Authorization", `Bearer ${token}`)
@@ -212,7 +214,6 @@ describe("F9 — profile update authority boundary", () => {
         phone: "+37060000002",
         city: "Kaišiadorys",
         avatar: "https://cdn.example.com/avatar.png",
-        email: "user@example.com",
       });
 
     assert.equal(res.status, 200, JSON.stringify(res.body));

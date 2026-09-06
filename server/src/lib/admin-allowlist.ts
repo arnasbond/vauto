@@ -49,20 +49,23 @@ export function isAllowlistedAdminName(name?: string | null): boolean {
   return resolveAdminNames().includes(name.trim().toLowerCase());
 }
 
-/** Elevate to super_admin without forcing remapping to admin-1. */
+/**
+ * P0 — admin identity hardening: elevation is decided ONLY by server-verified
+ * identity provenance:
+ *  - an allowlisted admin EMAIL (written exclusively by verified login flows
+ *    or explicit admin updates — never by a plain-user profile mutation), or
+ *  - the admin-phone path, which additionally requires a server-managed
+ *    DB `role = "admin"`.
+ * User-editable display fields (name / nickname / firstName) are identity
+ * decorations, NOT provenance — they can never elevate, even when
+ * ADMIN_NAMES is configured.
+ */
 export function shouldElevateToSuperAdmin(opts: {
   email?: string | null;
   phone?: string | null;
-  name?: string | null;
-  nickname?: string | null;
-  firstName?: string | null;
   metaRole?: string;
 }): boolean {
   if (isAllowlistedAdminEmail(opts.email)) return true;
-  if (isAllowlistedAdminName(opts.name)) return true;
-  if (isAllowlistedAdminName(opts.nickname)) return true;
-  if (isAllowlistedAdminName(opts.firstName)) return true;
-  if (isAllowlistedAdminName(opts.name?.split(/\s+/)[0])) return true;
   if (
     opts.metaRole === "admin" &&
     normalizePhoneDigits(opts.phone) === resolveAdminPhone()

@@ -27,8 +27,6 @@ describe("Stage 16 admin elevation (S16-001)", () => {
     assert.equal(isAllowlistedAdminName("Arnas"), false);
     assert.equal(
       shouldElevateToSuperAdmin({
-        name: "Arnas Bond",
-        firstName: "Arnas",
         email: "buyer@example.com",
         phone: "+37060000001",
         metaRole: "private",
@@ -42,22 +40,23 @@ describe("Stage 16 admin elevation (S16-001)", () => {
     assert.equal(
       shouldElevateToSuperAdmin({
         email: "ops@vauto.lt",
-        name: "Buyer",
         metaRole: "private",
       }),
       true
     );
   });
 
-  it("elevates names only when ADMIN_NAMES is explicitly set", () => {
+  it("elevates names NEVER — even when ADMIN_NAMES is explicitly set (P0 hardening)", () => {
     process.env.ADMIN_NAMES = "arnas";
-    assert.equal(isAllowlistedAdminName("Arnas"), true);
+    assert.equal(isAllowlistedAdminName("Arnas"), true, "name is allowlisted, but…");
     assert.equal(
       shouldElevateToSuperAdmin({
-        firstName: "Arnas",
         email: "buyer@example.com",
+        phone: "+37060000001",
+        metaRole: "private",
       }),
-      true
+      false,
+      "…display names are NOT identity provenance and can never elevate"
     );
   });
 });

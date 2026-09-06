@@ -913,15 +913,15 @@ export async function apiUpdateUserAvatarImage(
 /**
  * F9 — server-owned identity/authority fields must never be sent in a
  * plain profile update: role, id (goes in the URL), authProvider, wallet,
- * counters, billing and profileType are reconstructed by the server from
- * the token and the authoritative DB row.
+ * counters, billing, profileType and email (P0 — authoritative auth email
+ * is server-managed identity provenance, not editable profile data) are
+ * reconstructed by the server from the token and the authoritative DB row.
  */
 const USER_EDITABLE_PROFILE_FIELDS = [
   "name",
   "phone",
   "city",
   "avatar",
-  "email",
   "firstName",
   "lastName",
   "nickname",
