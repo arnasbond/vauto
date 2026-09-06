@@ -19,6 +19,7 @@ import { planTurn } from "../../ai/planner/planner-engine.js";
 import { setPlannerDecisionProviderForTests } from "../../ai/planner/planner-orchestrator.js";
 import {
   createScriptedModelProvider,
+  fc,
   round,
   text,
 } from "../harness/scripted-model-provider.js";
@@ -41,11 +42,15 @@ function createApp() {
 const ADVISORY =
   "Nežinau ko noriu, bet reikia šeimai patikimo automobilio iki 20 tūkst. eurų, ką siūlytum?";
 
-async function runHomepageTurn(userText: string, scripted: string) {
+async function runHomepageTurn(
+  userText: string,
+  scripted: string,
+  toolParts: Array<ReturnType<typeof fc> | ReturnType<typeof text>> = []
+) {
   setThreadStoreForTests(new InMemoryThreadStore());
   setPlannerDecisionProviderForTests(async (input) => planTurn(input));
   const recorder = createScriptedModelProvider({
-    turns: [[round(text(scripted))]],
+    turns: [[round(...[...toolParts, text(scripted)])]],
     exhausted: { parts: [] },
   });
   const prev = recorder.install();
@@ -55,7 +60,7 @@ async function runHomepageTurn(userText: string, scripted: string) {
     const res = await request(app)
       .post("/api/vauto-agent/stream")
       .send({
-        turnId: "e28-b",
+        turnId: `e28-b`,
         messages: [{ role: "user", text: userText }],
         context: {
           isAuthenticated: true,
@@ -89,6 +94,71 @@ describe("E2.8 — real homepage boundary (/stream + fromSearchBar=true)", () =>
       "no search/empty_search side effect — no wishlist CTA"
     );
     assert.equal(stream.errorEvent, null);
+  });
+
+  it("CASE A — model prose searchListings on advisory turn is BLOCKED (no empty_search, reply completes)", async () => {
+    const stream = await runHomepageTurn(
+      ADVISORY,
+      "Galiu patarti — patikimi šeimos automobiliai iki 20 tūkst. yra Volvo arba Toyota.",
+      [fc("searchListings", { query: "Matau kad šiuo metu tokios prekės neturime" })]
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(!tools.includes("searchListings"), "prose searchListings NOT executed");
+    assert.equal(
+      (stream.finalResult!.actions as Record<string, unknown>).type,
+      "none",
+      "no empty_search side effect"
+    );
+    assert.match(stream.finalResult!.reply, /patarti|Volvo|Toyota/i, "conversational answer completes");
+  });
+
+  it("CASE B — even a sensible grounded search on the advisory turn is policy-blocked", async () => {
+    const stream = await runHomepageTurn(
+      ADVISORY,
+      "Galėčiau parodyti kelis variantus, jei norite — pasakykite kriterijus.",
+      [fc("searchListings", { query: "patikimas šeimos automobilis iki 20000" })]
+    );
+    assert.ok(
+      !stream.finalResult!.toolCalls.some((t) => t.name === "searchListings"),
+      "user asked for advice, not automatic catalog execution"
+    );
+    assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none");
+  });
+
+  it("CASE C — applyFilter/updateUIFilters on advisory turn produce NO filter mutation", async () => {
+    const stream = await runHomepageTurn(
+      ADVISORY,
+      "Patarčiau žiūrėti patikimus benzininius automobilius.",
+      [
+        fc("applyFilter", { category: "brand", value: "Kia" }),
+        fc("updateUIFilters", { categoryAttributes: { brand: "Kia" } }),
+      ]
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(!tools.includes("applyFilter"), "applyFilter blocked");
+    assert.ok(!tools.includes("updateUIFilters"), "updateUIFilters blocked");
+    const actions = stream.finalResult!.actions as Record<string, unknown>;
+    assert.equal(actions.type, "none", "no search-state mutation");
+    assert.match(stream.finalResult!.reply, /patarčiau|benzininius/i);
+  });
+
+  it("CASE D — repeated identical advisory runs keep the SAME invariants despite varying model prose", async () => {
+    const variants = [
+      { q: "Matau kad šiuo metu tokios prekės neturime", reply: "Patariu Volvo arba Toyota." },
+      { q: "gal reikėtų Kia?", reply: "Galite rinktis naudotą benzininį automobilį." },
+      { q: "neradau nieko pagal kriterijus", reply: "Patikslinkite biudžetą — pasiūlysiu variantų." },
+    ];
+    for (const v of variants) {
+      const stream = await runHomepageTurn(ADVISORY, v.reply, [
+        fc("searchListings", { query: v.q }),
+      ]);
+      assert.ok(
+        !stream.finalResult!.toolCalls.some((t) => t.name === "searchListings"),
+        `variant "${v.q}" must not execute catalog`
+      );
+      assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none");
+      assert.ok(stream.finalResult!.reply.length > 0, "conversational reply completes");
+    }
   });
 
   it("negative control: explicit search with fromSearchBar still executes searchListings", async () => {

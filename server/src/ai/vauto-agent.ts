@@ -430,6 +430,18 @@ const GEMINI_RETRY_STATUSES = new Set([429, 503]);
 const GEMINI_MAX_RETRIES = 2;
 const GEMINI_RETRY_BASE_MS = 400;
 
+/**
+ * E2.8 — tools that execute catalog search or mutate search state. On an
+ * advisory turn these are BLOCKED by server policy — the model may request
+ * them, but only current USER intent (planner) authorizes their execution.
+ */
+const ADVISORY_BLOCKED_TOOL_NAMES = new Set([
+  "searchListings",
+  "applyFilter",
+  "clearAllFilters",
+  "updateUIFilters",
+]);
+
 function isRetriableAgentError(e: unknown): boolean {
   return (
     e instanceof AgentRouteError &&
@@ -2399,6 +2411,27 @@ async function runVautoAgentInner(
         name,
         message: toolProgressMessage(name),
       });
+      // E2.8 — MODEL TOOL SELECTION IS NOT AUTHORIZATION. On an advisory
+      // turn (server policy: advice-seeking user intent) catalog/search-
+      // state tools are BLOCKED: no catalog query, no filter mutation, no
+      // empty_search, no wishlist side effect. The loop continues so the
+      // model can still answer conversationally.
+      if (
+        plannerDecision.advisoryContext &&
+        ADVISORY_BLOCKED_TOOL_NAMES.has(name)
+      ) {
+        const blockedResult = {
+          ok: false,
+          blocked: true,
+          message:
+            "Patarimo turnu katalogas nevykdomas — atsakyk rekomendacija arba užduok klausimą.",
+        };
+        emitAgentEvent(onEvent, { type: "tool_result", name });
+        responseParts.push({
+          functionResponse: { name, response: blockedResult },
+        });
+        continue;
+      }
       if (name === "postNewListing") {
         const toolArgs = (args ?? {}) as Record<string, unknown>;
         const imageUrls = Array.isArray(toolArgs.imageUrls)

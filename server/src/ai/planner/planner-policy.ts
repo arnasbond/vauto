@@ -335,6 +335,9 @@ export function applyDeterministicClamps(
         clarificationQuestion: decision.clarificationQuestion,
         routing: "model",
         confidence: Math.min(decision.confidence, 0.6),
+        // E2.8 — turn-level marker: catalog/search-state tools are NOT
+        // authorized for this turn (enforced at the tool loop).
+        advisoryContext: true,
       },
     };
   }

@@ -61,6 +61,10 @@ export interface PlannerDecision {
   };
   needsClarification: boolean;
   clarificationQuestion: string | null;
+  /** E2.8 — the turn is an ADVICE-seeking turn: catalog search and
+   *  search-state mutations are NOT authorized for this turn, regardless of
+   *  model tool selection. Enforced at the tool loop. */
+  advisoryContext?: boolean;
   routing: PlannerRouting;
   /** 0..1 — deterministic rules report 1 (certain) or 0.5 (heuristic). */
   confidence: number;

@@ -265,6 +265,7 @@ function planTurnInner(input: PlannerContextInput): PlannerDecision {
         action: "dialog_reply",
         reasons: ["advisory_interrogative"],
         confidence: 0.8,
+        advisoryContext: true,
       });
     }
 
