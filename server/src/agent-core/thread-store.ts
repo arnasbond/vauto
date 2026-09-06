@@ -349,15 +349,16 @@ export class PostgresThreadStore implements ThreadStore {
   async create(record: ThreadRecord): Promise<ThreadRecord> {
     await this.db.query(
       `INSERT INTO agent_threads
-         (id, owner_user_id, anon_session_token_hash, version, messages,
-          listing_draft, listing_flow_state, search_context,
+         (id, owner_user_id, anon_session_token_hash, version, last_turn_id,
+          messages, listing_draft, listing_flow_state, search_context,
           pending_confirmations, current_intent, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7,$8::jsonb,$9::jsonb,$10,$11,$12)`,
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9::jsonb,$10::jsonb,$11,$12,$13)`,
       [
         record.threadId,
         record.ownerUserId,
         record.anonSessionTokenHash,
         record.version,
+        record.lastTurnId,
         JSON.stringify(record.messages),
         record.listingDraft ? JSON.stringify(record.listingDraft) : null,
         record.listingFlowState,
@@ -390,15 +391,16 @@ export class PostgresThreadStore implements ThreadStore {
     const result = await this.db.query<Record<string, unknown>>(
       `UPDATE agent_threads
           SET owner_user_id = $2, anon_session_token_hash = $3, version = version + 1,
-              messages = $4::jsonb, listing_draft = $5::jsonb, listing_flow_state = $6,
-              search_context = $7::jsonb, pending_confirmations = $8::jsonb,
-              current_intent = $9, updated_at = $10
-        WHERE id = $1 AND version = $11
+              last_turn_id = $4, messages = $5::jsonb, listing_draft = $6::jsonb,
+              listing_flow_state = $7, search_context = $8::jsonb,
+              pending_confirmations = $9::jsonb, current_intent = $10, updated_at = $11
+        WHERE id = $1 AND version = $12
         RETURNING *`,
       [
         threadId,
         bumped.ownerUserId,
         bumped.anonSessionTokenHash,
+        bumped.lastTurnId,
         JSON.stringify(bumped.messages),
         bumped.listingDraft ? JSON.stringify(bumped.listingDraft) : null,
         bumped.listingFlowState,
