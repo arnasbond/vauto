@@ -161,6 +161,138 @@ describe("E2.8 — real homepage boundary (/stream + fromSearchBar=true)", () =>
     }
   });
 
+  it("CASE A — model createUserRequirement on advisory is DENIED (no persistence path, no wanted action)", async () => {
+    const stream = await runHomepageTurn(
+      ADVISORY,
+      "Galiu patarti — patikimi šeimos automobiliai yra Volvo arba Toyota.",
+      [fc("createUserRequirement", { query: "šeimos automobilis iki 20000" })]
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(!tools.includes("createUserRequirement"), "tool handler never ran → no DB insert");
+    const actions = stream.finalResult!.actions as Record<string, unknown>;
+    assert.equal(actions.type, "none", "no create_user_requirement action → no client wishlist path");
+    assert.match(stream.finalResult!.reply, /patarti|Volvo|Toyota/i, "conversational answer completes");
+  });
+
+  it("CASE B — navigateTo/navigateToScreen/openListingForm on advisory are DENIED", async () => {
+    const stream = await runHomepageTurn(
+      ADVISORY,
+      "Geriausia būtų pasižiūrėti keletą variantų kartu.",
+      [
+        fc("navigateTo", { screen: "search" }),
+        fc("navigateToScreen", { screen: "search" }),
+        fc("openListingForm", {}),
+      ]
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    for (const t of ["navigateTo", "navigateToScreen", "openListingForm"]) {
+      assert.ok(!tools.includes(t), `${t} denied`);
+    }
+    assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none");
+  });
+
+  it("CASE D — create_listing_draft / proposeSmartBargaining / triggerMicroPayment on advisory are DENIED", async () => {
+    const stream = await runHomepageTurn(
+      ADVISORY,
+      "Galite patikslinti kriterijus — tada pasiūlysiu geriausią variantą.",
+      [
+        fc("create_listing_draft", { category: "vehicles" }),
+        fc("proposeSmartBargaining", { listingId: "lt-x" }),
+        fc("triggerMicroPayment", { amount: 5 }),
+      ]
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    for (const t of ["create_listing_draft", "proposeSmartBargaining", "triggerMicroPayment"]) {
+      assert.ok(!tools.includes(t), `${t} denied`);
+    }
+    assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none");
+  });
+
+  it("CASE E — allowlisted read-only tool executes on advisory (analyzeMarketPrice)", async () => {
+    const stream = await runHomepageTurn(
+      ADVISORY,
+      "Vidutinė rinkos kaina leidžia pasiūlyti gerą biudžetą.",
+      [fc("analyzeMarketPrice", { brand: "Volvo", model: "V70" })]
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(tools.includes("analyzeMarketPrice"), "read-only tool executed");
+    assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none", "no side effect");
+    assert.match(stream.finalResult!.reply, /kaina|biudžetą/i);
+  });
+
+  it("CASE F — unknown/future synthetic tool is FAIL-CLOSED denied on advisory", async () => {
+    const stream = await runHomepageTurn(
+      ADVISORY,
+      "Tęskime pokalbį — pasiūlysiu variantų.",
+      [fc("futureMagicTool" as never, { anything: true })]
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(!tools.includes("futureMagicTool"), "not in allowlist → denied");
+    assert.equal(stream.errorEvent, null, "turn completes without crash");
+    assert.ok(stream.finalResult!.reply.length > 0);
+  });
+
+  it("CASE G — explicit wanted request keeps the legitimate createUserRequirement path (not advisory)", async () => {
+    setThreadStoreForTests(new InMemoryThreadStore());
+    setPlannerDecisionProviderForTests(async (input) => planTurn(input));
+    const recorder = createScriptedModelProvider({
+      turns: [[round(fc("createUserRequirement", { query: "Kia Sportage iki 20000" }))]],
+      exhausted: { parts: [] },
+    });
+    const prev = recorder.install();
+    process.env.GEMINI_API_KEY = "e28-boundary-key";
+    const app = createApp();
+    try {
+      const res = await request(app).post("/api/vauto-agent/stream").send({
+        turnId: "e28-g",
+        messages: [{ role: "user", text: "Pranešk, kai atsiras Kia Sportage iki 20000" }],
+        context: {
+          isAuthenticated: false, // guest → needsAuth path is the legitimate policy
+          userCity: "Vilnius",
+          contact: "+37060000000",
+          profilePhone: "+37060000000",
+        },
+      });
+      const stream = parseLiveStreamBody(String(res.text ?? ""));
+      const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+      assert.ok(tools.includes("createUserRequirement"), "wanted tool ALLOWED on a non-advisory wanted request");
+      const actions = stream.finalResult!.actions as Record<string, unknown>;
+      assert.equal(actions.type, "create_user_requirement", "legitimate wanted action emitted (needsAuth flow)");
+    } finally {
+      recorder.restore();
+      if (prev) globalThis.fetch = prev;
+    }
+  });
+
+  it("CASE I — repeated advisory runs with varied tool choices keep identical invariants", async () => {
+    const variants: Array<Array<ReturnType<typeof fc>>> = [
+      [fc("searchListings", { query: "Matau kad šiuo metu tokios prekės neturime" })],
+      [fc("createUserRequirement", { query: "šeimos automobilis" })],
+      [fc("applyFilter", { category: "brand", value: "Kia" })],
+      [fc("navigateTo", { screen: "search" })],
+      [fc("updateUIFilters", { categoryAttributes: { brand: "Kia" } })],
+    ];
+    for (const v of variants) {
+      const stream = await runHomepageTurn(
+        ADVISORY,
+        "Galiu pasiūlyti patikimų variantų — papasakokite daugiau apie poreikius.",
+        v
+      );
+      assert.equal(
+        (stream.finalResult!.actions as Record<string, unknown>).type,
+        "none",
+        `variant ${JSON.stringify(v[0])} produced no side effect`
+      );
+      assert.ok(
+        stream.finalResult!.toolCalls.every(
+          (t) => !["searchListings", "applyFilter", "updateUIFilters", "createUserRequirement", "navigateTo"].includes(t.name)
+        ),
+        "no mutating tool executed"
+      );
+      assert.ok(stream.finalResult!.reply.length > 0, "conversational reply completes");
+    }
+  });
+
   it("negative control: explicit search with fromSearchBar still executes searchListings", async () => {
     const stream = await runHomepageTurn("surask Kia Sportage iki 20000", "Radau 1 variantą.");
     const tools = stream.finalResult!.toolCalls.map((t) => t.name);

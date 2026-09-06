@@ -431,15 +431,28 @@ const GEMINI_MAX_RETRIES = 2;
 const GEMINI_RETRY_BASE_MS = 400;
 
 /**
- * E2.8 — tools that execute catalog search or mutate search state. On an
- * advisory turn these are BLOCKED by server policy — the model may request
- * them, but only current USER intent (planner) authorizes their execution.
+ * E2.8 — ADVISORY CAPABILITY ALLOWLIST (default-deny, fail-closed).
+ *
+ * On advisoryContext turns ONLY these PROVEN read-only/informational tools
+ * may execute. EVERYTHING else — including any FUTURE tool added to the
+ * registry — is DENIED by default on advisory turns until explicitly
+ * audited and allowlisted here. Do NOT rely on naming conventions: a new
+ * tool is denied simply by not being in this set.
+ *
+ * Audited justifications (read-only, no side effects):
+ *  - analyzeMarketPrice   — pure in-memory price computation;
+ *  - getSellerTrustScore  — read-only DB read (reviews/trust);
+ *  - analyzeNegotiationTwin — pure negotiation computation, no side effect.
+ *
+ * Explicitly DENIED classes (not listed → default-deny):
+ * catalog execution, filter/search-state mutation, navigation, wanted/
+ * wishlist registration, offers, drafts, publishes, consequential,
+ * payments, session-state mutation.
  */
-const ADVISORY_BLOCKED_TOOL_NAMES = new Set([
-  "searchListings",
-  "applyFilter",
-  "clearAllFilters",
-  "updateUIFilters",
+const ADVISORY_SAFE_TOOL_NAMES = new Set([
+  "analyzeMarketPrice",
+  "getSellerTrustScore",
+  "analyzeNegotiationTwin",
 ]);
 
 function isRetriableAgentError(e: unknown): boolean {
@@ -2412,23 +2425,25 @@ async function runVautoAgentInner(
         message: toolProgressMessage(name),
       });
       // E2.8 — MODEL TOOL SELECTION IS NOT AUTHORIZATION. On an advisory
-      // turn (server policy: advice-seeking user intent) catalog/search-
-      // state tools are BLOCKED: no catalog query, no filter mutation, no
-      // empty_search, no wishlist side effect. The loop continues so the
-      // model can still answer conversationally.
+      // turn, server policy allows ONLY the advisory-safe ALLOWLIST; every
+      // other capability (catalog, filters, navigation, wanted/wishlist,
+      // offers, drafts, publishes, consequential, payments) is DEFAULT-
+      // DENIED. The handler never runs: no persistence, no side effect, no
+      // navigation. The loop continues so the model can still answer
+      // conversationally.
       if (
         plannerDecision.advisoryContext &&
-        ADVISORY_BLOCKED_TOOL_NAMES.has(name)
+        !ADVISORY_SAFE_TOOL_NAMES.has(name)
       ) {
-        const blockedResult = {
+        const deniedResult = {
           ok: false,
-          blocked: true,
+          denied: true,
           message:
-            "Patarimo turnu katalogas nevykdomas — atsakyk rekomendacija arba užduok klausimą.",
+            "Patarimo turnu ši funkcija negalima — atsakyk rekomendacija arba užduok klausimą.",
         };
         emitAgentEvent(onEvent, { type: "tool_result", name });
         responseParts.push({
-          functionResponse: { name, response: blockedResult },
+          functionResponse: { name, response: deniedResult },
         });
         continue;
       }
