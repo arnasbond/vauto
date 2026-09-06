@@ -175,6 +175,7 @@ import { extractConditionFromText } from "../shared/fact-conflict.js";
 import { extractCityFromText } from "./listing-contact-parse.js";
 // E2.8 — provenance boundary for model-suggested identity attributes.
 import { groundBrandAttributesInUserText } from "./agent-ui-tools.js";
+import { isAdvisoryInterrogative } from "./planner/planner-signals.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -1949,12 +1950,17 @@ async function runVautoAgentInner(
   // hijack the search fast-path.
   const plannerForcesSearch =
     plannerDecision.routing === "deterministic_search";
+  // E2.8 — the search-bar fast-path is a legitimate shortcut for REAL
+  // searches, but an advice-seeking utterance must NEVER be forced into it:
+  // the advisory semantic class always wins over fromSearchBar.
+  const fromSearchBarRealSearch =
+    Boolean(req.context.fromSearchBar) &&
+    !detectServerSellIntent(lastUserText) &&
+    !isAdvisoryInterrogative(lastUserText);
   const forceCatalogSearch =
     Boolean(lastUserText) &&
     !pendingChatImages?.length &&
-    (plannerForcesSearch ||
-      (Boolean(req.context.fromSearchBar) &&
-        !detectServerSellIntent(lastUserText)));
+    (plannerForcesSearch || fromSearchBarRealSearch);
 
   if (forceCatalogSearch && lastUserText) {
     try {
@@ -2278,12 +2284,9 @@ async function runVautoAgentInner(
   let offerEffect: AgentSideEffect | undefined;
   let draftText = "";
   // E2 — the ANY-toolmode forcing is a PLANNER decision, identical to the
-  // pre-loop deterministic search gate.
+  // pre-loop deterministic search gate (E2.8 — advisory never forced).
   const forceSupervisorTools =
-    plannerForcesSearch ||
-    (Boolean(req.context.fromSearchBar) &&
-      Boolean(lastUserText) &&
-      !detectServerSellIntent(lastUserText));
+    plannerForcesSearch || fromSearchBarRealSearch;
 
   let lastGeminiError: AgentRouteError | null = null;
   let activeModel: (typeof GEMINI_MODELS)[number] = GEMINI_MODELS[0];

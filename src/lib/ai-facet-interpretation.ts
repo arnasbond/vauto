@@ -260,8 +260,16 @@ function interpretVerticalAttributes(
   const fields = categoryFilterFieldsFor(vertical);
 
   if (vertical === "vehicles") {
-    // Make & model feed the canonical keyword path (search by make/model).
-    const make = VEHICLE_MAKES.find((m) => text.includes(normToken(m)));
+    // E2.8 — Make & model feed the canonical keyword path (search by
+    // make/model) with TOKEN-BOUNDARY matching: a make may only be grounded
+    // when the user's query contains it as a whole token. Substring matching
+    // would invent brands from ordinary words (e.g. „reikia" contains „kia").
+    const tokens = text.split(/\s+/).filter(Boolean);
+    const make = VEHICLE_MAKES.find((m) => {
+      const folded = normToken(m);
+      if (!folded || folded.length < 2) return false;
+      return tokens.includes(folded);
+    });
     if (make) {
       chips.push({
         id: chipId("make", make, "keyword"),
@@ -271,7 +279,7 @@ function interpretVerticalAttributes(
         value: make,
         fromAi: true,
       });
-      const model = modelsForMake(make).find((md) => text.includes(normToken(md)));
+      const model = modelsForMake(make).find((md) => tokens.includes(normToken(md)));
       if (model && model !== make) {
         chips.push({
           id: chipId("model", model, "keyword"),
