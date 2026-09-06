@@ -193,15 +193,17 @@ export function resolveLoginRole(
   nickname?: string | null,
   firstName?: string | null
 ): string {
+  // P0 — display name hints are identity decorations, not provenance.
+  void name;
+  void nickname;
+  void firstName;
   // F10 P1-01 — fail-closed: elevated roles come ONLY from the server-side
   // identity allowlist, never from the client-declared body role or from a
-  // (possibly forged legacy) DB row.
+  // (possibly forged legacy) DB row. P0 — display name hints are NOT
+  // provenance and can never elevate.
   const isElevatedIdentity = shouldElevateToSuperAdmin({
     email,
     phone,
-    name,
-    nickname,
-    firstName,
   });
   if (isElevatedIdentity) return "super_admin";
 
@@ -683,13 +685,13 @@ authRouter.post("/social", async (req, res) => {
  * legitimate "pro" plan role).
  */
 function resolveSessionRole(user: ApiUser, tokenRole?: string | null): string {
+  // P0 — verified-identity provenance only: email (server-written, never
+  // user-editable) or the admin-phone path. Display name fields can never
+  // elevate.
   if (
     shouldElevateToSuperAdmin({
       email: user.email,
       phone: user.phone,
-      name: user.name,
-      nickname: user.nickname,
-      firstName: user.firstName,
     })
   ) {
     return "super_admin";

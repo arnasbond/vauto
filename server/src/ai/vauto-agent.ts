@@ -132,7 +132,6 @@ import {
   isGenericEmptySearchReply,
   resolveSupervisorFinalReply,
   runDeterministicSupervisorSearch,
-  shouldForceSupervisorTools,
   shouldReplaceSideEffect,
   type GeminiContent,
   type GeminiPart,
@@ -154,6 +153,26 @@ import {
   getRecentUserBehaviorEvents,
   getUserPreferences,
 } from "../repository.js";
+// E2.1 — the planner decision comes from the LLM first (typed contract,
+// schema-validated, policy-clamped); the deterministic engine is the
+// fallback/validation layer. Enforcement (auth/ownership/readiness/
+// policy) stays downstream.
+// E2.2 — the planner context is built by the PlannerContextBuilder from the
+// CANONICAL thread history + structured state (bounded window + advisory
+// compact memory + canonical significant facts), never a blind slice.
+import {
+  buildPlannerContext,
+  detectSearchSession,
+  executorAiDownReply,
+  executorClarifyAmbiguousReply,
+  executorFinancialDenyReply,
+  executorSellCancelReply,
+  executorSellPreviewReply,
+  executorUnauthPublishReply,
+  resolvePlannerDecision,
+} from "./planner/index.js";
+import { extractConditionFromText } from "../shared/fact-conflict.js";
+import { extractCityFromText } from "./listing-contact-parse.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -584,10 +603,19 @@ async function runVautoAgentInner(
   }
 
   if (req.authUserId) {
-    const [prefs, dbBehavior] = await Promise.all([
-      getUserPreferences(req.authUserId),
-      getRecentUserBehaviorEvents(req.authUserId, 15),
-    ]);
+    // E2 — preference/behavior hydration is CONTEXT, never a hard gate:
+    // a DB outage must degrade to a turn without enrichment (AI DOWN ≠
+    // VAUTO DOWN), never crash the agent into the generic recovery string.
+    let prefs: Awaited<ReturnType<typeof getUserPreferences>> = null;
+    let dbBehavior: Awaited<ReturnType<typeof getRecentUserBehaviorEvents>> = [];
+    try {
+      [prefs, dbBehavior] = await Promise.all([
+        getUserPreferences(req.authUserId),
+        getRecentUserBehaviorEvents(req.authUserId, 15),
+      ]);
+    } catch (err) {
+      console.warn("[vauto-agent] behavior/prefs hydration failed (non-fatal):", err);
+    }
     if (prefs) {
       if (!req.context.defaultRegion && prefs.defaultRegion) {
         req.context.defaultRegion = prefs.defaultRegion;
@@ -852,6 +880,89 @@ async function runVautoAgentInner(
     flowState === "DRAFT_READY" ||
     flowState === "AWAITING_CONFIRMATION" ||
     flowTurn.kind === "process_photos";
+
+  // E2.1 — the planner decision comes from the LLM first (typed contract,
+  // schema-validated, policy-clamped); the deterministic engine is the
+  // fallback/validation layer. Enforcement (auth/ownership/readiness/
+  // policy) stays downstream.
+  const hasGemini = Boolean(resolveGeminiApiKey());
+  const canonicalMessages = (req.messages ?? []).map((m) => ({
+    role: m.role,
+    text: String(m.text ?? ""),
+  }));
+  const plannerDecision = await resolvePlannerDecision(
+    buildPlannerContext({
+      messages: canonicalMessages,
+      lastUserText,
+      hasDraft: Boolean(listingDraft),
+      draftTitle: listingDraft?.title,
+      draftCategory: listingDraft?.category,
+      draftPrice: listingDraft?.price,
+      draftLocation: listingDraft?.location,
+      flowState: flowState ?? undefined,
+      isAuthenticated: Boolean(req.context.isAuthenticated),
+      hasSearchSession: detectSearchSession(canonicalMessages, lastUserText),
+      modelAvailable: hasGemini,
+      draftAttributes: (listingDraft?.attributes ??
+        {}) as Record<string, string>,
+      // E2.6 — canonical seller listings + the open listing: the policy
+      // layer resolves consequential-action targets from THIS state, never
+      // from the model's guess.
+      myListings: (req.context.myListings ?? []).map((l) => ({
+        id: String(l.id ?? ""),
+        title: String(l.title ?? ""),
+        status: String(l.status ?? "active"),
+      })),
+      activeListingId:
+        req.context.currentPageContext?.active_listing_id?.trim() || undefined,
+    })
+  );
+
+  // E2 — planner-owned deterministic executor replies (policy denies,
+  // cancel, preview, ambiguous clarification). These run BEFORE the legacy
+  // flowTurn early-returns so they can never be hijacked by search.
+  if (plannerDecision.routing === "deterministic_executor") {
+    if (plannerDecision.intent === "financial_command") {
+      return {
+        ok: true,
+        reply: executorFinancialDenyReply(),
+        toolCalls: [],
+        actions: { type: "none" },
+      };
+    }
+    if (plannerDecision.intent === "publish_request") {
+      return {
+        ok: true,
+        reply: executorUnauthPublishReply(),
+        toolCalls: [],
+        actions: { type: "none" },
+      };
+    }
+    if (plannerDecision.intent === "sell_cancel" && listingDraft) {
+      return {
+        ok: true,
+        reply: executorSellCancelReply(listingDraft),
+        toolCalls: [],
+        actions: { type: "none" },
+      };
+    }
+    if (plannerDecision.intent === "sell_preview" && listingDraft) {
+      return {
+        ok: true,
+        reply: executorSellPreviewReply(listingDraft),
+        toolCalls: [],
+        actions: { type: "none" },
+      };
+    }
+    if (plannerDecision.intent === "clarify_ambiguous") {
+      return {
+        ok: true,
+        reply: executorClarifyAmbiguousReply(lastUserText),
+        toolCalls: [],
+        actions: { type: "none" },
+      };
+    }
+  }
 
   // Step 3 — „Paruošti skelbimą“ → synthesize rich copy + OPEN PrePublish review.
   // NEVER call postNewListing / DB publish here — user confirms in the modal.
@@ -1299,6 +1410,16 @@ async function runVautoAgentInner(
     // canonical fact — it is reconciled via the VIN review state machine below,
     // never spread directly into the live draft's attributes.
     const { vin: chatVinRaw, ...specPatchWithoutVin } = specPatch;
+    // E2 — planner-owned facts: the deterministic planner (single reasoning
+    // authority) may supply a VIN candidate the vehicle extractor misses on
+    // bare tokens (17-char challenge), plus condition/city facts.
+    const plannerVin =
+      plannerDecision.toolArgs?.vin && isVehicleDraft
+        ? String(plannerDecision.toolArgs.vin)
+        : undefined;
+    const vinSignal = chatVinRaw || plannerVin;
+    const conditionFromText = extractConditionFromText(lastUserText);
+    const cityFromText = extractCityFromText(lastUserText);
     const hasSpecs = isVehicleDraft && Object.keys(specPatch).length > 0;
     const priceToApply = negotiable
       ? 0
@@ -1348,7 +1469,10 @@ async function runVautoAgentInner(
       negotiable ||
       hasSpecs ||
       hasDescEdit ||
-      hasVerticalConflictUpdate
+      hasVerticalConflictUpdate ||
+      Boolean(vinSignal) ||
+      Boolean(conditionFromText) ||
+      Boolean(cityFromText)
     ) {
       const negoPatch = negotiable ? negotiablePricePatch() : null;
       const yearResolution = resolveYearConflictPatch({
@@ -1359,9 +1483,9 @@ async function runVautoAgentInner(
       // confirmed/candidate VIN state first — this never writes `vin` directly, only
       // ever `vinCandidate`/`vinConflictValue`/etc. (or a no-op when it already
       // matches the confirmed canonical value).
-      const vinAwareAttrs = chatVinRaw
+      const vinAwareAttrs = vinSignal
         ? applyVinExtractionCandidate(listingDraft.attributes ?? {}, {
-            value: chatVinRaw,
+            value: vinSignal,
             source: "unknown",
             confidence: 0.5,
           })
@@ -1373,6 +1497,7 @@ async function runVautoAgentInner(
         ...yearResolution,
         ...roomsPatch,
         ...workTypePatch,
+        ...(conditionFromText ? { condition: conditionFromText } : {}),
       };
       if (mergedAttrs.yearConflict === "") delete mergedAttrs.yearConflict;
       if (mergedAttrs.yearConflictCandidate === "") delete mergedAttrs.yearConflictCandidate;
@@ -1416,6 +1541,7 @@ async function runVautoAgentInner(
           title: nextTitle || listingDraft.title,
           description: nextDescription,
           attributes: mergedAttrs,
+          ...(cityFromText ? { location: cityFromText } : {}),
           ...(negoPatch
             ? { priceLabel: negoPatch.priceLabel }
             : {}),
@@ -1442,16 +1568,33 @@ async function runVautoAgentInner(
         ...descEdit.removed.map((r) => `−${r}`),
       ].filter(Boolean);
       const verticalOnlyUpdate =
-        !negotiable && !hasSpecs && !hasDescEdit && priceToApply == null;
-      const intro = negotiable
-        ? "Supratau — kaina sutartinė."
-        : hasSpecs || hasDescEdit
-          ? `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`
-          : priceToApply != null
-            ? "Puiku — atnaujinau kainą!"
-            : verticalOnlyUpdate && bits.length
-              ? `Supratau — atnaujinau juodraštį (${bits.join(", ")}).`
-              : "Puiku — atnaujinau juodraštį!";
+        !negotiable &&
+        !hasSpecs &&
+        !hasDescEdit &&
+        priceToApply == null &&
+        !vinSignal &&
+        !conditionFromText &&
+        !cityFromText;
+      // E2 — the reply always echoes the APPLIED facts (typed, deterministic)
+      // so the user can verify the correction instead of guessing.
+      const factSummary = [
+        priceToApply != null ? `kainą į ${priceToApply} €` : null,
+        conditionFromText ? `būklę: ${conditionFromText}` : null,
+        cityFromText ? `miestą: ${cityFromText}` : null,
+      ].filter(Boolean);
+      const intro = vinSignal
+        ? "Užfiksavau VIN kandidatą — patvirtinkite peržiūroje."
+        : negotiable
+          ? "Supratau — kaina sutartinė."
+          : factSummary.length
+            ? `Puiku — atnaujinau ${factSummary.join(", ")}.`
+            : hasSpecs || hasDescEdit
+              ? `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`
+              : priceToApply != null
+                ? "Puiku — atnaujinau kainą!"
+                : verticalOnlyUpdate && bits.length
+                  ? `Supratau — atnaujinau juodraštį (${bits.join(", ")}).`
+                  : "Puiku — atnaujinau juodraštį!";
       const vinReviewChips = buildVinReviewDisplayChips(mergedAttrs);
       const vinReviewPayload = buildVinReviewSideEffect(mergedAttrs);
       // P0 — the single canonical readiness source decides whether the reply
@@ -1471,7 +1614,18 @@ async function runVautoAgentInner(
         reply: `${intro} ${buildDraftReadyChatReply(nextDraft, { readinessOk })}`,
         quickReplies:
           vinReviewChips ?? buildDraftReadyChatChips(nextDraft, { readinessOk }),
-        toolCalls: [],
+        // E2 — the deterministic update is the capability the model would
+        // have called; the ledger records it as the executed tool.
+        toolCalls: [
+          {
+            name: "updateListingDraft",
+            result: {
+              ok: true,
+              ...(priceToApply != null ? { price: priceToApply } : {}),
+              attributes: mergedAttrs,
+            },
+          },
+        ],
         actions: {
           type: "listing_draft",
           listingDraft: nextDraft,
@@ -1479,6 +1633,18 @@ async function runVautoAgentInner(
         },
       };
     }
+  }
+
+  // E2.1 — AI-down honest dialog: the planner could not reach a model and no
+  // high-confidence deterministic capability applies. NEVER a fabricated
+  // search; the reply echoes the user's words.
+  if (plannerDecision.intent === "ai_down_dialog") {
+    return {
+      ok: true,
+      reply: executorAiDownReply(lastUserText),
+      toolCalls: [],
+      actions: { type: "none" },
+    };
   }
 
   // Ignore legacy workflow edit chips that would roll the machine backward.
@@ -1560,6 +1726,16 @@ async function runVautoAgentInner(
       userCity: req.context.userCity,
       contact: req.context.contact,
     });
+    // E2 — ONE clarification question per turn (planner's next-question
+    // policy). Physical items ask condition first; services/jobs skip it.
+    // The question leads the reply so it is never lost to history truncation.
+    const sparseQuestion =
+      plannerDecision.intent === "sell_create" && plannerDecision.clarificationQuestion
+        ? plannerDecision.clarificationQuestion
+        : "";
+    const sparseReply = sparseQuestion
+      ? `${sparseQuestion} ${clarify.reply}`
+      : clarify.reply;
     // Keep existing draft identity when user is refining a job-seeker listing.
     const action =
       listingDraft && jobSeekerCreate
@@ -1584,7 +1760,7 @@ async function runVautoAgentInner(
         : clarify.action;
     return {
       ok: true,
-      reply: clarify.reply,
+      reply: sparseReply,
       quickReplies: clarify.quickReplies,
       toolCalls: [],
       actions: action,
@@ -1766,10 +1942,15 @@ async function runVautoAgentInner(
   // Single-pass indexed search — skip multi-turn Gemini tool ping-pong.
   // Search-bar submits are always catalog queries (never lead-capture fallback).
   // On failure, fall through to Gemini so the SSE stream always gets a final event.
+  // E2 — the forced search is a PLANNER decision (simple catalog queries only);
+  // corrections, questions, sell continuations and policy commands never
+  // hijack the search fast-path.
+  const plannerForcesSearch =
+    plannerDecision.routing === "deterministic_search";
   const forceCatalogSearch =
     Boolean(lastUserText) &&
     !pendingChatImages?.length &&
-    (shouldForceSupervisorTools(lastUserText) ||
+    (plannerForcesSearch ||
       (Boolean(req.context.fromSearchBar) &&
         !detectServerSellIntent(lastUserText)));
 
@@ -1922,6 +2103,20 @@ async function runVautoAgentInner(
   if (sellerMetrics) {
     wizardBits.push(`sellerMetrics=${sellerMetrics}`);
   }
+  // E2 — the model sees the PLANNER's structured decision (not as authority,
+  // but as the reasoning contract to align with). Scripted/deterministic CI
+  // ignores this block entirely. E2.6 — toolArgs + clarification travel too
+  // (e.g. the resolved consequential target id reaches the tool loop).
+  wizardBits.push(
+    `plannerDecision=${JSON.stringify({
+      intent: plannerDecision.intent,
+      action: plannerDecision.action,
+      tool: plannerDecision.tool,
+      toolArgs: plannerDecision.toolArgs,
+      needsClarification: plannerDecision.needsClarification,
+      clarificationQuestion: plannerDecision.clarificationQuestion,
+    })}`
+  );
   if (wizardBits.length) {
     contents.unshift({
       role: "user",
@@ -2080,13 +2275,14 @@ async function runVautoAgentInner(
   let navigateScreenEffect: AgentSideEffect | undefined;
   let offerEffect: AgentSideEffect | undefined;
   let draftText = "";
+  // E2 — the ANY-toolmode forcing is a PLANNER decision, identical to the
+  // pre-loop deterministic search gate.
   const forceSupervisorTools =
-    shouldForceSupervisorTools(lastUserText) ||
+    plannerForcesSearch ||
     (Boolean(req.context.fromSearchBar) &&
       Boolean(lastUserText) &&
       !detectServerSellIntent(lastUserText));
 
-  const hasGemini = Boolean(resolveGeminiApiKey());
   let lastGeminiError: AgentRouteError | null = null;
   let activeModel: (typeof GEMINI_MODELS)[number] = GEMINI_MODELS[0];
 
@@ -2664,7 +2860,10 @@ async function runVautoAgentInner(
     });
     return {
       ok: true,
-      reply: VAUTO_IN_DOMAIN_RECOVERY,
+      // E2.1 — honest recovery echoes the user's words instead of a generic
+      // greeting (the user must recognize their request was heard but could
+      // not be processed).
+      reply: executorAiDownReply(lastUserText),
       quickReplies,
       toolCalls,
       actions: resolvedAction,

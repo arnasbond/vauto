@@ -1,9 +1,10 @@
 import type { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../auth/tokens.js";
-import { getUser } from "../repository.js";
+import { getUser } from "../routes/user-store.js";
 import {
   isAllowlistedAdminEmail,
-  shouldElevateToSuperAdmin,
+  normalizePhoneDigits,
+  resolveAdminPhone,
 } from "../lib/admin-allowlist.js";
 
 export interface AuthedRequest extends Request {
@@ -74,43 +75,31 @@ export function isAdminRole(role: string | null | undefined): boolean {
 }
 
 /**
- * Server RBAC: admin / super_admin role, or allowlisted operator
- * (elevated to super_admin on session — same Control Center owners).
- * F10 P1-01 — a `super_admin` token claim is re-verified against the DB row:
- * a forged token minted before the login clamp can no longer pass admin
- * gates. `admin` keeps the canonical admin-1 fast path; everything else is
- * DB/allowlist verified.
+ * Server RBAC: admin / super_admin gate, fail-closed on BOTH axes.
+ *
+ * P0 — admin identity hardening: an elevated role requires
+ *   (a) a token that ALREADY claims admin/super_admin, AND
+ *   (b) server-verified identity provenance on the DB row — an allowlisted
+ *       admin email (server-written, never user-editable) or the admin-phone
+ *       path with a server-managed DB role "admin". A forged DB row carrying
+ *       super_admin without that verified identity is ignored. A super_admin
+ *       token claim must additionally agree with the DB row (F10 P1-01).
  */
 export async function userIsAdmin(req: AuthedRequest): Promise<boolean> {
   try {
     if (!req.authUserId) return false;
-    if (isAdminRole(req.authRole)) {
-      if (req.authRole === "super_admin") {
-        const user = await getUser(req.authUserId);
-        if (user && user.role === "super_admin") return true;
-        return false;
-      }
-      if (req.authUserId === "admin-1") return true;
-    }
+    if (!isAdminRole(req.authRole)) return false;
     const user = await getUser(req.authUserId);
     if (!user) return false;
-    if (isAdminRole(user.role)) {
-      if (user.role === "super_admin") return true;
-      if (user.id === "admin-1") return true;
-      if (isAllowlistedAdminEmail(user.email)) return true;
+    const verifiedIdentity =
+      isAllowlistedAdminEmail(user.email) ||
+      (user.role === "admin" &&
+        normalizePhoneDigits(user.phone) === resolveAdminPhone());
+    if (!verifiedIdentity) return false;
+    if (req.authRole === "super_admin" && user.role !== "super_admin") {
+      return false;
     }
-    if (
-      shouldElevateToSuperAdmin({
-        email: user.email,
-        phone: user.phone,
-        name: user.name,
-        nickname: user.nickname,
-        firstName: user.firstName,
-      })
-    ) {
-      return true;
-    }
-    return false;
+    return true;
   } catch {
     return false;
   }

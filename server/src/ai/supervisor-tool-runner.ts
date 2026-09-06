@@ -33,6 +33,7 @@ import {
   isRevealActiveResultsIntent,
 } from "../shared/search-fast-path.js";
 import { resolveUniversalSearchQuery } from "./search/universal-search-query.js";
+import { extractRoomsFromChat } from "./sell/vertical-conflict-state.js";
 
 export type GeminiPart =
   | { text: string }
@@ -246,13 +247,25 @@ export async function runDeterministicSupervisorSearch(
   // zero results ≠ search failure).
   const { query: parsed, usedFallback } = resolveUniversalSearchQuery(trimmed);
   const nl = usedFallback ? extractSearchNlFilters(trimmed) : null;
-  const query = normalizeProductSearchQuery(
-    parsed.freeTextKeywords.join(" ") || trimmed
-  );
+  // E2 — rooms facet (real-estate) travels on the side effect so the UI can
+  // open editable facets even when the SQL catalog is empty.
+  const rooms = extractRoomsFromChat(trimmed);
+  const hasParsedFacets =
+    Boolean(parsed.location) ||
+    parsed.priceMin != null ||
+    parsed.priceMax != null ||
+    parsed.canonicalCategory !== "other" ||
+    Boolean(nl) ||
+    Boolean(rooms);
+  const query = hasParsedFacets
+    ? parsed.freeTextKeywords.join(" ") || trimmed
+    : normalizeProductSearchQuery(
+        parsed.freeTextKeywords.join(" ") || trimmed
+      );
   const category =
     parsed.canonicalCategory === "other" ? undefined : parsed.canonicalCategory;
 
-  const { result, sideEffect } = await executeAgentTool(
+  const { result, sideEffect: rawSideEffect } = await executeAgentTool(
     "searchListings",
     {
       query,
@@ -268,8 +281,64 @@ export async function runDeterministicSupervisorSearch(
     { ...ctx, lastUserQuery: trimmed }
   );
 
-  return { toolName: "searchListings", result, sideEffect };
+  // E2 — when the planner parsed facets, the recorded searchQuery echoes the
+  // STRUCTURED parts (keywords + nominative city + price bounds + rooms) so
+  // the reply quotes the user's request in canonical form; the rooms facet
+  // is preserved on the side effect. The tool's own summary is neutralized
+  // so the reply resolves from the side effect, never from the SQL echo.
+  let sideEffect = rawSideEffect;
+  let enrichedResult = result;
+  if (
+    hasParsedFacets &&
+    sideEffect &&
+    (sideEffect.type === "empty_search" || sideEffect.type === "search")
+  ) {
+    const displayQuery = [
+      parsed.freeTextKeywords.join(" ") || "",
+      parsed.location ?? nl?.city ?? "",
+      parsed.priceMax != null ? `iki ${parsed.priceMax}` : "",
+      parsed.priceMin != null ? `nuo ${parsed.priceMin}` : "",
+      rooms ? `${rooms} kamb.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    sideEffect = {
+      ...sideEffect,
+      searchQuery: displayQuery || trimmed,
+      filters: {
+        ...(sideEffect.filters ?? {}),
+        ...(rooms ? { rooms } : {}),
+      },
+    };
+    if (
+      enrichedResult &&
+      typeof enrichedResult === "object" &&
+      "summary" in (enrichedResult as Record<string, unknown>)
+    ) {
+      // Empty result → the label carries the city in BOTH forms (canonical
+      // nominative in the query echo + locative in the sentence) so the
+      // reply quotes the user's request naturally.
+      const city = parsed.location ?? nl?.city ?? "";
+      const cityLocative = city ? CITY_LOCATIVE[city.toLowerCase()] ?? "" : "";
+      const summary =
+        sideEffect.type === "empty_search"
+          ? `Šiuo metu ${cityLocative ? `${cityLocative} ` : ""}skelbimų pagal užklausą „${displayQuery || trimmed}" neradome.\nAr norite įtraukti šią paiešką į Pageidavimų sąrašą? Kai tik atsiras panaši prekė, atsiųsime jums pranešimą!`
+          : "";
+      enrichedResult = { ...(enrichedResult as object), summary };
+    }
+  }
+
+  return { toolName: "searchListings", result: enrichedResult, sideEffect };
 }
+
+/** Lithuanian locative forms for the handful of cities used in dialog. */
+const CITY_LOCATIVE: Record<string, string> = {
+  vilnius: "Vilniuje",
+  kaunas: "Kaune",
+  klaipėda: "Klaipėdoje",
+  šiauliai: "Šiauliuose",
+  panevėžys: "Panevėžyje",
+};
 
 function toolResultLabel(result: unknown): string | undefined {
   if (!result || typeof result !== "object") return undefined;

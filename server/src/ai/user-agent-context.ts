@@ -215,10 +215,32 @@ function mapListing(l: ApiListing): MyListingForAgent {
   };
 }
 
+export type AgentUserContextResolver = (
+  authUserId: string | null | undefined,
+  clientFallback?: Partial<UserAgentContextPayload>
+) => Promise<UserAgentContextPayload>;
+
+let agentUserContextResolverForTests: AgentUserContextResolver | null = null;
+
+/**
+ * TEST-ONLY seam — the LIVE measurement environment provides the canonical
+ * SERVER-side user+listings state (the isolated stand-in for the database)
+ * through the SAME route boundary. Production code never installs this;
+ * the DB-backed resolution below is unchanged.
+ */
+export function setAgentUserContextResolverForTests(
+  resolver: AgentUserContextResolver | null
+): void {
+  agentUserContextResolverForTests = resolver;
+}
+
 export async function resolveAuthenticatedAgentContext(
   authUserId: string | undefined,
   clientFallback?: Partial<UserAgentContextPayload>
 ): Promise<UserAgentContextPayload> {
+  if (agentUserContextResolverForTests) {
+    return agentUserContextResolverForTests(authUserId, clientFallback);
+  }
   const omitPrior =
     Boolean(clientFallback?.omitPriorListingDraft) ||
     Boolean(clientFallback?.freshListingSession);

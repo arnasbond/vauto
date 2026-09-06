@@ -760,6 +760,11 @@ export const SERVER_MANAGED_USER_FIELDS = new Set([
   "billingPlan",
   "billingModel",
   "profileType",
+  // P0 — the authoritative auth email is identity provenance used by the
+  // admin/super_admin allowlist. It is written ONLY by server-verified login
+  // flows (Google/Apple token email, phone-verified flows) or by an explicit
+  // admin update — never by a plain-user profile mutation.
+  "email",
 ]);
 
 const USER_EDITABLE_FIELDS = new Set([
@@ -767,7 +772,6 @@ const USER_EDITABLE_FIELDS = new Set([
   "phone",
   "city",
   "avatar",
-  "email",
   "firstName",
   "lastName",
   "nickname",
@@ -818,6 +822,10 @@ export function validateUserProfileUpdate(
       } else if (key === "profileType") {
         const pt = optionalEnumString(body, "profileType", new Set(["private", "business"]));
         if (!pt.ok) return pt;
+      } else if (key === "email") {
+        // P0 — server-managed identity: a well-formed email is IGNORED
+        // (server authority wins), a malformed one is rejected fail-closed.
+        if (typeof body[key] !== "string") return fail("email is invalid");
       }
       continue;
     }
@@ -834,8 +842,6 @@ export function validateUserProfileUpdate(
   if (!city.ok) return city;
   const avatar = requiredString(body, "avatar", 1000);
   if (!avatar.ok) return avatar;
-  const email = optionalString(body, "email", 254);
-  if (!email.ok) return email;
   const firstName = optionalString(body, "firstName", 80);
   if (!firstName.ok) return firstName;
   const lastName = optionalString(body, "lastName", 80);
@@ -874,7 +880,6 @@ export function validateUserProfileUpdate(
     phone: phone.value,
     city: city.value,
     avatar: avatar.value,
-    email: email.value,
     firstName: firstName.value,
     lastName: lastName.value,
     nickname: nickname.value,
