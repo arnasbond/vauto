@@ -24,6 +24,12 @@ export type PlannerIntent =
   | "publish_request"
   | "financial_command"
   | "consequential_command"
+  /**
+   * E2.8 — explicit watch/notify-when-available request: register a
+   * catalog requirement through the audited createUserRequirement
+   * capability (auth policy inside) — NEVER a search prerequisite.
+   */
+  | "wanted_registration"
   /** E2.1 — AI-down / unclear intent: honest dialog, NEVER a search. */
   | "ai_down_dialog"
   | "dialog";

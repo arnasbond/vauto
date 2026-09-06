@@ -44,6 +44,7 @@ import {
   QUESTION_MARKER_RE,
   SEARCH_VERB_RE,
   isAdvisoryInterrogative,
+  isExplicitWantedRequest,
   productNounScore,
 } from "./planner-signals.js";
 import type {
@@ -266,6 +267,18 @@ function planTurnInner(input: PlannerContextInput): PlannerDecision {
         reasons: ["advisory_interrogative"],
         confidence: 0.8,
         advisoryContext: true,
+      });
+    }
+
+    // E2.8 — EXPLICIT WANTED: a watch/notify-when-available utterance is a
+    // first-class capability request, never a catalog search. Mirrors the
+    // deterministic policy clamp for the fallback path.
+    if (isExplicitWantedRequest(text)) {
+      return decision("wanted_registration", "deterministic_executor", {
+        goal: "register an explicit watch/notify requirement",
+        action: "create_user_requirement",
+        reasons: ["explicit_wanted_request"],
+        confidence: 1,
       });
     }
 

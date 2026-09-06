@@ -9,6 +9,8 @@
  * financial, publish) and the high-confidence fast-paths.
  */
 import { extractProductSearchIntent } from "../product-search-query.js";
+import { resolveUniversalSearchQuery } from "../search/universal-search-query.js";
+import { VEHICLE_MAKES } from "../vehicle-attribute-extract.js";
 
 /** Financial / wallet commands — NEVER catalog search, NEVER model authority. */
 export const FINANCIAL_COMMAND_RE =
@@ -102,5 +104,50 @@ export function isBareAmbiguousNoun(text: string): boolean {
     !/\d/.test(text) &&
     !/\b(kaina|eur|€|kainos)\b/i.test(lower) &&
     !DIALOG_STOPWORD_RE.test(lower)
+  );
+}
+
+/**
+ * E2.8 — EXPLICIT WANTED semantic class (watch / notify-when-available).
+ *
+ * A first-class capability boundary, NOT a phrase hardcode: the utterance
+ * must carry BOTH
+ *   A. an explicit notify/watch meaning, AND
+ *   B. a plausible marketplace target (price bound, catalog category, or a
+ *      grounded make token present in the user's own words).
+ * Generic sentences like „pranešk, kai baigsi redaguoti skelbimą" or
+ * „pranešk pardavėjui, kad atvažiuosiu rytoj" carry NO when-available
+ * meaning / NO catalog target and are NOT wanted requests.
+ */
+const WANTED_NOTIFY_ANCHOR_RE =
+  /\b(pranešk(?:ite)?(?:\s+man)?|pranešimą|pranešimo|pranešti|informuok(?:ite)?(?:\s+man)?|stebėk(?:ite)?|sek(?:ti|ite)?\s+kain\p{L}*|watchlist|notify\s+me|alert\s+me)(?=\W|$)/iu;
+
+const WANTED_WHEN_AVAILABLE_RE =
+  /\b(kai|jei|jeigu)\s+atsiras\b|\batsiras\b[^.!?]{0,80}\b(pranešk|pranešti|pranešimą|informuok)(?=\W|$)|\bwhen\s+(?:it\s+)?becomes?\s+available\b/iu;
+
+function foldLower(s: string): string {
+  return s
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+}
+
+const FOLDED_VEHICLE_MAKES: ReadonlySet<string> = new Set(
+  VEHICLE_MAKES.map((m) => foldLower(m))
+);
+
+export function isExplicitWantedRequest(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (!WANTED_NOTIFY_ANCHOR_RE.test(t)) return false;
+  if (!WANTED_WHEN_AVAILABLE_RE.test(t)) return false;
+  const uq = resolveUniversalSearchQuery(t);
+  if (uq.query.priceMin != null || uq.query.priceMax != null) return true;
+  if (uq.query.canonicalCategory !== "other") return true;
+  const folded = foldLower(t);
+  const tokens = new Set(folded.split(/\s+/));
+  return [...FOLDED_VEHICLE_MAKES].some(
+    (m) => tokens.has(m) || (m.includes(" ") && folded.includes(m))
   );
 }

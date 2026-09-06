@@ -32,6 +32,8 @@ import {
   text,
 } from "../harness/scripted-model-provider.js";
 import { parseLiveStreamBody } from "../harness/live-stream-parser.js";
+import { executeAgentTool } from "../../ai/agent-tools.js";
+import type { AgentToolContext } from "../../ai/agent-tools.js";
 
 afterEach(() => {
   setThreadStoreForTests(null);
@@ -548,6 +550,157 @@ describe("E2.8 — deterministic advisory policy boundary (real LLM planner path
     assert.equal(
       (stream.finalResult!.actions as Record<string, unknown>).type,
       "none"
+    );
+  });
+});
+
+describe("E2.8 — first-class explicit wanted intent (real homepage boundary)", () => {
+  const WANTED = "Pranešk, kai atsiras Kia Sportage iki 20000 eurų";
+
+  async function runWantedTurn(
+    userText: string,
+    plannerDecision: Record<string, unknown>,
+    opts: { authenticated?: boolean; userId?: string } = {}
+  ) {
+    setThreadStoreForTests(new InMemoryThreadStore());
+    setPlannerAdapterForTests(llmPlannerAdapter(plannerDecision));
+    const recorder = createScriptedModelProvider({
+      turns: [[round(text("nevyksta"))]],
+      exhausted: { parts: [] },
+    });
+    const prev = recorder.install();
+    process.env.GEMINI_API_KEY = "e28-boundary-key";
+    if (opts.userId) process.env.ALLOW_LEGACY_USER_HEADER = "true";
+    const app = createApp();
+    try {
+      let reqBuilder = request(app).post("/api/vauto-agent/stream");
+      if (opts.userId) reqBuilder = reqBuilder.set("X-User-Id", opts.userId);
+      const res = await reqBuilder.send({
+          turnId: "e28-w",
+          messages: [{ role: "user", text: userText }],
+          context: {
+            isAuthenticated: Boolean(opts.authenticated),
+            userCity: "Vilnius",
+            contact: "+37060000000",
+            profilePhone: "+37060000000",
+            fromSearchBar: true, // EXACT homepage submission context
+          },
+        });
+      return parseLiveStreamBody(String(res.text ?? ""));
+    } finally {
+      recorder.restore();
+      if (prev) globalThis.fetch = prev;
+      delete process.env.ALLOW_LEGACY_USER_HEADER;
+    }
+  }
+
+  it("CASE W1 — explicit wanted from the homepage (guest) → wanted_registration, NO search, NO empty_search", async () => {
+    const stream = await runWantedTurn(WANTED, LLM_SEARCH_DECISION, {});
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(
+      tools.includes("createUserRequirement"),
+      "the audited wanted capability executed"
+    );
+    assert.ok(!tools.includes("searchListings"), "no catalog search prerequisite");
+    const actions = stream.finalResult!.actions as Record<string, unknown>;
+    assert.equal(
+      actions.type,
+      "create_user_requirement",
+      "wanted action emitted (not search/empty_search)"
+    );
+    assert.equal(
+      (actions as { needsAuth?: boolean }).needsAuth,
+      true,
+      "guest gets the honest needsAuth flow"
+    );
+    assert.ok(stream.finalResult!.reply.length > 0, "honest reply present");
+  });
+
+  it("CASE W2 — reordered wanted phrasing converges to the same intent", async () => {
+    const stream = await runWantedTurn(
+      "Kai atsiras Kia Sportage iki 20000 eurų, pranešk man",
+      LLM_SEARCH_DECISION,
+      {}
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(tools.includes("createUserRequirement"));
+    assert.ok(!tools.includes("searchListings"));
+    assert.equal(
+      (stream.finalResult!.actions as Record<string, unknown>).type,
+      "create_user_requirement"
+    );
+  });
+
+  it("CASE W3 — wanted phrasing without a price still registers (grounded make present)", async () => {
+    const stream = await runWantedTurn(
+      "Noriu gauti pranešimą, kai atsiras Kia Sportage",
+      LLM_DIALOG_DECISION,
+      {}
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(tools.includes("createUserRequirement"));
+    assert.ok(!tools.includes("searchListings"));
+    assert.equal(
+      (stream.finalResult!.actions as Record<string, unknown>).type,
+      "create_user_requirement"
+    );
+  });
+
+  it("CASE W7 — every LLM planner intent converges to wanted_registration on the homepage", async () => {
+    for (const planner of [
+      LLM_SEARCH_DECISION,
+      LLM_DIALOG_DECISION,
+      LLM_CONTEXT_QUESTION_DECISION,
+      LLM_CLARIFY_DECISION,
+    ]) {
+      const stream = await runWantedTurn(WANTED, planner, {});
+      const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+      assert.ok(
+        tools.includes("createUserRequirement"),
+        `planner ${String(planner.intent)} must not defeat the wanted class`
+      );
+      assert.ok(!tools.includes("searchListings"));
+      assert.equal(
+        (stream.finalResult!.actions as Record<string, unknown>).type,
+        "create_user_requirement",
+        `planner ${String(planner.intent)}`
+      );
+    }
+  });
+
+  it("CASE W5 — authenticated wanted runs the persistence handler (unit: no DB locally, branch proven)", async () => {
+    // The authenticated HTTP route resolves the user profile via the DB
+    // (unavailable in this local environment), so the authenticated branch
+    // is proven at the capability level: ctx.authUserId set → the tool's
+    // insertUserRequirement branch is taken (needsAuth is NOT set, the
+    // honest persistence-failure message is returned, and NO wanted action
+    // is fabricated).
+    const { result, sideEffect } = await executeAgentTool(
+      "createUserRequirement",
+      { query: "kia sportage", category: "vehicles", maxPrice: 20000 },
+      {
+        userCity: "Vilnius",
+        userRole: "buyer",
+        authUserId: "u-w5-test",
+        listingsSnapshot: [],
+      } as unknown as AgentToolContext
+    );
+    const r = result as { ok?: boolean; needsAuth?: boolean; message?: string };
+    assert.notEqual(r.needsAuth, true, "authenticated branch — no guest needsAuth");
+    assert.equal(r.ok, false, "no fabricated success without persistence");
+    assert.equal(sideEffect, undefined, "no fabricated wanted action without persistence");
+  });
+
+  it("CASE W11 — false positive never becomes wanted_registration", async () => {
+    const stream = await runWantedTurn(
+      "Pranešk, kai baigsi redaguoti skelbimą",
+      LLM_SEARCH_DECISION,
+      {}
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(
+      !tools.includes("createUserRequirement"),
+      "generic notify phrasing is not a catalog wanted request"
     );
   });
 });

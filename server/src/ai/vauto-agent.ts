@@ -175,7 +175,8 @@ import { extractConditionFromText } from "../shared/fact-conflict.js";
 import { extractCityFromText } from "./listing-contact-parse.js";
 // E2.8 — provenance boundary for model-suggested identity attributes.
 import { groundBrandAttributesInUserText } from "./agent-ui-tools.js";
-import { isAdvisoryInterrogative, isBareAmbiguousNoun } from "./planner/planner-signals.js";
+import { isAdvisoryInterrogative, isBareAmbiguousNoun, isExplicitWantedRequest } from "./planner/planner-signals.js";
+import { resolveUniversalSearchQuery } from "./search/universal-search-query.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -1869,6 +1870,59 @@ async function runVautoAgentInner(
     sellerMetrics: req.context.sellerMetrics,
   };
 
+  // E2.8 — EXPLICIT WANTED authority (first-class planner intent
+  // `wanted_registration`): the user's watch command itself is the
+  // authorization. Build the requirement PROVENANCE-SAFE (only tokens the
+  // user actually wrote; notify/residual words never become catalog
+  // keywords) and run the audited createUserRequirement capability —
+  // guest → needsAuth (no DB write), authenticated →
+  // insertUserRequirement with source "agent". No searchListings and no
+  // empty_search are prerequisites.
+  if (plannerDecision.intent === "wanted_registration") {
+    const uq = resolveUniversalSearchQuery(lastUserText);
+    const WANTED_NOTIFY_STOPWORDS = new Set([
+      "pranešk", "praneškit", "praneškite", "pranešti", "pranešimą",
+      "pranešimo", "kai", "kad", "jei", "jeigu", "atsiras", "atsirastų",
+      "stebėk", "stebėkit", "stebėti", "informuok", "informuokite",
+      "noriu", "gauti", "man", "ir",
+    ]);
+    const foldWanted = (s: string) =>
+      s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+    const keywords = uq.query.freeTextKeywords
+      .filter((k) => !WANTED_NOTIFY_STOPWORDS.has(foldWanted(k)))
+      .slice(0, 8);
+    const requirementArgs: Record<string, unknown> = {
+      query: keywords.join(" ").trim() || lastUserText.trim(),
+      ...(uq.query.canonicalCategory !== "other"
+        ? { category: uq.query.canonicalCategory }
+        : {}),
+      ...(uq.query.priceMax != null ? { maxPrice: uq.query.priceMax } : {}),
+      ...(uq.query.priceMin != null ? { minPrice: uq.query.priceMin } : {}),
+      ...(uq.query.location ? { city: uq.query.location } : {}),
+    };
+    const { result, sideEffect } = await executeAgentTool(
+      "createUserRequirement",
+      requirementArgs,
+      ctx
+    );
+    const wantedResult = result as
+      | { ok?: boolean; message?: string; needsAuth?: boolean }
+      | undefined;
+    const fallbackWantedReply =
+      "Stebėsiu rinką ir pranešiu, kai atsiras tinkamas skelbimas.";
+    const reply =
+      wantedResult?.message ??
+      (sideEffect && sideEffect.type === "create_user_requirement"
+        ? sideEffect.label ?? fallbackWantedReply
+        : fallbackWantedReply);
+    return {
+      ok: true,
+      reply,
+      toolCalls: [{ name: "createUserRequirement", result }],
+      actions: sideEffect ?? { type: "none" },
+    };
+  }
+
   const memoryBlock = buildAgentMemoryContextBlock(
     {
       defaultRegion: req.context.defaultRegion ?? ctx.userCity,
@@ -1984,11 +2038,14 @@ async function runVautoAgentInner(
     plannerDecision.routing === "deterministic_search";
   // E2.8 — the search-bar fast-path is a legitimate shortcut for REAL
   // searches, but an advice-seeking utterance must NEVER be forced into it:
-  // the advisory semantic class always wins over fromSearchBar.
+  // the advisory semantic class always wins over fromSearchBar. The same
+  // holds for explicit WANTED requests — the wanted registration executor
+  // owns those turns (fromSearchBar is ORIGIN metadata, not authority).
   const fromSearchBarRealSearch =
     Boolean(req.context.fromSearchBar) &&
     !detectServerSellIntent(lastUserText) &&
-    !isAdvisoryInterrogative(lastUserText);
+    !isAdvisoryInterrogative(lastUserText) &&
+    !isExplicitWantedRequest(lastUserText);
   const forceCatalogSearch =
     Boolean(lastUserText) &&
     !pendingChatImages?.length &&

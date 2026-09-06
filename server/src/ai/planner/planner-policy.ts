@@ -25,6 +25,7 @@ import {
   SEARCH_VERB_RE,
   isAdvisoryInterrogative,
   isBareAmbiguousNoun,
+  isExplicitWantedRequest,
   isInterrogative,
 } from "./planner-signals.js";
 import type { PlannerContextInput, PlannerDecision } from "./planner-types.js";
@@ -41,6 +42,7 @@ const INTENTS = [
   "publish_request",
   "financial_command",
   "consequential_command",
+  "wanted_registration",
   "ai_down_dialog",
   "dialog",
 ] as const;
@@ -82,6 +84,11 @@ export function deriveRoutingForIntent(
     case "dialog":
     case "consequential_command":
       return "model";
+    case "wanted_registration":
+      // E2.8 — wanted registration runs through the deterministic executor
+      // (audited createUserRequirement capability + auth policy); the model
+      // never executes this authority directly.
+      return "deterministic_executor";
     default:
       return "deterministic_executor";
   }
@@ -281,6 +288,35 @@ export function applyDeterministicClamps(
         confidence: Math.min(decision.confidence, 0.6),
         reasons: ["advisory_interrogative", ...decision.reasons.slice(0, 2)],
         advisoryContext: true,
+      },
+    };
+  }
+
+  // 3c. E2.8 — EXPLICIT WANTED is a deterministic policy boundary too.
+  //     A watch/notify-when-available utterance registers a requirement
+  //     through the audited createUserRequirement capability — regardless
+  //     of the LLM's intent (catalog_search / dialog / context_question /
+  //     clarify_ambiguous). No searchListings, no empty_search, no model
+  //     lottery. Runs AFTER the advisory override: advisory and wanted are
+  //     mutually unambiguous under their semantic helpers (advisory wins
+  //     if both ever matched).
+  if (isExplicitWantedRequest(text)) {
+    clamped.push("wanted_registration_override");
+    return {
+      clamped,
+      decision: {
+        ...decision,
+        intent: "wanted_registration",
+        goal: "register an explicit watch/notify requirement",
+        continuationOf: decision.continuationOf,
+        action: "create_user_requirement",
+        tool: null,
+        toolArgs: {},
+        needsClarification: false,
+        clarificationQuestion: null,
+        routing: "deterministic_executor",
+        confidence: 1,
+        reasons: ["explicit_wanted_request", ...decision.reasons.slice(0, 2)],
       },
     };
   }

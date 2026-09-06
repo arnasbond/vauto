@@ -2,7 +2,7 @@
 
 import { applyVinExtractionCandidate, type VinProvenance } from "../vehicle/vin-review.js";
 
-const VEHICLE_MAKES = [
+export const VEHICLE_MAKES = [
   "Audi",
   "BMW",
   "Citroën",
