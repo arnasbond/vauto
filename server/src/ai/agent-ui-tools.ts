@@ -267,3 +267,69 @@ export function resolveNavigateScreen(screenRaw: string): {
     message: `Atidaromas ekranas: ${screenRaw}.`,
   };
 }
+
+function foldIdentityToken(raw: string): string {
+  return raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+/** Token-boundary grounding: the folded identity value must appear as a
+ *  CONTIGUOUS token sequence in the user's folded text. Short tokens
+ *  (< 2 chars, e.g. single-digit model codes) can never be grounded this
+ *  way — they are always dropped (too ambiguous for substring matching). */
+function identityValueGrounded(foldedValue: string, hay: string): boolean {
+  if (foldedValue.length < 2) return false;
+  const valueTokens = foldedValue.split(/\s+/).filter(Boolean);
+  if (!valueTokens.length) return false;
+  const hayTokens = hay.split(/\s+/).filter(Boolean);
+  for (let i = 0; i + valueTokens.length <= hayTokens.length; i++) {
+    let ok = true;
+    for (let j = 0; j < valueTokens.length; j++) {
+      if (hayTokens[i + j] !== valueTokens[j]) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+
+/**
+ * E2.8 — PROVENANCE boundary for model-supplied identity attributes.
+ *
+ * A model-suggested brand/make/model may become a HARD UI facet only when
+ * it is grounded in the user's own words (token-boundary match against the
+ * user's text). Anything else is an AI recommendation and stays advisory —
+ * it is silently dropped from the category attributes instead of being
+ * materialized into activeSearchFilters.
+ *
+ * Grounding is ALWAYS required — including photo turns. Trusted multimodal
+ * grounding (OCR/vision) flows through separate deterministic pipelines;
+ * a model-supplied UI facet is never auto-authorized by the mere presence
+ * of a photo.
+ */
+export function groundBrandAttributesInUserText(
+  categoryAttributes: Record<string, string> | undefined,
+  userText: string
+): Record<string, string> | undefined {
+  if (!categoryAttributes) return undefined;
+  const hay = foldIdentityToken(userText);
+  const next: Record<string, string> = {};
+  for (const [key, value] of Object.entries(categoryAttributes)) {
+    const v = String(value ?? "").trim();
+    if (!v) continue;
+    if (key === "brand" || key === "make" || key === "model") {
+      const folded = foldIdentityToken(v);
+      if (!identityValueGrounded(folded, hay)) {
+        continue; // model-invented identity attribute → NOT a user facet
+      }
+    }
+    next[key] = v;
+  }
+  return Object.keys(next).length ? next : undefined;
+}

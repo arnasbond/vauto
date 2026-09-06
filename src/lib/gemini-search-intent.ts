@@ -106,6 +106,18 @@ const CATEGORY_MAP: Record<
 
 
 
+/**
+ * E2.8 — ADVISORY guard (client mirror of the server signal): advice-
+ * seeking utterances must never be coerced into a buyer-search frame that
+ * invents product/brand facets. An explicit search verb keeps the search
+ * intent.
+ */
+const CLIENT_ADVISORY_RE =
+  /\b(siūlytum|siūlytumėt|siulytum|siulytumet|rekomenduotum|rekomenduotumėt|rekomenduotumet|patartum|patartumėt|patartumet|patark|pad[ėe]k\s+(?:man\s+)?(?:išsirinkti|rinktis|pasirinkti|apsispr[ęe]sti|nuspr[ęe]sti)|nežinau\s+(?:ko|ką)\b|neturiu\s+(?:konkretaus|aiškaus)\b|kok(?:į|ią)\s+patartum)\b/i;
+
+const CLIENT_SEARCH_VERB_RE =
+  /\b(ieškau|ieskau|ieškok|ieskok|rask|surask|paieškok|paieskok|noriu\s+(?:rasti|pirkti)|find|search)\b/i;
+
 const VALID_CATEGORIES = new Set<string>([
 
   "Auto",
@@ -325,6 +337,16 @@ export async function resolveSearchIntent(
 
     return { cleanQuery: "", source: "fallback" };
 
+  }
+
+  // E2.8 — ADVISORY guard: advice-seeking utterances never enter the
+  // buyer-search intent analyzer — no model call, no invented
+  // product/brand facets (client mirror of the server guard).
+  if (
+    CLIENT_ADVISORY_RE.test(query) &&
+    !CLIENT_SEARCH_VERB_RE.test(query.toLowerCase())
+  ) {
+    return { cleanQuery: "", source: "fallback" };
   }
 
 

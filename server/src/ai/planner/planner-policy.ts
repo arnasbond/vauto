@@ -23,6 +23,7 @@ import {
   META_ASSISTANT_QUESTION_RE,
   PUBLISH_INTENT_MARKER_RE,
   SEARCH_VERB_RE,
+  isAdvisoryInterrogative,
   isBareAmbiguousNoun,
   isInterrogative,
 } from "./planner-signals.js";
@@ -309,6 +310,33 @@ export function applyDeterministicClamps(
   ) {
     clamped.push("interrogative_normalized_context_question");
     decision = { ...decision, intent: "context_question" };
+  }
+
+  // 5c. E2.8 — ADVISORY anti-search boundary: advice-seeking utterances
+  //     („ką siūlytum?“, „nežinau ko noriu“, „padėk išsirinkti“) must NEVER
+  //     become catalog_search, even with category/price/location facets and
+  //     high model confidence. The model answers with RECOMMENDATIONS in
+  //     text — no search side effect, no hard facets, no wishlist.
+  if (
+    decision.intent === "catalog_search" &&
+    isAdvisoryInterrogative(text)
+  ) {
+    clamped.push("advisory_interrogative_not_search");
+    return {
+      clamped,
+      decision: {
+        ...decision,
+        intent: "context_question",
+        goal: "answer an advice-seeking question",
+        action: "dialog_reply",
+        tool: null,
+        toolArgs: {},
+        needsClarification: decision.needsClarification,
+        clarificationQuestion: decision.clarificationQuestion,
+        routing: "model",
+        confidence: Math.min(decision.confidence, 0.6),
+      },
+    };
   }
 
   // 6. Tool whitelist — unknown tools are dropped (fail-closed to dialog).

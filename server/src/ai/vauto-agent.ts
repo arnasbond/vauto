@@ -173,6 +173,8 @@ import {
 } from "./planner/index.js";
 import { extractConditionFromText } from "../shared/fact-conflict.js";
 import { extractCityFromText } from "./listing-contact-parse.js";
+// E2.8 — provenance boundary for model-suggested identity attributes.
+import { groundBrandAttributesInUserText } from "./agent-ui-tools.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -2467,7 +2469,23 @@ async function runVautoAgentInner(
       if (fx) {
         if (fx.type === "micro_payment") microPaymentEffect = fx;
         else if (fx.type === "navigate") navigateEffect = fx;
-        else if (fx.type === "apply_ui_filters") uiFilterEffect = fx;
+        else if (fx.type === "apply_ui_filters") {
+          // E2.8 — PROVENANCE: a model-suggested brand/make/model attribute
+          // becomes a hard UI facet ONLY when grounded (token-boundary) in
+          // the user's words. This applies to EVERY turn including photo
+          // turns — trusted OCR/vision grounding flows through separate
+          // deterministic pipelines; a photo alone never authorizes
+          // arbitrary model-supplied identity facets.
+          uiFilterEffect = fx.categoryAttributes
+            ? {
+                ...fx,
+                categoryAttributes: groundBrandAttributesInUserText(
+                  fx.categoryAttributes,
+                  lastUserText
+                ),
+              }
+            : fx;
+        }
         else if (fx.type === "navigate_to_screen") navigateScreenEffect = fx;
         else if (
           fx.type === "create_user_requirement" ||

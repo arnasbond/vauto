@@ -53,6 +53,25 @@ export function isInterrogative(text: string): boolean {
   return /\?\s*$/.test(text.trim()) || QUESTION_MARKER_RE.test(text);
 }
 
+/**
+ * E2.8 — ADVISORY markers: the user asks for advice/help/deciding instead
+ * of commanding a search. A semantic CLASS (advice verbs + indecision
+ * phrases), never a phrase dictionary.
+ */
+export const ADVISORY_MARKER_RE =
+  /\b(siūlytum|siūlytumėt|siulytum|siulytumet|rekomenduotum|rekomenduotumėt|rekomenduotumet|patartum|patartumėt|patartumet|patark|pad[ėe]k\s+(?:man\s+)?(?:išsirinkti|rinktis|pasirinkti|apsispr[ęe]sti|nuspr[ęe]sti)|nežinau\s+(?:ko|ką)\b|neturiu\s+(?:konkretaus|aiškaus)\b|kok(?:į|ią)\s+patartum)\b/i;
+
+/**
+ * E2.8 — advisory/interrogative utterances (advice-seeking) must NEVER be
+ * auto-converted into catalog_search by facet signals alone. An explicit
+ * search verb keeps the search intent.
+ */
+export function isAdvisoryInterrogative(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  return ADVISORY_MARKER_RE.test(t) && !SEARCH_VERB_RE.test(t.toLowerCase());
+}
+
 /** Dialog stopwords — a phrase containing any of these is NOT a product noun. */
 export const DIALOG_STOPWORD_RE =
   /\b(pad[ėe]k|papasakok|paaiškink|paaiskink|parodyk|rodyk|noriu|gal|prašau|prasau|patark|duok|aš|as|man|mano|persigalvojau)\b/i;

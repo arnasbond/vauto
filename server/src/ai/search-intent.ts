@@ -1,5 +1,6 @@
 import { unifiedLlmJson, visionExtractJson } from "./llm-provider.js";
 import { normalizeImageInputList } from "./image-input.js";
+import { isAdvisoryInterrogative } from "./planner/planner-signals.js";
 import {
   VISION_ANTI_HALLUCINATION_RULE,
   WARDROBE_ANTI_HALLUCINATION_RULE,
@@ -248,6 +249,21 @@ export async function analyzeSearchIntent(
   input: AnalyzeSearchInput
 ): Promise<AnalyzeSearchResult> {
   const query = input.query.trim();
+
+  // E2.8 — ADVISORY guard: an advice-seeking utterance must NEVER be
+  // coerced into a buyer-search frame that invents a product/brand the user
+  // did not provide. Return a NEUTRAL result (no category, no cleanQuery)
+  // so no hard facet can be materialized from a model hallucination.
+  if (isAdvisoryInterrogative(query)) {
+    return {
+      category: null,
+      cleanQuery: "",
+      location: "",
+      radiusKm: null,
+      condition: null,
+    };
+  }
+
   const systemInstruction = `Esi VAUTO pirkėjo paieškos intent analizatorius. Semantiškai suprask lietuvių kalbą.
 Vartotojas IEŠKO skelbimų — nekelia skelbimo.
 ${SEARCH_ERROR_TOLERANCE_RULE}

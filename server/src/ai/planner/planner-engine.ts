@@ -43,6 +43,7 @@ import {
   PUBLISH_INTENT_MARKER_RE,
   QUESTION_MARKER_RE,
   SEARCH_VERB_RE,
+  isAdvisoryInterrogative,
   productNounScore,
 } from "./planner-signals.js";
 import type {
@@ -252,6 +253,18 @@ function planTurnInner(input: PlannerContextInput): PlannerDecision {
         goal: "deny publish without authentication",
         action: "policy_deny_auth",
         reasons: ["publish_intent", "unauthenticated", "no_draft"],
+      });
+    }
+
+    // E2.8 — ADVISORY anti-search: advice-seeking utterances must never
+    // become catalog_search via facet signals. Explicit search verbs keep
+    // the search intent.
+    if (isAdvisoryInterrogative(text)) {
+      return decision("context_question", "model", {
+        goal: "answer an advice-seeking question",
+        action: "dialog_reply",
+        reasons: ["advisory_interrogative"],
+        confidence: 0.8,
       });
     }
 
