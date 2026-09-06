@@ -31,6 +31,10 @@ import { subscribeHomeReset } from "@/lib/home-reset";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { interpretAiFacets } from "@/lib/ai-facet-interpretation";
 import { applyFacetChips } from "@/lib/apply-ai-facet";
+import {
+  resolveCommandMaterialization,
+} from "@/lib/ai-command-authority";
+import { isClientAdvisoryQuery } from "@/lib/gemini-search-intent";
 import { AI_FIRST_SEARCH_PLACEHOLDER } from "@/lib/ai-first-search-vision";
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
 import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
@@ -431,33 +435,54 @@ export function AiCommandBar({
         // 21D-6 — a newer commit (B) superseded this one while the agent was
         // working: drop this stale response entirely (no state writes).
         if (seq !== commitSeqRef.current) return;
+        // E2.8 CLIENT AUTHORITY FIX — search state materializes ONLY from a
+        // server-authorized action outcome; advisory turns (actions none)
+        // stay conversational and never write the raw text into search
+        // state / filters / grid / wanted UI.
         if (!conductorShouldDelegateLegacy(route)) {
           const exec = readConductorSearchExecute(route);
-          if (exec?.agentResult.actions) {
-            syncGridFromAgentActions(exec.agentResult.actions);
-          } else if (exec?.agentResult.ok) {
-            scrollToResults();
-          } else {
+          const decision = resolveCommandMaterialization(
+            {
+              actions: exec?.agentResult.actions ?? null,
+              ok: Boolean(exec?.agentResult.ok),
+              reply: exec?.agentResult.reply ?? null,
+            },
+            q,
+            "conductor"
+          );
+          if (decision.applyActions) {
+            syncGridFromAgentActions(decision.applyActions);
+          }
+          if (decision.persistQuery) persistInterpretationQuery(q, seq);
+          if (decision.scrollToResults) scrollToResults();
+          if (decision.clearDraftOnly) clearDraftOnly();
+          if (decision.deterministicFallback) {
             runDeterministicFacetSearch(q, "agent_unavailable");
           }
-          persistInterpretationQuery(q, seq);
-          scrollToResults();
           return;
         }
         const res = await sendAgentMessage(q, { fromSearchBar: true });
         if (seq !== commitSeqRef.current) return;
-        if (res.actions) {
-          syncGridFromAgentActions(res.actions);
-        } else if (res.ok) {
-          clearDraftOnly();
-        } else if (res.reply) {
-          scrollToResults();
-        } else {
+        const decision = resolveCommandMaterialization(
+          {
+            actions: res.actions ?? null,
+            ok: Boolean(res.ok),
+            reply: res.reply ?? null,
+          },
+          q,
+          "legacy"
+        );
+        if (decision.applyActions) {
+          syncGridFromAgentActions(decision.applyActions);
+        }
+        if (decision.persistQuery) persistInterpretationQuery(q, seq);
+        if (decision.scrollToResults) scrollToResults();
+        if (decision.clearDraftOnly) clearDraftOnly();
+        if (decision.deterministicFallback) {
           runDeterministicFacetSearch(q, "agent_error");
         }
-        persistInterpretationQuery(q, seq);
       } catch {
-        if (seq === commitSeqRef.current) {
+        if (seq === commitSeqRef.current && !isClientAdvisoryQuery(q)) {
           runDeterministicFacetSearch(q, "agent_unavailable");
         }
       } finally {

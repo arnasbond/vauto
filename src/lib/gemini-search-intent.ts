@@ -323,6 +323,23 @@ function enforceWardrobeVisualIntent(
 
  */
 
+/**
+ * E2.8 CLIENT AUTHORITY FIX — deterministic (no model call) mirror of the
+ * server `isAdvisoryInterrogative`: advice-seeking utterances are NEVER
+ * search authorization, even when the agent is unavailable. An explicit
+ * search verb keeps search semantics.
+ */
+export function isClientAdvisoryQuery(query: string): boolean {
+
+  const q = query.trim();
+
+  if (!q) return false;
+
+  return CLIENT_ADVISORY_RE.test(q) && !CLIENT_SEARCH_VERB_RE.test(q.toLowerCase());
+
+}
+
+
 export async function resolveSearchIntent(
 
   rawQuery: string,
