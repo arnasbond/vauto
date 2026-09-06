@@ -175,7 +175,7 @@ import { extractConditionFromText } from "../shared/fact-conflict.js";
 import { extractCityFromText } from "./listing-contact-parse.js";
 // E2.8 — provenance boundary for model-suggested identity attributes.
 import { groundBrandAttributesInUserText } from "./agent-ui-tools.js";
-import { isAdvisoryInterrogative } from "./planner/planner-signals.js";
+import { isAdvisoryInterrogative, isBareAmbiguousNoun } from "./planner/planner-signals.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -983,12 +983,19 @@ async function runVautoAgentInner(
       };
     }
     if (plannerDecision.intent === "clarify_ambiguous") {
-      return {
-        ok: true,
-        reply: executorClarifyAmbiguousReply(lastUserText),
-        toolCalls: [],
-        actions: { type: "none" },
-      };
+      // E2.8 — defense-in-depth: the buy/sell clarification executor may
+      // only consume a genuinely BARE ambiguous product token (e.g.
+      // „iPhone“). Any other input — a full advisory sentence or any
+      // phrase the advisory policy did not classify — proceeds to the
+      // model loop instead of being echoed into a buy/sell question.
+      if (isBareAmbiguousNoun(lastUserText)) {
+        return {
+          ok: true,
+          reply: executorClarifyAmbiguousReply(lastUserText),
+          toolCalls: [],
+          actions: { type: "none" },
+        };
+      }
     }
   }
 

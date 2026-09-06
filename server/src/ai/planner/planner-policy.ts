@@ -252,6 +252,39 @@ export function applyDeterministicClamps(
     };
   }
 
+  // 3b. E2.8 — ADVISORY SEMANTIC CLASS IS A DETERMINISTIC POLICY
+  //     BOUNDARY. If the current utterance is advice-seeking
+  //     (isAdvisoryInterrogative — a semantic class that already excludes
+  //     explicit search verbs), the FINAL decision is ALWAYS advisory:
+  //     context_question + model routing + advisoryContext=true. The LLM
+  //     planner may contribute reasoning/context but can NEVER override
+  //     this class — no clarify buy/sell echo, no catalog fast-path, no
+  //     turn with advisoryContext unset. This runs BEFORE the ordinary
+  //     intent/routing clamps so every LLM output (clarify_ambiguous,
+  //     dialog, context_question, low- or high-confidence catalog_search)
+  //     converges to the same advisory decision.
+  if (isAdvisoryInterrogative(text)) {
+    clamped.push("advisory_interrogative_override");
+    return {
+      clamped,
+      decision: {
+        ...decision,
+        intent: "context_question",
+        goal: "answer an advice-seeking question",
+        continuationOf: decision.continuationOf,
+        action: "dialog_reply",
+        tool: null,
+        toolArgs: {},
+        needsClarification: false,
+        clarificationQuestion: null,
+        routing: "model",
+        confidence: Math.min(decision.confidence, 0.6),
+        reasons: ["advisory_interrogative", ...decision.reasons.slice(0, 2)],
+        advisoryContext: true,
+      },
+    };
+  }
+
   // 4. E2.5 — AMBIGUOUS bare marketplace nouns must NEVER auto-route to
   //    catalog search, regardless of the model's confidence.
   if (

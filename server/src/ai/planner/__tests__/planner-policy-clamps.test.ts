@@ -238,3 +238,120 @@ describe("E2.6 — interrogative normalization (advice/recommendation → contex
     assert.equal(d.routing, "model");
   });
 });
+
+describe("E2.8 — advisory semantic class is a DETERMINISTIC policy boundary (totality)", () => {
+  const ADVISORY =
+    "Nežinau ko noriu, bet reikia šeimai patikimo automobilio iki 20 tūkst. eurų, ką siūlytum?";
+
+  const CLARIFY_DECISION = {
+    intent: "clarify_ambiguous",
+    goal: "disambiguate buy vs sell",
+    continuationOf: "none",
+    action: "clarify_buy_or_sell",
+    tool: null,
+    toolArgs: {},
+    needsClarification: true,
+    clarificationQuestion: `Ar norite „${ADVISORY}“ pirkti ar parduoti?`,
+    confidence: 0.9,
+    reasons: ["ambiguous"],
+  };
+
+  const CONTEXT_QUESTION_DECISION = {
+    intent: "context_question",
+    goal: "answer a question",
+    continuationOf: "none",
+    action: "dialog_reply",
+    tool: null,
+    toolArgs: {},
+    needsClarification: false,
+    confidence: 0.8,
+    reasons: ["question"],
+  };
+
+  function assertAdvisoryClass(d: Awaited<ReturnType<typeof resolvePlannerDecision>>) {
+    assert.equal(d.intent, "context_question", "advisory semantic class wins");
+    assert.equal(d.routing, "model", "model reasoning is never bypassed");
+    assert.equal(d.advisoryContext, true, "advisory capability policy is ALWAYS active");
+    assert.equal(d.tool, null, "no tool — the model answers in text");
+    assert.equal(d.needsClarification, false);
+    assert.equal(d.clarificationQuestion, null);
+  }
+
+  it("CASE J — LLM clarify_ambiguous for the advisory sentence → rewritten to advisory context_question", async () => {
+    setPlannerAdapterForTests(searchHappyAdapter(CLARIFY_DECISION));
+    const d = await resolvePlannerDecision(ctx({ lastUserText: ADVISORY }));
+    assertAdvisoryClass(d);
+    assert.ok(
+      (d.reasons ?? []).includes("advisory_interrogative"),
+      "override reason recorded"
+    );
+  });
+
+  it("CASE K — LLM context_question directly for advisory → advisoryContext STILL set (totality)", async () => {
+    setPlannerAdapterForTests(searchHappyAdapter(CONTEXT_QUESTION_DECISION));
+    const d = await resolvePlannerDecision(ctx({ lastUserText: ADVISORY }));
+    assertAdvisoryClass(d);
+  });
+
+  it("CASE Kb — LLM dialog directly for advisory → advisoryContext set", async () => {
+    setPlannerAdapterForTests(searchHappyAdapter(DIALOG_DECISION));
+    const d = await resolvePlannerDecision(ctx({ lastUserText: ADVISORY }));
+    assertAdvisoryClass(d);
+  });
+
+  it("CASE L — LLM catalog_search confidence 0.5 for advisory → deterministic advisory override", async () => {
+    setPlannerAdapterForTests(
+      searchHappyAdapter({ ...SEARCH_DECISION, confidence: 0.5 })
+    );
+    const d = await resolvePlannerDecision(ctx({ lastUserText: ADVISORY }));
+    assertAdvisoryClass(d);
+  });
+
+  it("CASE L2 — LLM catalog_search confidence 0.95 CANNOT defeat the advisory class", async () => {
+    setPlannerAdapterForTests(
+      searchHappyAdapter({ ...SEARCH_DECISION, confidence: 0.95 })
+    );
+    const d = await resolvePlannerDecision(ctx({ lastUserText: ADVISORY }));
+    assertAdvisoryClass(d);
+  });
+
+  it("CASE O — every LLM intent converges to the identical advisory decision", async () => {
+    for (const decision of [
+      CLARIFY_DECISION,
+      CONTEXT_QUESTION_DECISION,
+      DIALOG_DECISION,
+      { ...SEARCH_DECISION, confidence: 0.5 },
+      { ...SEARCH_DECISION, confidence: 0.95 },
+    ]) {
+      setPlannerAdapterForTests(searchHappyAdapter(decision));
+      const d = await resolvePlannerDecision(ctx({ lastUserText: ADVISORY }));
+      assertAdvisoryClass(d);
+    }
+  });
+
+  it("CASE M — explicit search verb is NOT overridden (surask Kia Sportage iki 20000)", async () => {
+    setPlannerAdapterForTests(searchHappyAdapter(SEARCH_DECISION));
+    const d = await resolvePlannerDecision(
+      ctx({ lastUserText: "surask Kia Sportage iki 20000" })
+    );
+    assert.equal(d.intent, "catalog_search");
+    assert.equal(d.tool, "searchListings");
+    assert.notEqual(d.advisoryContext, true);
+  });
+
+  it("CASE M — facet query without advice stays search (parodyk automobilius iki 20000)", async () => {
+    setPlannerAdapterForTests(searchHappyAdapter(SEARCH_DECISION));
+    const d = await resolvePlannerDecision(
+      ctx({ lastUserText: "parodyk automobilius iki 20000" })
+    );
+    assert.equal(d.intent, "catalog_search");
+  });
+
+  it("CASE N — true bare-noun ambiguity is preserved (iPhone → buy/sell clarify)", async () => {
+    setPlannerAdapterForTests(searchHappyAdapter(SEARCH_DECISION));
+    const d = await resolvePlannerDecision(ctx({ lastUserText: "iPhone" }));
+    assert.equal(d.intent, "clarify_ambiguous");
+    assert.equal(d.routing, "deterministic_executor");
+    assert.ok(d.clarificationQuestion?.includes("pirkti ar parduoti"));
+  });
+});

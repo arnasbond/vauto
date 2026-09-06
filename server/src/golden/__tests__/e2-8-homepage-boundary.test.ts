@@ -16,7 +16,15 @@ import { setThreadStoreForTests } from "../../agent-core/thread-store-instance.j
 import { optionalAuth } from "../../middleware/auth.js";
 import { vautoAgentRouter } from "../../routes/vauto-agent.js";
 import { planTurn } from "../../ai/planner/planner-engine.js";
-import { setPlannerDecisionProviderForTests } from "../../ai/planner/planner-orchestrator.js";
+import {
+  setPlannerAdapterForTests,
+  setPlannerDecisionProviderForTests,
+} from "../../ai/planner/planner-orchestrator.js";
+import type {
+  PlannerLlmAdapter,
+  PlannerStructuredRequest,
+  PlannerStructuredResponse,
+} from "../../ai/planner/planner-provider.js";
 import {
   createScriptedModelProvider,
   fc,
@@ -28,6 +36,7 @@ import { parseLiveStreamBody } from "../harness/live-stream-parser.js";
 afterEach(() => {
   setThreadStoreForTests(null);
   setPlannerDecisionProviderForTests(null);
+  setPlannerAdapterForTests(null);
   delete process.env.GEMINI_API_KEY;
 });
 
@@ -76,6 +85,106 @@ async function runHomepageTurn(
     if (prev) globalThis.fetch = prev;
   }
 }
+
+/**
+ * E2.8 DETERMINISTIC ADVISORY POLICY — drives the REAL production LLM-
+ * planner path (adapter → zod → deriveRouting → applyDeterministicClamps)
+ * with a scripted planner output, then the REAL /stream route. The
+ * advisory semantic class must survive ANY schema-valid planner intent.
+ */
+function llmPlannerAdapter(decision: Record<string, unknown>): PlannerLlmAdapter {
+  return {
+    providerId: "scripted-planner",
+    async planStructured(_req: PlannerStructuredRequest): Promise<PlannerStructuredResponse> {
+      return { args: decision, provider: "scripted-planner", model: "sp-1" };
+    },
+  };
+}
+
+async function runHomepageTurnWithLlmPlanner(
+  userText: string,
+  plannerDecision: Record<string, unknown>,
+  scriptedModelText: string,
+  toolParts: Array<ReturnType<typeof fc> | ReturnType<typeof text>> = []
+) {
+  setThreadStoreForTests(new InMemoryThreadStore());
+  setPlannerAdapterForTests(llmPlannerAdapter(plannerDecision));
+  const recorder = createScriptedModelProvider({
+    turns: [[round(...[...toolParts, text(scriptedModelText)])]],
+    exhausted: { parts: [] },
+  });
+  const prev = recorder.install();
+  process.env.GEMINI_API_KEY = "e28-boundary-key";
+  const app = createApp();
+  try {
+    const res = await request(app)
+      .post("/api/vauto-agent/stream")
+      .send({
+        turnId: `e28-p`,
+        messages: [{ role: "user", text: userText }],
+        context: {
+          isAuthenticated: true,
+          userCity: "Vilnius",
+          contact: "+37060000000",
+          profilePhone: "+37060000000",
+          fromSearchBar: true, // EXACT homepage submission context
+        },
+      });
+    return parseLiveStreamBody(String(res.text ?? ""));
+  } finally {
+    recorder.restore();
+    if (prev) globalThis.fetch = prev;
+  }
+}
+
+const LLM_CLARIFY_DECISION = {
+  intent: "clarify_ambiguous",
+  goal: "disambiguate buy vs sell",
+  continuationOf: "none",
+  action: "clarify_buy_or_sell",
+  tool: null,
+  toolArgs: {},
+  needsClarification: true,
+  clarificationQuestion: `Ar norite „${ADVISORY}“ pirkti ar parduoti?`,
+  confidence: 0.9,
+  reasons: ["ambiguous"],
+};
+
+const LLM_CONTEXT_QUESTION_DECISION = {
+  intent: "context_question",
+  goal: "answer a question",
+  continuationOf: "none",
+  action: "dialog_reply",
+  tool: null,
+  toolArgs: {},
+  needsClarification: false,
+  confidence: 0.8,
+  reasons: ["question"],
+};
+
+const LLM_DIALOG_DECISION = {
+  intent: "dialog",
+  goal: "chat",
+  continuationOf: "none",
+  action: "dialog_reply",
+  tool: null,
+  toolArgs: {},
+  needsClarification: false,
+  confidence: 0.7,
+  reasons: ["chat"],
+};
+
+const LLM_SEARCH_DECISION = {
+  intent: "catalog_search",
+  goal: "search the catalog",
+  continuationOf: "none",
+  action: "catalog_search",
+  tool: "searchListings",
+  toolArgs: { query: "šeimos automobilis iki 20000" },
+  needsClarification: false,
+  confidence: 0.95,
+  reasons: ["model_guess"],
+};
 
 describe("E2.8 — real homepage boundary (/stream + fromSearchBar=true)", () => {
   it("advisory sentence is NEVER forced into catalog search — conversational reply, no wishlist", async () => {
@@ -313,6 +422,132 @@ describe("E2.8 — real homepage boundary (/stream + fromSearchBar=true)", () =>
     );
     assert.ok(
       stream.finalResult!.toolCalls.some((t) => t.name === "searchListings")
+    );
+  });
+});
+
+describe("E2.8 — deterministic advisory policy boundary (real LLM planner path)", () => {
+  it("CASE J — LLM planner clarify_ambiguous for the advisory sentence → conversational answer, NO buy/sell echo", async () => {
+    const stream = await runHomepageTurnWithLlmPlanner(
+      ADVISORY,
+      LLM_CLARIFY_DECISION,
+      "Galiu pasiūlyti patikimų šeimos automobilių iki 20 tūkst. — koks kėbulo tipas Jums svarbiausias?"
+    );
+    assert.ok(stream.finalResult, "final event arrived");
+    assert.doesNotMatch(
+      stream.finalResult!.reply,
+      /pirkti ar parduoti/i,
+      "deterministic buy/sell executor must not consume the advisory sentence"
+    );
+    assert.match(stream.finalResult!.reply, /pasiūlyti|svarbiausias/i);
+    assert.equal(
+      (stream.finalResult!.actions as Record<string, unknown>).type,
+      "none",
+      "no side effect"
+    );
+    assert.equal(stream.errorEvent, null);
+  });
+
+  it("CASE K — LLM planner context_question directly + model searchListings attempt → DENIED (advisoryContext total)", async () => {
+    const stream = await runHomepageTurnWithLlmPlanner(
+      ADVISORY,
+      LLM_CONTEXT_QUESTION_DECISION,
+      "Rekomenduoju žiūrėti Volvo arba Toyota iki 20 tūkst.",
+      [fc("searchListings", { query: "šeimos automobilis iki 20000" })]
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(
+      !tools.includes("searchListings"),
+      "advisoryContext must be TRUE even when the LLM already said context_question"
+    );
+    assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none");
+    assert.match(stream.finalResult!.reply, /Volvo|Toyota/i);
+  });
+
+  it("CASE L — LLM planner catalog_search confidence 0.5 for advisory → advisory override, tool denied", async () => {
+    const stream = await runHomepageTurnWithLlmPlanner(
+      ADVISORY,
+      { ...LLM_SEARCH_DECISION, confidence: 0.5 },
+      "Patarčiau rinktis naudotą benzininį hečbeką.",
+      [fc("searchListings", { query: "šeimos automobilis iki 20000" })]
+    );
+    assert.ok(
+      !stream.finalResult!.toolCalls.some((t) => t.name === "searchListings"),
+      "low-confidence search must not escape the advisory class"
+    );
+    assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none");
+    assert.match(stream.finalResult!.reply, /patarčiau|benzininį/i);
+  });
+
+  it("CASE L2 — LLM planner catalog_search confidence 0.95 CANNOT defeat the advisory policy", async () => {
+    const stream = await runHomepageTurnWithLlmPlanner(
+      ADVISORY,
+      { ...LLM_SEARCH_DECISION, confidence: 0.95 },
+      "Pasakykite daugiau apie važiavimo sąlygas — pasiūlysiu variantų.",
+      [fc("searchListings", { query: "šeimos automobilis iki 20000" })]
+    );
+    assert.ok(
+      !stream.finalResult!.toolCalls.some((t) => t.name === "searchListings"),
+      "high model confidence must not override the semantic advisory policy"
+    );
+    assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none");
+    assert.ok(stream.finalResult!.reply.length > 0);
+  });
+
+  it("CASE O — every LLM planner intent converges to the same advisory invariants", async () => {
+    const plannerVariants: Array<Record<string, unknown>> = [
+      LLM_CLARIFY_DECISION,
+      LLM_CONTEXT_QUESTION_DECISION,
+      LLM_DIALOG_DECISION,
+      { ...LLM_SEARCH_DECISION, confidence: 0.5 },
+      { ...LLM_SEARCH_DECISION, confidence: 0.95 },
+    ];
+    for (const planner of plannerVariants) {
+      const stream = await runHomepageTurnWithLlmPlanner(
+        ADVISORY,
+        planner,
+        "Galiu rekomenduoti patikimų variantų — patikslinkite biudžetą ir kėbulo tipą.",
+        [fc("searchListings", { query: "šeimos automobilis iki 20000" })]
+      );
+      assert.ok(
+        !stream.finalResult!.toolCalls.some((t) => t.name === "searchListings"),
+        `planner ${String(planner.intent)} must not authorize catalog execution`
+      );
+      assert.equal(
+        (stream.finalResult!.actions as Record<string, unknown>).type,
+        "none",
+        `planner ${String(planner.intent)} produced no side effect`
+      );
+      assert.ok(stream.finalResult!.reply.length > 0, "conversational reply completes");
+    }
+  });
+
+  it("CASE M — explicit search verb keeps catalog execution with the LLM planner (surask Kia Sportage iki 20000)", async () => {
+    const stream = await runHomepageTurnWithLlmPlanner(
+      "surask Kia Sportage iki 20000",
+      LLM_SEARCH_DECISION,
+      "Radau 1 variantą.",
+      [fc("searchListings", { query: "Kia Sportage iki 20000" })]
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(tools.includes("searchListings"), "explicit search executes");
+    const actionType = (stream.finalResult!.actions as Record<string, unknown>).type;
+    assert.ok(
+      actionType === "search" || actionType === "empty_search",
+      `search-class action emitted (got ${String(actionType)})`
+    );
+  });
+
+  it("CASE N — true bare-noun ambiguity keeps the buy/sell clarify (iPhone)", async () => {
+    const stream = await runHomepageTurnWithLlmPlanner(
+      "iPhone",
+      LLM_SEARCH_DECISION,
+      "nevyksta" // model loop is never reached — deterministic executor answers
+    );
+    assert.match(stream.finalResult!.reply, /pirkti ar parduoti/i);
+    assert.equal(
+      (stream.finalResult!.actions as Record<string, unknown>).type,
+      "none"
     );
   });
 });
