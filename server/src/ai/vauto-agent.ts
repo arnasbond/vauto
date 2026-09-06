@@ -175,8 +175,14 @@ import { extractConditionFromText } from "../shared/fact-conflict.js";
 import { extractCityFromText } from "./listing-contact-parse.js";
 // E2.8 — provenance boundary for model-suggested identity attributes.
 import { groundBrandAttributesInUserText } from "./agent-ui-tools.js";
-import { isAdvisoryInterrogative, isBareAmbiguousNoun, isExplicitWantedRequest } from "./planner/planner-signals.js";
+import {
+  isAdvisoryInterrogative,
+  isBareAmbiguousNoun,
+  isExplicitWantedRequest,
+  extractGroundedVehicleMake,
+} from "./planner/planner-signals.js";
 import { resolveUniversalSearchQuery } from "./search/universal-search-query.js";
+import { stripClientTransportWrappers } from "./agent-text-cleanup.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -1879,23 +1885,40 @@ async function runVautoAgentInner(
   // insertUserRequirement with source "agent". No searchListings and no
   // empty_search are prerequisites.
   if (plannerDecision.intent === "wanted_registration") {
-    const uq = resolveUniversalSearchQuery(lastUserText);
-    const WANTED_NOTIFY_STOPWORDS = new Set([
-      "pranešk", "praneškit", "praneškite", "pranešti", "pranešimą",
-      "pranešimo", "kai", "kad", "jei", "jeigu", "atsiras", "atsirastų",
-      "stebėk", "stebėkit", "stebėti", "informuok", "informuokite",
-      "noriu", "gauti", "man", "ir",
-    ]);
+    // E2.8 — PROVENANCE: extraction runs on the CLEAN user content —
+    // client transport/context wrappers ([Proaktyvi intervencija: …],
+    // [Nuotraukos įkeltos], [Dokumentas įkeltas: …]) are orchestration
+    // metadata and must never leak into the persisted requirement.
+    const cleanText = stripClientTransportWrappers(lastUserText);
+    const uq = resolveUniversalSearchQuery(cleanText);
+    // Diacritic-folded stopword set — comparison happens on the same
+    // folded representation on both sides.
+    const WANTED_NOTIFY_STOPWORDS = new Set(
+      [
+        "pranešk", "praneškit", "praneškite", "pranešti", "pranešimą",
+        "pranešimo", "kai", "kad", "jei", "jeigu", "atsiras", "atsirastų",
+        "stebėk", "stebėkit", "stebėti", "informuok", "informuokite",
+        "noriu", "gauti", "man", "ir",
+      ].map((w) => w.toLowerCase().normalize("NFD").replace(/\p{M}/gu, ""))
+    );
     const foldWanted = (s: string) =>
       s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
     const keywords = uq.query.freeTextKeywords
       .filter((k) => !WANTED_NOTIFY_STOPWORDS.has(foldWanted(k)))
       .slice(0, 8);
+    // Category hardening: an explicitly structured category wins; otherwise
+    // a make token GROUNDED in the user's words establishes the vehicle
+    // vertical. Never invented from elsewhere.
+    const groundedMake = extractGroundedVehicleMake(cleanText);
+    const category =
+      uq.query.canonicalCategory !== "other"
+        ? uq.query.canonicalCategory
+        : groundedMake
+          ? "vehicles"
+          : undefined;
     const requirementArgs: Record<string, unknown> = {
-      query: keywords.join(" ").trim() || lastUserText.trim(),
-      ...(uq.query.canonicalCategory !== "other"
-        ? { category: uq.query.canonicalCategory }
-        : {}),
+      query: keywords.join(" ").trim() || cleanText.trim(),
+      ...(category ? { category } : {}),
       ...(uq.query.priceMax != null ? { maxPrice: uq.query.priceMax } : {}),
       ...(uq.query.priceMin != null ? { minPrice: uq.query.priceMin } : {}),
       ...(uq.query.location ? { city: uq.query.location } : {}),

@@ -22,7 +22,8 @@ import type {
   PlannerStructuredResponse,
 } from "../planner-provider.js";
 import type { PlannerContextInput } from "../planner-types.js";
-import { isExplicitWantedRequest } from "../planner-signals.js";
+import { isExplicitWantedRequest, extractGroundedVehicleMake } from "../planner-signals.js";
+import { stripClientTransportWrappers } from "../../agent-text-cleanup.js";
 import { planTurn } from "../planner-engine.js";
 
 afterEach(() => {
@@ -196,6 +197,58 @@ describe("E2.8 — wanted_registration is a deterministic policy boundary (total
       setPlannerAdapterForTests(adapter(CATALOG_SEARCH));
       const d = await resolvePlannerDecision(ctx(phrase));
       assert.notEqual(d.intent, "wanted_registration", phrase);
+    }
+  });
+});
+
+describe("E2.8 — wanted extraction PROVENANCE (wrapper sanitization + grounding)", () => {
+  it("W-PRO-unit — client transport wrappers are stripped from the extraction source", () => {
+    assert.equal(
+      stripClientTransportWrappers(
+        "[Proaktyvi intervencija: match — pranešk, kai atsiras kia sportage iki 20000]"
+      ),
+      "pranešk, kai atsiras kia sportage iki 20000"
+    );
+    assert.equal(
+      stripClientTransportWrappers("[Nuotraukos įkeltos] pranešk, kai atsiras Kia Sportage"),
+      "pranešk, kai atsiras Kia Sportage"
+    );
+    assert.equal(
+      stripClientTransportWrappers("[Dokumentas įkeltas: pasas.pdf] pranešk, kai atsiras Volvo"),
+      "pranešk, kai atsiras Volvo"
+    );
+    assert.equal(
+      stripClientTransportWrappers(
+        "[Nuotraukos įkeltos][Dokumentas įkeltas: pasas.pdf] pranešk, kai atsiras Volvo"
+      ),
+      "pranešk, kai atsiras Volvo"
+    );
+    assert.equal(
+      stripClientTransportWrappers("pranešk, kai atsiras kia sportage"),
+      "pranešk, kai atsiras kia sportage",
+      "no wrapper → unchanged"
+    );
+  });
+
+  it("W-PRO5 — wrapper-only metadata is NOT a wanted request (no catalog target)", () => {
+    assert.equal(isExplicitWantedRequest("[Proaktyvi intervencija: match]"), false);
+    assert.equal(isExplicitWantedRequest("[Nuotraukos įkeltos]"), false);
+  });
+
+  it("W-PRO-unit — grounded make detection (token boundary, diacritics, multiword)", () => {
+    assert.equal(extractGroundedVehicleMake("pranešk, kai atsiras kia sportage"), "kia");
+    assert.equal(extractGroundedVehicleMake("Informuok, kai atsiras Volvo V70 iki 15000"), "volvo");
+    assert.equal(extractGroundedVehicleMake("pranešk, kai atsiras mercedes benz iki 20000"), "mercedes-benz");
+    assert.equal(extractGroundedVehicleMake("pranešk, kai atsiras automobilis iki 20000"), null);
+    assert.equal(extractGroundedVehicleMake("pranešk, kai atsiras mano skelbimas"), null);
+  });
+
+  it("W-PRO6 — diacritic wanted markers still classify as wanted", () => {
+    for (const phrase of [
+      "Informuok, kai atsiras Volvo V70 iki 15000",
+      "Praneškite, kai atsiras Škoda Octavia iki 12000",
+    ]) {
+      assert.equal(isExplicitWantedRequest(phrase), true, phrase);
     }
   });
 });

@@ -703,4 +703,69 @@ describe("E2.8 — first-class explicit wanted intent (real homepage boundary)",
       "generic notify phrasing is not a catalog wanted request"
     );
   });
+
+  it("W-PRO1 — proactive-wrapper wanted turn extracts a CLEAN grounded requirement", async () => {
+    const stream = await runWantedTurn(
+      "[Proaktyvi intervencija: match — pranešk, kai atsiras kia sportage iki 20000]",
+      LLM_SEARCH_DECISION,
+      {}
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(tools.includes("createUserRequirement"), "wanted capability executed");
+    assert.ok(!tools.includes("searchListings"), "no catalog search");
+    const actions = stream.finalResult!.actions as Record<string, unknown> & {
+      requirement?: { query?: string; maxPrice?: number; category?: string };
+      label?: string;
+      needsAuth?: boolean;
+    };
+    assert.equal(actions.type, "create_user_requirement");
+    assert.equal(actions.requirement?.query, "kia sportage", "wrapper + notify tokens must not persist");
+    assert.equal(actions.requirement?.maxPrice, 20000, "grounded price bound persists");
+    assert.equal(actions.requirement?.category, "vehicles", "grounded make normalizes the vehicle vertical");
+    assert.doesNotMatch(
+      actions.label ?? "",
+      /proaktyvi|intervencija|match/i,
+      "orchestration metadata never appears in the user-facing label"
+    );
+  });
+
+  it("W-PRO2 — wrapped ADVISORY stays conversational (no wanted, no search)", async () => {
+    const stream = await runWantedTurn(
+      "[Proaktyvi intervencija: match — nežinau ko noriu, bet reikia šeimai patikimo automobilio iki 20000, ką siūlytum?]",
+      LLM_SEARCH_DECISION,
+      {}
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(!tools.includes("createUserRequirement"), "not wanted");
+    assert.ok(!tools.includes("searchListings"), "not search");
+    assert.equal((stream.finalResult!.actions as Record<string, unknown>).type, "none");
+  });
+
+  it("W-PRO4 — attachment-prefix + explicit wanted → clean grounded extraction", async () => {
+    const stream = await runWantedTurn(
+      "[Nuotraukos įkeltos] pranešk, kai atsiras Kia Sportage iki 20000",
+      LLM_SEARCH_DECISION,
+      {}
+    );
+    const actions = stream.finalResult!.actions as Record<string, unknown> & {
+      requirement?: { query?: string; maxPrice?: number };
+    };
+    assert.equal(actions.type, "create_user_requirement");
+    assert.equal(actions.requirement?.query, "kia sportage");
+    assert.equal(actions.requirement?.maxPrice, 20000);
+  });
+
+  it("W-PRO5 — wrapper-only metadata is never catalog target evidence", async () => {
+    const stream = await runWantedTurn(
+      "[Proaktyvi intervencija: match]",
+      LLM_SEARCH_DECISION,
+      {}
+    );
+    const tools = stream.finalResult!.toolCalls.map((t) => t.name);
+    assert.ok(!tools.includes("createUserRequirement"), "no wanted registration from metadata");
+    assert.notEqual(
+      (stream.finalResult!.actions as Record<string, unknown>).type,
+      "create_user_requirement"
+    );
+  });
 });

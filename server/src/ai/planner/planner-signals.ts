@@ -137,6 +137,23 @@ const FOLDED_VEHICLE_MAKES: ReadonlySet<string> = new Set(
   VEHICLE_MAKES.map((m) => foldLower(m))
 );
 
+/**
+ * E2.8 — a make token GROUNDED in the user's own words (token-boundary,
+ * diacritic-folded). Used for provenance-safe requirement structure
+ * (category normalization) — never to INVENT make/model evidence.
+ */
+export function extractGroundedVehicleMake(text: string): string | null {
+  const folded = foldLower(text);
+  const tokens = new Set(folded.split(/\s+/));
+  const normalized = folded.replace(/[^a-z0-9]+/g, " ");
+  for (const m of [...FOLDED_VEHICLE_MAKES].sort((a, b) => b.length - a.length)) {
+    if (tokens.has(m)) return m;
+    const mn = m.replace(/[^a-z0-9]+/g, " ");
+    if (mn.includes(" ") && normalized.includes(mn)) return m;
+  }
+  return null;
+}
+
 export function isExplicitWantedRequest(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
@@ -145,9 +162,5 @@ export function isExplicitWantedRequest(text: string): boolean {
   const uq = resolveUniversalSearchQuery(t);
   if (uq.query.priceMin != null || uq.query.priceMax != null) return true;
   if (uq.query.canonicalCategory !== "other") return true;
-  const folded = foldLower(t);
-  const tokens = new Set(folded.split(/\s+/));
-  return [...FOLDED_VEHICLE_MAKES].some(
-    (m) => tokens.has(m) || (m.includes(" ") && folded.includes(m))
-  );
+  return extractGroundedVehicleMake(t) !== null;
 }
