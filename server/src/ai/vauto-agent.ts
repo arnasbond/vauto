@@ -179,6 +179,8 @@ import {
   isBareAmbiguousNoun,
   isExplicitWantedRequest,
   isNonExecutionDiscovery,
+  isExplicitExecutionDirective,
+  isCompactCatalogBrowse,
   extractGroundedVehicleMake,
 } from "./planner/planner-signals.js";
 import { resolveUniversalSearchQuery } from "./search/universal-search-query.js";
@@ -2059,17 +2061,20 @@ async function runVautoAgentInner(
   // hijack the search fast-path.
   const plannerForcesSearch =
     plannerDecision.routing === "deterministic_search";
-  // E2.8 — the search-bar fast-path is a legitimate shortcut for REAL
-  // searches, but a DISCOVERY/ADVISORY utterance must NEVER be forced
-  // into it: the discovery semantic class always wins over fromSearchBar.
-  // The same holds for explicit WANTED requests — the wanted registration
-  // executor owns those turns (fromSearchBar is ORIGIN metadata, not
-  // authority).
+  // E2.8 — POSITIVE search authority. fromSearchBar is ORIGIN metadata and
+  // can NEVER by itself force a catalog search: the fast-path may execute
+  // only when the turn is positively search-authorized by an explicit
+  // execution directive or a compact/bare catalog browse (facets present).
+  // Discovery/advisory, wanted, sell and meta/dialog utterances never gain
+  // search authority here. The negative exclusions below remain as defense
+  // in depth — they no longer DEFAULT "everything else" into search.
   const fromSearchBarRealSearch =
     Boolean(req.context.fromSearchBar) &&
     !detectServerSellIntent(lastUserText) &&
     !isNonExecutionDiscovery(lastUserText) &&
-    !isExplicitWantedRequest(lastUserText);
+    !isExplicitWantedRequest(lastUserText) &&
+    (isExplicitExecutionDirective(lastUserText) ||
+      isCompactCatalogBrowse(lastUserText));
   const forceCatalogSearch =
     Boolean(lastUserText) &&
     !pendingChatImages?.length &&

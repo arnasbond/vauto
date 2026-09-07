@@ -52,7 +52,9 @@ export const META_ASSISTANT_QUESTION_RE =
 
 /** E2.6 — is the utterance interrogative (a question, not a statement)? */
 export function isInterrogative(text: string): boolean {
-  return /\?\s*$/.test(text.trim()) || QUESTION_MARKER_RE.test(text);
+  const t = text.trim();
+  if (/\?\s*$/.test(t)) return true;
+  return FOLDED_QUESTION_MARKER_RE.test(foldBoundary(t));
 }
 
 /**
@@ -71,7 +73,8 @@ export const ADVISORY_MARKER_RE =
 export function isAdvisoryInterrogative(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
-  return ADVISORY_MARKER_RE.test(t) && !SEARCH_VERB_RE.test(t.toLowerCase());
+  const folded = foldBoundary(t);
+  return FOLDED_ADVISORY_MARKER_RE.test(folded) && !FOLDED_SEARCH_VERB_RE.test(folded);
 }
 
 /**
@@ -82,7 +85,7 @@ export function isAdvisoryInterrogative(text: string): boolean {
  * patarimo" does NOT (advice-seeking, not catalog seeking).
  */
 export const EXECUTION_DIRECTIVE_RE =
-  /\b(?:surask(?:ite)?|rask(?:ite)?|ieškok(?:ite)?|paieškok(?:ite)?|parodyk(?:ite)?|atrask(?:ite)?|ieškau(?!\s+(?:patarimo|patarimą|pagalbos|patarimų))|ieskau|find|search|show\s+me|noriu\s+(?:rasti|pirkti|pamatyti|peržiūrėti)|(?:gal|ar)\s+(?:gali(?:te)?|galėtum(?:ėte)?)\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti))\b/iu;
+  /\b(?:surask(?:ite)?|rask(?:ite)?|ieškok(?:ite)?|paieškok(?:ite)?|parodyk(?:ite)?|atrask(?:ite)?|ieškau(?!\s+(?:patarimo|patarimą|pagalbos|patarimų))|ieskau|find|search|show\s+me|noriu\s+(?:rasti|pirkti|pamatyti|peržiūrėti)|(?:gal|ar)\s+(?:gali(?:te)?|gal[ėe]t\p{L}*)\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti)|gal[ėe]t\p{L}*\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti))\b/iu;
 
 export function isExplicitExecutionDirective(text: string): boolean {
   const t = text.trim();
@@ -102,15 +105,59 @@ export function isExplicitExecutionDirective(text: string): boolean {
 const DISCOVERY_CLASS_RE =
   /\b(nežinau\s*,?\s*(?:ko|ką|kokį|kokią|kokio|kokios|kurį|kurią|kurio)|ką\s+(?:rinktis|rinktumeisi|rinktumėtės|rinkčiausi|rinktis|rekomenduotum(?:ėte|et)?|patartum(?:ėte|et)?|manai|daryti|pirkti|žiūrėti)|nuo\s+ko\s+pradėt(?:um|i|i)?|kas\s+(?:geriau|geresnis|tinka|tiktų|labiausiai\s+tiktų)|kaip\s+manai|ar\s+verta\b|nesu\s+tikr(?:a|as)\b|ieškau\s+patarimo|noriu\s+suprasti|koks\s+geriausias|rinktumeisi|rinktumėtės|pasiūlyk(?:ite)?|patark(?:ite)?)\b/iu;
 
+/**
+ * E2.8 — UNICODE-SAFE semantic boundaries.
+ *
+ * ASCII `\b` treats Lithuanian diacritic letters (ą/į/ų/ė/…) as NON-word
+ * characters, so a trailing `\b` after „ką", „kokį", „kokią", „kurį",
+ * „kurią" never matches and the discovery/advisory/interrogative class is
+ * missed. We NFD-fold (lowercase + strip combining marks) BOTH the input
+ * and the pattern source, so every boundary word is ASCII and `\b` is safe.
+ * This is a semantic CLASS fix, not a phrase dictionary.
+ */
+function foldBoundary(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+}
+
+function foldedRe(source: string): RegExp {
+  return new RegExp(foldBoundary(source), "i");
+}
+
+const FOLDED_QUESTION_MARKER_RE = foldedRe(QUESTION_MARKER_RE.source);
+const FOLDED_META_ASSISTANT_RE = foldedRe(META_ASSISTANT_QUESTION_RE.source);
+const FOLDED_ADVISORY_MARKER_RE = foldedRe(ADVISORY_MARKER_RE.source);
+const FOLDED_SEARCH_VERB_RE = foldedRe(SEARCH_VERB_RE.source);
+const FOLDED_DISCOVERY_CLASS_RE = foldedRe(DISCOVERY_CLASS_RE.source);
+
+/**
+ * E2.8 — a compact/bare catalog browse query: catalog facets (price bound,
+ * location, or a resolved category/browse) are present WITHOUT a search
+ * verb. This is the POSITIVE search-authority signal used by the
+ * fromSearchBar fast-path — facets justify catalog execution, the origin
+ * (fromSearchBar) never does.
+ */
+export function isCompactCatalogBrowse(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  const { query } = resolveUniversalSearchQuery(t);
+  return (
+    query.priceMin != null ||
+    query.priceMax != null ||
+    Boolean(query.location) ||
+    query.categoryBrowse ||
+    query.canonicalCategory !== "other"
+  );
+}
+
 export function isNonExecutionDiscovery(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
   if (isExplicitWantedRequest(t)) return false;
-  if (META_ASSISTANT_QUESTION_RE.test(t.toLowerCase())) return false;
+  if (FOLDED_META_ASSISTANT_RE.test(foldBoundary(t))) return false;
   const advisoryOrDiscovery =
     isAdvisoryInterrogative(t) ||
     isInterrogative(t) ||
-    DISCOVERY_CLASS_RE.test(t);
+    FOLDED_DISCOVERY_CLASS_RE.test(foldBoundary(t));
   if (!advisoryOrDiscovery) return false;
   return !isExplicitExecutionDirective(t);
 }
@@ -164,7 +211,7 @@ const WANTED_NOTIFY_ANCHOR_RE =
   /\b(pranešk(?:ite)?(?:\s+man)?|pranešimą|pranešimo|pranešti|informuok(?:ite)?(?:\s+man)?|stebėk(?:ite)?|sek(?:ti|ite)?\s+kain\p{L}*|watchlist|notify\s+me|alert\s+me)(?=\W|$)/iu;
 
 const WANTED_WHEN_AVAILABLE_RE =
-  /\b(kai|jei|jeigu)\s+atsiras\b|\batsiras\b[^.!?]{0,80}\b(pranešk|pranešti|pranešimą|informuok)(?=\W|$)|\bwhen\s+(?:it\s+)?becomes?\s+available\b/iu;
+  /\b(kai|jei|jeigu)\s+atsiras\b|\batsiras\b[^.!?]{0,80}\b(pranešk|pranešti|pranešimą|informuok)(?=\W|$)|\bwhen\s+[^.!?\n]{0,80}\s+(?:becomes?\s+available|appears?|shows?\s+up)\b/iu;
 
 function foldLower(s: string): string {
   return s

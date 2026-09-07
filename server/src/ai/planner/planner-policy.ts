@@ -319,6 +319,23 @@ export function applyDeterministicClamps(
     };
   }
 
+  // 3d. E2.8 — META/DIALOG questions about the assistant ITSELF must never
+  //     reach catalog execution, regardless of the model's intent. This is
+  //     defense-in-depth on top of the positive-allow fromSearchBar fast-path
+  //     (meta/dialog is a communicative act, not catalog authority).
+  if (META_ASSISTANT_QUESTION_RE.test(lower) && decision.intent === "catalog_search") {
+    clamped.push("meta_dialog_not_search");
+    decision = {
+      ...decision,
+      intent: "dialog",
+      action: "dialog_reply",
+      tool: null,
+      toolArgs: {},
+      routing: "model",
+      confidence: Math.min(decision.confidence, 0.4),
+    };
+  }
+
   // 4. E2.5 — AMBIGUOUS bare marketplace nouns must NEVER auto-route to
   //    catalog search, regardless of the model's confidence.
   if (
