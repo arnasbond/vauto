@@ -8,20 +8,14 @@ import {
 import { resolveAgentDisplayQuery } from "@/lib/agent-display-query";
 import { isEmptySearchWishlistCta } from "@/lib/matching-service";
 
-const BLOCKED_FALLBACK_FRAGMENTS = [
-  "šiuo metu neturime",
-  "rinkoje neradau",
-  "turguje neradau",
-  "atsiprašau, ne viską",
-  "tiesioginio atitikmens",
-  "deja, pagal",
-  "nieko tinkamo neradau",
-  "nieko neradau",
-  "pabandykime kitą frazę",
-] as const;
-
-const GENERIC_FALLBACK_RE =
-  /^(deja,|šiuo metu|atsiprašau, ne viską|pabandykime kitą frazę|nerasta atitinkančių|rezultat[uų]\s+nerasta)/i;
+/**
+ * E2.8 FINAL — structured zero-result sentence markers. Suppress ONLY raw
+ * legacy empty-search bubbles, never a legitimate META/ADVISORY/model answer
+ * that merely begins with "Šiuo metu…" or contains "neradau". Anchored so a
+ * zero-result sentence must actually START with a no-results marker.
+ */
+const RAW_EMPTY_SEARCH_RE =
+  /^(?:šiuo metu\s+(?:skelbim[ųu]|neturime|nerandame|nėra)|deja,\s*pagal|nieko\s+tinkamo\s+neradau|pabandykime kitą frazę|nerasta atitinkančių|rezultat[uų]\s+nerasta)/i;
 
 /** Brutal substring filter — skip stacked legacy fallback bubbles in DOM. */
 export function isBlockedFallbackBubble(text: string): boolean {
@@ -29,8 +23,7 @@ export function isBlockedFallbackBubble(text: string): boolean {
   if (!t) return true;
   // 0-result wishlist CTA must always render in chat.
   if (isEmptySearchWishlistCta(text)) return false;
-  if (GENERIC_FALLBACK_RE.test(t)) return true;
-  return BLOCKED_FALLBACK_FRAGMENTS.some((frag) => t.includes(frag));
+  return RAW_EMPTY_SEARCH_RE.test(t);
 }
 
 /** @deprecated use isBlockedFallbackBubble */

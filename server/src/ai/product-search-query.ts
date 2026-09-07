@@ -9,6 +9,7 @@ import {
   isCarAccessorySearch,
   isOfficeFurnitureSearch,
 } from "./search-disambiguation.js";
+import { CONTROL_LANGUAGE_STRIP_RE } from "../shared/search-fast-path.js";
 
 /** Conversational fillers — strip so SQL never AND-matches „kokius nors“. */
 const FILLER_TOKEN_RE =
@@ -76,6 +77,7 @@ function stripSearchPrefixes(raw: string): string {
 
 function stripFillers(raw: string): string {
   return raw
+    .replace(CONTROL_LANGUAGE_STRIP_RE, " ")
     .replace(FILLER_TOKEN_RE, " ")
     .replace(/\s+/g, " ")
     .trim();

@@ -3022,14 +3022,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           const text = assistantText.trim();
           if (!text) return;
           const allowEmptySearchCta = isEmptySearchWishlistCta(text);
-          if (
-            !allowEmptySearchCta &&
-            (text.startsWith("Šiuo metu") ||
-              text.startsWith("Deja, pagal") ||
-              text.startsWith("Atsiprašau"))
-          ) {
-            return;
-          }
           const structuredReplies = quickReplies?.filter(Boolean).slice(0, 4);
           const minChips = allowEmptySearchCta ? 1 : 2;
           setMessages((prev) => {
@@ -3202,13 +3194,20 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             : mergedAssistantText;
 
         if (finalAssistantText.trim()) {
+          const looksLikeSearchFallback =
+            finalAssistantText.startsWith("Šiuo metu") ||
+            finalAssistantText.startsWith("Deja, pagal") ||
+            finalAssistantText.startsWith("Atsiprašau");
+          // E2.8 FINAL — a META/ADVISORY/dialog answer (no executable action)
+          // is a legitimate model response and must render regardless of
+          // surface wording. Suppress the raw search fallback bubble only
+          // when a real search action actually produced it.
           if (
             isEmptySearchAction ||
             proactiveContactConfirmation ||
             isEmptySearchWishlistCta(finalAssistantText) ||
-            (!finalAssistantText.startsWith("Šiuo metu") &&
-              !finalAssistantText.startsWith("Deja, pagal") &&
-              !finalAssistantText.startsWith("Atsiprašau"))
+            !hasExecutableAction ||
+            !looksLikeSearchFallback
           ) {
             appendSupervisorAssistant(
               finalAssistantText,

@@ -18,6 +18,27 @@ const BROWSE_SCOPE_RE =
 const SEARCH_VERB_RE =
   /\b(ieškau|ieskau|ieškojau|ieskojau|rask|surask|parodyk|rodyk|noriu|reikia|domina|find|search|show|atidaryk|looking\s+for)\b/i;
 
+/**
+ * E2.8 FINAL — canonical execution/control language. Directive verbs
+ * (imperative + infinitive) and polite modal auxiliaries are ACTS of
+ * command/request, never catalog subject matter. One shared source so query
+ * tokenization and normalization cannot drift into exposing them.
+ * Diacritic-tolerant; the trailing lookahead keeps non-ASCII endings
+ * („galėtų", „galėčiau") safe from the ASCII `\b` boundary bug.
+ */
+export const CONTROL_LANGUAGE_RE =
+  /\b(?:parodyk(?:ite)?|parodyti|rodyk(?:ite)?|rodyti|surask(?:ite)?|surasti|rask(?:ite)?|rasti|ie[sš]kok(?:ite)?|ie[sš]koti|paie[sš]kok(?:ite)?|paie[sš]koti|atrask(?:ite)?|atrasti|atidaryk(?:ite)?|atidaryti|atverk(?:ite)?|atverti|ie[sš]kau|ie[sš]kojau|noriu|reikia|domina|nor[eė][cč]iau|gali(?:te?)?|gal[eė]t\p{L}*|gal[eė][cč]iau\p{L}*|find|search|show|looking\s+for)(?=\W|$)/iu;
+
+/**
+ * Global variant for `.replace` stripping. The non-global `CONTROL_LANGUAGE_RE`
+ * is used with `.test()` (stateless); a `g`-flagged regex carries `lastIndex`
+ * state across `.test()` calls, which would corrupt per-token filtering.
+ */
+export const CONTROL_LANGUAGE_STRIP_RE = new RegExp(
+  CONTROL_LANGUAGE_RE.source,
+  CONTROL_LANGUAGE_RE.flags + "g"
+);
+
 const STOP_TOKENS = new Set([
   "ieskau",
   "ieškau",
@@ -191,7 +212,13 @@ export function significantTokens(text: string): string[] {
     .replace(/[^\p{L}\p{N}\s€]/gu, " ")
     .split(/\s+/)
     .map((w) => w.trim())
-    .filter((w) => w.length >= 3 && !STOP_TOKENS.has(w) && !/^\d+$/.test(w));
+    .filter(
+      (w) =>
+        w.length >= 3 &&
+        !STOP_TOKENS.has(w) &&
+        !CONTROL_LANGUAGE_RE.test(w) &&
+        !/^\d+$/.test(w)
+    );
 }
 
 /** Strict NLP: keyword + price + exact city from the latest utterance only. */
@@ -244,7 +271,7 @@ export function extractSearchNlFilters(text: string): SearchNlFilters {
   }
 
   working = working
-    .replace(SEARCH_VERB_RE, " ")
+    .replace(CONTROL_LANGUAGE_STRIP_RE, " ")
     .replace(/\b(skelbimus?|skelbimą|skelbima)\b/gi, " ")
     .replace(
       /\b(kokius|kokias|kokie|kokia|kok[iį]|nors|bet\s*kok\w*|tokius|tokias|tokie|tokia|domina|nor[eė][cč]iau|gal[eė]tum(?:[eė]te)?)\b/gi,
