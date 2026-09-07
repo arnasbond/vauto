@@ -6,12 +6,54 @@
 
 ## Metadata
 
-- **Last verified date:** 2026-08-31
-- **Verified master SHA:** `3125b05dd081b20c23d6704d60d42482d6ca1d34`
+- **Last verified date:** 2026-09-07
+- **Verified master SHA:** `e9334af516d3e9619a36300cbd7a2d115bdfe38c`
 - **Production frontend:** https://www.vauto.lt (Vercel Production, deployed from the verified SHA)
 - **Production API:** https://vauto-api.onrender.com (Render; `/api/health.commitSha` reports the verified SHA)
 - **Stage 11 fingerprint:** SAME 89 / CHANGED 0 / MISSING 0
 - **Classification legend:** COMPLETE · COMPLETE WITH DEBT · PARTIAL · SUPERSEDED · UNVERIFIED · NOT STARTED
+
+## FROZEN MILESTONE — E2.8 AI Semantic Authority & Final UX/Query Hardening
+
+- **Status:** **PRODUCTION FULL PASS — FROZEN**
+- **Certified HEAD:** `e9334af516d3e9619a36300cbd7a2d115bdfe38c`
+- **Closure evidence (production-verified):**
+  - discovery vs execution authority boundary enforced;
+  - advisory / `context_question` never initiates a catalog search;
+  - META/dialog questions (e.g. `Ką tu gali?`) never initiate a search;
+  - wanted registration is a first-class capability — never an implicit search;
+  - explicit search / bare-browse directives retain search authority;
+  - polite Lithuanian directive/control language no longer leaks into the semantic product query;
+  - legitimate advisory replies are no longer suppressed by frontend fallback heuristics;
+  - `type:"none"` preserves prior search state as continuity while the advisory reply stays visible;
+  - conditional-wanted was **NOT** implemented (deferred);
+  - the E2.8 authority model was **NOT** widened;
+  - Stage 11 fingerprint `89 SAME / 0 CHANGED / 0 MISSING`;
+  - CI FULL PASS (build + api-integration + e2e);
+  - Render / Vercel / Android automatic workflows PASS;
+  - production deployment via the existing automatic workflow;
+  - ENV / DB / migrations unchanged.
+- **Do NOT re-run or "improve" E2.8** unless a newly reproduced regression proves a defect.
+
+## AI maturity hierarchy (post-E2.8)
+
+`AI Assistant Behavioral Resilience & Autonomy` is the **broader** mandatory AI-maturity block. Its first concrete implementation boundary after E2.8 is the **Universal Deterministic Cross-Vertical Fact Core** (NEXT IMPLEMENTATION GATE below). Completing the Fact Core does **not** by itself complete Behavioral Resilience — the remaining resilience obligations (prompt stacking / conflicting instructions, compact-vs-full policy drift, client/server trimming divergence, context overload, tool/capability routing, AI provider/down observability + graceful degradation, recovery, uncertainty/abstention, AI grounding / epistemic authority, Human-in-the-Loop, inert/disconnected safety-vision paths) stay open on the roadmap.
+
+> Recorded for later AI-maturity work (do NOT fix now): an advisory response may state current-market facts (e.g. "šiuo metu neturime Kia Sportage…") without executing a catalog lookup. This is an **AI grounding / epistemic-authority** item, not a defect in the E2.8 authority boundary.
+
+## North Star (unchanged — record only)
+
+This ledger does **not** change product direction. The governing principles remain (see `docs/VAUTO-NORTH-STAR.md`, `docs/VAUTO-PROJECT-CONSTITUTION.md`, `docs/VAUTO-EXECUTION-CONTRACT.md`):
+
+- "Pasakyk arba parodyk, ko nori. VAUTO padės padaryti visa kita."
+- AI padeda. Žmogus sprendžia.
+- AI DOWN != VAUTO DOWN.
+- One universal marketplace platform; verticals differ by data/capabilities, not by separate product architectures or themes.
+- Natural language + photos/documents + classic UI converge into the canonical marketplace core.
+- AI must not silently invent or choose a conflicting material fact; exactly one highest-value question instead of a long interview.
+- Consequential actions require human control/confirmation.
+- Stage 11/11J remains frozen.
+- MASTER LIGHT/DARK is the final visual source of truth.
 
 ## Ledger
 
@@ -115,12 +157,30 @@
 ## Current AI maturity statement
 
 - **Safety and human-control foundation: COMPLETE** (Phases 1, 2A, 2B, 2C, 2D, cross-vertical containment — all merged, CI-green, Production-verified).
+- **AI semantic authority (E2.8): COMPLETE — FROZEN** (discovery/execution/wanted/advisory boundary; positive search authority; advisory/search presentation).
 - **Atlas-level universal assistant: PARTIAL.**
 - **Cross-vertical fact/provenance/confidence/conflict core: PARTIAL** — generic extraction exists across multiple verticals; **deterministic provenance/confidence/conflict/uncertainty controls are materially complete only for transport**; other verticals remain partial and asymmetric.
+- **AI Behavioral Resilience & Autonomy: PARTIAL** — the E2.8 authority boundary and the audited sanitization fixes are complete; the remaining resilience obligations (prompt stacking, compact/full drift, trim divergence, context overload, tool routing, AI-down observability, recovery, uncertainty, Human-in-the-Loop, inert safety-vision paths) remain open.
 - **Multimodal input plumbing: PARTIAL / LIVE WITH ASYMMETRY.**
 - **Full behavioral/adversarial audit: NOT COMPLETE.**
 
 The AI maturity program as a whole is **NOT COMPLETE**.
+
+## NEXT IMPLEMENTATION GATE — Universal Deterministic Cross-Vertical Fact Core
+
+- **Status:** **PLANNED** (audited scope; NOT yet implemented).
+- **Purpose:** remove the transport-first deterministic fact asymmetry and establish one shared conflict/fact-resolution boundary across the core VAUTO verticals.
+- **Vertical matrix:** Transport · Real Estate · Electronics · Clothing · Services · Jobs · General/Other (where the canonical registry treats it as a distinct capability path).
+- **Primary invariant:** a **NON-VEHICLE draft must NEVER be mutated by vehicle-spec extraction.**
+- **Conflict lifecycle:** conflict detected → exactly one highest-value clarification → user resolves A/B (or canonical equivalent) → resolution applied deterministically → required transient marker survives the necessary client state round-trip → marker never persists as listing data → marker never becomes model-visible context.
+- **Audited minimal manifest (planned, NOT implemented):**
+  - `server/src/ai/vauto-agent.ts` — category-gate the vehicle spec-patch branch; generalize field conflict resolution;
+  - `server/src/ai/sell/next-question-policy.ts` — activate cross-vertical conflict producers (RE/electronics/etc.);
+  - `src/lib/listing-attribute-isolation.ts` — transient conflict-marker handling;
+  - `server/src/shared/listing-attributes-sanitize.ts` (+ canonical shared mirror) — strip ephemeral markers before persistence;
+  - `server/src/shared/llm-context-slice.ts` — model-hidden marker enforcement;
+  - `shared/vin-review.ts` (or current canonical ingress boundary) — prevent inappropriate marker/model leakage;
+  - neutralize remaining vehicle-first couplings only where directly required.
 
 ## Technical-debt register (record only — do not fix in the documentation PR)
 
@@ -138,18 +198,44 @@ The AI maturity program as a whole is **NOT COMPLETE**.
 12. **MASTER theme token fragmentation** — three CSS families + hex band-aids.
 13. **Performance/rollback/observability gaps** — no perf budgets, no automated rollback drill.
 
-## Next sequence (after this documentation PR is accepted)
+## Next sequence (post-E2.8 — authoritative order)
 
-1. North Star + Ledger closure. *(this PR)*
-2. Independently scope the **universal cross-vertical fact core**.
-3. Cross-vertical implementation with **equal scenarios** for all verticals.
-4. **Behavioral/adversarial AI audit** — long context, conflicting instructions, tool routing, AI-down, recovery, uncertainty, Human-in-the-Loop.
-5. Multimodal listing-intelligence completion.
-6. AI UX/UI integration.
-7. Remaining Stage 22/23 work.
-8. Repository-wide audit.
-9. Final release gate.
-10. Soft launch.
-11. Public launch.
+1. **E2.8 — PRODUCTION FULL PASS / FROZEN** (`e9334af5`).
+2. **Universal Deterministic Cross-Vertical Fact Core** (NEXT IMPLEMENTATION GATE).
+3. Independent audit / FULL PASS for the Fact Core.
+4. **Remaining AI Behavioral Resilience & Autonomy** (prompt stacking, compact/full drift, trim divergence, context overload, tool routing, AI-down observability + graceful degradation, recovery, uncertainty/abstention, Human-in-the-Loop, inert safety-vision paths).
+5. Full universal provenance/confidence/conflict maturity (F2).
+6. Multimodal Listing Intelligence completion (F3).
+7. "VAUTO mane suprato" AI UX integration (F4).
+8. Cross-vertical product completion (F5).
+9. Business capabilities (F6).
+10. MASTER LIGHT/DARK final convergence (F7).
+11. Performance/media budgets (F8).
+12. Trust/security/production maturity (F9).
+13. Repository-wide final audit (F10).
+14. GO/NO-GO (F11).
+15. Controlled soft launch (F12).
+16. Public launch (F13).
 
-> Do **not** assign a new Phase number until this Ledger is independently accepted.
+> The forward AI-maturity order above (F2–F13) is a **semantic sequence**, not new duplicate stage numbers: the existing numbered ledger items (1–27) and the release-readiness F8–F12 series are preserved. Do **not** assign a new Phase number until this Ledger is independently accepted.
+
+## Deferred (explicitly later — NOT part of the Fact Core gate)
+
+- Full provenance/confidence wiring (`shared/listing-intelligence` ↔ live draft).
+- Complete multimodal listing intelligence; vision pipeline expansion.
+- Prompt consolidation beyond the Fact Core's direct need.
+- Clothing 13A/schema architecture work.
+- Job-application real persistence.
+- Services Deal Room completion.
+- MASTER LIGHT/DARK final convergence.
+- Performance/media budgets.
+- Repository dead-code cleanup.
+- Final trust/security maturity.
+- Release gate; soft launch; public launch.
+
+## Historical branches & artifacts (record only)
+
+- `test/universal-fact-evidence-contract-final` = merged/certified historical evidence.
+- `test/universal-fact-evidence-contract` = superseded earlier iteration.
+- Other `recovery/*`, `release/stage15r*`, `feature/*`, `fix/*` historical branches: **do NOT resurrect without owner/auditor sign-off** — do not merge, delete, rebase, or check out for work.
+- Existing untracked audit/probe/artifact files (`audit-output/`, `docs/audit/**`, `docs/ui-stage18/`, `server/audit-output/`, `server/src/agent-core/**/e1-probe.ts`, `server/src/golden/probe.ts`) are left untouched — record only.
