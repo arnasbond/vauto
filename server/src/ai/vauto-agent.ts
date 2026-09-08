@@ -46,7 +46,12 @@ import { extractVehicleSpecsFromChat, buildVehicleDescriptionFromAttributes } fr
 import {
   extractRoomsVariants,
   extractWorkTypeVariants,
+  extractAreaVariants,
+  extractYearBuiltVariants,
+  extractStorageVariants,
   resolveAmbiguousVerticalPatch,
+  readSemanticConflicts,
+  buildSemanticConflictContext,
 } from "./sell/vertical-conflict-state.js";
 import { isVehicleFamilyCategory } from "../shared/category-registry.js";
 import {
@@ -1476,13 +1481,26 @@ async function runVautoAgentInner(
     );
     const hasDescEdit = descEdit.removed.length > 0;
 
-    // F5 closure — live vertical field-conflict state (rooms: REAL_ESTATE,
-    // workType: JOBS). Category-gated, deterministic, no LLM; unrelated turns
-    // preserve pending conflicts; only an explicit user choice resolves them;
-    // ambiguous multi-variant turns never pick silently.
+    // F5 closure — live vertical field-conflict state (rooms/area/yearBuilt:
+    // REAL_ESTATE, storage: ELECTRONICS, workType: JOBS). Category-gated,
+    // deterministic, no LLM; unrelated turns preserve pending conflicts; only
+    // an explicit user choice resolves them; ambiguous multi-variant turns
+    // never pick silently.
     const roomsVariants =
       listingDraft.category === "real_estate"
         ? extractRoomsVariants(lastUserText)
+        : [];
+    const areaVariants =
+      listingDraft.category === "real_estate"
+        ? extractAreaVariants(lastUserText)
+        : [];
+    const yearBuiltVariants =
+      listingDraft.category === "real_estate"
+        ? extractYearBuiltVariants(lastUserText)
+        : [];
+    const storageVariants =
+      listingDraft.category === "electronics"
+        ? extractStorageVariants(lastUserText)
         : [];
     const workTypeVariants =
       listingDraft.category === "jobs"
@@ -1494,6 +1512,24 @@ async function runVautoAgentInner(
       priorAttributes: listingDraft.attributes,
       variants: roomsVariants,
     });
+    const areaResolution = resolveAmbiguousVerticalPatch({
+      field: "area",
+      category: listingDraft.category,
+      priorAttributes: listingDraft.attributes,
+      variants: areaVariants,
+    });
+    const yearBuiltResolution = resolveAmbiguousVerticalPatch({
+      field: "yearBuilt",
+      category: listingDraft.category,
+      priorAttributes: listingDraft.attributes,
+      variants: yearBuiltVariants,
+    });
+    const storageResolution = resolveAmbiguousVerticalPatch({
+      field: "storage",
+      category: listingDraft.category,
+      priorAttributes: listingDraft.attributes,
+      variants: storageVariants,
+    });
     const workTypeResolution = resolveAmbiguousVerticalPatch({
       field: "workType",
       category: listingDraft.category,
@@ -1501,11 +1537,20 @@ async function runVautoAgentInner(
       variants: workTypeVariants,
     });
     const roomsPatch = roomsResolution.patch;
+    const areaPatch = areaResolution.patch;
+    const yearBuiltPatch = yearBuiltResolution.patch;
+    const storagePatch = storageResolution.patch;
     const workTypePatch = workTypeResolution.patch;
     const hasVerticalConflictUpdate =
       Object.keys(roomsPatch).length > 0 ||
+      Object.keys(areaPatch).length > 0 ||
+      Object.keys(yearBuiltPatch).length > 0 ||
+      Object.keys(storagePatch).length > 0 ||
       Object.keys(workTypePatch).length > 0 ||
       roomsResolution.needsClarification ||
+      areaResolution.needsClarification ||
+      yearBuiltResolution.needsClarification ||
+      storageResolution.needsClarification ||
       workTypeResolution.needsClarification;
 
     if (
@@ -1540,6 +1585,9 @@ async function runVautoAgentInner(
         ...(negoPatch?.attributes ?? {}),
         ...yearResolution,
         ...roomsPatch,
+        ...areaPatch,
+        ...yearBuiltPatch,
+        ...storagePatch,
         ...workTypePatch,
         ...(conditionFromText ? { condition: conditionFromText } : {}),
       };
@@ -1548,6 +1596,12 @@ async function runVautoAgentInner(
       for (const key of [
         "roomsConflict",
         "roomsConflictCandidate",
+        "areaConflict",
+        "areaConflictCandidate",
+        "yearBuiltConflict",
+        "yearBuiltConflictCandidate",
+        "storageConflict",
+        "storageConflictCandidate",
         "workTypeConflict",
         "workTypeConflictCandidate",
       ]) {
@@ -2247,6 +2301,20 @@ async function runVautoAgentInner(
     contents.unshift({
       role: "user",
       parts: [{ text: `[Vedlio kontekstas: ${wizardBits.join("; ")}]` }],
+    });
+  }
+
+  // Universal Fact Core — SEMANTIC conflict context. The model receives
+  // unresolved conflicts as plain bounded facts (field + current value +
+  // candidate value), never the internal `${field}Conflict` implementation
+  // markers. Reasoning stays model-owned; authorization/persistence stay
+  // deterministic.
+  const semanticConflicts = readSemanticConflicts(listingDraft?.attributes);
+  const semanticConflictBlock = buildSemanticConflictContext(semanticConflicts);
+  if (semanticConflictBlock) {
+    contents.unshift({
+      role: "user",
+      parts: [{ text: semanticConflictBlock }],
     });
   }
 

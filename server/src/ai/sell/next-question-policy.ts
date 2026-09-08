@@ -193,17 +193,20 @@ const QUESTION_TEXT: Record<string, string> = {
   // Real estate
   propertyType: "Koks objekto tipas — butas, namas ar kita?",
   area: "Koks plotas (m²)?",
+  areaConflict: "Nurodėte skirtingą plotą — kuris teisingas?",
   location: "Kokiame mieste ar rajone yra objektas?",
   heatingType: "Koks šildymo tipas?",
   rooms: "Kiek kambarių?",
   roomsConflict: "Nurodėte skirtingą kambarių skaičių — kiek iš tiesų kambarių?",
   yearBuilt: "Kokie statybos metai?",
+  yearBuiltConflict: "Nurodėte skirtingus statybos metus — kurie teisingi?",
   floor: "Kuriame aukšte?",
   // Electronics
   manufacturer: "Koks gamintojas?",
   condition: "Kokia prekės būklė?",
   deviceModel: "Koks tikslus modelis?",
   storage: "Kokia atmintis / konfigūracija?",
+  storageConflict: "Nurodėte skirtingą atmintį — kuri konfigūracija teisinga?",
   warranty: "Ar galioja gamintojo garantija?",
   // Fashion / Goods
   size: "Koks dydis?",

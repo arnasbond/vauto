@@ -135,6 +135,26 @@ export const FACT_CONFLICT_DRAFT_STATE_KEYS = [
   "conditionConflictCandidate",
 ] as const;
 
+/**
+ * Universal Fact Core — cross-vertical field-conflict draft-state keys
+ * (rooms/area/yearBuilt: real_estate; storage: electronics; workType: jobs).
+ * Same deterministic `${field}Conflict` + `${field}ConflictCandidate`
+ * convention as the certified year/price/city/condition reducers. Draft-only:
+ * stripped at the persistence boundary and redacted from model-visible context.
+ */
+export const VERTICAL_CONFLICT_DRAFT_STATE_KEYS = [
+  "roomsConflict",
+  "roomsConflictCandidate",
+  "areaConflict",
+  "areaConflictCandidate",
+  "yearBuiltConflict",
+  "yearBuiltConflictCandidate",
+  "storageConflict",
+  "storageConflictCandidate",
+  "workTypeConflict",
+  "workTypeConflictCandidate",
+] as const;
+
 /** VIN/year review draft state only applies to vehicle drafts (vehicles + transport). */
 function isVinDraftStateCategory(category: ListingCategory): boolean {
   const key = listingToAdaptiveKey(category);
@@ -255,6 +275,8 @@ export function allowedAttributeKeysForCategory(category: ListingCategory): Set<
   }
   // F9 — fact-conflict markers are category-neutral draft state.
   for (const key of FACT_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
+  // Universal Fact Core — cross-vertical field-conflict markers (draft-only).
+  for (const key of VERTICAL_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
   for (const [canonical, aliases] of Object.entries(ATTRIBUTE_ALIASES)) {
     if (allowed.has(canonical)) {
       for (const alias of aliases) allowed.add(alias);
@@ -299,6 +321,8 @@ export function activeAttributeKeysForListing(
   }
   // F9 — fact-conflict markers are category-neutral draft state.
   for (const key of FACT_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
+  // Universal Fact Core — cross-vertical field-conflict markers (draft-only).
+  for (const key of VERTICAL_CONFLICT_DRAFT_STATE_KEYS) allowed.add(key);
   allowed.add("_geoLat");
   allowed.add("_geoLng");
 

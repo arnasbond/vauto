@@ -32,6 +32,12 @@ const FIELD_CONFLICT_MODEL_HIDDEN_ATTR_KEYS = new Set<string>([
   "yearConflictCandidate",
   "roomsConflict",
   "roomsConflictCandidate",
+  "areaConflict",
+  "areaConflictCandidate",
+  "yearBuiltConflict",
+  "yearBuiltConflictCandidate",
+  "storageConflict",
+  "storageConflictCandidate",
   "workTypeConflict",
   "workTypeConflictCandidate",
   // F9 — canonical fact-conflict markers stay out of the model-visible
