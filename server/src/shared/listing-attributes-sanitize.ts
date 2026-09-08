@@ -59,6 +59,12 @@ export const EPHEMERAL_LISTING_ATTR_KEYS = new Set([
   "yearConflictCandidate",
   "roomsConflict",
   "roomsConflictCandidate",
+  "areaConflict",
+  "areaConflictCandidate",
+  "yearBuiltConflict",
+  "yearBuiltConflictCandidate",
+  "storageConflict",
+  "storageConflictCandidate",
   "workTypeConflict",
   "workTypeConflictCandidate",
   // F9 — canonical fact-conflict markers (price/city/condition) follow the
