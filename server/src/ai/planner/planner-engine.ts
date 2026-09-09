@@ -249,26 +249,26 @@ function planTurnInner(input: PlannerContextInput): PlannerDecision {
   }
 
   // ── 3. NO DRAFT ──────────────────────────────────────────────────────────
+  // E2.8 — DISCOVERY/ADVISORY anti-execution: advisory utterances (without an
+  // explicit execution directive) are NEVER sell or search. Checked BEFORE the
+  // sell heuristic so "ar verta parduoti" stays advisory and is never
+  // converted into sell_create.
+  if (isNonExecutionDiscovery(text)) {
+    return decision("context_question", "model", {
+      goal: "answer an advice-seeking question",
+      action: "dialog_reply",
+      reasons: ["advisory_interrogative"],
+      confidence: 0.8,
+      advisoryContext: true,
+    });
+  }
+
   if (!detectServerSellIntent(text)) {
     if ((isPublishReadyIntent(text) || PUBLISH_INTENT_MARKER_RE.test(text)) && !input.isAuthenticated) {
       return decision("publish_request", "deterministic_executor", {
         goal: "deny publish without authentication",
         action: "policy_deny_auth",
         reasons: ["publish_intent", "unauthenticated", "no_draft"],
-      });
-    }
-
-    // E2.8 — DISCOVERY/ADVISORY anti-execution: interrogative, uncertainty
-    // and advice utterances (without an explicit execution directive) must
-    // never become catalog_search via facet signals. Explicit directives
-    // keep the search intent.
-    if (isNonExecutionDiscovery(text)) {
-      return decision("context_question", "model", {
-        goal: "answer an advice-seeking question",
-        action: "dialog_reply",
-        reasons: ["advisory_interrogative"],
-        confidence: 0.8,
-        advisoryContext: true,
       });
     }
 
