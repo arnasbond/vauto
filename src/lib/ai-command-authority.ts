@@ -53,6 +53,30 @@ const NO_MATERIALIZATION: CommandMaterializationDecision = {
 };
 
 /**
+ * Action types that OWN the catalog search/wanted surface. Only these may
+ * materialize search state (persist the raw command text as `searchQuery`,
+ * scroll to the results grid, drive the 0-result / wanted empty-state).
+ *
+ * SELL/CREATE (`listing_draft`), consequential, navigation, wardrobe and
+ * payment actions are NON-search: they must still apply their action, but
+ * must never own the catalog-search UI for the same turn. This is the client
+ * mirror of the server-side semantic authority split (PR #49): a turn owned by
+ * SELL/CREATE renders the draft, never "0 rezultatų" / wanted empty-state.
+ */
+const CATALOG_SEARCH_OWNING_ACTIONS: ReadonlySet<string> = new Set([
+  "search",
+  "empty_search",
+  "apply_ui_filters",
+  "browse_all",
+  "register_wanted",
+  "create_user_requirement",
+]);
+
+function actionOwnsCatalogSearchState(actions: VautoAgentAction): boolean {
+  return CATALOG_SEARCH_OWNING_ACTIONS.has(actions.type);
+}
+
+/**
  * Resolve what the client may do with the current turn's outcome.
  *
  * Semantics preserved for every pre-existing behavior EXCEPT the
@@ -77,10 +101,11 @@ export function resolveCommandMaterialization(
         clearDraftOnly: outcome.ok,
       };
     }
+    const ownsSearch = actionOwnsCatalogSearchState(actions);
     return {
       applyActions: actions,
-      persistQuery: true,
-      scrollToResults: path === "conductor",
+      persistQuery: ownsSearch,
+      scrollToResults: path === "conductor" && ownsSearch,
       clearDraftOnly: false,
       deterministicFallback: false,
     };
