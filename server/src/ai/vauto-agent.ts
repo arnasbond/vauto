@@ -2113,22 +2113,34 @@ async function runVautoAgentInner(
   // E2 — the forced search is a PLANNER decision (simple catalog queries only);
   // corrections, questions, sell continuations and policy commands never
   // hijack the search fast-path.
-  const plannerForcesSearch =
-    plannerDecision.routing === "deterministic_search";
   // E2.8 — POSITIVE search authority. fromSearchBar is ORIGIN metadata and
   // can NEVER by itself force a catalog search: the fast-path may execute
   // only when the turn is positively search-authorized by an explicit
   // execution directive or a compact/bare catalog browse (facets present).
   // Discovery/advisory, wanted, sell and meta/dialog utterances never gain
-  // search authority here. The negative exclusions below remain as defense
-  // in depth — they no longer DEFAULT "everything else" into search.
+  // search authority here.
+  //
+  // SELL/CREATE authority: the planner's SEMANTIC GOAL is authoritative for
+  // ambiguous/browse language, but an EXPLICIT EXECUTION DIRECTIVE is an
+  // independently certified positive search authority that a mistaken planner
+  // non-search decision must not be able to override. The surface negative
+  // exclusions (sell/advisory/wanted) are deterministic authority and apply
+  // to the WHOLE fast-path — including the planner-forced branch — so a
+  // search-happy planner cannot hijack a sell/advisory/wanted turn.
+  const surfaceNonSearchGoal =
+    detectServerSellIntent(lastUserText) ||
+    isNonExecutionDiscovery(lastUserText) ||
+    isExplicitWantedRequest(lastUserText);
+  const plannerForcesSearch =
+    plannerDecision.routing === "deterministic_search" && !surfaceNonSearchGoal;
+  const plannerEstablishedNonSearchGoal =
+    plannerDecision.intent !== "catalog_search" &&
+    plannerDecision.intent !== "dialog";
   const fromSearchBarRealSearch =
     Boolean(req.context.fromSearchBar) &&
-    !detectServerSellIntent(lastUserText) &&
-    !isNonExecutionDiscovery(lastUserText) &&
-    !isExplicitWantedRequest(lastUserText) &&
+    !surfaceNonSearchGoal &&
     (isExplicitExecutionDirective(lastUserText) ||
-      isCompactCatalogBrowse(lastUserText));
+      (!plannerEstablishedNonSearchGoal && isCompactCatalogBrowse(lastUserText)));
   const forceCatalogSearch =
     Boolean(lastUserText) &&
     !pendingChatImages?.length &&

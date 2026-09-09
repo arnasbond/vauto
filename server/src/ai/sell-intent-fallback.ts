@@ -106,18 +106,39 @@ export function detectServerSellIntent(text: string): boolean {
   const raw = text.trim();
   if (!raw || raw.length < 4) return false;
   const q = normalizeChaoticUserText(raw) || raw.toLowerCase();
-  // Job/service create phrases must win over bare „ieškau…“ buyer gate.
+
+  // 1. NEGATION / HEDGE override — a clear "don't want" or a hedged sell
+  //    ("galvoju parduoti, bet…") is NEVER a sell commitment.
+  if (/\bnenoriu\b/i.test(q)) return false;
+  if (/^\s*ne\s+(?:į|i)?(?:d[ėe]ti|kelti|parduot\w*)\b/i.test(q)) return false;
+  if (/\b(?:galvoju|svarstau|galvočiau)\s+(?:apie\s+)?(?:parduot|pardav)\w*/i.test(q)) return false;
+
+  // 2. Job-seeker create must win over the bare "ieškau" buy/search signal.
   if (
     hasChaoticJobSeekerCreateIntent(raw) ||
     /\bieškau\s+darbo\b/i.test(q) ||
-    /\bieskau\s+darbo\b/i.test(q) ||
-    /\b(tiesiog\s+)?noriu\s+(į|i)?kelti\s+skelb/i.test(q) ||
-    /\b(į|i)kelti\s+skelbim/i.test(q)
+    /\bieskau\s+darbo\b/i.test(q)
   ) {
     return true;
   }
-  if (hasChaoticSellIntent(raw)) return true;
+
+  // 3. BUY override — an explicit buy/search goal is NOT sell.
   if (BUY_PATTERNS.some((re) => re.test(q))) return false;
+
+  // 4. Create/listing intent: a create verb ("įdėti/įkelti/dėti/kelti",
+  //    imperative or infinitive) co-occurring with the "skelbim" object means
+  //    the goal is to CREATE a listing, regardless of intervening object words
+  //    ("noriu įdėti buto skelbimą"). Co-occurrence, not adjacency.
+  if (
+    /\b(tiesiog\s+)?noriu\s+(į|i)?kelti\s+skelb/i.test(q) ||
+    /\b(į|i)kelti\s+skelbim/i.test(q) ||
+    (/\b(?:noriu\s+|tiesiog\s+noriu\s+)?(?:į|i)?(?:d[ėe]ti|d[ėe]k|kelti|kelk)\b/i.test(q) &&
+      /\bskelbim\w*\b/i.test(q))
+  ) {
+    return true;
+  }
+
+  if (hasChaoticSellIntent(raw)) return true;
   return SELL_PATTERNS.some((re) => re.test(q));
 }
 
