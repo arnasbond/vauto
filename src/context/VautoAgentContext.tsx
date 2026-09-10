@@ -728,8 +728,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       try {
       if (actions.type === "search") {
-        goToMarketplace("agent");
-        setOpen(false);
+        // H1 — a SEARCH action must exit the seller pipeline exactly like
+        // browse_all, so a prior aiDraft is cleared and resolveActiveSurface
+        // can hand catalog visibility back to the search surface.
+        exitListingPipelineForMarketplaceSearch();
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
         setSearchQuery("");

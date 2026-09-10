@@ -161,7 +161,20 @@ export function isJobSeekerListingCreateIntent(text: string): boolean {
 }
 
 /**
- * Sparse = sell intent without photos/specs (e.g. "noriu parduoti citroen").
+ * SELL + CREATE goal-establishing phrases (verbs + the "skelbimas" object
+ * noun). Stripping these leaves the OBJECT and its grounded facts; if what
+ * remains is too short there are insufficient listing facts. Bounded lexical
+ * fallback, gated behind `detectServerSellIntent` (semantic SELL/CREATE
+ * authority) — it is NOT a phrase dictionary for the model.
+ */
+const SELL_CREATE_GOAL_PHRASE =
+  /\b(?:parduodu|parduosiu|noriu\s+(?:parduoti?|įdėti|įkelti|paskelbti|kelti|skelbti)|nor[eė]čiau\s+(?:parduoti?|įdėti|įkelti|paskelbti)|pad[eė]k(?:ite)?\s+(?:parduoti?|įdėti|įkelti|paskelbti)|įd[eė]k|įkelk|paskelbk|skelbiu|sukurk|paruoš[ks]|noriu\s+kelti)\b/gi;
+
+const LISTING_OBJECT_NOUN = /\bskelbim\w*\b/gi;
+
+/**
+ * Sparse = SELL/CREATE goal established + insufficient grounded listing facts
+ * (e.g. "noriu parduoti citroen" / "noriu įdėti buto skelbimą").
  * Must NOT invent a placeholder listing draft.
  */
 export function isSparseSellRequest(text: string): boolean {
@@ -170,18 +183,20 @@ export function isSparseSellRequest(text: string): boolean {
   // Job-seeker create is always soft-skeleton (never catalog search).
   if (isJobSeekerListingCreateIntent(t)) return true;
   if (SPEC_SIGNAL.test(t)) return false;
-  // Brand-only or generic sell phrase without model/year/km/engine.
-  const withoutSell = t
-    .replace(/\b(parduodu|parduosiu|noriu\s+parduoti?|nor[eė]čiau\s+parduoti?|pad[eė]k\s+parduoti?)\b/gi, " ")
+  // Strip goal-establishing verbs and the listing object noun — what remains
+  // is the object + grounded facts (rooms, area, city, model, year…).
+  const withoutGoal = t
+    .replace(SELL_CREATE_GOAL_PHRASE, " ")
+    .replace(LISTING_OBJECT_NOUN, " ")
     .replace(/\bieškau\s+darbo\b/gi, " ")
     .replace(/\bieskau\s+darbo\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
-  if (withoutSell.length < 3) return true;
+  if (withoutGoal.length < 3) return true;
   const make = inferMake(t);
   if (make) {
-    // "citroen" / "citroena" alone after stripping sell words → sparse
-    const rest = withoutSell
+    // "citroen" / "citroena" alone after stripping goal words → sparse
+    const rest = withoutGoal
       .replace(/citro[eë]?n\w*/gi, "")
       .replace(new RegExp(make.replace("-", "[-\\s]?"), "ig"), "")
       .replace(/[^\p{L}\p{N}\s]/gu, " ")
@@ -189,7 +204,7 @@ export function isSparseSellRequest(text: string): boolean {
       .trim();
     return rest.length < 2;
   }
-  return withoutSell.length < 18;
+  return withoutGoal.length < 18;
 }
 
 const INTERNAL_TO_VAUTO_CATEGORY: Record<string, string> = {
@@ -269,7 +284,10 @@ function inferCategory(text: string): string {
   if (HOME_ART_HINT.test(text)) return "home";
   if (CLOTHING_HINT.test(text)) return "clothing";
   if (ELECTRONICS_HINT.test(text)) return "electronics";
-  if (/\b(butas|namas|nt|kambar|sklyp)/i.test(text)) return "real_estate";
+  // Unambiguous service signals win over real_estate objects: "buto valymas"
+  // (cleaning) / "valymo paslaugos" are SERVICES, not an apartment listing.
+  if (/\b(valym|paslaug)/i.test(text)) return "services";
+  if (/\b(butas|buto|butą|butu|butui|bute|namas|namo|namą|nt|kambar\w*|sklyp\w*)\b/i.test(text)) return "real_estate";
   if (/\b(nuomuoju|nuoma|nuomoti)\b/i.test(text)) return "rental";
   // Wheels/parts before brand→vehicles (Citroën logo on rims ≠ full car).
   if (
@@ -280,7 +298,7 @@ function inferCategory(text: string): string {
     return "tools";
   }
   if (/\b(įrank|irank|gręžtuv|generator)/i.test(text)) return "tools";
-  if (/\b(paslaug|remont|valym)/i.test(text)) return "services";
+  if (/\bremont/i.test(text)) return "services";
   if (
     /\b(darbas|darbą|darbo|ieškau\s+darbo|ieskau\s+darbo|vakans)\b/i.test(text) ||
     /\b(pardav[eė]j|vairuotoj|buhalter|kasinink|vir[eė]j|inžinier|vadybinink|specialist|darbuotoj|apskait)\p{L}*\b/iu.test(text)

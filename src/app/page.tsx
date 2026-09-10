@@ -21,9 +21,10 @@ import { subscribeHomeReset } from "@/lib/home-reset";
 import { HomeAiValueBand } from "@/components/home/HomeValuePropCards";
 import { HomeVisualFlow } from "@/components/home/HomeVisualFlow";
 import { DesktopHomeLayout } from "@/components/layout/desktop/DesktopHomeLayout";
+import { resolveActiveSurface, catalogSurfaceVisible } from "@/lib/ai-surface-ownership";
 
 function MarketplaceView() {
-  const { rankedListings } = useVauto();
+  const { rankedListings, aiDraft, sellerStep } = useVauto();
   const { searchQuery, searchLoading } = useVautoSearch();
   const { messages, busy: agentBusy, open: agentOpen } = useVautoAgent();
 
@@ -38,6 +39,16 @@ function MarketplaceView() {
   const showHowItWorks = !compactHero;
 
   const emptySearchMode = hasSearch && rankedListings.length === 0 && !searchLoading;
+
+  // SELL/CREATE owns the visible surface: when a listing draft is being
+  // created/edited, the catalog search scaffold (filter bar, results grid,
+  // zero-result empty state) must not be presented as the SELL turn's result.
+  const surface = resolveActiveSurface({
+    sellerStep,
+    hasListingDraft: Boolean(aiDraft),
+    searchQuery,
+  });
+  const showCatalog = catalogSurfaceVisible(surface);
 
   useEffect(() => {
     return subscribeHomeReset(() => setSeedQuery(null));
@@ -64,7 +75,7 @@ function MarketplaceView() {
                 seedQuery={seedQuery}
                 onSeedConsumed={() => setSeedQuery(null)}
               />
-              {emptySearchMode && (
+              {emptySearchMode && showCatalog && (
                 <SearchEmptyAssistantBanner searchQuery={searchQuery.trim()} />
               )}
             </>
@@ -79,11 +90,13 @@ function MarketplaceView() {
           <HomeAiValueBand />
         </>
       ) : null}
-      <ContentSection>
-        <DesktopHomeLayout>
-          <ListingGrid hideEmptyAssistant={emptySearchMode} />
-        </DesktopHomeLayout>
-      </ContentSection>
+      {showCatalog && (
+        <ContentSection>
+          <DesktopHomeLayout>
+            <ListingGrid hideEmptyAssistant={emptySearchMode} />
+          </DesktopHomeLayout>
+        </ContentSection>
+      )}
     </>
   );
 }

@@ -11,9 +11,10 @@ import { HeroSection, ContentSection } from "@/components/HeroSection";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { verticalExperienceForQuery } from "@/lib/vertical-presentation";
+import { resolveActiveSurface, catalogSurfaceVisible } from "@/lib/ai-surface-ownership";
 
 export default function DiscoverPage() {
-  const { sellerStep } = useSellerFlow();
+  const { sellerStep, aiDraft } = useSellerFlow();
   const {
     searchQuery,
     setSearchQuery,
@@ -25,6 +26,13 @@ export default function DiscoverPage() {
   const isFluxHome =
     !verticalActive ||
     verticalExperienceForQuery(searchQuery).vertical === "marketplace";
+
+  const surface = resolveActiveSurface({
+    sellerStep,
+    hasListingDraft: Boolean(aiDraft),
+    searchQuery,
+  });
+  const showCatalog = catalogSurfaceVisible(surface);
 
   return (
     <AppShell>
@@ -68,10 +76,12 @@ export default function DiscoverPage() {
           </VerticalPageChrome>
         </HeroSection>
 
-        <ContentSection>
-          {isFluxHome && <VerticalExperienceStrip />}
-          <ListingGrid />
-        </ContentSection>
+        {showCatalog && (
+          <ContentSection>
+            {isFluxHome && <VerticalExperienceStrip />}
+            <ListingGrid />
+          </ContentSection>
+        )}
       </Suspense>
     </AppShell>
   );
