@@ -200,8 +200,8 @@ async function main() {
   check(!autoDraft.attributes?.size, "apparel size M stripped from vehicles");
   const autoPrompt = getCategoryPrompter("AUTOMOBILIAI").prompt;
   check(
-    /NATŪRALIA|turtingą|šiltą|engaginantį|Privalumai/i.test(autoPrompt),
-    "auto Pass-2 prompt encourages warm structured copy"
+    /sklandų|natūralų|patrauklų|Privalumai/i.test(autoPrompt),
+    "auto Pass-2 prompt keeps natural readable copy"
   );
   check(!POLLUTION_RE.test(autoPrompt), "auto prompt has no product few-shot pollution");
 
@@ -245,8 +245,12 @@ async function main() {
     "handbook has zero product few-shot benchmarks"
   );
   check(
-    /turtingą|šiltą|engaginantį/i.test(NATURAL_SALES_COPY_DIRECTIVE),
-    "NATURAL_SALES_COPY_DIRECTIVE restores warm tone"
+    /sklandų|natūralų|patrauklų/i.test(NATURAL_SALES_COPY_DIRECTIVE),
+    "NATURAL_SALES_COPY_DIRECTIVE keeps natural readable prose"
+  );
+  check(
+    /Naudok TIK faktus|NEišgalvok|NEŽINOMA/i.test(NATURAL_SALES_COPY_DIRECTIVE),
+    "NATURAL_SALES_COPY_DIRECTIVE forbids unsupported invention"
   );
   check(
     /ONLY the facts|Do not invent/i.test(FACTUAL_EXTRACTION_DIRECTIVE),
@@ -255,8 +259,8 @@ async function main() {
   const genSlice = buildHandbookGenerationFewShots("general");
   check(!POLLUTION_RE.test(genSlice), "generation handbook slice has no few-shot pollution");
   check(
-    /turtingą|šiltą|Privalumai/i.test(genSlice),
-    "generation handbook slice includes warm structure"
+    /sklandų|natūralų|Privalumai/i.test(genSlice),
+    "generation handbook slice keeps grounded structure"
   );
 
   // Post-process must not mangle natural LT cities/sentences.
