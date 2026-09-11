@@ -182,6 +182,10 @@ import {
 import { purgeAiTestListings } from "../services/purge-ai-test-listings.js";
 import { proxyImageHandler } from "../controllers/proxy-controller.js";
 import { resolveAppVersionPayload, resolveCommitSha } from "../lib/app-version-config.js";
+import {
+  resolveDescriptionPublishDecision,
+  signHumanConfirmedDescription,
+} from "../shared/description-provenance.js";
 
 export const apiRouter = Router();
 
@@ -945,6 +949,44 @@ apiRouter.post(
   try {
     if (await rejectIfListingsDisabled(res)) return;
     const body = sanitizeListingCreateBody(req.body);
+    // Server-bound provenance authority: the server recognizes its OWN
+    // AI-issued MODEL_INFERENCE proposal via an HMAC token bound to the exact
+    // description, and accepts only an explicit whole-description HUMAN_CONFIRMED
+    // artifact — never the mutable browser label, never a generic publish click.
+    const rawAttrs = (req.body as { attributes?: Record<string, unknown> })
+      ?.attributes;
+    const provenanceToken =
+      typeof rawAttrs?.provenanceToken === "string"
+        ? rawAttrs.provenanceToken
+        : undefined;
+    const confirmationToken =
+      typeof rawAttrs?.confirmationToken === "string"
+        ? rawAttrs.confirmationToken
+        : undefined;
+    const descriptionText =
+      typeof body?.description === "string" ? body.description : "";
+    const decision = resolveDescriptionPublishDecision(
+      descriptionText,
+      provenanceToken,
+      confirmationToken
+    );
+    if (decision === "reject_unpromoted") {
+      res.status(422).json({
+        ok: false,
+        code: "description_unpromoted",
+        error:
+          "Prieš publikuodami patvirtinkite arba pataisykite AI pasiūlytą aprašymą.",
+      });
+      return;
+    }
+    if (decision === "reject_invalid") {
+      res.status(422).json({
+        ok: false,
+        code: "description_provenance_invalid",
+        error: "Nepavyko patvirtinti aprašymo kilmės. Pataisykite aprašymą ir bandykite dar kartą.",
+      });
+      return;
+    }
     const imageLen =
       typeof body?.image === "string" ? body.image.length : 0;
     const galleryCount = Array.isArray(body?.images) ? body.images.length : 0;
@@ -1092,6 +1134,29 @@ apiRouter.post(
     });
   }
 });
+
+// R2.5 — explicit whole-description acceptance. The server mints an
+// integrity-protected HUMAN_CONFIRMED artifact bound to the EXACT current
+// description. Only this explicit user action produces it; a generic publish
+// click never calls this route and never mints confirmation.
+apiRouter.post(
+  "/listings/description-confirmation",
+  requireAuth,
+  async (req: AuthedRequest, res) => {
+    try {
+      const body = req.body as { description?: unknown };
+      const description = typeof body.description === "string" ? body.description : "";
+      if (!description.trim()) {
+        res.status(400).json({ ok: false, error: "description is required" });
+        return;
+      }
+      const confirmationToken = signHumanConfirmedDescription(description);
+      res.json({ ok: true, confirmationToken });
+    } catch (e) {
+      sendInternalError(res, e);
+    }
+  }
+);
 
 apiRouter.post("/listings/:id/hide", requireAuth, async (req: AuthedRequest, res) => {
   try {

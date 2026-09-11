@@ -22,6 +22,7 @@ import {
 } from "@/lib/listing-publish-visibility";
 import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
 import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
+import { useSellerFlow } from "@/context/SellerFlowContext";
 
 export interface PrePublishListingCardProps {
   card: PrePublishCardPayload;
@@ -111,10 +112,12 @@ export function PrePublishListingCard({
   onGalleryChange,
   className,
 }: PrePublishListingCardProps) {
+  const { aiDraft, confirmDescription } = useSellerFlow();
   const [visibilityId, setVisibilityId] =
     useState<PrePublishVisibilityId>("standard");
   const [descExpanded, setDescExpanded] = useState(false);
   const [intelExpanded, setIntelExpanded] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const publishButtonRef = useRef<HTMLButtonElement>(null);
   const submitLockRef = useRef(false);
   const selected = getPrePublishVisibilityOption(visibilityId);
@@ -126,6 +129,24 @@ export function PrePublishListingCard({
   const cover = gallery[0] ?? null;
   const description = card.description?.trim() ?? "";
   const longDesc = description.length > 220;
+
+  // R2.6 — explicit whole-description acceptance state (authority chain).
+  const descriptionSource = String(aiDraft?.attributes?.descriptionSource ?? "");
+  const hasConfirmation = Boolean(aiDraft?.attributes?.confirmationToken);
+  const needsConfirmation =
+    Boolean(description) &&
+    descriptionSource === "MODEL_INFERENCE" &&
+    !hasConfirmation;
+
+  const handleConfirmDescription = async () => {
+    if (confirming) return;
+    setConfirming(true);
+    try {
+      await confirmDescription();
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   const conflictFields = (card.intelSummary?.hasConflicts
     ? card.intelSummary.fields.filter(
@@ -459,10 +480,40 @@ export function PrePublishListingCard({
         </div>
 
         <div className="mt-1 flex flex-col gap-2">
+          {needsConfirmation ? (
+            <button
+              type="button"
+              disabled={confirming}
+              data-prepublish-confirm-description="1"
+              onClick={handleConfirmDescription}
+              className="flex min-h-[44px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl border border-[var(--vauto-primary)]/40 bg-[var(--vauto-primary)]/8 px-4 py-2.5 text-sm font-semibold text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-primary)]/12 disabled:opacity-60"
+            >
+              {confirming ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  Patvirtinama…
+                </>
+              ) : (
+                <>Patvirtinti aprašymą</>
+              )}
+            </button>
+          ) : hasConfirmation ? (
+            <p
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-300/40 bg-emerald-50/60 px-3 py-2 text-[12px] font-semibold text-emerald-800"
+              data-prepublish-description-confirmed="1"
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              Aprašymas patvirtintas
+            </p>
+          ) : null}
           <button
             ref={publishButtonRef}
             type="button"
-            disabled={publishing || (!photosOptional && gallery.length === 0)}
+            disabled={
+              publishing ||
+              needsConfirmation ||
+              (!photosOptional && gallery.length === 0)
+            }
             data-prepublish-submit="1"
             onClick={(e) => {
               e.preventDefault();
