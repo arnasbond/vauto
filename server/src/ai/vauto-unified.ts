@@ -1096,11 +1096,18 @@ export async function parseListingImagesForAgent(params: {
     )
   );
   if (listing.description) {
+    const scrubbed = sanitizeAttributeKeyLabelsInText(
+      scrubSalesCopyMarkdown(listing.description)
+    );
     listing = {
       ...listing,
-      description: sanitizeAttributeKeyLabelsInText(
-        scrubSalesCopyMarkdown(listing.description)
-      ),
+      description: scrubbed,
+      // Re-mint provenance on the EXACT scrubbed text: markdown cleanup runs
+      // after the token was first minted in Pass-2, so the carried token must
+      // bind the final description that will be deferred/materialized/published.
+      ...(listing.descriptionSource === "MODEL_INFERENCE" && scrubbed
+        ? { provenanceToken: signModelInferenceProposal(scrubbed) }
+        : {}),
     };
   }
   // Anti-hallucination: never keep a Vision-invented price unless user/hint provided it.

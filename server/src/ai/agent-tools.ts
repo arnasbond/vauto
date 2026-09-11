@@ -1960,8 +1960,23 @@ export async function executeAgentTool(
         const priorDeferred = String(
           prior?.attributes?.deferredSalesDescription ?? ""
         ).trim();
+        const priorDeferredSource = String(
+          prior?.attributes?.deferredSalesDescriptionSource ?? ""
+        ).trim();
+        const priorDeferredToken = String(
+          prior?.attributes?.deferredSalesDescriptionProvenanceToken ?? ""
+        ).trim();
         const deferredSalesDescription =
           mergedDescription.slice(0, 4000) || priorDeferred.slice(0, 4000);
+        // Provenance travels WITH the deferred description so a later
+        // materialization can re-assert MODEL_INFERENCE lineage and the publish
+        // boundary can reject unpromoted model prose.
+        const deferredSalesDescriptionSource = visionDesc
+          ? String(parsed.listing.descriptionSource ?? "").trim()
+          : priorDeferredSource;
+        const deferredSalesDescriptionProvenanceToken = visionDesc
+          ? String(parsed.listing.provenanceToken ?? "").trim()
+          : priorDeferredToken;
         // Phase 2C: a VIN read off a scanned photo/technical passport is never
         // trusted straight into canonical `attributes.vin` — pull it out of the
         // vision payload before the generic attribute spread, and reconcile it
@@ -1982,6 +1997,12 @@ export async function executeAgentTool(
             : {}),
           ...(deferredSalesDescription
             ? { deferredSalesDescription }
+            : {}),
+          ...(deferredSalesDescriptionSource
+            ? { deferredSalesDescriptionSource }
+            : {}),
+          ...(deferredSalesDescriptionProvenanceToken
+            ? { deferredSalesDescriptionProvenanceToken }
             : {}),
           salesCopyGenerated: "false",
         };

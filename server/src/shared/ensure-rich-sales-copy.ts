@@ -8,6 +8,7 @@ import {
   type SalesCopyDraft,
 } from "./vehicle-sales-copy.js";
 import { enrichVehicleVisionDraft } from "./vehicle-vision-enrich.js";
+import { signModelInferenceProposal } from "./description-provenance.js";
 
 /** Minimum chars for a description to count as rich (not a Vision caption stub). */
 export const MIN_RICH_SALES_COPY_CHARS = 80;
@@ -127,18 +128,25 @@ export function ensureRichSalesCopyBeforePublish<T extends RichSalesCopyDraft>(
 ): T {
   const attrsIn = { ...(draft.attributes ?? {}) };
   const deferred = attrString(attrsIn, "deferredSalesDescription").trim().slice(0, 4000);
+  const deferredSource = attrString(attrsIn, "deferredSalesDescriptionSource").trim();
   const currentDesc = String(draft.description ?? "").trim();
 
   if (draftHasRichSalesCopyAttached(draft)) {
     if (!deferred) return draft;
     const cleaned = stringifyAttrs(attrsIn);
     delete cleaned.deferredSalesDescription;
+    delete cleaned.deferredSalesDescriptionSource;
+    delete cleaned.deferredSalesDescriptionProvenanceToken;
     return { ...draft, attributes: cleaned };
   }
 
   let nextTitle = draft.title;
   let nextDescription = currentDesc;
   let nextAttrs: Record<string, string | string[] | undefined> = { ...attrsIn };
+  // A deferred description that originated as model prose must retain its
+  // MODEL_INFERENCE lineage when materialized, so the publish boundary can
+  // reject it until the user explicitly confirms the exact text.
+  let materializedModelInference = false;
 
   if (looksLikeVehicleSalesDraft(draft)) {
     const enriched = enrichVehicleVisionDraft({
@@ -168,14 +176,25 @@ export function ensureRichSalesCopyBeforePublish<T extends RichSalesCopyDraft>(
       currentDesc ||
       String(draft.title ?? "").trim() ||
       "Parduodama prekė";
+    if (preferred === deferred && deferredSource === "MODEL_INFERENCE") {
+      materializedModelInference = true;
+    }
     nextDescription = scrubSalesCopyMarkdown(preferred);
   }
 
   const stamped = stringifyAttrs({
     ...nextAttrs,
     salesCopyGenerated: "true",
+    ...(materializedModelInference && nextDescription
+      ? {
+          descriptionSource: "MODEL_INFERENCE",
+          provenanceToken: signModelInferenceProposal(nextDescription),
+        }
+      : {}),
   });
   delete stamped.deferredSalesDescription;
+  delete stamped.deferredSalesDescriptionSource;
+  delete stamped.deferredSalesDescriptionProvenanceToken;
 
   return {
     ...draft,

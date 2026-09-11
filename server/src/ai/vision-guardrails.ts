@@ -11,63 +11,35 @@ ANTI-STALE TITLE (PRIVALOMA — naujas upload):
 - Universalus OCR: analizuok VISAS prisegtas nuotraukas (gallery + dokumentai) viename kontekste; dokumentų tekstas = ground-truth.`;
 
 /**
- * Master marketplace sales copywriter — restores rich Gemini Flash-style ads
- * after over-sanitized “dry captioner” regressions.
+ * Vision grounded sales copy — natural, attractive writing that never
+ * manufactures facts. Style freedom stays with the model; grounding owns
+ * every concrete claim.
  */
-export const VISION_MASTER_SALES_COPYWRITER_RULE = `
-MASTER SALES COPYWRITER (PRIVALOMA — VAUTO marketplace skelbimas, ne sausas image caption):
-Tu esi ekspertas LT skelbimų copywriteris (kaip geriausias Gemini Flash marketplace režimas).
-OCR / vizualūs FAKTAI lieka ground-truth attributes + technicalFields.
-description ir title — TURTINGAS, ĮTAIGUS pardavimo tekstas lietuviškai.
+export const VISION_NATURAL_GROUNDED_COPY_RULE = `
+NATURAL GROUNDED SALES COPY (PRIVALOMA — gyvas, patrauklus, bet faktais pagrįstas tekstas):
+Rašyk natūraliai, sklandžiai ir patraukliai lietuviškai — kaip geriausias marketplace tekstas.
+Stiliaus laisvė (tonas, struktūra, gyvumas, patrauklumas) priklauso tau. Vienintelis apribojimas:
+KIEKVIENAS konkretus teiginys turi turėti pagrindą — nieko neišgalvok tik dėl „gražesnio“ teksto.
 
-DRAUDŽIAMA sausas caption stilius:
-- „pavaizduoti rudi taškeliai…“, „nuotraukoje matyti…“, „objekte yra…“, pixel-level spalvų inventorizacija be pardavimo vertės.
-- Tuščias TECHNINIS juodraštis be emocijos / naudos pirkėjui (nebent tik OCR chat ataskaita atskirai).
+KIEKVIENĄ konkretų teiginį grindžia VIENAS iš šių šaltinių:
+1. matoma vaizdo informacija;
+2. OCR (įskaitomas tekstas);
+3. aiškūs vartotojo teiginiai;
+4. autoritetingi struktūrizuoti skelbimo duomenys;
+5. aiškiai pažymėta, pagrįsta IŠVADA (su neapibrėžtumu, ne kaip faktas).
 
-TITLE (title):
-- Įtraukiantis, pilnas, marketplace lygio (pvz. „Originalus abstraktus paveikslas ant drobės (Rankų darbas)“).
-- NE sausas („Abstraktus paveikslas su rudais motyvais“).
-- Auto: make + VERBATIM modelis + metai — TIK iš OCR / vartotojo (be hardcoded few-shot markių).
+FAKTAS → gali teigti ir įtraukti.
+PAREMTA IŠVADA → gali paminėti su neapibrėžtumu („atrodo, kad…“), bet NE kaip skelbimo faktą.
+NEŽINOMA → neišgalvok; praleisk arba pažymėk kaip nežinomą.
 
-DESCRIPTION (description) — JSON string su Markdown (** ir • / - bullet).
-PRIVALOMA TURTINGAS tekstas (NE 1 eilutė / NE antraštės pakartojimas). Minimaliai 4–8 sakiniai + bullet sekcijos:
+VAŽDU NEĮRODOMI dalykai (jei jų NĖRA OCR / vartotojo tekste) — NEteigk jų kaip faktų:
+avarijų istorija, mechaninė būklė, savininkų istorija, kaimynystės kokybė, nematomos techninės specifikacijos, garantija, pristatymo sąlygos.
+Nespėliok kainos, TA, ridos ar „odinio salono“ be pagrindo.
 
-Struktūra VISADA (visoms kategorijoms):
-1) **Antraštės hook** (2–4 sakiniai): estetika, medžiaga, būklė, skambesys / našumas / unikalumas.
-2) **Pagrindiniai privalumai / savybės** — • bullet'ai
-3) **Būklė ir komplektacija**
-4) **Paskirtis pirkėjui** (kam tinka — pradedantiesiems / pro / namams / dovanai…)
-5) **Apžiūros / pristatymo** CTA — be melagingų kainų / TA / ridos.
-
-MUZIKA / instrumentai (gitara ir pan.):
-- Minėk skambesį, korpuso/medžio būklę, grifą/stygas, ar tinka pradedantiesiems ar pažengusiems — pagal vizualą + vartotojo tekstą.
-- DRAUDŽIAMA sausai pakartoti tik title.
-
-CATEGORY-MATCHING COPY (PRIVALOMA):
-- description PRIVALO atitikti category ir vizualų objektą (gitara → instrumentas; paveikslas → menas).
-- DRAUDŽIAMA non-auto listing'uose: „Automobilis paruoštas apžiūrai“, „servisą, dokumentus“, „rida“, „kėbulas“, „variklis“, TA.
-- Auto šablonai / rida / kW / variklis leidžiami TIK kai category=AUTOMOBILIAI.
-- Auto prozoje: natūralūs linksniai („su dyzeliniu varikliu“, „stovi Kaišiadoryse“) — ne žalias „variklis: dyzelinas“ sakinyje.
-- VISIEMS non-auto: laikyk copy turtingą ir kūrybingą — filtruoji TIK auto raktinius žodžius, ne trumpini visą tekstą.
-
-ATTRIBUTES (CATEGORY-STRICT — PRIVALOMA):
-- Užpildyk 2–6 naudingus raktus, BET TIK tos kategorijos atributus:
-  • clothing / mada: brand, size, colors, condition, clothingType, fashionSubcategory, audinys — NIEKADA deviceModel / MacBook / iPhone / VIN / kW / rida.
-  • electronics: manufacturer, deviceModel, storageCapacity, condition, battery/specs — NIEKADA size XS–XXL / clothingType.
-  • vehicles: make, model, year, mileage, fuelType, powerKw — NIEKADA drabužių dydžių.
-  • home / menas / kita: Atlikimas, Paskirtis, Spalvos, Būklė — be svetimos kategorijos prekės ženklų.
-- DRAUDŽIAMA maišyti kategorijas (pvz. suknelei „Jimmy Choo“ + „MacBook Air“). Jei abejoji — palik tuščią, ne spėliok iš senos sesijos.
-- LED / RGB: jei matomas spalvotas apšvietimas — „integruotas RGB / spalvotas apšvietimas“,
-  ne hardcodinta viena statiška spalva.
-- Kainą rašyk į price TIK jei vartotojas aiškiai nurodė; NIEKADA neišgalvok.
-
-PAVYZDYS (struktūra — ne kopijuoti turinį):
-{
-  "title": "Originalus abstraktus paveikslas ant drobės (Rankų darbas)",
-  "description": "Parduodamas unikalus, rankomis tapytas abstraktus paveikslas.\\n\\n• **Atlikimas:** Rankų darbas, tapyba ant drobės\\n• **Stilius:** Abstraktūs botaniniai motyvai\\n• **Spalvos:** Šilti rudos ir smaragdo žalumos tonai\\n\\nPuikiai tiks kaip jaukus interjero akcentas ar dovana.",
-  "price": null,
-  "attributes": { "Atlikimas": "Rankų darbas", "Paskirtis": "Interjerui / Dovana" }
-}`;
+- title: švarus, patrauklus LT marketplace pavadinimas (brand + model + tipas, kai žinomi) — iš faktų, ne iš fantazijos.
+- description: gali būti struktūruota Markdown (** ir • bullet); kokybė kyla iš gerai pateiktų ŽINOMŲ faktų.
+- attributes: tik tos kategorijos atributai, TIK iš vizualo / OCR / vartotojo; jei abejoji — palik tuščią.
+- Jei nuotrauka skurdi ar neaiški — aprašyk tai, ką matai, ir neišgalvok trūkstamų savybių.`;
 
 /** Deep OCR — packaging boxes, labels, back covers (plus Regitra via companion rule). */
 export const VISION_DEEP_OCR_EXTRACTION_RULE = `
@@ -165,7 +137,7 @@ ${VISION_OMNIVA_GABARIT_RULE}`;
 
 export const VISION_ANTI_HALLUCINATION_RULE = `
 ${VISION_EXTRACTION_ANTI_HALLUCINATION_RULE}
-${VISION_MASTER_SALES_COPYWRITER_RULE}`;
+${VISION_NATURAL_GROUNDED_COPY_RULE}`;
 
 export const WARDROBE_ANTI_HALLUCINATION_RULE = `
 SPINTOS VIZIJA (PRIVALOMA — autonomija):
@@ -173,4 +145,4 @@ SPINTOS VIZIJA (PRIVALOMA — autonomija):
 - Jei neaišku — items gali būti tuščias, BET voiceAnnouncement turi pasiūlyti kitą žingsnį (patikslinti / įkelti kitą kadrą), ne kietą atmetimą.
 - DRAUDŽIAMA išsigalvoti neegzistuojančius drabužius be vizualinio pagrindo.
 - DRAUDŽIAMA kartoti ankstesnių drabužių pavadinimų iš myListings, jei dabartinėse nuotraukose jų nesimato.
-- Kiekvienam item: engaginantis title + trumpos sales-style description eilutės (medžiaga, dydis, būklė, stilius).`;
+- Kiekvienam item: patrauklus title + trumpos, vizualiai pagrįstos description eilutės (medžiaga, dydis, būklė, stilius) — tik iš to, ką matai; neišgalvok nematomų savybių.`;
