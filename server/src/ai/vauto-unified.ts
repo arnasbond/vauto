@@ -42,7 +42,9 @@ import {
   runVisualPipelineForExtract,
   visualPipelineResponseSlice,
 } from "../services/visual-pipeline.js";
-import { DOCUMENT_OCR_SOFT_NOTE } from "./sell-intent-fallback.js";
+import { DOCUMENT_OCR_SOFT_NOTE, isSparseSellRequest } from "./sell-intent-fallback.js";
+import type { FactEvidenceSource } from "../shared/fact-evidence.js";
+import { signModelInferenceProposal } from "../shared/description-provenance.js";
 import { VAUTO_DOMAIN_AUTONOMY_RULES } from "../shared/vauto-domain-autonomy.js";
 import {
   LAZY_UPLOAD_LOG_TAG,
@@ -111,10 +113,10 @@ const EXTRACTION_SCHEMA = `{
   "ocrText": "string — optional raw OCR transcript"
 }`;
 
-/** Pass 2 — creative LT sales copy from extracted JSON. */
+/** Pass 2 — fact-grounded LT listing copy from extracted JSON. */
 const CREATIVE_SCHEMA = `{
-  "title": "string — švarus, engaginantis LT marketplace pavadinimas (brand + model + tipas kai žinomi)",
-  "description": "string — turtingas, šiltas FACT-GROUNDED LT sales tekstas su Markdown (hook + **Privalumai** + **Būklė** + **Specifikacijos** + **Pristatymas**). PALIK \\n ir **."
+  "title": "string — švarus, patrauklus LT marketplace pavadinimas (brand + model + tipas kai žinomi)",
+  "description": "string — faktais pagrįstas LT skelbimo tekstas su Markdown (hook + **Privalumai** + **Būklė** + **Specifikacijos** + **Pristatymas**). PALIK \\n ir **."
 }`;
 
 /** Lightweight Pass-1 system rules — category routing happens in Pass 2. */
@@ -309,6 +311,18 @@ export interface VautoListingPayload {
   reviewNotice?: string;
   /** Omniva L-locker eligibility after Pass-1 gabarit fence. */
   allowPastomatas?: boolean;
+  /**
+   * Fact-provenance of the description (reuses the Universal Fact-Evidence
+   * source semantics). Pass-2 model prose is MODEL_INFERENCE (non-canonical
+   * proposal); grounded fallback is USER_CLAIM; sparse/empty is undefined.
+   */
+  descriptionSource?: FactEvidenceSource;
+  /**
+   * Server-issued HMAC token binding the exact description as MODEL_INFERENCE.
+   * The browser transports it but cannot forge/relabel it. Present only for
+   * Pass-2 model prose.
+   */
+  provenanceToken?: string;
 }
 
 function toListingPayload(
@@ -447,6 +461,12 @@ function toListingPayload(
     attributes: draftWithGabarit.attributes ?? {},
     allowPastomatas: draftWithGabarit.allowPastomatas,
     intent: String(raw.intent ?? "sell"),
+    ...(typeof raw.descriptionSource === "string"
+      ? { descriptionSource: raw.descriptionSource as FactEvidenceSource }
+      : {}),
+    ...(typeof raw.provenanceToken === "string"
+      ? { provenanceToken: raw.provenanceToken }
+      : {}),
   };
 }
 
@@ -516,7 +536,7 @@ function buildCreativeWritePrompt(
   const packagingBlock = nonPhysical
     ? `Ši kategorija tekstinė — rašyk iš vartotojo / JSON faktų.`
     : `Įtrauk visus žinomus specs iš technicalFields / factNotes / ocrText į **Specifikacijos** bullet'us.`;
-  return `Tu esi VAUTO MASTER SALES COPYWRITER — PASS 2 CREATIVE WRITE.
+  return `Tu esi VAUTO skelbimų rašytojas — PASS 2 FAKTAIS PAGRĮSTAS APRAŠYMAS.
 ${NATURAL_SALES_COPY_DIRECTIVE}
 ${packagingBlock}
 Kategorija: ${prompterId}. Šis tekstas eina į draftListing.description (PrePublish), ne į chat.
@@ -578,6 +598,24 @@ async function runTwoPassListingGeneration(opts: {
   extracted.category = remapped.vautoCategory;
   extracted.technicalFields = technicalFields;
 
+  // Deterministic sparse SELL gate: a bare SELL/CREATE intent with no grounded
+  // listing facts ("Noriu įdėti buto skelbimą") must NOT invoke creative Pass-2
+  // (which could invent prose). Return a fact-only draft with an EMPTY
+  // description — the same epistemic contract as Pipeline A's sparse path.
+  if (opts.mode === "text" && isSparseSellRequest(opts.text ?? "")) {
+    const title =
+      buildFallbackTitle(remapped.vautoCategory, technicalFields, opts.text) ||
+      "Skelbimas";
+    return {
+      ...extracted,
+      category: remapped.vautoCategory,
+      title,
+      description: "",
+      technicalFields,
+      salesCopySource: "stub",
+    };
+  }
+
   let creative: Record<string, unknown> = {};
   try {
     creative = await unifiedLlmJson({
@@ -614,17 +652,40 @@ async function runTwoPassListingGeneration(opts: {
     String(extracted.factNotes ?? "").trim() ||
     title;
 
+  const salesCopySource =
+    creativeDescription.length < 80 && factFallback
+      ? "fact_fallback"
+      : creativeDescription
+        ? "pass2"
+        : "stub";
+  // Deterministic fact-provenance (Universal Fact-Evidence semantics): Pass-2
+  // model prose is MODEL_INFERENCE — a non-canonical proposal that must not
+  // silently become canonical listing data. The deterministic fact-grounded
+  // fallback is USER_CLAIM (from user/OCR facts). Empty/sparse → undefined.
+  const descriptionSource: FactEvidenceSource | undefined =
+    salesCopySource === "pass2"
+      ? "MODEL_INFERENCE"
+      : salesCopySource === "fact_fallback"
+        ? "USER_CLAIM"
+        : undefined;
+
+  // Server-bound provenance: for Pass-2 model prose, mint an HMAC token that
+  // binds the exact description as MODEL_INFERENCE. The browser transports it
+  // but cannot forge/relabel it.
+  const provenanceToken =
+    descriptionSource === "MODEL_INFERENCE" && description
+      ? signModelInferenceProposal(description)
+      : undefined;
+
   return {
     ...extracted,
     category: remapped.vautoCategory,
     title,
     description,
     technicalFields,
-    ...(creativeDescription.length < 80 && factFallback
-      ? { salesCopySource: "fact_fallback" }
-      : creativeDescription
-        ? { salesCopySource: "pass2" }
-        : { salesCopySource: "stub" }),
+    salesCopySource,
+    descriptionSource,
+    ...(provenanceToken ? { provenanceToken } : {}),
   };
 }
 

@@ -42,6 +42,10 @@ export interface VautoServerListingPayload {
   imageAlt?: string;
   imageTitle?: string;
   reviewNotice?: string;
+  /** Fact-provenance of the description (FactEvidenceSource): MODEL_INFERENCE / USER_CLAIM / undefined. */
+  descriptionSource?: string;
+  /** Server-issued HMAC token binding the description as MODEL_INFERENCE. */
+  provenanceToken?: string;
 }
 
 export interface VautoServerParseResponse {
@@ -97,6 +101,12 @@ export function mapVautoServerListing(
 
   const attrs = { ...(listing.attributes ?? {}) };
   delete attrs._vautoCategory;
+  if (listing.descriptionSource) {
+    attrs.descriptionSource = listing.descriptionSource;
+  }
+  if (listing.provenanceToken) {
+    attrs.provenanceToken = listing.provenanceToken;
+  }
 
   const imageAlt =
     listing.imageAlt ?? (typeof attrs.imageAlt === "string" ? attrs.imageAlt : undefined);

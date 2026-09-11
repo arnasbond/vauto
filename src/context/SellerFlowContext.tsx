@@ -36,7 +36,7 @@ import {
 } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
-import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMediaResult, parseApiErrorMessage, SESSION_EXPIRED_MESSAGE } from "@/lib/api/client";
+import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMediaResult, apiConfirmDescription, parseApiErrorMessage, SESSION_EXPIRED_MESSAGE } from "@/lib/api/client";
 import { loadAccessToken } from "@/lib/auth/session";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { draftToListingPatch, type ListingEditPatch } from "@/lib/listing-edit";
@@ -450,6 +450,8 @@ export interface SellerFlowContextValue {
   completeVoiceRecording: (transcript: string | null) => void;
   cancelVoiceRecording: () => void;
   updateAiDraft: (patch: Partial<AiExtractedListing>) => void;
+  /** R2.5 — explicit whole-description acceptance (server-issued HUMAN_CONFIRMED). */
+  confirmDescription: () => Promise<boolean>;
   isPublishingListing: boolean;
   publishListing: (opts?: PublishListingOptions) => Promise<PublishListingResult>;
   publishBulkClothingListings: (drafts: AiExtractedListing[]) => Promise<void>;
@@ -1058,10 +1060,54 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             opts?.transcript?.trim() ||
             opts?.extraContext?.trim() ||
             "";
-          const cleaned = stripHallucinatedListingDefaults(
+          let cleaned = stripHallucinatedListingDefaults(
             syncDraftWithProfile(finalized),
             sourceText
           );
+
+          // R2.8 — human authority preservation: a user-edited (USER_CORRECTION)
+          // or explicitly confirmed (confirmationToken) description must not be
+          // overwritten by a fresh MODEL_INFERENCE regeneration — and its full
+          // authority + truthful origin must be preserved WITH the text.
+          const prevSource = String(
+            aiDraftRef.current?.attributes?.descriptionSource ?? ""
+          );
+          const prevConfirmation = String(
+            aiDraftRef.current?.attributes?.confirmationToken ?? ""
+          );
+          const prevProvenance = String(
+            aiDraftRef.current?.attributes?.provenanceToken ?? ""
+          );
+          const prevDescription = String(aiDraftRef.current?.description ?? "").trim();
+          if (
+            (prevSource === "USER_CORRECTION" || prevConfirmation) &&
+            prevDescription
+          ) {
+            const preservedAttrs = { ...(cleaned.attributes ?? {}) };
+            // Drop the FRESH MODEL_INFERENCE tokens (they belong to the
+            // discarded text B), then carry over the preserved description's
+            // own authority + origin:
+            delete preservedAttrs.provenanceToken;
+            delete preservedAttrs.confirmationToken;
+            if (prevConfirmation) {
+              preservedAttrs.confirmationToken = prevConfirmation;
+            }
+            if (prevProvenance) {
+              preservedAttrs.provenanceToken = prevProvenance;
+            }
+            cleaned = {
+              ...cleaned,
+              description: prevDescription,
+              attributes: {
+                ...preservedAttrs,
+                // Truthful origin: user-edited stays USER_CORRECTION; an
+                // AI-origin confirmed description stays MODEL_INFERENCE and is
+                // NEVER relabeled USER_CLAIM.
+                descriptionSource:
+                  prevSource === "USER_CORRECTION" ? "USER_CORRECTION" : "MODEL_INFERENCE",
+              },
+            };
+          }
 
           if (needsClarification) {
             // Multi-object: pick first, then DRAFT_READY with full hero summary.
@@ -1563,13 +1609,24 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const baseAttrs = verticalChanged ? {} : prevAttrs;
       const hasAttrPatch = patch.attributes !== undefined;
 
-      const attributes = hasAttrPatch || verticalChanged
+      let attributes = hasAttrPatch || verticalChanged
         ? sanitizeAttributesForCategory(
             nextCategory,
             baseAttrs,
             hasAttrPatch ? patch.attributes : {}
           )
         : prevAttrs;
+
+      // R2.7 — editing the description invalidates the human confirmation
+      // (stale confirmation token) but PRESERVES the AI lineage provenance
+      // token. The stale provenance still proves the draft is AI-derived and
+      // must not fall through to the manual/no-artifact path. It does NOT
+      // itself confirm — the user must explicitly confirm the new text.
+      if (patch.description !== undefined) {
+        const invalidated = { ...attributes } as Record<string, string | string[]>;
+        delete invalidated.confirmationToken;
+        attributes = invalidated;
+      }
 
       const lockedFlowState = resolveLockedListingFlowState(
         prev.listingFlowState,
@@ -1596,6 +1653,46 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       });
     });
   }, [syncDraftWithProfile, user.city, user.phone]);
+
+  /**
+   * R2.5 — explicit whole-description acceptance. The user reviews the entire
+   * current description and accepts it as listing content. The server mints an
+   * integrity-protected HUMAN_CONFIRMED artifact bound to the exact text.
+   * Editing alone does NOT confirm; only this explicit action does.
+   */
+  const confirmDescription = useCallback(async (): Promise<boolean> => {
+    const draft = aiDraftRef.current;
+    const description = String(draft?.description ?? "").trim();
+    if (!description) {
+      showToast("Nėra aprašymo patvirtinti.", "error");
+      return false;
+    }
+    const res = await apiConfirmDescription(description);
+    if (!res.ok) {
+      showToast(res.error || "Nepavyko patvirtinti aprašymo.", "error");
+      return false;
+    }
+    const token = res.data.confirmationToken;
+    if (!token) {
+      showToast("Nepavyko patvirtinti aprašymo.", "error");
+      return false;
+    }
+    setAiDraft((prev) => {
+      if (!prev) return prev;
+      // Keep the AI-authored origin (MODEL_INFERENCE) — do NOT relabel as
+      // USER_CLAIM. The HUMAN_CONFIRMED status is carried by the server-issued
+      // confirmationToken; the stale AI provenance token is dropped.
+      const attrs: Record<string, string | string[]> = {
+        ...(prev.attributes ?? {}),
+        confirmationToken: token,
+      };
+      // R2.7 — keep the AI lineage provenance token; it answers "where did this
+      // originate" and remains useful evidence even if stale relative to the
+      // now-confirmed text. The confirmation token answers "human accepted".
+      return syncDraftWithProfile({ ...prev, attributes: attrs });
+    });
+    return true;
+  }, [apiConfirmDescription, showToast, syncDraftWithProfile]);
 
   const revertPhotoCategoryMismatch = useCallback(() => {
     const snap = categoryMismatchRollbackRef.current;
@@ -2902,6 +2999,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       completeVoiceRecording,
       cancelVoiceRecording,
       updateAiDraft,
+      confirmDescription,
       isPublishingListing,
       publishListing,
       publishBulkClothingListings,
@@ -2942,6 +3040,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       completeVoiceRecording,
       cancelVoiceRecording,
       updateAiDraft,
+      confirmDescription,
       isPublishingListing,
       publishListing,
       publishBulkClothingListings,

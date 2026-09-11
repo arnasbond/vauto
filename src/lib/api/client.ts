@@ -610,6 +610,19 @@ export async function apiCreateListing(
   return { ok: true, data: normalizeListing(res.data) };
 }
 
+/** R2.5 — explicit whole-description acceptance (server-issued HUMAN_CONFIRMED artifact). */
+export async function apiConfirmDescription(
+  description: string
+): Promise<ApiResult<{ confirmationToken: string }>> {
+  return dataFetch<{ confirmationToken: string }>(
+    "/api/listings/description-confirmation",
+    {
+      method: "POST",
+      body: JSON.stringify({ description }),
+    }
+  );
+}
+
 export async function apiHideListing(
   id: string,
   userId: string

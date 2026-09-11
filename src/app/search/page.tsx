@@ -9,6 +9,8 @@ import { HeroSection, ContentSection } from "@/components/HeroSection";
 import { VerticalPageChrome } from "@/components/chameleon/PortalPageChrome";
 import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
 import { useVautoSearch } from "@/context/VautoSearchContext";
+import { useVauto } from "@/context/VautoContext";
+import { resolveActiveSurface, catalogSurfaceVisible } from "@/lib/ai-surface-ownership";
 
 export default function SearchPage() {
   const {
@@ -17,7 +19,18 @@ export default function SearchPage() {
     marketplaceFilters,
     setMarketplaceFilters,
   } = useVautoSearch();
+  const { aiDraft, sellerStep } = useVauto();
   const [liveDraft, setLiveDraft] = useState("");
+
+  // Same global SELL surface ownership as / and /discover: while SELL/CREATE
+  // owns the interaction, the catalog/search scaffold must not render.
+  const showCatalog = catalogSurfaceVisible(
+    resolveActiveSurface({
+      sellerStep,
+      hasListingDraft: Boolean(aiDraft),
+      searchQuery,
+    })
+  );
 
   return (
     <AppShell>
@@ -60,9 +73,11 @@ export default function SearchPage() {
           </VerticalPageChrome>
         </HeroSection>
 
-        <ContentSection>
-          <ListingGrid />
-        </ContentSection>
+        {showCatalog && (
+          <ContentSection>
+            <ListingGrid />
+          </ContentSection>
+        )}
       </Suspense>
     </AppShell>
   );

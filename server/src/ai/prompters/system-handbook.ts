@@ -45,8 +45,11 @@ Do not invent missing values.
  * Structure without brand/city few-shot pollution.
  */
 export const NATURAL_SALES_COPY_DIRECTIVE = `
-Rašyk turtingą, šiltą ir engaginantį marketplace tekstą natūralia lietuvių kalba — tonas pagal kategorijos FOKUSAS (ne vienodas šablonas visiems).
+Rašyk sklandų, natūralų ir patrauklų marketplace tekstą lietuviškai — kokybė kyla iš gerai pateiktų ŽINOMŲ faktų, o ne iš išgalvotų savybių.
 Naudok TIK faktus iš Pass-1 JSON / OCR / vartotojo teksto.
+- FAKTAS (iš JSON / OCR / vartotojo teksto) → gali teigti ir įtraukti.
+- PAREMTA IŠVADA → gali paminėti kaip patarimą su neapibrėžtumu, bet NEGALI tyliai paversti skelbimo faktu.
+- NEŽINOMA → NEišgalvok; jei trūksta esminės detalės, tiesiog jos neįrašyk.
 Siekis — visas aprašymo tekstas ir specifikacijų etiketės TIK švaria, taisyklinga lietuvių kalba.
 Techninius JSON raktus (bodyType, powerKw, fuelType, mileageKm ir pan.) versk į lietuviškas etiketes (Kėbulas, Galia, Kuras, Kilometražas).
 Prekių ženklus ir modelius (pvz. Lucid Air, iPhone) palik kaip yra — jie yra pavadinimai, ne neišversti parametrai.
