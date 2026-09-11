@@ -23,6 +23,8 @@ export const EPHEMERAL_LISTING_ATTR_KEYS = new Set([
   "ocrText",
   "preferredSizes",
   "deferredSalesDescription",
+  "deferredSalesDescriptionSource",
+  "deferredSalesDescriptionProvenanceToken",
   "visionQuotaFallback",
   "_socialShare",
   "socialShare",

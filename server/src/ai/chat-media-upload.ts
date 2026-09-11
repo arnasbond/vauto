@@ -198,9 +198,9 @@ async function resolveListingPhotoScan(input: {
     safeDocFacts
       ? `ATTACHED DOCUMENT FACTS (PDF/CV/TXT — use for Pass-1/Pass-2 synthesis, do not invent):\n${safeDocFacts}`
       : "",
-    "Vision MULTIMODAL FUSION (UNIVERSAL OCR + MASTER SALES COPYWRITER): passport PRIMARY OCR across ALL attached photos. HARD SPECS A/B/D.1/D.3/S.1/P.1–P.3/R/V.9/G/C.1.3/E → technicalFields TIK iš OCR. PARTS/WHEELS: ratlankiai/padangos — BE salono/variklio/pavarų. DRAUDŽIAMA išgalvoti kainą/TA/ridą/odinį saloną. documentImageIndexes = OCR-only.",
+    "Vision MULTIMODAL FUSION (UNIVERSAL OCR + FAKTAIS PAGRĮSTAS APRAŠYMAS): passport PRIMARY OCR across ALL attached photos. HARD SPECS A/B/D.1/D.3/S.1/P.1–P.3/R/V.9/G/C.1.3/E → technicalFields TIK iš OCR. PARTS/WHEELS: ratlankiai/padangos — BE salono/variklio/pavarų. DRAUDŽIAMA išgalvoti kainą/TA/ridą/odinį saloną. documentImageIndexes = OCR-only.",
     "ANTI-STALE: title/make/model TIK iš dabartinių nuotraukų+OCR. IGNORUOK seną listingDraft.title / myListings antraštes, jei vizualiai nesutampa.",
-    "MASTER SALES COPYWRITER: title engaginantis; description = hook + • **Ypatybės** bullet'ai + CTA su Markdown ** ir \\n. DRAUDŽIAMA sausas caption („pavaizduoti rudi taškeliai…“).",
+    "NATURAL GROUNDED COPY: title patrauklus (iš faktų); description = hook + • **Ypatybės** bullet'ai + CTA su Markdown ** ir \\n, bet KIEKVIENAS teiginys tik iš vizualo/OCR/vartotojo faktų. DRAUDŽIAMA sausas caption („pavaizduoti rudi taškeliai…“) IR DRAUDŽIAMA išgalvoti nematomų savybių.",
   ].filter(Boolean);
 
   let parsed: Awaited<ReturnType<typeof parseListingImagesForAgent>>;
@@ -221,7 +221,7 @@ async function resolveListingPhotoScan(input: {
           : undefined,
       extraContext: [
         ...extraBits,
-        "PRIVALOMA: UNIVERSAL OCR → technicalFields/attributes; tada MASTER SALES COPYWRITER description lietuviškai (hook + **Atlikimas/Būklė**, **Stilius/Specifikacijos**, **Spalvos/Parametrai** + closing CTA). PALIK Markdown ** ir naujas eilutes. DRAUDŽIAMA sausas image caption. Dokumentų indeksus — documentImageIndexes. NIEKADA neperrašyk senos antraštės be OCR pagrindo.",
+        "PRIVALOMA: UNIVERSAL OCR → technicalFields/attributes; tada FAKTAIS PAGRĮSTAS description lietuviškai (hook + **Atlikimas/Būklė**, **Stilius/Specifikacijos**, **Spalvos/Parametrai** + closing CTA) — tik iš vizualo/OCR/vartotojo faktų. PALIK Markdown ** ir naujas eilutes. DRAUDŽIAMA sausas image caption ir DRAUDŽIAMA išgalvoti nematomų savybių. Dokumentų indeksus — documentImageIndexes. NIEKADA neperrašyk senos antraštės be OCR pagrindo.",
       ].join("; "),
     });
   } catch (err) {
@@ -350,9 +350,26 @@ async function resolveListingPhotoScan(input: {
   const priorDeferred = String(
     (priorAttrs as Record<string, unknown>).deferredSalesDescription ?? ""
   ).trim();
-  const deferredSalesDescription = String(visionDraft.description ?? "")
-    .trim()
-    .slice(0, 4000) || priorDeferred.slice(0, 4000);
+  const priorDeferredSource = String(
+    (priorAttrs as Record<string, unknown>).deferredSalesDescriptionSource ?? ""
+  ).trim();
+  const priorDeferredToken = String(
+    (priorAttrs as Record<string, unknown>).deferredSalesDescriptionProvenanceToken ??
+      ""
+  ).trim();
+  // Provenance travels WITH the deferred description so a later materialization
+  // (ensureRichSalesCopyBeforePublish) can re-assert MODEL_INFERENCE lineage and
+  // the publish boundary can reject unpromoted model prose.
+  const visionDescription = String(parsed.listing.description ?? "").trim();
+  const deferredSalesDescription =
+    String(visionDraft.description ?? "").trim().slice(0, 4000) ||
+    priorDeferred.slice(0, 4000);
+  const deferredSalesDescriptionSource = visionDescription
+    ? String(parsed.listing.descriptionSource ?? "")
+    : priorDeferredSource;
+  const deferredSalesDescriptionProvenanceToken = visionDescription
+    ? String(parsed.listing.provenanceToken ?? "")
+    : priorDeferredToken;
   const leanVisionDraft = {
     ...visionDraft,
     description: "",
@@ -360,6 +377,12 @@ async function resolveListingPhotoScan(input: {
       ...(visionDraft.attributes ?? {}),
       ...(deferredSalesDescription
         ? { deferredSalesDescription }
+        : {}),
+      ...(deferredSalesDescriptionSource
+        ? { deferredSalesDescriptionSource }
+        : {}),
+      ...(deferredSalesDescriptionProvenanceToken
+        ? { deferredSalesDescriptionProvenanceToken }
         : {}),
       salesCopyGenerated: "false",
     },

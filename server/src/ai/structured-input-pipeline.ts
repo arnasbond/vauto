@@ -54,8 +54,8 @@ export const STRUCTURED_INPUT_VISION_RULES = `VAIZDO ĮVESTIS (nuotrauka — ta 
 - LOKALIZACIJA (PRIVALOMA): detectedObjects[].label ir choiceChips daiktavardžiai TIK lietuvių kalba (pvz. „statomas namas“, „stogo karkasas“). DRAUDŽIAMA angliškų etikėčių („house under construction“, „roof frame“).
 - DRAUDŽIAMA į detectedObjects dėti tech passport / registracijos liudijimą / kvitą — jie tik OCR dokumentai.
 - Keli parduodami objektai → trumpi choiceChips „Parduoti {lietuviškas objektas}“; confidence < 0.55 → disambiguation.
-- Vienas aiškus objektas → užpildyk juodraščio JSON su MASTER SALES COPYWRITER title+description (hook + bullet ypatybės + CTA).
-- Automobiliai + techninis pasas: OCR faktai → technicalFields; pokalbyje gali parodyti Markdown specifikacijų santrauką, BET description laukas VISADA turi būti turtingas marketplace sales copy (ne sausas caption).
+- Vienas aiškus objektas → užpildyk juodraščio JSON su faktais pagrįstu title+description (hook + bullet ypatybės + CTA) — tik iš vizualo/OCR/vartotojo faktų.
+- Automobiliai + techninis pasas: OCR faktai → technicalFields; pokalbyje gali parodyti Markdown specifikacijų santrauką, BET description laukas turi būti patrauklus, faktais pagrįstas marketplace tekstas (ne sausas caption, ne išgalvotos savybės).
 - DRAUDŽIAMA klausti kainos jei vartotojas jos nenurodė; DRAUDŽIAMA išgalvoti kainą / ridą / TA.
 - Jei objektas neaiškus — nekurk pilno skelbimo; užduok patikslinimo klausimą be fono aprašymų.
 - FOTO↔TEKSTAS KONFLIKTAS (PRIVALOMA): jei vartotojo tekstas (pvz. „stogo remontas“) aiškiai prieštarauja vizualiai kategorijai (pvz. batai) — SUSTOK, neperrašyk title/category iš teksto ant vizualaus objekto. Paklausk: „Nuotraukoje matau X, o tekste Y — kurį skelbimą ruošiame?“ su 2 choiceChips.`;
