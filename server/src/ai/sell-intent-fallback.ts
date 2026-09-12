@@ -77,6 +77,21 @@ const BUY_PATTERNS = [
   /\bparodyk\b/i,
 ];
 
+/**
+ * M4 — create-family verbs (imperative/infinitive "make/prepare a listing").
+ * A small semantic verb family, NOT an exact-keyword authority: the model
+ * remains the primary interpreter; this only backs up the deterministic
+ * AI-down/fallback path. "paskelbk"/"skelbti" are deliberately EXCLUDED — those
+ * are publish intent, handled by the publication boundary, never folded into
+ * "create draft".
+ */
+const CREATE_FAMILY_VERB =
+  /\b(?:sukurk|sukurti|padaryk|padaryti|įkelk|ikelk|įkelti|ikelti|įmesk|imesk|įmesti|imesti|kurti|daryti)\b/i;
+
+/** Listing-target signal: the "skelbimas" object noun or a demonstrative/anaphor. */
+const LISTING_TARGET =
+  /\b(?:skelbim\w*|šitą|sita|šitai|sitai|šį|si|šią|sia|mano|prek\w*|daikt\w*)\b/i;
+
 const CLOTHING_HINT = /\b(drabuž|rub|sukn|bat|batus|batel|ked|keln|striuk|spint|megz|maršk|gryb)/i;
 const HOME_ART_HINT =
   /\b(paveiksl|tapyb|drob|skulptūr|skulptur|dekor|bald|sofa|stal|kėd|kedes|lentyn|kilim|vaz|veidrod|interjer)/i;
@@ -129,9 +144,14 @@ export function detectServerSellIntent(text: string): boolean {
   //    imperative or infinitive) co-occurring with the "skelbim" object means
   //    the goal is to CREATE a listing, regardless of intervening object words
   //    ("noriu įdėti buto skelbimą"). Co-occurrence, not adjacency.
+  //    M4 — the create-family verbs ("sukurk/padaryk/paskelbk/įkelk/įmesk")
+  //    are recognized here too, so an AI-down fallback never drops a clear
+  //    create request to generic dialog. "paskelbk" may express create/publish
+  //    intent, but publication confirmation/authority boundaries stay separate.
   if (
     /\b(tiesiog\s+)?noriu\s+(į|i)?kelti\s+skelb/i.test(q) ||
     /\b(į|i)kelti\s+skelbim/i.test(q) ||
+    (CREATE_FAMILY_VERB.test(q) && LISTING_TARGET.test(q)) ||
     (/\b(?:noriu\s+|tiesiog\s+noriu\s+)?(?:į|i)?(?:d[ėe]ti|d[ėe]k|kelti|kelk)\b/i.test(q) &&
       /\bskelbim\w*\b/i.test(q))
   ) {
@@ -287,7 +307,15 @@ function inferCategory(text: string): string {
   // Unambiguous service signals win over real_estate objects: "buto valymas"
   // (cleaning) / "valymo paslaugos" are SERVICES, not an apartment listing.
   if (/\b(valym|paslaug)/i.test(text)) return "services";
-  if (/\b(butas|buto|butą|butu|butui|bute|namas|namo|namą|nt|kambar\w*|sklyp\w*)\b/i.test(text)) return "real_estate";
+  // M3 — real-estate nouns use an explicit morphological stem list with a
+  // Unicode-safe trailing boundary (ASCII `\b` cannot see the Lithuanian „ą“).
+  if (
+    /\b(but(?:as|o|ą|u|ui|e|ams|ais|ų)|nam(?:as|o|ą|u|ui|e|ams|ais|ų)|nt|kambar[\p{L}]*|sklyp[\p{L}]*)(?![\p{L}\p{N}])/iu.test(
+      text
+    )
+  ) {
+    return "real_estate";
+  }
   if (/\b(nuomuoju|nuoma|nuomoti)\b/i.test(text)) return "rental";
   // Wheels/parts before brand→vehicles (Citroën logo on rims ≠ full car).
   if (
@@ -430,6 +458,12 @@ const NARROW_NOUN_NOMINATIVE: Record<string, string> = {
   dviratuką: "dviratukas",
   stalą: "stalas",
   butą: "butas",
+  buto: "butas",
+  butui: "butas",
+  namą: "namas",
+  namo: "namas",
+  sklypą: "sklypas",
+  kambario: "kambarys",
   krepšį: "krepšis",
   lentyną: "lentyna",
   prekes: "prekės",

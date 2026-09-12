@@ -225,6 +225,31 @@ export function inferCategoryFromContext(
   return null;
 }
 
+/**
+ * Strictly resolve a category string to a canonical slug — or null when it is
+ * NOT a canonical id and NOT a known alias. Unlike `normalizeListingCategoryId`
+ * (which falls back to "other") this is a validation gate for interpreted
+ * model output: an unknown/hallucinated category must NOT silently become an
+ * "other" filter that narrows search results to nothing.
+ */
+export function tryResolveListingCategoryId(
+  value: unknown
+): RegistryListingCategory | null {
+  if (value == null) return null;
+  if (isListingCategoryId(value)) return value;
+  const raw = String(value)
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9ąčęėįšųūž_\s-]/gi, "")
+    .replace(/[\s-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+  if (!raw) return null;
+  if (isListingCategoryId(raw)) return raw;
+  if (CATEGORY_ALIASES[raw]) return CATEGORY_ALIASES[raw];
+  return null;
+}
+
 export function normalizeListingCategoryId(
   value: unknown,
   fallback: RegistryListingCategory = "other"

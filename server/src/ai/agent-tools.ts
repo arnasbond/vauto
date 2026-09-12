@@ -1,5 +1,19 @@
 import { getListings, searchListingsFiltered } from "../repository.js";
 import {
+  isFieldUserCorrected,
+  isHumanAuthoritativeSource,
+  markUserCorrectedField,
+  mergeFieldAuthorityAttrs,
+  USER_CORRECTED_FIELDS_KEY,
+  valueGroundedInUserText,
+} from "../shared/field-authority.js";
+import {
+  resolveSearchCategory,
+  resolveSearchCity,
+  resolveSearchPrice,
+} from "./search/search-authority.js";
+import { signModelInferenceProposal } from "../shared/description-provenance.js";
+import {
   getConfirmationBoundaryState,
   getDefaultPendingActionStore,
   proposeConsequentialAction,
@@ -1293,14 +1307,21 @@ export async function executeAgentTool(
       const nl = extractSearchNlFilters(rawForIntent);
       const intent = extractProductSearchIntent(rawForIntent);
       const jobIntent = isJobSearchQuery(rawForIntent);
+      // R4.1 — deterministic facts (price bounds, explicit location) are
+      // extracted from the USER's raw utterance so an explicit constraint
+      // ("iki 600", "Kaunas") is never dropped when the model rewrites/omits it.
+      const userNl = fallbackQuery ? extractSearchNlFilters(fallbackQuery) : nl;
       // Prefer creative intent extraction; NL keyword is a secondary clean-up.
       const query = normalizeProductSearchQuery(
         intent.keyword || nl.keyword || rawQuery || fallbackQuery
       );
-      const category =
-        (args.category ? String(args.category) : undefined) ||
-        intent.category ||
-        inferSearchCategory(rawForIntent);
+      // Category authority: a valid model category (canonical or known alias) is
+      // used; an unknown/hallucinated model category is OMITTED (never coerced to
+      // "other") and falls back to the user-derived category, else no category.
+      const category = resolveSearchCategory(
+        args.category ? String(args.category) : undefined,
+        intent.category || inferSearchCategory(rawForIntent)
+      );
 
       // Category browse („rūbai“, „automobilis“, „paslaugos“) — no literal keyword gate.
       const categoryBrowse = intent.categoryBrowse && Boolean(category);
@@ -1358,15 +1379,24 @@ export async function executeAgentTool(
           },
         };
       }
-      const maxPrice =
-        args.maxPrice != null ? Number(args.maxPrice) : nl.maxPrice;
-      const minPrice =
-        args.minPrice != null ? Number(args.minPrice) : nl.minPrice;
-      const cityRaw = args.city
-        ? String(args.city).trim()
-        : nl.city
-          ? nl.city
-          : "";
+      // R4.1 — price/location validation + authority: an explicit user fact
+      // (from the raw utterance) outranks model args; contradictory bounds are
+      // normalized only as a symmetric representation error (swapped), never
+      // silently invented. NaN / negative values are dropped.
+      const priceBounds = resolveSearchPrice({
+        modelMin: args.minPrice,
+        modelMax: args.maxPrice,
+        userMin: userNl.minPrice,
+        userMax: userNl.maxPrice,
+      });
+      const minPrice = priceBounds.minPrice;
+      const maxPrice = priceBounds.maxPrice;
+      // Explicit current-user location outranks a model-only (stale/hallucinated)
+      // city; the model may supply a city only when the user stated none.
+      const cityRaw = resolveSearchCity(
+        args.city ? String(args.city) : undefined,
+        userNl.city || nl.city
+      );
       const cityNominative = cityRaw ? resolveLtCityNominative(cityRaw) : "";
       const city = cityNominative ? normCityForFilter(cityNominative) : "";
 
@@ -1924,7 +1954,23 @@ export async function executeAgentTool(
         // Vision copy replaces prior description — never concatenate (stops 2× sales text).
         const priorDesc = String(prior?.description ?? "").trim();
         const visionDesc = String(parsed.listing.description ?? "").trim();
-        const mergedDescription = visionDesc || priorDesc;
+        // R4.1 — an explicit human correction (description/category/price/…)
+        // outranks later model/vision inference.
+        const priorAttrsForAuthority = (prior?.attributes ??
+          {}) as Record<string, string | undefined>;
+        const priorDescriptionHuman =
+          isHumanAuthoritativeSource(priorAttrsForAuthority.descriptionSource) ||
+          Boolean(priorAttrsForAuthority.confirmationToken);
+        const priorCategoryHuman = isFieldUserCorrected(
+          priorAttrsForAuthority,
+          "category"
+        );
+        const priorPriceHuman = isFieldUserCorrected(
+          priorAttrsForAuthority,
+          "price"
+        );
+        const mergedDescription =
+          priorDescriptionHuman && priorDesc ? priorDesc : visionDesc || priorDesc;
 
         const evidenceDocs = [
           ...parsed.documentUrls,
@@ -1986,9 +2032,13 @@ export async function executeAgentTool(
         const { vin: scannedVin, ...listingAttrsWithoutVin } = stripUntrustedVinMarkers(
           listingAttrs
         ) as Record<string, string>;
+        const authorityMerged = mergeFieldAuthorityAttrs(
+          prior?.attributes ?? {},
+          listingAttrsWithoutVin,
+          "VISUAL_OBSERVATION"
+        ) as Record<string, string>;
         let draftAttrs: Record<string, string> = {
-          ...(prior?.attributes ?? {}),
-          ...listingAttrsWithoutVin,
+          ...authorityMerged,
           ...(evidenceDocs.length
             ? {
                 documentImageUrls: evidenceDocs.join("|"),
@@ -2022,10 +2072,16 @@ export async function executeAgentTool(
           title: parsed.listing.title || prior?.title || "",
           // Step 2 — keep sales copy deferred until „Paruošti skelbimą“.
           description: "",
-          price: parsed.listing.price || prior?.price || 0,
+          price:
+            priorPriceHuman && (prior?.price ?? 0) > 0
+              ? prior?.price ?? 0
+              : parsed.listing.price || prior?.price || 0,
           location: parsed.listing.location || prior?.location || ctx.userCity || "",
           contact: ctx.contact || "",
-          category: parsed.listing.category || prior?.category || "other",
+          category:
+            priorCategoryHuman && prior?.category
+              ? prior?.category
+              : parsed.listing.category || prior?.category || "other",
           confidence: parsed.listing.confidence,
           attributes: draftAttrs,
           ...(publicGallery.length ? { orderedImageUrls: publicGallery } : {}),
@@ -2469,6 +2525,11 @@ export async function executeAgentTool(
           location: nestedModelCity,
           ...nestedPlainAttrs
         } = incomingAttrsRest;
+        // R4.1 — the human-correction marker is server-owned: the model can
+        // never inject its own `userCorrectedFields` authority.
+        delete (nestedPlainAttrs as Record<string, string>)[
+          USER_CORRECTED_FIELDS_KEY
+        ];
         nestedPriceArg = nestedModelPrice;
         nestedConditionArg = nestedModelCondition;
         nestedCityArg = nestedModelCity;
@@ -2611,6 +2672,75 @@ export async function executeAgentTool(
         } else {
           patch.attributes = { ...(patch.attributes ?? {}), [key]: value };
         }
+      }
+
+      // R4.1 remediation — make human correction authority REAL. When the
+      // current user utterance explicitly changes a field, record it as
+      // human-authoritative so a later photo/vision cannot silently overwrite
+      // it. Explicit user text is the ONLY authority source here — never model
+      // restatement, never a nested/vision value.
+      const correctedFields = new Set<string>();
+      if (textPrice != null) correctedFields.add("price");
+      if (textCity != null) correctedFields.add("city");
+      if (textCondition != null) correctedFields.add("condition");
+      if (
+        args.category != null &&
+        String(args.category) !== String(base.category ?? "")
+      ) {
+        correctedFields.add("category");
+      }
+      if (
+        args.description != null &&
+        String(args.description) !== String(base.description ?? "")
+      ) {
+        correctedFields.add("description");
+        // R2.7 publication invariant — editing AI prose invalidates stale
+        // whole-description confirmation, but the edit must be classified by
+        // PROVENANCE, never assumed user-authored. Grounded text = USER_CORRECTION
+        // (manual/user content, no AI confirmation). Ungrounded = MODEL_INFERENCE
+        // (fresh AI prose, must reach the publish boundary as unconfirmed).
+        const nextDescription = String(args.description);
+        const isUserAuthored = valueGroundedInUserText(
+          nextDescription,
+          lastUserText
+        );
+        const descriptionAttrs: Record<string, string> = {
+          ...(patch.attributes ?? {}),
+        };
+        delete descriptionAttrs.confirmationToken;
+        if (isUserAuthored) {
+          descriptionAttrs.descriptionSource = "USER_CORRECTION";
+          delete descriptionAttrs.provenanceToken;
+        } else {
+          descriptionAttrs.descriptionSource = "MODEL_INFERENCE";
+          descriptionAttrs.provenanceToken =
+            signModelInferenceProposal(nextDescription);
+        }
+        patch.attributes = descriptionAttrs;
+      }
+      // Grounded attribute corrections (e.g. color „tamsiai mėlyna“): a value
+      // whose tokens appear in the user's own words is an explicit correction.
+      if (lastUserText && patch.attributes) {
+        const priorAttrs = (base.attributes ??
+          {}) as Record<string, string | undefined>;
+        for (const [key, value] of Object.entries(patch.attributes)) {
+          if (key === USER_CORRECTED_FIELDS_KEY) continue;
+          const priorValue = priorAttrs[key];
+          if (
+            value !== undefined &&
+            String(value) !== String(priorValue ?? "") &&
+            valueGroundedInUserText(String(value), lastUserText)
+          ) {
+            correctedFields.add(key);
+          }
+        }
+      }
+      if (correctedFields.size) {
+        let attrs = patch.attributes ?? {};
+        for (const f of correctedFields) {
+          attrs = markUserCorrectedField(attrs, f);
+        }
+        patch.attributes = attrs;
       }
 
       const draft = {

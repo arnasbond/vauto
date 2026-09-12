@@ -43,6 +43,11 @@ import {
   isPhotoSellIntentText,
 } from "../shared/intents/photo.js";
 import { devLog } from "../lib/dev-log.js";
+import {
+  isFieldUserCorrected,
+  isHumanAuthoritativeSource,
+  mergeFieldAuthorityAttrs,
+} from "../shared/field-authority.js";
 
 export {
   isImageOnlyChatUpload,
@@ -300,15 +305,35 @@ async function resolveListingPhotoScan(input: {
   );
   const mergedGallery = uniqueImageUrls([...priorGallery, ...publicGallery]);
 
+  const priorDraftAttrs = (input.listingDraft?.attributes ??
+    {}) as Record<string, string | undefined>;
+  // R4.1 — an explicit human correction (color/category/price/…) outranks later
+  // model/vision inference. The prior draft carries `userCorrectedFields` for
+  // generic attributes and `descriptionSource`/`confirmationToken` for the
+  // description; vision must not silently erase those.
+  const priorCategoryHuman = isFieldUserCorrected(priorDraftAttrs, "category");
+  const priorPriceHuman = isFieldUserCorrected(priorDraftAttrs, "price");
+  const priorDescriptionHuman =
+    isHumanAuthoritativeSource(priorDraftAttrs.descriptionSource) ||
+    Boolean(priorDraftAttrs.confirmationToken);
+
   const visionDraft = {
     title: parsed.listing.title,
-    description: mergeVisionDescription(
-      input.listingDraft?.description,
-      parsed.listing.description
-    ),
-    price: parsed.listing.price || input.listingDraft?.price || 0,
+    description: priorDescriptionHuman
+      ? input.listingDraft?.description
+      : mergeVisionDescription(
+          input.listingDraft?.description,
+          parsed.listing.description
+        ),
+    price:
+      priorPriceHuman && (input.listingDraft?.price ?? 0) > 0
+        ? input.listingDraft?.price
+        : parsed.listing.price || input.listingDraft?.price || 0,
     location: parsed.listing.location || input.listingDraft?.location || "",
-    category: parsed.listing.category,
+    category:
+      priorCategoryHuman && input.listingDraft?.category
+        ? input.listingDraft.category
+        : parsed.listing.category,
     attributes: {
       ...listingAttrs,
       ...(evidenceDocs.length
@@ -402,10 +427,11 @@ async function resolveListingPhotoScan(input: {
 
   // Phase 2C: reconcile the fresh vision VIN against the prior draft's
   // confirmed/candidate VIN state — candidate-only, never a canonical write.
-  let visionMergedAttrs: Record<string, string> = {
-    ...(safePriorAttrs as Record<string, string>),
-    ...(leanVisionDraft.attributes ?? {}),
-  };
+  let visionMergedAttrs: Record<string, string> = mergeFieldAuthorityAttrs(
+    safePriorAttrs as Record<string, string | undefined>,
+    leanVisionDraft.attributes ?? {},
+    "VISUAL_OBSERVATION"
+  ) as Record<string, string>;
   if (visionVin) {
     visionMergedAttrs = applyVinExtractionCandidate(visionMergedAttrs, {
       value: visionVin,
