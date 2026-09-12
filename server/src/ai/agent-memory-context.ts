@@ -33,6 +33,17 @@ export interface AgentSearchFilters {
   preferences?: SearchPreference;
 }
 
+/**
+ * R4.2 — server-persisted conversational search continuity. Written to the
+ * thread store's `search_context` JSONB so the active search subject /
+ * preferences / alternatives survive an API restart WITHOUT the browser.
+ * Category-neutral: `subject` is free text, filters reuse AgentSearchFilters.
+ */
+export interface PersistedSearchContext {
+  subject?: string;
+  activeSearchFilters?: AgentSearchFilters;
+}
+
 export interface AgentMemoryPayload {
   defaultRegion?: string;
   /** F1.3 — optional: absent for users without a saved vehicle (no fake fleet). */
