@@ -68,6 +68,11 @@ import {
   buildHandbookExtractionFewShots,
   getCategoryPrompter,
 } from "./prompters/index.js";
+import {
+  buildSchemaHint,
+  normalizeAttributesAgainstVertical,
+  verticalForCategory,
+} from "./extraction-schema.js";
 import { sanitizePromptUserInput } from "./safety-shield.js";
 
 export { getCategoryPrompter } from "./prompters/index.js";
@@ -153,6 +158,8 @@ KATEGORIJA (tik label — copy rašoma Pass 2):
 - AUTOMOBILIAI = visas automobilis (VIN/rida/kėbulas). Ratlankiai, padangos, bamperiai, dalys → DALYS (ne AUTOMOBILIAI), net jei ant dalies matosi markės logotipas.
 - MUZIKA / NT / ELEKTRONIKA / APRANGA / PASLAUGOS / DARBAS / MENAS / … pagal vizualą ir tekstą.
 - Keli parduodami objektai → detectedObjects + choiceChips.
+
+${buildSchemaHint()}
 
 ${buildHandbookExtractionFewShots()}`;
 
@@ -593,7 +600,7 @@ async function runTwoPassListingGeneration(opts: {
     : extractedRaw;
 
   // Heuristic category remap before creative write — keeps prompter isolation tight.
-  const technicalFields = parseTechnicalFields(
+  let technicalFields = parseTechnicalFields(
     extracted.technicalFields ?? extracted.attributes
   );
   const remapped = remapCategoryFromContent(
@@ -605,6 +612,14 @@ async function runTwoPassListingGeneration(opts: {
     opts.text ?? opts.extraContext ?? ""
   );
   extracted.category = remapped.vautoCategory;
+  // Finding C — reconcile model-emitted fields against the resolved vertical's
+  // canonical schema (type coercion / enum whitelist / min-max) plus its
+  // explicitly-owned enrichment namespaces; arbitrary unknown model keys are
+  // dropped. The normalized map is what flows to the listing draft.
+  technicalFields = normalizeAttributesAgainstVertical(
+    verticalForCategory(remapped.category),
+    technicalFields
+  ).attributes;
   extracted.technicalFields = technicalFields;
 
   // Deterministic sparse SELL gate: a bare SELL/CREATE intent with no grounded
