@@ -36,6 +36,7 @@ const GLOBAL_ATTRIBUTE_KEYS = new Set([
  */
 const VISION_PIPELINE_ATTRIBUTE_KEYS = new Set([
   "deferredSalesDescription",
+  "userCorrectedFields",
   "salesCopyGenerated",
   "salesCopySource",
   "factNotes",

@@ -178,6 +178,7 @@ import {
 } from "./planner/index.js";
 import { extractConditionFromText } from "../shared/fact-conflict.js";
 import { extractCityFromText } from "./listing-contact-parse.js";
+import { markUserCorrectedField } from "../shared/field-authority.js";
 // E2.8 — provenance boundary for model-suggested identity attributes.
 import { groundBrandAttributesInUserText } from "./agent-ui-tools.js";
 import {
@@ -1616,6 +1617,17 @@ async function runVautoAgentInner(
           provenance: "unknown",
         })
       );
+      // R4.1 — explicit current-user corrections become human-authoritative so a
+      // later photo/vision cannot silently overwrite them.
+      const userCorrected: string[] = [];
+      if (priceToApply != null) userCorrected.push("price");
+      if (cityFromText) userCorrected.push("city");
+      if (conditionFromText) userCorrected.push("condition");
+      if (hasDescEdit) userCorrected.push("description");
+      let authorityAttrs = mergedAttrs;
+      for (const f of userCorrected) {
+        authorityAttrs = markUserCorrectedField(authorityAttrs, f);
+      }
       let nextDescription = hasSpecs
         ? buildVehicleDescriptionFromAttributes(mergedAttrs, {
             location: listingDraft.location,
@@ -1638,7 +1650,7 @@ async function runVautoAgentInner(
           ...listingDraft,
           title: nextTitle || listingDraft.title,
           description: nextDescription,
-          attributes: mergedAttrs,
+          attributes: authorityAttrs,
           ...(cityFromText ? { location: cityFromText } : {}),
           ...(negoPatch
             ? { priceLabel: negoPatch.priceLabel }

@@ -18,6 +18,7 @@ import { devLog } from "../lib/dev-log.js";
 import {
   VISION_DEEP_OCR_EXTRACTION_RULE,
   VISION_EXTRACTION_ANTI_HALLUCINATION_RULE,
+  VISION_NATURAL_GROUNDED_COPY_RULE,
   VISION_OMNIVA_GABARIT_RULE,
   VISION_REGITRA_TECH_PASSPORT_OCR_RULE,
   VISION_VEHICLE_MODEL_CUE_HINT,
@@ -514,7 +515,8 @@ Grąžink JSON: ${EXTRACTION_SCHEMA}`;
 
 function buildCreativeWritePrompt(
   extracted: Record<string, unknown>,
-  userCity: string
+  userCity: string,
+  mode: "text" | "image" = "text"
 ): string {
   const category = String(extracted.category ?? "NAMAI");
   const { id: prompterId, prompt: categoryPrompt } = getCategoryPrompter(category);
@@ -536,9 +538,16 @@ function buildCreativeWritePrompt(
   const packagingBlock = nonPhysical
     ? `Ši kategorija tekstinė — rašyk iš vartotojo / JSON faktų.`
     : `Įtrauk visus žinomus specs iš technicalFields / factNotes / ocrText į **Specifikacijos** bullet'us.`;
+  // R4.1 — the vision grounded-copy doctrine is wired into the actual listing
+  // description path (image mode) so vision prose is grounded without being
+  // robotic: natural/attractive writing, supported inference with uncertainty,
+  // unknown stays unknown, no OCR dump.
+  const visionGrounding =
+    mode === "image" ? `\n${VISION_NATURAL_GROUNDED_COPY_RULE}` : "";
   return `Tu esi VAUTO skelbimų rašytojas — PASS 2 FAKTAIS PAGRĮSTAS APRAŠYMAS.
 ${NATURAL_SALES_COPY_DIRECTIVE}
 ${packagingBlock}
+${visionGrounding}
 Kategorija: ${prompterId}. Šis tekstas eina į draftListing.description (PrePublish), ne į chat.
 
 ${categoryPrompt}
@@ -619,7 +628,7 @@ async function runTwoPassListingGeneration(opts: {
   let creative: Record<string, unknown> = {};
   try {
     creative = await unifiedLlmJson({
-      prompt: buildCreativeWritePrompt(extracted, city),
+      prompt: buildCreativeWritePrompt(extracted, city, opts.mode),
       userTextFallback: opts.text?.trim() || undefined,
       userCityFallback: city,
       priceHint: opts.priceHint,

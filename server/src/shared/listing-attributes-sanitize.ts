@@ -25,6 +25,7 @@ export const EPHEMERAL_LISTING_ATTR_KEYS = new Set([
   "deferredSalesDescription",
   "deferredSalesDescriptionSource",
   "deferredSalesDescriptionProvenanceToken",
+  "userCorrectedFields",
   "visionQuotaFallback",
   "_socialShare",
   "socialShare",
