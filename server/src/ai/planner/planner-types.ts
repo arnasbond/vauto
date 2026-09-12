@@ -52,6 +52,18 @@ export interface PlannerFactPatch {
   vin?: string;
 }
 
+/**
+ * R4.2 — a related/subordinate goal carried alongside the primary intent so a
+ * natural multi-goal utterance ("noriu parduoti BMW ir pažiūrėk, kiek kainuoja")
+ * is not silently flattened into a single action. Carried as a NOTE — never an
+ * autonomous action authority (R5 owns execution).
+ */
+export interface PlannerSecondaryGoal {
+  kind: "market_intelligence" | "related_search" | "alternative_suggestion";
+  /** Short human-readable note of what the user ALSO wants (audit/telemetry). */
+  note: string;
+}
+
 export interface PlannerDecision {
   intent: PlannerIntent;
   /** Short human-readable goal (telemetry/audit, never user-facing). */
@@ -65,6 +77,15 @@ export interface PlannerDecision {
     query?: string;
     filters?: Partial<AgentSearchFilters> & { rooms?: string };
   };
+  /** R4.2 — related subordinate goal (preserved, not dropped). */
+  secondary?: PlannerSecondaryGoal;
+  /**
+   * R4.2 — the current conversational subject/referent (category-neutral:
+   * "BMW", "iPhone 15", "butas Žirmūnuose", "darbas Vilniuje"). The MODEL
+   * resolves discourse referents ("kiek TOKS kainuotų?") against conversation
+   * context and carries the subject forward; determinism only validates it.
+   */
+  subject?: string;
   needsClarification: boolean;
   clarificationQuestion: string | null;
   /** E2.8 — the turn is an ADVICE-seeking turn: catalog search and

@@ -6,6 +6,22 @@ import {
 import { CONTEXT_BLOCK_BUDGET } from "./context-budget.js";
 import { clampJsonBlock } from "../shared/text-truncation.js";
 
+export interface SearchPreference {
+  /** Soft, NON-BINDING preferences. Never hard SQL filters — used for ranking/
+   *  suggestions and surfaced to the user, not exclusion. */
+  bodyType?: string;
+  fuelType?: string;
+  make?: string;
+  /** Preferred location (not exclusive): "Vilnius būtų geriausia". */
+  preferredLocation?: string;
+  /** Soft price ceiling hint: "geriau iki 20k". */
+  maxPriceHint?: number;
+  /** Acceptable alternatives / fallbacks: "gali būti ir Audi / Honda CR-V". */
+  alternatives?: string[];
+  /** Explicit exclusions, possibly with exceptions: "dyzelio nenoriu". */
+  exclusions?: string[];
+}
+
 export interface AgentSearchFilters {
   query?: string;
   category?: string;
@@ -13,6 +29,8 @@ export interface AgentSearchFilters {
   maxPrice?: number;
   minPrice?: number;
   refinements?: string[];
+  /** R4.2 — soft preferences / alternatives, distinct from hard constraints. */
+  preferences?: SearchPreference;
 }
 
 export interface AgentMemoryPayload {
