@@ -17,6 +17,10 @@ import { IMPORT_MAX_BYTES as BULK_IMPORT_MAX_BYTES } from "./bulk-import/import-
 import { vinReviewRouter } from "./routes/vin-review.js";
 import { markConfirmationBoundaryReady } from "./ai/confirmation/consequential-action-policy.js";
 import { createPostgresPendingActionStore } from "./ai/confirmation/consequential-action-store-postgres.js";
+import {
+  createPostgresThreadStore,
+  markThreadStoreReady,
+} from "./agent-core/thread-store-instance.js";
 import { handleStripeWebhook } from "./routes/billing.js";
 import { handleVautoStripeWebhook } from "./routes/webhooks.js";
 import { paymentMethodsRouter } from "./routes/payment-methods.js";
@@ -330,6 +334,10 @@ app.listen(port, async () => {
     // UNAVAILABLE for the lifetime of this process — fail closed, not
     // fail open onto a non-durable store.
     markConfirmationBoundaryReady(createPostgresPendingActionStore(pool));
+    // Conversation-state durability — install the durable Postgres thread store
+    // ONLY after migrations succeed (same fail-closed bootstrap contract as the
+    // confirmation boundary above). Production never falls back to in-memory.
+    markThreadStoreReady(createPostgresThreadStore());
     const { startAiWatchOutboxWorker } = await import("./ai-watch/outbox.js");
     startAiWatchOutboxWorker(5000);
     const { startScheduledReconciliationWorker } = await import(

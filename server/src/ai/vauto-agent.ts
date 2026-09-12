@@ -7,6 +7,7 @@ import {
   buildAgentMemoryContextBlock,
   type AgentMemoryPayload,
   type AgentSearchFilters,
+  type PersistedSearchContext,
 } from "./agent-memory-context.js";
 import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
 import { resolveMonetizationState } from "./monetization-engine.js";
@@ -251,6 +252,8 @@ export interface VautoAgentRequest {
     };
     activeSearchFilters?: AgentSearchFilters | null;
     searchSessionReset?: boolean;
+    /** R4.2 — server-restored conversational search context (thread-owned). */
+    threadSearchContext?: PersistedSearchContext | null;
     /** Recent pinned search hit IDs for instant selection fast-path. */
     recentSearchListingIds?: string[];
     currentPageContext?: {
@@ -323,6 +326,8 @@ export interface VautoAgentResponse {
   prePublishRequirements?: import("./pre-publish-validation.js").ServerPrePublishRequirementsPayload;
   toolCalls: { name: string; result: unknown }[];
   actions: AgentSideEffect | { type: "none" };
+  /** R4.2 — current conversational subject (model-resolved) for server persistence. */
+  subject?: string;
 }
 
 export type VautoAgentStreamEvent =
@@ -1935,7 +1940,11 @@ async function runVautoAgentInner(
     recentSearchListingIds: req.context.recentSearchListingIds,
     lastUserQuery: lastUserText || undefined,
     searchSessionReset: Boolean(req.context.searchSessionReset),
-    activeSearchPreferences: req.context.activeSearchFilters?.preferences,
+    // R4.2 — active preferences: fresh client/model state wins; restored thread
+    // search context is the server-authoritative fallback when the client is empty.
+    activeSearchPreferences:
+      req.context.activeSearchFilters?.preferences ??
+      req.context.threadSearchContext?.activeSearchFilters?.preferences,
     monetization: resolveMonetizationState({
       userRole: req.context.userRole,
       billingPlan: req.context.monetization?.billingPlan,
@@ -3164,6 +3173,7 @@ async function runVautoAgentInner(
     // query, then the raw utterance only as a last resort.
     const titleHint =
       plannerDecision.subject?.trim() ||
+      String(req.context.threadSearchContext?.subject ?? "").trim() ||
       String(req.context.activeSearchFilters?.query ?? "").trim() ||
       lastUserText;
     try {
@@ -3194,5 +3204,6 @@ async function runVautoAgentInner(
     quickReplies,
     toolCalls,
     actions: resolvedAction,
+    ...(plannerDecision.subject ? { subject: plannerDecision.subject } : {}),
   };
 }

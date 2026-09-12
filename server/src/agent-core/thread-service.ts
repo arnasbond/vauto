@@ -329,6 +329,9 @@ export async function runThreadTurn(
       listingDraft:
         (current.listingDraft as Record<string, unknown> | undefined) ??
         (input.context?.listingDraft as Record<string, unknown> | undefined),
+      // R4.2 — server-restored conversational search continuity (thread-owned).
+      threadSearchContext:
+        (current.searchContext as Record<string, unknown> | undefined) ?? null,
     } as VautoAgentRequest["context"],
   };
 
@@ -363,9 +366,28 @@ export async function runThreadTurn(
     actions.type === "listing_draft" && actions.listingDraft
       ? actions.listingDraft
       : current.listingDraft;
+
+  // R4.2 — persist the resolved conversational search state server-side so an
+  // API restart can reconstruct it without the browser. Fresh turn state wins;
+  // otherwise the prior persisted state is preserved.
+  const searchSideEffect =
+    actions.type === "search" || actions.type === "empty_search"
+      ? (actions.filters as Record<string, unknown> | undefined)
+      : undefined;
+  const priorSearchContext =
+    (current.searchContext as Record<string, unknown> | null) ?? {};
+  const nextSearchContext: Record<string, unknown> = {
+    ...priorSearchContext,
+    ...(typeof response.subject === "string" && response.subject.trim()
+      ? { subject: response.subject.trim() }
+      : {}),
+    ...(searchSideEffect ? { activeSearchFilters: searchSideEffect } : {}),
+  };
+
   const next: ThreadRecord = {
     ...current,
     listingDraft: nextDraft,
+    searchContext: nextSearchContext,
     listingFlowState:
       typeof nextDraft?.listingFlowState === "string"
         ? nextDraft.listingFlowState
