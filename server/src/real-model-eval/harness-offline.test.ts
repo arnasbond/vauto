@@ -63,6 +63,8 @@ function syntheticOutcome(overrides: Partial<EvalTurnOutcome> = {}): EvalTurnOut
     clarificationQuestion: null,
     advisoryContext: false,
     draftAfter: { category: "electronics", price: 450 },
+    toolArgs: null,
+    searchCategory: undefined,
     confirmations: [],
     effects: [],
     error: null,
@@ -87,7 +89,7 @@ describe("real-model-eval — scorer", () => {
   it("flags wrong vertical + transport bias on a non-transport query resolved to vehicles", () => {
     const s = scoreTurn(
       { text: "ieskau striukės", reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "clothing" } },
-      syntheticOutcome({ draftAfter: { category: "vehicles", make: "Volvo" } }),
+      syntheticOutcome({ searchCategory: "vehicles" }),
       null,
       "clothing"
     );
@@ -124,6 +126,97 @@ describe("real-model-eval — scorer", () => {
     const serialized = JSON.stringify(sc);
     assert.ok(serialized.length > 0);
     assert.ok(!serialized.includes("GEMINI_API_KEY"));
+  });
+});
+
+describe("real-model-eval — remediation regressions", () => {
+  it("1. expected intent mismatch forces FAIL", () => {
+    const s = scoreTurn(
+      { text: "ieskau iphone", reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "electronics" } },
+      syntheticOutcome({ intent: "dialog", toolCalls: ["searchListings"], searchCategory: "electronics" }),
+      null,
+      "electronics"
+    );
+    assert.ok(s.flags.includes("INTENT_MISMATCH"));
+    assert.equal(s.failureClass, "MODEL SEMANTIC FAILURE");
+  });
+
+  it("2. correct intent produces no false failure", () => {
+    const s = scoreTurn(
+      { text: "ieskau iphone", reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "electronics" } },
+      syntheticOutcome({
+        intent: "catalog_search",
+        toolCalls: ["searchListings"],
+        searchCategory: "electronics",
+        reply: "Rasta keletas iPhone 13 skelbimų, pateikiu jums tinkamiausius variantus pagal jūsų kainos ribą.",
+      }),
+      null,
+      "electronics"
+    );
+    assert.equal(s.failureClass, null);
+    assert.ok(!s.flags.includes("INTENT_MISMATCH"));
+  });
+
+  it("3. search wrong vertical → WRONG_VERTICAL", () => {
+    const s = scoreTurn(
+      { text: "ieskau striukės", reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "clothing" } },
+      syntheticOutcome({ searchCategory: "real_estate" }),
+      null,
+      "clothing"
+    );
+    assert.ok(s.flags.includes("WRONG_VERTICAL"));
+  });
+
+  it("4. non-transport resolved to vehicles → TRANSPORT_BIAS", () => {
+    const s = scoreTurn(
+      { text: "ieskau telefono", reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "electronics" } },
+      syntheticOutcome({ searchCategory: "vehicles" }),
+      null,
+      "electronics"
+    );
+    assert.ok(s.flags.includes("WRONG_VERTICAL"));
+    assert.ok(s.flags.includes("TRANSPORT_BIAS"));
+  });
+
+  it("5. required tool missing → EXTRACTION / ORCHESTRATION FAILURE", () => {
+    const s = scoreTurn(
+      { text: "ieskau iphone", reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "electronics" } },
+      syntheticOutcome({ toolCalls: [], searchCategory: "electronics" }),
+      null,
+      "electronics"
+    );
+    assert.ok(s.flags.includes("REQUIRED_TOOL_MISSING"));
+    assert.equal(s.failureClass, "EXTRACTION / ORCHESTRATION FAILURE");
+  });
+
+  it("6. required tool present → no REQUIRED_TOOL_MISSING", () => {
+    const s = scoreTurn(
+      { text: "ieskau iphone", reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "electronics" } },
+      syntheticOutcome({ toolCalls: ["searchListings"], searchCategory: "electronics" }),
+      null,
+      "electronics"
+    );
+    assert.ok(!s.flags.includes("REQUIRED_TOOL_MISSING"));
+  });
+
+  it("7. guest case cannot claim authenticated context (harness source)", () => {
+    const src = readSource("harness.ts");
+    assert.ok(src.includes("isAuthenticated: Boolean(jwt)"), "harness must derive auth from the JWT");
+    assert.ok(!src.includes("isAuthenticated: c.setup?.isAuthenticated !== false"), "must not default guest to authenticated");
+  });
+
+  it("8. critical failure cannot be hidden by high aggregate points", () => {
+    const c = REAL_MODEL_EVAL_CASES.find((x) => x.id === "SEARCH-CLOTHING")!;
+    // A turn with a critical flag (transport bias) even while other axes are max.
+    const outcome = syntheticOutcome({
+      intent: "catalog_search",
+      toolCalls: ["searchListings"],
+      searchCategory: "vehicles",
+      reply: "Labai ilgas natūralus atsakymas, kuris būtų visiškai sklandus ir malonus vartotojui.",
+    });
+    const sc = scoreCase(c, [outcome], ["gemini-2.5-flash"]);
+    assert.ok(sc.failureClasses.length > 0, "critical flag must force case FAIL regardless of points");
+    assert.ok(sc.failureClasses.includes("MODEL SEMANTIC FAILURE"));
   });
 });
 

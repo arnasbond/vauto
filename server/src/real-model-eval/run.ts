@@ -76,12 +76,16 @@ async function main(): Promise<void> {
   const limit = readLimit();
   const cases = REAL_MODEL_EVAL_CASES.slice(0, limit);
   const scores: CaseScore[] = [];
-  let requestCount = 0;
+  // BLOCKER (medium) — a turn may produce multiple planner/tool-loop model
+  // calls, so turn count is NOT the Gemini request count. Report turns honestly
+  // and mark exact model-request count as unavailable (no invasive provider
+  // instrumentation for cost accounting).
+  let conversationTurnsExecuted = 0;
 
   for (const c of cases) {
     try {
       const outcome = await runEvalCase(app, c);
-      requestCount += outcome.turns.length;
+      conversationTurnsExecuted += outcome.turns.length;
       const sc = scoreCase(c, outcome.turns, outcome.modelsUsed);
       scores.push(sc);
       const mark = sc.failureClasses.length === 0 ? "PASS" : "FAIL";
@@ -126,11 +130,12 @@ async function main(): Promise<void> {
     headSha: headSha(),
     totalCases: scores.length,
     totalTurns,
+    conversationTurnsExecuted,
+    modelRequestCount: "unavailable",
     maxPoints,
     earnedPoints: earned,
     flaggedTurns: flagged,
     modelsUsed,
-    requests: requestCount,
     results: scores,
     failureTaxonomy: taxonomy,
   };
@@ -147,7 +152,7 @@ async function main(): Promise<void> {
   lines.push("");
   lines.push(`- Generated: ${json.generatedAt}`);
   lines.push(`- HEAD: ${json.headSha}`);
-  lines.push(`- Cases: ${json.totalCases} · Turns: ${json.totalTurns} · Model requests: ${json.requests}`);
+  lines.push(`- Cases: ${json.totalCases} · Turns: ${json.totalTurns} · Model requests: ${json.modelRequestCount}`);
   lines.push(`- Models observed: ${modelsUsed.join(", ") || "(none)"}`);
   lines.push(`- **Points: ${json.earnedPoints}/${json.maxPoints}** (${(100 * json.earnedPoints / Math.max(1, json.maxPoints)).toFixed(1)}%)`);
   lines.push(`- Flagged turns: ${json.flaggedTurns}`);

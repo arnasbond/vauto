@@ -67,6 +67,10 @@ export interface EvalTurnOutcome {
   clarificationQuestion: string | null;
   advisoryContext: boolean;
   draftAfter: Record<string, unknown> | null;
+  /** Planner decision tool args (query/filters/category as the planner sent them). */
+  toolArgs: Record<string, unknown> | null;
+  /** Canonical search vertical as observable from planner toolArgs + search sideEffect. */
+  searchCategory?: string;
   confirmations: string[];
   effects: string[];
   model?: string;
@@ -78,6 +82,23 @@ export interface EvalCaseOutcome {
   caseId: string;
   turns: EvalTurnOutcome[];
   modelsUsed: string[];
+}
+
+/**
+ * Read the canonical search vertical from the production planner decision's
+ * toolArgs (category / filters.category) or the search tool's sideEffect
+ * filters — NOT from response text and NOT from a new classifier.
+ */
+function extractSearchCategory(
+  toolArgs: Record<string, unknown> | undefined,
+  searchFilters: Record<string, unknown> | undefined
+): string | undefined {
+  const direct = toolArgs?.category;
+  if (typeof direct === "string" && direct.trim()) return direct.trim().toLowerCase();
+  const filterObj = (toolArgs?.filters ?? searchFilters ?? {}) as Record<string, unknown>;
+  const fc = filterObj.category;
+  if (typeof fc === "string" && fc.trim()) return fc.trim().toLowerCase();
+  return undefined;
 }
 
 /** Run one conversation through the real production route. */
@@ -150,7 +171,9 @@ export async function runEvalCase(
           turnId: `rme-${c.id}-${i + 1}`,
           messages: [{ role: "user", text: turn.text }],
           context: {
-            isAuthenticated: c.setup?.isAuthenticated !== false,
+            // BLOCKER 4 — identity must be internally consistent: authenticated
+            // only when a real eval JWT exists; guests are never "authenticated".
+            isAuthenticated: Boolean(jwt),
             userCity: "Vilnius",
             contact: "+37060000000",
             profilePhone: "+37060000000",
@@ -183,6 +206,11 @@ export async function runEvalCase(
 
       const decision = decisions[decisions.length - 1] ?? null;
       const turnTraces = traces.slice(traceIndexBefore);
+      const toolArgs = (decision?.toolArgs ?? null) as Record<string, unknown> | null;
+      const searchCategory = extractSearchCategory(
+        toolArgs ?? undefined,
+        actions.filters as Record<string, unknown> | undefined
+      );
 
       turns.push({
         index: i + 1,
@@ -196,6 +224,8 @@ export async function runEvalCase(
         clarificationQuestion: decision?.clarificationQuestion ?? null,
         advisoryContext: decision?.advisoryContext ?? false,
         draftAfter: draft,
+        toolArgs,
+        searchCategory,
         confirmations: [...confirmations],
         effects: [...effects],
         model: turnTraces.find((t) => t.model)?.model,

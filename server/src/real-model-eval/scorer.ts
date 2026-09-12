@@ -26,6 +26,8 @@ export type CriticalFlag =
   | "UNNECESSARY_CLARIFICATION"
   | "COMMAND_PARSER_BEHAVIOR"
   | "SILENT_CONSEQUENTIAL_ACTION"
+  | "INTENT_MISMATCH"
+  | "REQUIRED_TOOL_MISSING"
   | "TAXONOMY_GAP";
 
 export type FailureClass =
@@ -48,6 +50,7 @@ export interface TurnScore {
   reply: string;
   intent: string | null;
   toolCalls: string[];
+  searchCategory?: string;
   draftAfter: Record<string, unknown> | null;
 }
 
@@ -116,6 +119,9 @@ export function scoreTurn(
   if (outcome.error) semantic = 0;
   else if (ref.intent && outcome.intent !== ref.intent) {
     semantic = 0;
+    // BLOCKER 1 — material expected-intent mismatch is a measurement-level
+    // failure; it must not remain a passing conversation.
+    flags.add("INTENT_MISMATCH");
     if (ref.intent === "catalog_search" && outcome.intent === "sell_create") {
       flags.add("COMMAND_PARSER_BEHAVIOR");
     }
@@ -131,14 +137,16 @@ export function scoreTurn(
   // ── Structured correctness + wrong-vertical ──────────────────────────────
   let structured = 2;
   if (ref.vertical) {
-    const dv = resolvedDraftVertical(outcome.draftAfter);
-    if (dv && dv !== ref.vertical) {
+    // BLOCKER 2 — compare against the vertical actually sent through the
+    // production search/planner path, not the (usually absent) draft category.
+    const resolved = outcome.searchCategory ?? resolvedDraftVertical(outcome.draftAfter);
+    if (resolved && resolved !== ref.vertical) {
       structured = 0;
       flags.add("WRONG_VERTICAL");
-      if (ref.vertical !== "vehicles" && dv === "vehicles") {
+      if (ref.vertical !== "vehicles" && resolved === "vehicles") {
         flags.add("TRANSPORT_BIAS");
       }
-    } else if (!dv) {
+    } else if (!resolved) {
       structured = 1;
     }
   }
@@ -151,7 +159,10 @@ export function scoreTurn(
   if (ref.expectedTool !== undefined) {
     const has = outcome.toolCalls.includes(ref.expectedTool ?? "");
     if (ref.expectedTool && !has) {
+      // BLOCKER 3 — a required core tool that is not called is a material
+      // orchestration failure, not merely a point deduction.
       structured = Math.max(0, structured - 1);
+      flags.add("REQUIRED_TOOL_MISSING");
     }
     if (!ref.expectedTool && outcome.toolCalls.length > 0) {
       flags.add("UNNECESSARY_CLARIFICATION");
@@ -245,6 +256,7 @@ export function scoreTurn(
     reply: reply.slice(0, 300),
     intent: outcome.intent,
     toolCalls: outcome.toolCalls,
+    searchCategory: outcome.searchCategory,
     draftAfter: outcome.draftAfter,
   };
 }
@@ -259,6 +271,7 @@ function classifyFailure(
     return "AUTHORITY / PROVENANCE FAILURE";
   }
   if (flags.has("CONTEXT_RESET")) return "STATE / CONTEXT FAILURE";
+  if (flags.has("REQUIRED_TOOL_MISSING")) return "EXTRACTION / ORCHESTRATION FAILURE";
   if (flags.has("WRONG_VERTICAL")) {
     // A wrong vertical on a genuinely non-standard mapping is a domain gap;
     // otherwise it is a model semantic misread.
@@ -267,6 +280,7 @@ function classifyFailure(
       : "MODEL SEMANTIC FAILURE";
   }
   if (flags.has("TRANSPORT_BIAS")) return "MODEL SEMANTIC FAILURE";
+  if (flags.has("INTENT_MISMATCH")) return "MODEL SEMANTIC FAILURE";
   if (flags.has("INVENTED_FACT")) return "MODEL SEMANTIC FAILURE";
   if (flags.has("COMMAND_PARSER_BEHAVIOR")) return "UX / NATURALNESS ISSUE";
   if (flags.has("UNNECESSARY_CLARIFICATION")) return "UX / NATURALNESS ISSUE";
