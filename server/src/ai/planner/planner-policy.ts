@@ -102,6 +102,19 @@ export const PlannerDecisionSchema = z.object({
   action: z.string().max(80).default(""),
   tool: z.enum(PLANNER_TOOL_WHITELIST).nullable().default(null),
   toolArgs: z.record(z.unknown()).default({}),
+  // R4.2 — related subordinate goal (preserved, never an action authority).
+  secondary: z
+    .object({
+      kind: z.enum([
+        "market_intelligence",
+        "related_search",
+        "alternative_suggestion",
+      ]),
+      note: z.string().max(200),
+    })
+    .optional(),
+  // R4.2 — current conversational subject/referent (model-resolved, bounded).
+  subject: z.string().max(120).optional(),
   needsClarification: z.boolean().default(false),
   clarificationQuestion: z.string().max(300).nullable().default(null),
   confidence: z.number().min(0).max(1).default(0.5),

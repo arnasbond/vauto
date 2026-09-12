@@ -32,6 +32,9 @@ const PLANNER_SYSTEM_INSTRUCTION = [  "Esi VAUTO klasifikuotojo planeris. Tu NEA
   "- VIN kandidatas tik transporto juodraščiui (vin_candidate).",
   "- Klausimai apie istoriją/juodraštį yra context_question.",
   "- „paieškok/ieškau/surask + objektas“ arba struktūruoti filtrai (kategorija+miestas/kaina) yra catalog_search.",
+  "- SOFT PREFERENCE ≠ HARD FILTRAS: „geriau/norėčiau/būtų geriausia/jei galima“ → preferences, NE city/maxPrice/category hard. „gali būti ir X“ → preferences.alternatives. „iki/nuo“ (be „geriau“) → hard maxPrice/minPrice.",
+  "- DAUGIAU NEI VIENAS TIKSLAS: pagrindinis → intent+tool; susijęs antrinis (kaina, alternatyva) → secondary. Niekada nenumetyk antrinio tikslo.",
+  "- SUBJEKTAS: kai klausimas susijęs su ankstesniu objektu („kiek TOKS kainuoja“), nurodyk subject pagal kontekstą (NE pažodinę žinutę). Atnaujink subject, kai objektas aiškiai pasikeičia.",
   "- Kompaktinė atmintis yra PATARIAMOJI; kanoniniai faktai (factsBlock) yra autoritetinga būsena — jei jie konfliktuoja su neseniai pasakyta fraze, laimi kanoniniai faktai.",
   "- confidence 0–1; neaišku → žemesnė confidence, ne garantuotas tool.",
 ].join("\n");
@@ -76,7 +79,24 @@ const PLAN_TURN_DECLARATION = {
       },
       toolArgs: {
         type: "OBJECT",
-        description: "Griežtai pagal pasirinktą tool; nežinomi laukai atmetami",
+        description: "Griežtai pagal pasirinktą tool; nežinomi laukai atmetami. searchListings toolArgs gali turėti preferences (soft), pvz. {bodyType, fuelType, preferredLocation, alternatives, exclusions, maxPriceHint} — NIEKADA neversk soft preference į hard category/city/maxPrice.",
+      },
+      secondary: {
+        type: "OBJECT",
+        description: "Susijęs antrinis tikslas, jei vartotojas vienoje žinutėje išreiškė daugiau nei vieną norą (pvz. parduoti + paklausti kainos). PRIVALOMA nenuleisti tyliai.",
+        properties: {
+          kind: {
+            type: "STRING",
+            enum: ["market_intelligence", "related_search", "alternative_suggestion"],
+          },
+          note: { type: "STRING", description: "Trumpas antrinio tikslo aprašymas (≤200)" },
+        },
+        required: ["kind", "note"],
+      },
+      subject: {
+        type: "STRING",
+        description:
+          "Dabartinis pokalbio subjektas/referentas (kategorijos neutralus: „BMW“, „iPhone 15“, „butas Žirmūnuose“, „darbas Vilniuje“). Kai vartotojas klausia „kiek TOKS kainuoja“, „TOKS“ sprendžiamas pagal kontekstą — tai NE pažodinė žinutė. Atnaujinama, kai vartotojas aiškiai keičia objektą.",
       },
       needsClarification: { type: "BOOLEAN" },
       clarificationQuestion: { type: "STRING", nullable: true },
@@ -207,6 +227,8 @@ export async function llmPlannerDecision(
     action: parsed.action || parsed.intent,
     tool: parsed.tool,
     toolArgs: (parsed.toolArgs ?? {}) as PlannerDecision["toolArgs"],
+    ...(parsed.secondary ? { secondary: parsed.secondary } : {}),
+    ...(parsed.subject ? { subject: parsed.subject } : {}),
     needsClarification: parsed.needsClarification,
     clarificationQuestion: parsed.clarificationQuestion,
     confidence: parsed.confidence,

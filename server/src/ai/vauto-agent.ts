@@ -1935,6 +1935,7 @@ async function runVautoAgentInner(
     recentSearchListingIds: req.context.recentSearchListingIds,
     lastUserQuery: lastUserText || undefined,
     searchSessionReset: Boolean(req.context.searchSessionReset),
+    activeSearchPreferences: req.context.activeSearchFilters?.preferences,
     monetization: resolveMonetizationState({
       userRole: req.context.userRole,
       billingPlan: req.context.monetization?.billingPlan,
@@ -3151,6 +3152,40 @@ async function runVautoAgentInner(
     ) {
       finalText = listingResult.voiceFollowUp;
     }
+  }
+
+  // R4.2 — a related subordinate goal is ANSWERED when it is a safe, read-only
+  // request; other kinds remain a continuity note. `market_intelligence` runs
+  // the EXISTING read-only analyzeMarketPrice capability (never consequential,
+  // never an autonomous chain) and integrates a natural answer into the reply.
+  if (plannerDecision.secondary?.kind === "market_intelligence") {
+    // Referent resolution: the MODEL carries the current conversational subject
+    // (e.g. "BMW" for "kiek TOKS kainuotų?"); fall back to the persisted search
+    // query, then the raw utterance only as a last resort.
+    const titleHint =
+      plannerDecision.subject?.trim() ||
+      String(req.context.activeSearchFilters?.query ?? "").trim() ||
+      lastUserText;
+    try {
+      const mi = await executeAgentTool(
+        "analyzeMarketPrice",
+        { title: titleHint },
+        ctx
+      );
+      const miMsg = (mi.result as { message?: string } | undefined)?.message;
+      if (miMsg && !finalText.includes(miMsg.slice(0, 24))) {
+        finalText = `${finalText ? `${finalText}\n\n` : ""}${miMsg}`;
+      }
+    } catch {
+      // Never fabricate a price or corrupt the primary workflow — degrade to a
+      // short honest note and let the conversation continue.
+      finalText = `${finalText ? `${finalText}\n\n` : ""}Kainų analizės šiuo metu gauti nepavyko.`;
+    }
+  } else if (
+    plannerDecision.secondary?.note &&
+    !finalText.includes(plannerDecision.secondary.note)
+  ) {
+    finalText = `${finalText ? `${finalText}\n\n` : ""}Taip pat: ${plannerDecision.secondary.note}.`;
   }
 
   return {

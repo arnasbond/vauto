@@ -13,6 +13,54 @@ import {
   resolveSearchPrice,
 } from "./search/search-authority.js";
 import { signModelInferenceProposal } from "../shared/description-provenance.js";
+import type { SearchPreference } from "./agent-memory-context.js";
+import {
+  mergeSearchPreferences,
+  rankBySoftPreferences,
+  retrieveAlternativeFallback,
+} from "./search/soft-rank.js";
+
+/**
+ * R4.2 — bound/normalize soft search preferences (never authority, never a
+ * hard filter). Rejects non-string / non-finite values and clamps sizes.
+ */
+export function normalizeSearchPreferences(
+  raw: unknown
+): SearchPreference | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const rp = raw as Record<string, unknown>;
+  const str = (v: unknown): string | undefined => {
+    if (typeof v !== "string") return undefined;
+    const s = v.trim().slice(0, 120);
+    return s || undefined;
+  };
+  const list = (v: unknown): string[] | undefined => {
+    if (!Array.isArray(v)) return undefined;
+    const out = v
+      .map((x) => String(x).trim().slice(0, 120))
+      .filter(Boolean)
+      .slice(0, 6);
+    return out.length ? out : undefined;
+  };
+  const maxPriceHint =
+    typeof rp.maxPriceHint === "number" &&
+    Number.isFinite(rp.maxPriceHint) &&
+    rp.maxPriceHint >= 0
+      ? rp.maxPriceHint
+      : undefined;
+  const p: SearchPreference = {
+    ...(str(rp.bodyType) ? { bodyType: str(rp.bodyType) } : {}),
+    ...(str(rp.fuelType) ? { fuelType: str(rp.fuelType) } : {}),
+    ...(str(rp.make) ? { make: str(rp.make) } : {}),
+    ...(str(rp.preferredLocation)
+      ? { preferredLocation: str(rp.preferredLocation) }
+      : {}),
+    ...(maxPriceHint !== undefined ? { maxPriceHint } : {}),
+    ...(list(rp.alternatives) ? { alternatives: list(rp.alternatives) } : {}),
+    ...(list(rp.exclusions) ? { exclusions: list(rp.exclusions) } : {}),
+  };
+  return Object.keys(p).length ? p : undefined;
+}
 import {
   getConfirmationBoundaryState,
   getDefaultPendingActionStore,
@@ -180,6 +228,8 @@ export interface AgentToolContext {
   /** Latest user utterance — used when Gemini omits query in searchListings. */
   lastUserQuery?: string;
   searchSessionReset?: boolean;
+  /** R4.2 — active soft preferences from the prior search turn (continuity). */
+  activeSearchPreferences?: SearchPreference;
   monetization?: MonetizationState;
   listingDraft?: {
     title?: string;
@@ -607,6 +657,20 @@ export const AGENT_FUNCTION_DECLARATIONS = [
             "Lietuvos miestas vardininku (Panevėžys, Biržai, Rokiškis) — normalizuok iš bet kurio linksnio (Panevėžyje, Biržuose, Rokiškio)",
         },
         limit: { type: "INTEGER" },
+        preferences: {
+          type: "OBJECT",
+          description:
+            "Minkšti pageidavimai / alternatyvos — NIEKADA neversk jų į hard category/city/maxPrice. „geriau/norėčiau/būtų geriausia/jei galima“ → bodyType|fuelType|preferredLocation|maxPriceHint; „gali būti ir X“ → alternatives; „nenoriu X“ → exclusions.",
+          properties: {
+            bodyType: { type: "STRING" },
+            fuelType: { type: "STRING" },
+            make: { type: "STRING" },
+            preferredLocation: { type: "STRING" },
+            maxPriceHint: { type: "NUMBER" },
+            alternatives: { type: "ARRAY", items: { type: "STRING" } },
+            exclusions: { type: "ARRAY", items: { type: "STRING" } },
+          },
+        },
       },
     },
   },
@@ -1432,11 +1496,47 @@ export async function executeAgentTool(
         }
       }
 
+      // R4.2 — soft preferences / alternatives are PRESERVED but NEVER become
+      // hard SQL filters. The model reasons about "geriau/norėčiau/būtų geriausia"
+      // and the deterministic layer only bounds/validates the structured shape.
+      // Active prior preferences are MERGED (replace-not-accumulate) for
+      // cross-turn continuity.
+      const incomingPreferences = normalizeSearchPreferences(args.preferences);
+      const preferences = mergeSearchPreferences(
+        ctx.activeSearchPreferences,
+        incomingPreferences
+      );
+
       const boundaryQuery = categoryBrowse
         ? category || rawForIntent
         : searchKeyword || query || rawForIntent;
       const bounded = applyStrictSearchBoundaries(filteredRows, boundaryQuery);
-      const results = bounded.map((l) => toAgentListingSummary(l));
+      // R4.2 — soft preferences re-rank (NOT re-filter) the eligible set so a
+      // preferred match ranks above an otherwise-comparable non-match.
+      const ranked = rankBySoftPreferences(bounded, preferences);
+      let results = ranked.map((l) => toAgentListingSummary(l));
+
+      // R4.2 E — bounded alternative fallback: when the primary target yields
+      // no results and the user declared acceptable alternatives, retrieve each
+      // alternative SEPARATELY (OR semantics, never a conjunction), dedupe and
+      // rank primary-first. Category-neutral, capped execution.
+      if (results.length === 0 && preferences?.alternatives?.length) {
+        const altRows = await retrieveAlternativeFallback(
+          preferences.alternatives,
+          async (alt) => {
+            const rows = await searchListingsFiltered({
+              query: alt,
+              city: city || undefined,
+              limit,
+            });
+            return applyStrictSearchBoundaries(rows, alt);
+          },
+          preferences
+        );
+        if (altRows.length) {
+          results = altRows.map((l) => toAgentListingSummary(l));
+        }
+      }
 
       if (
         results.length === 0 &&
@@ -1486,6 +1586,7 @@ export async function executeAgentTool(
         city: cityNominative || undefined,
         maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
         minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
+        ...(preferences ? { preferences } : {}),
       };
 
       const emptySummary =
@@ -3357,6 +3458,8 @@ export interface AgentSearchFilters {
   minPrice?: number;
   refinements?: string[];
   categoryAttributes?: Record<string, string>;
+  /** R4.2 — soft preferences/alternatives, never hard SQL filters. */
+  preferences?: SearchPreference;
 }
 
 export type AgentSideEffect =
