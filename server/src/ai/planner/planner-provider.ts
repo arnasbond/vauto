@@ -44,13 +44,31 @@ export interface PlannerStructuredResponse {
   /** Provider + model that answered (telemetry). */
   provider: string;
   model: string;
+  /** Observability: number of provider attempts before success. */
+  attempts?: number;
+  /** Observability: models tried in order (primary → fallback). */
+  modelsTried?: string[];
 }
 
 /** Provider-unavailable: no key / network / HTTP failure. */
 export class PlannerProviderUnavailableError extends Error {
-  constructor(message: string, readonly cause?: unknown) {
+  readonly retryExhausted: boolean;
+  readonly attempts: number;
+  readonly modelsTried: string[];
+  constructor(
+    message: string,
+    readonly cause?: unknown,
+    opts: {
+      retryExhausted?: boolean;
+      attempts?: number;
+      modelsTried?: string[];
+    } = {}
+  ) {
     super(message);
     this.name = "PlannerProviderUnavailableError";
+    this.retryExhausted = opts.retryExhausted ?? false;
+    this.attempts = opts.attempts ?? 0;
+    this.modelsTried = opts.modelsTried ?? [];
   }
 }
 
