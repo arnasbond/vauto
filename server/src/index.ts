@@ -183,8 +183,8 @@ app.use("/api", reputationRouter);
 app.use("/api/ai", aiRateLimiter, aiRouter);
 app.use("/api/stage10", aiRateLimiter, stage10Router);
 app.use("/api/vauto-server", aiRateLimiter, requireAuth, vautoServerRouter);
-/** Stage 0 cost abuse: agent requires JWT (guest text spend closed). */
-app.use("/api/vauto-agent", aiRateLimiter, requireAuth, vautoAgentRouter);
+/** E1 / P0.1 — gateway allows capability-governed guest access (text/search allowed; vision/actions gated). */
+app.use("/api/vauto-agent", aiRateLimiter, optionalAuth, vautoAgentRouter);
 /** AI Maturity Phase 1 — deterministic confirmation boundary for
  *  markListingSold / blockListing. Never reachable from LLM tool-call text;
  *  requires the exact opaque pendingActionId minted by the proposal. */

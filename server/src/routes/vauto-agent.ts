@@ -168,11 +168,16 @@ vautoAgentRouter.post("/", async (req: AuthedRequest, res) => {
       return res.status(built.error.status).json(built.error.body);
     }
 
-    const pendingImages = Array.isArray(built.request.context?.pendingImageUrls)
-      ? built.request.context.pendingImageUrls.filter(Boolean)
-      : [];
+    const pendingImages =
+      (Array.isArray(built.request.context?.pendingImageUrls)
+        ? built.request.context.pendingImageUrls.filter(Boolean).length
+        : 0) ||
+      Number(built.request.context?.pendingImageCount ?? 0) ||
+      (Array.isArray(req.body?.pendingImageUrls)
+        ? req.body.pendingImageUrls.filter(Boolean).length
+        : 0);
     // Guest search OK; Vision / photo listing pipeline still requires login (cost + abuse).
-    if (!req.authUserId && pendingImages.length > 0) {
+    if (!req.authUserId && pendingImages > 0) {
       return res.status(401).json({
         ok: false,
         code: "auth_required",
@@ -316,11 +321,14 @@ vautoAgentRouter.post("/stream", async (req: AuthedRequest, res) => {
       return;
     }
 
-    const pendingVision = Array.isArray(
-      built.request.context?.pendingImageUrls
-    )
-      ? built.request.context.pendingImageUrls.filter(Boolean).length
-      : Number(built.request.context?.pendingImageCount ?? 0);
+    const pendingVision =
+      (Array.isArray(built.request.context?.pendingImageUrls)
+        ? built.request.context.pendingImageUrls.filter(Boolean).length
+        : 0) ||
+      Number(built.request.context?.pendingImageCount ?? 0) ||
+      (Array.isArray(req.body?.pendingImageUrls)
+        ? req.body.pendingImageUrls.filter(Boolean).length
+        : 0);
 
     if (!req.authUserId && pendingVision > 0) {
       writeEvent({

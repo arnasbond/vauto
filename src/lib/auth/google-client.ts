@@ -142,9 +142,22 @@ export function startGoogleRedirectSignIn(opts: {
     prompt: "select_account",
   });
 
-  window.location.assign(
-    `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
-  );
+  const targetUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+  // Native Android/iOS: open via system browser to bypass Google's 403 disallowed_useragent block
+  if (isNativeAuthEnvironment()) {
+    const vautoAndroid = (
+      window as unknown as {
+        VautoAndroid?: { openExternalUrl: (url: string) => void };
+      }
+    ).VautoAndroid;
+    if (vautoAndroid?.openExternalUrl) {
+      vautoAndroid.openExternalUrl(targetUrl);
+      return { status: "redirecting" };
+    }
+  }
+
+  window.location.assign(targetUrl);
   return { status: "redirecting" };
 }
 
@@ -231,7 +244,10 @@ export async function startGoogleSignIn(opts?: {
     "/";
 
   if (isNativeAuthEnvironment()) {
-    return { status: "needs_button" };
+    return startGoogleRedirectSignIn({
+      returnPath,
+      signupIntent: opts?.signupIntent,
+    });
   }
 
   if (opts?.forceRedirect || prefersOAuthRedirectFlow()) {

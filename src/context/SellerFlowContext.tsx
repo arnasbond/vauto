@@ -41,6 +41,7 @@ import { loadAccessToken } from "@/lib/auth/session";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { draftToListingPatch, type ListingEditPatch } from "@/lib/listing-edit";
 import { clearListingEditSession } from "@/lib/listing-edit-session";
+import { subscribeAuthLogout } from "@/lib/auth/logout-cleanup";
 import { EditListingModal } from "@/components/dashboard/EditListingModal";
 import {
   collectListingGalleryCandidates,
@@ -631,6 +632,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     sellerDraftIdRef.current = null;
     resetConductorDraft();
   }, []);
+
+  useEffect(() => {
+    return subscribeAuthLogout(() => {
+      resetSellerFlow();
+    });
+  }, [resetSellerFlow]);
 
   const finishPublishedFlow = useCallback(() => {
     resetSellerFlow();

@@ -109,6 +109,7 @@ import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
 import { resolveBrowseAllIntent, createBrowseAllAction, isListingConfirmationPhrase } from "@/lib/browse-all-intent";
 import { applyBrowseAllMarketplaceState } from "@/lib/browse-all-marketplace-state";
 import { dispatchHomeReset, subscribeHomeReset } from "@/lib/home-reset";
+import { subscribeAuthLogout } from "@/lib/auth/logout-cleanup";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
 import { clearPendingPhotoIntent } from "@/lib/photo-intent-session";
 import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent-quick-reply-router";
@@ -4184,6 +4185,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     return subscribeHomeReset(clearAgentChatSession);
   }, [clearAgentChatSession]);
+
+  useEffect(() => {
+    return subscribeAuthLogout(() => {
+      clearAgentChatSession();
+      sessionLockedPriceRef.current = null;
+      freshListingSessionRef.current = false;
+      markSellerListingChatActive(false);
+      clearAgentThreadId();
+    });
+  }, [clearAgentChatSession, markSellerListingChatActive]);
 
   const value = useMemo(
     () => ({

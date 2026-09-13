@@ -49,7 +49,7 @@ export function readListingEditSession(): ListingEditSession | null {
 }
 
 export function clearListingEditSession(): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || typeof sessionStorage === "undefined") return;
   sessionStorage.removeItem(STORAGE_KEY);
 }
 
