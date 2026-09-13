@@ -173,6 +173,12 @@ export interface PlannerLlmTrace {
   final: PlannerDecision | null;
   provider?: string;
   model?: string;
+  /** R4.3A observability — provider attempts before success. */
+  attempts?: number;
+  /** R4.3A observability — models tried in order. */
+  modelsTried?: string[];
+  /** R4.3A observability — failure mode (distinguishes infra vs semantic). */
+  failure?: "provider_unavailable" | "structured_output" | "schema_validation";
 }
 
 let plannerTraceSink: ((t: PlannerLlmTrace) => void) | null = null;
@@ -196,9 +202,27 @@ export async function llmPlannerDecision(
   input: PlannerContextInput,
   adapter: import("./planner-provider.js").PlannerLlmAdapter
 ): Promise<PlannerDecision> {
-  const response = await adapter.planStructured(
-    buildPlannerStructuredRequest(input)
-  );
+  let response: import("./planner-provider.js").PlannerStructuredResponse;
+  try {
+    response = await adapter.planStructured(buildPlannerStructuredRequest(input));
+  } catch (e) {
+    // R4.3A — record the failure mode so the eval can distinguish
+    // infrastructure (provider overload) from semantic (structured-output).
+    if (e instanceof PlannerStructuredOutputError) {
+      plannerTraceSink?.({ rawArgs: null, schemaValid: false, clampList: [], final: null, failure: "structured_output" });
+    } else if (e instanceof PlannerProviderUnavailableError) {
+      plannerTraceSink?.({
+        rawArgs: null,
+        schemaValid: false,
+        clampList: [],
+        final: null,
+        failure: "provider_unavailable",
+        attempts: e.attempts,
+        modelsTried: e.modelsTried,
+      });
+    }
+    throw e;
+  }
 
   const rawArgs = (response.args ?? {}) as Record<string, unknown>;
 
@@ -214,6 +238,9 @@ export async function llmPlannerDecision(
       final: null,
       provider: response.provider,
       model: response.model,
+      attempts: response.attempts,
+      modelsTried: response.modelsTried,
+      failure: "schema_validation",
     });
     throw new PlannerStructuredOutputError(
       `planner output failed schema validation: ${e instanceof Error ? e.message.slice(0, 200) : String(e)}`
@@ -250,6 +277,8 @@ export async function llmPlannerDecision(
     final: clamped,
     provider: response.provider,
     model: response.model,
+    attempts: response.attempts,
+    modelsTried: response.modelsTried,
   });
   return clamped;
 }
