@@ -1938,12 +1938,13 @@ async function runVautoAgentInner(
     };
   }
 
-  // Job-seeker create (“Ieškau darbo…”) with active draft / sell intent —
-  // always soft jobs draft, NEVER catalog searchListings.
+  // Active jobs draft continuation or explicit create intent —
+  // refine existing draft or create when explicitly requested, NEVER hijack cold searches.
   const jobSeekerCreate =
     Boolean(lastUserText) &&
     isJobSeekerListingCreateIntent(lastUserText) &&
-    (Boolean(listingDraft) || detectServerSellIntent(lastUserText));
+    (Boolean(listingDraft && listingDraft.category === "jobs") ||
+      detectServerSellIntent(lastUserText));
 
   // Sparse sell without photos → clarify BEFORE Gemini (never invent placeholder draft).
   if (

@@ -675,6 +675,8 @@ export interface ListingSearchParams {
   minPrice?: number;
   maxPrice?: number;
   limit?: number;
+  /** Explicit opt-in for exploratory multi-category fuzzy searches where category is a soft preference. */
+  softCategory?: boolean;
 }
 
 /** Mazgas 3: Gemini query → SQL ILIKE (be stop-žodžių). */
@@ -868,7 +870,7 @@ export async function searchListingsFiltered(
   let idx = 1;
 
   const { primary, secondary } = splitSearchTokens(tokens);
-  const softCategoryOnly = Boolean(params.category && primary.length > 0);
+  const softCategoryOnly = Boolean(params.softCategory && params.category && primary.length > 0);
 
   if (params.category && !softCategoryOnly) {
     conditions.push(`category = $${idx++}`);

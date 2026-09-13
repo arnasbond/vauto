@@ -32,7 +32,7 @@ export const PUBLISH_INTENT_MARKER_RE =
 /** Search verbs — an explicit catalog search request. „reikia“ alone is NOT
  *  a search signal („man reikia patarimo“). */
 export const SEARCH_VERB_RE =
-  /\b(ieškau|ieskau|ieškok|ieskok|rask|surask|paieškok|paieskok|noriu\s+(?:rasti|pirkti)|find|search)\b/i;
+  /\b(ieškau(?!\s+(?:darbo\s*$|patarimo|patarimą|pagalbos|patarimų))|ieskau(?!\s+(?:darbo\s*$|patarimo|patarimą|pagalbos|patarimų))|ieškok|ieskok|rask|surask|paieškok|paieskok|noriu\s+(?:rasti|pirkti)|find|search)\b/i;
 
 /** Correction markers — the user corrects a previous statement. */
 export const CORRECTION_MARKER_RE =
@@ -85,7 +85,7 @@ export function isAdvisoryInterrogative(text: string): boolean {
  * patarimo" does NOT (advice-seeking, not catalog seeking).
  */
 export const EXECUTION_DIRECTIVE_RE =
-  /\b(?:surask(?:ite)?|rask(?:ite)?|ieškok(?:ite)?|paieškok(?:ite)?|parodyk(?:ite)?|atrask(?:ite)?|ieškau(?!\s+(?:patarimo|patarimą|pagalbos|patarimų))|ieskau|find|search|show\s+me|noriu\s+(?:rasti|pirkti|pamatyti|peržiūrėti)|(?:gal|ar)\s+(?:gali(?:te)?|gal[ėe]t\p{L}*)\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti)|gal[ėe]t\p{L}*\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti))\b/iu;
+  /\b(?:surask(?:ite)?|rask(?:ite)?|ieškok(?:ite)?|paieškok(?:ite)?|parodyk(?:ite)?|atrask(?:ite)?|ieškau(?!\s+(?:darbo\s*$|patarimo|patarimą|pagalbos|patarimų))|ieskau(?!\s+(?:darbo\s*$|patarimo|patarimą|pagalbos|patarimų))|find|search|show\s+me|noriu\s+(?:rasti|pirkti|pamatyti|peržiūrėti)|(?:gal|ar)\s+(?:gali(?:te)?|gal[ėe]t\p{L}*)\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti)|gal[ėe]t\p{L}*\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti))\b/iu;
 
 export function isExplicitExecutionDirective(text: string): boolean {
   const t = text.trim();
@@ -187,7 +187,7 @@ export function isBareAmbiguousNoun(text: string): boolean {
     words.length >= 1 &&
     words.length <= 2 &&
     productNounScore(text) > 0 &&
-    !SEARCH_VERB_RE.test(lower) &&
+    !FOLDED_SEARCH_VERB_RE.test(foldBoundary(text)) &&
     !QUESTION_MARKER_RE.test(text) &&
     !/\d/.test(text) &&
     !/\b(kaina|eur|€|kainos)\b/i.test(lower) &&

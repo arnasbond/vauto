@@ -51,8 +51,6 @@ const SELL_PATTERNS = [
   /\b(tiesiog\s+)?noriu\s+(į|i)?kelti\s+skelb/i,
   /\b(tiesiog\s+)?noriu\s+(į|i)?dėti\s+skelb/i,
   /\b(į|i)kelti\s+skelbim/i,
-  /\bieškau\s+darbo\b/i,
-  /\bieskau\s+darbo\b/i,
   /\bsiūlau\s+(darb|paslaug)/i,
   /\bsiulau\s+(darb|paslaug)/i,
   /\bteikiu\s+paslaug/i,
@@ -128,26 +126,11 @@ export function detectServerSellIntent(text: string): boolean {
   if (/^\s*ne\s+(?:į|i)?(?:d[ėe]ti|kelti|parduot\w*)\b/i.test(q)) return false;
   if (/\b(?:galvoju|svarstau|galvočiau)\s+(?:apie\s+)?(?:parduot|pardav)\w*/i.test(q)) return false;
 
-  // 2. Job-seeker create must win over the bare "ieškau" buy/search signal.
-  if (
-    hasChaoticJobSeekerCreateIntent(raw) ||
-    /\bieškau\s+darbo\b/i.test(q) ||
-    /\bieskau\s+darbo\b/i.test(q)
-  ) {
-    return true;
-  }
-
-  // 3. BUY override — an explicit buy/search goal is NOT sell.
-  if (BUY_PATTERNS.some((re) => re.test(q))) return false;
-
-  // 4. Create/listing intent: a create verb ("įdėti/įkelti/dėti/kelti",
+  // 2. Create/listing intent: an explicit create verb ("įdėti/įkelti/dėti/kelti/sukurk...",
   //    imperative or infinitive) co-occurring with the "skelbim" object means
-  //    the goal is to CREATE a listing, regardless of intervening object words
-  //    ("noriu įdėti buto skelbimą"). Co-occurrence, not adjacency.
-  //    M4 — the create-family verbs ("sukurk/padaryk/paskelbk/įkelk/įmesk")
-  //    are recognized here too, so an AI-down fallback never drops a clear
-  //    create request to generic dialog. "paskelbk" may express create/publish
-  //    intent, but publication confirmation/authority boundaries stay separate.
+  //    the goal is to CREATE a listing, regardless of intervening words
+  //    ("noriu įdėti buto skelbimą", "noriu įkelti skelbimą, kad ieškau darbo").
+  //    Explicit create intent wins over bare buy/search words like "ieškau".
   if (
     /\b(tiesiog\s+)?noriu\s+(į|i)?kelti\s+skelb/i.test(q) ||
     /\b(į|i)kelti\s+skelbim/i.test(q) ||
@@ -157,6 +140,9 @@ export function detectServerSellIntent(text: string): boolean {
   ) {
     return true;
   }
+
+  // 3. BUY override — an explicit buy/search goal is NOT sell.
+  if (BUY_PATTERNS.some((re) => re.test(q))) return false;
 
   if (hasChaoticSellIntent(raw)) return true;
   return SELL_PATTERNS.some((re) => re.test(q));

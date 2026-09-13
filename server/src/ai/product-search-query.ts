@@ -16,7 +16,7 @@ const FILLER_TOKEN_RE =
   /\b(kokius|kokias|kokie|kokia|kok[iį]|nors|bet\s*kok\w*|betkok\w*|domina|nor[eė][cč]iau|gal[eė]tum(?:[eė]te)?|pra[sš]au|please|man|gal|čia|cia|tokius|tokias|tokie|tokia|truput[iį]|[sš]iek\s*tiek|siektiek|ka[zž]k[aą]|kazk[aą]|pigesn\w*|pigiau|ger[aą]|naujesn\w*)\b/gi;
 
 const SEARCH_PREFIX_RE =
-  /^(?:ieškau|ieskau|ieškojau|ieskojau|rask|surask|parodyk|rodyk|noriu|reikia|domina|find|search|show|looking\s+for)\s+/i;
+  /^(?:ieškau|ieskau|ieškojau|ieskojau|rask|surask|parodyk|rodyk|noriu(?:\s+pirkti)?|pirkti|reikia|domina|find|search|show|looking\s+for)\s+/i;
 
 /**
  * Broad category nouns → browse whole category (marškinėliai under „rūbai“,

@@ -282,6 +282,8 @@ export function parseUniversalSearchQuery(raw: string): UniversalSearchQuery {
       .map((w) => truncateTextSafely(w, F3_SEARCH_BUDGET.keywordChars))
       .filter(Boolean);
 
+    const isBrowse = isCategoryBrowseQuery(text);
+
     return {
       canonicalCategory,
       ...(nl.minPrice !== undefined ? { priceMin: nl.minPrice } : {}),
@@ -290,8 +292,8 @@ export function parseUniversalSearchQuery(raw: string): UniversalSearchQuery {
       ...(nl.city ? { location: nl.city } : {}),
       ...(radius != null ? { radiusKm: radius } : {}),
       verticalAttributes,
-      freeTextKeywords: keywords,
-      categoryBrowse: isCategoryBrowseQuery(text),
+      freeTextKeywords: isBrowse ? [] : keywords,
+      categoryBrowse: isBrowse,
       injectionBlocked: false,
       rawSanitized: bounded,
     };

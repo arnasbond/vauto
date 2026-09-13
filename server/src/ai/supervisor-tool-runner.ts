@@ -257,11 +257,13 @@ export async function runDeterministicSupervisorSearch(
     parsed.canonicalCategory !== "other" ||
     Boolean(nl) ||
     Boolean(rooms);
-  const query = hasParsedFacets
-    ? parsed.freeTextKeywords.join(" ") || trimmed
-    : normalizeProductSearchQuery(
-        parsed.freeTextKeywords.join(" ") || trimmed
-      );
+  const query = parsed.categoryBrowse
+    ? ""
+    : hasParsedFacets
+      ? parsed.freeTextKeywords.join(" ")
+      : normalizeProductSearchQuery(
+          parsed.freeTextKeywords.join(" ") || trimmed
+        );
   const category =
     parsed.canonicalCategory === "other" ? undefined : parsed.canonicalCategory;
 
