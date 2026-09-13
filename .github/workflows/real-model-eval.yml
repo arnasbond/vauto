@@ -1,0 +1,56 @@
+name: Real-model evaluation
+
+# MANUAL ONLY — bounded, non-automatic, no cost loop on push/PR.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Max conversations to run (empty = all)"
+        required: false
+        default: ""
+
+# Minimal permissions: read source only. No write, no packages, no PR/commit.
+permissions:
+  contents: read
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    env:
+      # Fast-fail data source so any search/repository call degrades to empty
+      # results instead of reaching (or hanging on) a real database. The eval
+      # NEVER carries production DB credentials.
+      DATABASE_URL: postgresql://vauto:vauto@127.0.0.1:1/vauto
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+
+      # Offline proof FIRST: dataset loads, scorer works, side-effect isolation,
+      # secret-never-printed, no production import. No model call is spent.
+      - name: Offline harness self-test (no model)
+        working-directory: server
+        run: npx tsx --test src/real-model-eval/harness-offline.test.ts
+
+      # The secret is injected ONLY into this step and is never echoed/printed.
+      - name: Run real-model evaluation (bounded)
+        working-directory: server
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          REAL_MODEL_EVAL_LIMIT: ${{ github.event.inputs.limit }}
+        run: npx tsx src/real-model-eval/run.ts
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-model-eval-results
+          path: |
+            server/audit-output/real-model-eval/real-model-eval-results.json
+            server/audit-output/real-model-eval/real-model-eval-report.md
