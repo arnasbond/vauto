@@ -6,7 +6,7 @@
 import { foldLtIntent } from "./lt-fold.js";
 
 const PUBLISH_WORKFLOW_RE =
-  /\b(viskas\s+tinka|viskas\s+gerai|viskas\s+ok|viskas\s+tikslu|viskas\s+tvarkoje|viskas\s+atitinka|taip,?\s*viskas|taip,?\s*publikuoti|publikuojam|publikuok|publikuoti|skelbti|skelbiam|taip,?\s*skelbti|keliam|keliame|ne,?\s*nereikia|nebereikia|nereikia,?\s*publiku)\b/;
+  /\b(viskas\s+tinka|viskas\s+gerai|viskas\s+ok|viskas\s+tikslu|viskas\s+tvarkoje|viskas\s+atitinka|taip,?\s*viskas|taip,?\s*publikuoti|publikuojam|publikuok|publikuoti|skelbti|skelbiam|taip,?\s*skelbti|keliam|keliame)\b/;
 
 const EXACT_PUBLISH_COMMANDS = new Set([
   "taip",
@@ -71,6 +71,9 @@ export function isListingWorkflowCommand(text: string): boolean {
 export function isPublishWorkflowCommand(text: string): boolean {
   const raw = text.trim();
   if (!raw) return false;
+  if (/\b(?:dar\s+ne|ne(?:publikuok|skelbk)|palauk|nereikia\s*(?:publiku|skelb))\b/i.test(raw)) {
+    return false;
+  }
   const folded = foldLtIntent(raw);
   if (PUBLISH_WORKFLOW_RE.test(folded)) return true;
   if (

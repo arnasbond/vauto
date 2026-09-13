@@ -280,8 +280,7 @@ export function tryApplyListingChatInput(
   const priceToApply =
     negotiable
       ? 0
-      : priceEarly != null &&
-          !(vehicleSpecs.year && String(priceEarly) === String(vehicleSpecs.year))
+      : priceEarly != null
         ? priceEarly
         : null;
 

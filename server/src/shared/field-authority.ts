@@ -107,7 +107,7 @@ function readCorrectedFields(attrs: FieldAuthorityAttrs | undefined): Set<string
     String(raw)
       .split("|")
       .map((s) => s.trim())
-      .filter(Boolean)
+      .filter((s) => Boolean(s) && !/conflict|candidate/i.test(s))
   );
 }
 
@@ -115,6 +115,7 @@ export function isFieldUserCorrected(
   attrs: FieldAuthorityAttrs | undefined,
   field: string
 ): boolean {
+  if (!field || /conflict|candidate/i.test(field)) return false;
   return readCorrectedFields(attrs).has(field);
 }
 
@@ -122,6 +123,9 @@ export function markUserCorrectedField<T extends FieldAuthorityAttrs>(
   attrs: T,
   field: string
 ): T {
+  if (!field || /conflict|candidate/i.test(field)) {
+    return attrs;
+  }
   const set = readCorrectedFields(attrs);
   set.add(field);
   return {

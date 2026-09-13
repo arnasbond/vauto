@@ -160,7 +160,6 @@ import {
   buildManualFillChatRedirectReply,
   isListingConversationInput,
   isManualFillIntent,
-  tryApplyListingChatInput,
   parsePriceFromChatInput,
 } from "@/lib/agent-listing-chat-input";
 import {
@@ -1502,22 +1501,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             [...prev, { role: "user" as const, text: trimmed }].slice(-6)
           );
         }
-        if (
-          aiDraft &&
-          trimmed &&
-          isListingConversationInput(trimmed, {
-            hasListingDraft: true,
-            sellerFlowActive: true,
-          })
-        ) {
-          try {
-            tryApplyListingChatInput(trimmed, aiDraft, (patch) => {
-              updateAiDraft(patch);
-            });
-          } catch {
-            /* best-effort local price/city while Vision continues */
-          }
-        }
         const status = busyGate.enqueue(
           trimmed,
           { ...options, skipUserBubble: true },
@@ -2260,7 +2243,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         // Fall through to Gemini — do not short-circuit with chips or a static ack.
       }
 
-      // Keep sell_intent memory: apply price/specs whenever a draft exists (not only DRAFTING_TEXT).
+      // Keep sell_intent memory: release pending missing-field slot; server applies specs authoritatively.
       if (
         aiDraft &&
         flowDecision.kind !== "process_photos" &&
@@ -2271,19 +2254,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (getPendingSlot() !== null && isConditionAnswer(trimmed)) {
           consumePendingSlot();
         }
-        tryApplyListingChatInput(trimmed, aiDraft, (patch) => {
-          const nextState =
-            transitionListingFlow(
-              aiDraft.listingFlowState ?? "DRAFTING_TEXT",
-              "DRAFT_SAVED"
-            ) ?? "DRAFT_READY";
-          updateAiDraft({
-            ...patch,
-            listingFlowState: nextState,
-          });
-        });
-        // Specs applied locally — continue to Gemini for a natural follow-up
-        // (no forced POST_VISION_PUBLISH_CHIPS / auto-PrePublish).
+        // P0.2 canonical convergence: do NOT mutate aiDraft locally here via tryApplyListingChatInput.
+        // The server receives trimmed + aiDraft, executes canonical reasoning, and returns
+        // the authoritative updated draft via actions.listingDraft.
       }
 
       // Photo/document-only (or + short caption) must reach media handling below.

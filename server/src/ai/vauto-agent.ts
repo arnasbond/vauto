@@ -53,6 +53,7 @@ import {
   resolveAmbiguousVerticalPatch,
   readSemanticConflicts,
   buildSemanticConflictContext,
+  VERTICAL_CONFLICT_FIELDS,
 } from "./sell/vertical-conflict-state.js";
 import { isVehicleFamilyCategory } from "../shared/category-registry.js";
 import {
@@ -115,6 +116,7 @@ import {
   isHeroFlowLocked,
   isGenericListingDraftTitle,
   isPublishReadyIntent,
+  isShowDraftPreviewIntent,
   isVisionObjectSellChip,
   nounFromVisionObjectSellChip,
   PRE_PUBLISH_CARD_INTRO,
@@ -179,7 +181,7 @@ import {
 } from "./planner/index.js";
 import { extractConditionFromText } from "../shared/fact-conflict.js";
 import { extractCityFromText } from "./listing-contact-parse.js";
-import { markUserCorrectedField } from "../shared/field-authority.js";
+import { isFieldUserCorrected, markUserCorrectedField } from "../shared/field-authority.js";
 // E2.8 — provenance boundary for model-suggested identity attributes.
 import { groundBrandAttributesInUserText } from "./agent-ui-tools.js";
 import {
@@ -505,21 +507,43 @@ const sleepMs = (ms: number): Promise<void> =>
  * strips them to a genuinely absent key so `factsFromAttributes` reads "no
  * conflict" (an empty string would otherwise still count as a present value).
  */
+export function isExplicitYearCorrectionText(text: string): boolean {
+  if (!text) return false;
+  return (
+    /\b(?:metai|metų|metus|metams)\s*(?:yra\s*)?(?:19|20)\d{2}\b/i.test(text) ||
+    /\b(?:19|20)\d{2}\s*(?:m\.|m\b|metai|metų|metus)\b/i.test(text) ||
+    /\b(?:pataisyk|pakeisk|keisk|nustat(?:yk)?|neteising(?:i|i)|tikr(?:i|ieji)?)\b.*?\b(?:19|20)\d{2}\b/i.test(text)
+  );
+}
+
 export function resolveYearConflictPatch(input: {
   priorAttributes?: Record<string, string | undefined>;
   incomingYear?: string;
+  isExplicitCorrection?: boolean;
 }): Record<string, string> {
   const priorAttrs = input.priorAttributes ?? {};
   const priorYearConflict = String(priorAttrs.yearConflict ?? "") === "true";
   const priorCanonicalYear = String(priorAttrs.year ?? "").trim();
   const priorCandidateYear = String(priorAttrs.yearConflictCandidate ?? "").trim();
   const incomingYear = String(input.incomingYear ?? "").trim();
+  const isExplicit = input.isExplicitCorrection ?? false;
+
+  if (!incomingYear) {
+    // Unrelated field/message update this turn — preserve the pending conflict verbatim.
+    return {};
+  }
+
+  // Explicit user correction ("metai 2008", "pataisyk metus į 2008"):
+  // User explicitly asserted year — overrides prior value/conflict and marks resolved.
+  if (isExplicit) {
+    return {
+      year: incomingYear,
+      yearConflict: "",
+      yearConflictCandidate: "",
+    };
+  }
 
   if (priorYearConflict) {
-    if (!incomingYear) {
-      // Unrelated field/message update this turn — preserve the pending conflict verbatim.
-      return {};
-    }
     if (incomingYear === priorCanonicalYear || incomingYear === priorCandidateYear) {
       // Explicit choice of A or B — resolve and clear both markers.
       return { year: incomingYear, yearConflict: "", yearConflictCandidate: "" };
@@ -531,6 +555,11 @@ export function resolveYearConflictPatch(input: {
       yearConflict: "true",
       yearConflictCandidate: priorCandidateYear,
     };
+  }
+
+  // Model/vision inference competing with user-corrected year: user-corrected year survives.
+  if (isFieldUserCorrected(priorAttrs, "year")) {
+    return { year: priorCanonicalYear };
   }
 
   // No conflict pending — detect a fresh one instead of silently overwriting.
@@ -1252,7 +1281,14 @@ async function runVautoAgentInner(
           location: req.context.userCity || "",
           category: "other",
         }),
-        orderedImageUrls: pendingChatImages.slice(0, 6),
+        orderedImageUrls: Array.from(
+          new Set([
+            ...(Array.isArray(listingDraft?.orderedImageUrls)
+              ? (listingDraft.orderedImageUrls as string[])
+              : []),
+            ...pendingChatImages,
+          ])
+        ).slice(0, 10),
         attributes: {
           ...((listingDraft?.attributes as Record<string, string> | undefined) ??
             {}),
@@ -1517,7 +1553,7 @@ async function runVautoAgentInner(
     const hasSpecs = isVehicleDraft && Object.keys(specPatch).length > 0;
     const priceToApply = negotiable
       ? 0
-      : price != null && !(specPatch.year && String(price) === String(specPatch.year))
+      : price != null
         ? price
         : null;
     const descEdit = applyNaturalLanguageDescriptionEdits(
@@ -1612,6 +1648,7 @@ async function runVautoAgentInner(
       const yearResolution = resolveYearConflictPatch({
         priorAttributes: listingDraft.attributes,
         incomingYear: specPatch.year,
+        isExplicitCorrection: isExplicitYearCorrectionText(lastUserText),
       });
       // Phase 2C: reconcile any fresh chat-text VIN signal against the PRIOR draft's
       // confirmed/candidate VIN state first — this never writes `vin` directly, only
@@ -1663,13 +1700,38 @@ async function runVautoAgentInner(
       );
       // R4.1 — explicit current-user corrections become human-authoritative so a
       // later photo/vision cannot silently overwrite them.
-      const userCorrected: string[] = [];
-      if (priceToApply != null) userCorrected.push("price");
-      if (cityFromText) userCorrected.push("city");
-      if (conditionFromText) userCorrected.push("condition");
-      if (hasDescEdit) userCorrected.push("description");
+      // Schema-driven: record every field path updated on this turn across all verticals.
+      const userCorrected = new Set<string>();
+      if (priceToApply != null) userCorrected.add("price");
+      if (cityFromText) userCorrected.add("city");
+      if (conditionFromText) userCorrected.add("condition");
+      if (hasDescEdit) userCorrected.add("description");
+      for (const k of Object.keys(specPatchWithoutVin)) {
+        if (/conflict|candidate/i.test(k)) continue;
+        userCorrected.add(k);
+        if (isVehicleDraft && (k === "make" || k === "model" || k === "year")) {
+          userCorrected.add("title");
+        }
+      }
+      for (const field of Object.keys(VERTICAL_CONFLICT_FIELDS) as (keyof typeof VERTICAL_CONFLICT_FIELDS)[]) {
+        const patch =
+          field === "rooms"
+            ? roomsPatch
+            : field === "area"
+            ? areaPatch
+            : field === "yearBuilt"
+            ? yearBuiltPatch
+            : field === "storage"
+            ? storagePatch
+            : workTypePatch;
+        if (patch && Object.prototype.hasOwnProperty.call(patch, field) && patch[field] !== undefined) {
+          userCorrected.add(field);
+        }
+      }
+
       let authorityAttrs = mergedAttrs;
       for (const f of userCorrected) {
+        if (!f || /conflict|candidate/i.test(f)) continue;
         authorityAttrs = markUserCorrectedField(authorityAttrs, f);
       }
       let nextDescription = hasSpecs
@@ -1733,6 +1795,7 @@ async function runVautoAgentInner(
       // so the user can verify the correction instead of guessing.
       const factSummary = [
         priceToApply != null ? `kainą į ${priceToApply} €` : null,
+        specPatch.year ? `metus į ${specPatch.year} m.` : null,
         conditionFromText ? `būklę: ${conditionFromText}` : null,
         cityFromText ? `miestą: ${cityFromText}` : null,
       ].filter(Boolean);
@@ -1802,8 +1865,16 @@ async function runVautoAgentInner(
   }
 
   // Ignore legacy workflow edit chips that would roll the machine backward.
-  if (inputRoute.kind === "workflow_command" && listingDraft && lastUserText) {
-    if (flowState === "AWAITING_CONFIRMATION") {
+  if (
+    (inputRoute.kind === "workflow_command" || inputRoute.kind === "publish_gateway") &&
+    listingDraft &&
+    lastUserText
+  ) {
+    if (
+      flowState === "AWAITING_CONFIRMATION" ||
+      ((flowState === "DRAFT_READY" || (flowState === "AWAITING_PHOTOS" && draftPhotoCount > 0)) &&
+        (isPublishReadyIntent(lastUserText) || isShowDraftPreviewIntent(lastUserText)))
+    ) {
       const gateway = resolvePrePublishGatewayResponse({
         isAuthenticated: req.context.isAuthenticated,
         profilePhone: req.context.profilePhone,
@@ -1814,12 +1885,22 @@ async function runVautoAgentInner(
         pendingImageUrls: req.context.pendingImageUrls,
         geoCityHint: req.context.geoCityHint,
       });
+      const nextFlowState = gateway.prePublishCard
+        ? "AWAITING_CONFIRMATION"
+        : listingDraft.listingFlowState ?? "DRAFT_READY";
       return {
         ok: true,
         reply: gateway.reply || PRE_PUBLISH_CARD_INTRO,
         ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
         toolCalls: [],
-        actions: { type: "none" },
+        actions: {
+          type: "listing_draft",
+          listingDraft: normalizeListingDraftForAction(listingDraft, {
+            contact: req.context.contact,
+            userCity: req.context.userCity,
+            listingFlowState: nextFlowState,
+          }),
+        },
       };
     }
     if (

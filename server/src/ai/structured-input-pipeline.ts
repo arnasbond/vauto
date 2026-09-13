@@ -20,7 +20,11 @@ import {
   evaluateServerPrePublishReadiness,
   type ServerPrePublishCardPayload,
 } from "./pre-publish-validation.js";
-import { buildVehicleSpecReportMarkdown } from "../shared/listing-organism.js";
+import {
+  buildVehicleSpecReportMarkdown,
+  isPublishReadyIntent,
+  isShowDraftPreviewIntent,
+} from "../shared/listing-organism.js";
 
 export const TEXT_AND_VISION_INPUT_ONLY = `ĮVESTIES KANALAI (PRIVALOMA):
 - Vartotojo įvestis gaunama TIK TEKSTU (paieškos laukas, pokalbio žinutės) arba per VAIZDO ANALIZĘ (nuotraukos įkėlimas).
@@ -154,10 +158,16 @@ export function resolveStructuredListingInputRoute(
     if (parsed.hasAny) return { kind: "contact_capture", text: trimmed };
   }
 
-  if (opts?.hasListingDraft && isPublishWorkflowCommand(trimmed)) {
+  if (
+    opts?.hasListingDraft &&
+    (isPublishWorkflowCommand(trimmed) || isPublishReadyIntent(trimmed))
+  ) {
     return { kind: "publish_gateway", text: trimmed };
   }
-  if (opts?.hasListingDraft && isListingWorkflowCommand(trimmed)) {
+  if (
+    opts?.hasListingDraft &&
+    (isListingWorkflowCommand(trimmed) || isShowDraftPreviewIntent(trimmed))
+  ) {
     return { kind: "workflow_command", text: trimmed };
   }
   return { kind: "listing_field_update", text: trimmed };
@@ -249,6 +259,10 @@ export function resolvePrePublishGatewayResponse(input: {
         missingCity: readiness.missingCity,
         missingPrice: readiness.missingPrice,
         missingPhone: readiness.missingPhone,
+        missingTitle: readiness.missingTitle,
+        missingCategory: readiness.missingCategory,
+        missingCondition: readiness.missingCondition,
+        activeConflict: readiness.activeConflict,
       }),
     };
   }

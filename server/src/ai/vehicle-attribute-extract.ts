@@ -1,6 +1,7 @@
 /** Server-side vehicle attribute normalization (mirrors src/lib/vehicle-attribute-extract.ts). */
 
 import { applyVinExtractionCandidate, type VinProvenance } from "../vehicle/vin-review.js";
+import { parsePriceFromChatInput } from "./listing-chat-input.js";
 
 export const VEHICLE_MAKES = [
   "Audi",
@@ -172,15 +173,44 @@ function normalizeModel(make: string, raw: string): string {
   return trimmed;
 }
 
+export function extractVehicleYearFromText(text: string): string | null {
+  // 1. Explicit year markers (highest confidence): e.g. "metai 2008", "2008 m.", "2008 metų"
+  const explicitPre = text.match(/\b(?:metai|metų|metu|pagaminimo|laidos)\s*:?\s*((?:19|20)\d{2})\b/i);
+  if (explicitPre?.[1]) {
+    return normalizeYear(explicitPre[1]);
+  }
+  const explicitPost = text.match(/\b((?:19|20)\d{2})\s*(?:m\.|m\b|metai|metų|metus|metu)\b/i);
+  if (explicitPost?.[1]) {
+    return normalizeYear(explicitPost[1]);
+  }
+
+  // 2. Price authority owns prices: if the canonical price parser claims an amount
+  // that equals a 4-digit number, and there are no explicit year markers, the number
+  // belongs to the price authority — not the year extractor.
+  const claimedPrice = parsePriceFromChatInput(text);
+
+  // 3. Generic 4-digit candidate:
+  const candidates = text.matchAll(/\b((?:19|20)\d{2})\b/g);
+  for (const match of candidates) {
+    const raw = match[1];
+    if (claimedPrice != null && Number(raw) === claimedPrice) {
+      continue;
+    }
+    const y = normalizeYear(raw);
+    if (y) return y;
+  }
+
+  return null;
+}
+
 function extractFromText(text: string): Record<string, string> {
   const patch: Record<string, string> = {};
   const make = normalizeMake(text) ?? detectMake(text);
   if (make) patch.make = make;
 
-  const yearMatch = text.match(/\b(19|20)\d{2}\b/);
-  if (yearMatch) {
-    const year = normalizeYear(yearMatch[0]);
-    if (year) patch.year = year;
+  const year = extractVehicleYearFromText(text);
+  if (year) {
+    patch.year = year;
   }
 
   if (patch.make) {

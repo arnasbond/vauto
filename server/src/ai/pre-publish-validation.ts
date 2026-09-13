@@ -48,9 +48,18 @@ function normalizeKnownCity(raw: string | undefined | null): string {
 function draftHasListingPhoto(input: {
   pendingImageUrls?: string[];
   imageUrl?: string;
+  listingDraft?: {
+    imageUrl?: string;
+    orderedImageUrls?: string[];
+    images?: string[];
+  };
 }): boolean {
   if (input.imageUrl?.trim()) return true;
-  return (input.pendingImageUrls?.length ?? 0) > 0;
+  if ((input.pendingImageUrls?.length ?? 0) > 0) return true;
+  if (input.listingDraft?.imageUrl?.trim()) return true;
+  if ((input.listingDraft?.orderedImageUrls?.length ?? 0) > 0) return true;
+  if ((input.listingDraft?.images?.length ?? 0) > 0) return true;
+  return false;
 }
 
 export function buildPrePublishBlockMessage(opts: {
@@ -94,6 +103,9 @@ export function evaluateServerPrePublishReadiness(input: {
     priceLabel?: string;
     category?: string;
     attributes?: Record<string, string>;
+    imageUrl?: string;
+    orderedImageUrls?: string[];
+    images?: string[];
   };
   pendingImageUrls?: string[];
   imageUrl?: string;

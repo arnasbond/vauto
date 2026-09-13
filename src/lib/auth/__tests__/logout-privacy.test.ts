@@ -103,7 +103,9 @@ const SAMPLE_DRAFT: AiExtractedListing = {
   description: "Tvarkingas automobilis",
   price: 15500,
   location: "Vilnius",
-  category: "cars",
+  contact: "+37060000000",
+  confidence: 0.95,
+  category: "vehicles",
   attributes: {
     clientDraftId: "draft_user_a_123",
   },
@@ -116,7 +118,7 @@ describe("P0.1 — Logout privacy and state purge", () => {
 
   it("1. purgeClientSessionAndDraftState wipes all listing drafts from localStorage", () => {
     saveClothingListingDraft({ ...SAMPLE_DRAFT, category: "clothing" }, null);
-    saveGeneralListingDraft({ ...SAMPLE_DRAFT, category: "general" }, null);
+    saveGeneralListingDraft({ ...SAMPLE_DRAFT, category: "other" }, null);
     saveServiceListingDraft({ ...SAMPLE_DRAFT, category: "services" }, null);
     upsertMultiListingDraft(SAMPLE_DRAFT, null);
 
