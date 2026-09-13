@@ -42,6 +42,20 @@ export interface PlannerContextBuilderInput {
   myListings?: Array<{ id: string; title: string; status: string }>;
   /** E2.6 — currently open listing id. */
   activeListingId?: string;
+  /**
+   * R4.3B — prior persisted search object (server-owned continuity state).
+   * Surfaced as canonical structured facts so the planner can reason about
+   * CONTINUE / REFINE / CORRECT / SWITCH without reconstructing it from text.
+   */
+  activeSearchFilters?: {
+    query?: string;
+    category?: string;
+    city?: string;
+    maxPrice?: number;
+    minPrice?: number;
+  } | null;
+  /** R4.3D — last shown search-result IDs (server-owned referent, bounded). */
+  lastSearchListingIds?: string[] | null;
 }
 
 const RECENT_WINDOW = 10;
@@ -62,7 +76,7 @@ const AGREEMENT_MARKER_RE =
 interface SignificantFact {
   key: string;
   value: string;
-  source: "draft" | "user_fact";
+  source: "draft" | "user_fact" | "search";
 }
 
 /** Deterministic fact extraction from older user turns (canonical text).
@@ -93,6 +107,36 @@ function factsFromDraft(
   for (const key of ["condition", "year", "make", "model", "rooms", "workType"]) {
     const v = input.draftAttributes?.[key];
     if (v) out.push({ key, value: String(v), source: "draft" });
+  }
+  return out;
+}
+
+/**
+ * R4.3B — canonical structured facts from the prior persisted search object
+ * (server-owned continuity state). Distinct keys avoid colliding with draft
+ * facts; the planner reads these as authoritative active-search state.
+ */
+function factsFromSearch(
+  input: PlannerContextBuilderInput
+): SignificantFact[] {
+  const s = input.activeSearchFilters;
+  if (!s) return [];
+  const out: SignificantFact[] = [];
+  if (s.query?.trim()) out.push({ key: "searchQuery", value: s.query.trim(), source: "search" });
+  if (s.category?.trim()) out.push({ key: "searchCategory", value: s.category.trim(), source: "search" });
+  if (s.city?.trim()) out.push({ key: "searchCity", value: s.city.trim(), source: "search" });
+  if (s.maxPrice != null && Number.isFinite(s.maxPrice)) {
+    out.push({ key: "searchMaxPrice", value: String(s.maxPrice), source: "search" });
+  }
+  if (s.minPrice != null && Number.isFinite(s.minPrice)) {
+    out.push({ key: "searchMinPrice", value: String(s.minPrice), source: "search" });
+  }
+  if (input.lastSearchListingIds?.length) {
+    out.push({
+      key: "searchResultCount",
+      value: String(input.lastSearchListingIds.length),
+      source: "search",
+    });
   }
   return out;
 }
@@ -203,6 +247,8 @@ export function buildPlannerContext(
   const draftFacts = factsFromDraft(input);
   const draftKeys = new Set(draftFacts.map((f) => f.key));
   if (input.draftLocation) draftKeys.add("city");
+  // R4.3B — prior persisted search object (distinct keys, no draft collision).
+  const searchFacts = factsFromSearch(input);
   const userFacts = new Map<string, { key: string; value: string }>();
   for (const m of all) {
     if (m.role !== "user") continue;
@@ -216,7 +262,7 @@ export function buildPlannerContext(
     }
   }
   const olderFacts = [...userFacts.values()];
-  const significantFacts = [...draftFacts, ...olderFacts].slice(0, FACTS_MAX);
+  const significantFacts = [...draftFacts, ...searchFacts, ...olderFacts].slice(0, FACTS_MAX);
   const factsMap: Record<string, string> = {};
   for (const f of significantFacts) factsMap[f.key] = f.value;
 

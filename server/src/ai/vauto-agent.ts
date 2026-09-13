@@ -252,6 +252,8 @@ export interface VautoAgentRequest {
     };
     activeSearchFilters?: AgentSearchFilters | null;
     searchSessionReset?: boolean;
+    /** Server thread service reconstructed this context from durable state. */
+    threadAuthoritative?: boolean;
     /** R4.2 — server-restored conversational search context (thread-owned). */
     threadSearchContext?: PersistedSearchContext | null;
     /** Recent pinned search hit IDs for instant selection fast-path. */
@@ -938,6 +940,36 @@ async function runVautoAgentInner(
     role: m.role,
     text: String(m.text ?? ""),
   }));
+  // In a durable thread, server-restored state is authoritative. Client state
+  // remains a compatibility source only for the legacy non-thread endpoint.
+  const authoritativeSearchFilters = isolateSellerFromSearch
+    ? null
+    : req.context.threadAuthoritative
+      ? (req.context.threadSearchContext?.activeSearchFilters ?? null)
+      : (req.context.activeSearchFilters ??
+        req.context.threadSearchContext?.activeSearchFilters ??
+        null);
+  const authoritativeRecentSearchListingIds = isolateSellerFromSearch
+    ? []
+    : req.context.threadAuthoritative
+      ? (req.context.threadSearchContext?.lastSearchListingIds ?? [])
+      : (req.context.recentSearchListingIds ??
+        req.context.threadSearchContext?.lastSearchListingIds ??
+        []);
+  // R4.3C — active conversational task signal. The planner is told WHAT job the
+  // user is currently in (sell draft vs search) from CANONICAL server state, so
+  // a fragmentary continuation ("su 4 kėdėmis") can be recognized as a
+  // continuation of the same task rather than a fresh command. The model still
+  // decides CONTINUE / REFINE / CORRECT / SWITCH; this is context, not authority.
+  const activeTaskGoal = (() => {
+    if (listingDraft?.title?.trim()) {
+      return `pardavimo skelbimas: ${listingDraft.title.trim()}`;
+    }
+    const q =
+      authoritativeSearchFilters?.query?.trim();
+    if (q) return `prekių paieška: ${q}`;
+    return "";
+  })();
   const plannerDecision = await resolvePlannerDecision(
     buildPlannerContext({
       messages: canonicalMessages,
@@ -953,6 +985,13 @@ async function runVautoAgentInner(
       modelAvailable: hasGemini,
       draftAttributes: (listingDraft?.attributes ??
         {}) as Record<string, string>,
+      currentIntent: activeTaskGoal,
+      // R4.3B — surface the prior persisted search object so the planner can
+      // semantically decide CONTINUE / REFINE / CORRECT / SWITCH.
+      activeSearchFilters: authoritativeSearchFilters,
+      // R4.3D — surface the last shown search-result referent (server-owned).
+      lastSearchListingIds:
+        req.context.threadSearchContext?.lastSearchListingIds ?? null,
       // E2.6 — canonical seller listings + the open listing: the policy
       // layer resolves consequential-action targets from THIS state, never
       // from the model's guess.
@@ -1937,14 +1976,15 @@ async function runVautoAgentInner(
         }
       : undefined,
     listingsSnapshot: req.context.listings,
-    recentSearchListingIds: req.context.recentSearchListingIds,
+    recentSearchListingIds: authoritativeRecentSearchListingIds,
     lastUserQuery: lastUserText || undefined,
     searchSessionReset: Boolean(req.context.searchSessionReset),
     // R4.2 — active preferences: fresh client/model state wins; restored thread
     // search context is the server-authoritative fallback when the client is empty.
     activeSearchPreferences:
-      req.context.activeSearchFilters?.preferences ??
-      req.context.threadSearchContext?.activeSearchFilters?.preferences,
+      authoritativeSearchFilters?.preferences,
+    // R4.3B — prior persisted search object (server-owned continuity state).
+    activeSearchFilters: authoritativeSearchFilters,
     monetization: resolveMonetizationState({
       userRole: req.context.userRole,
       billingPlan: req.context.monetization?.billingPlan,
@@ -2028,7 +2068,7 @@ async function runVautoAgentInner(
     {
       defaultRegion: req.context.defaultRegion ?? ctx.userCity,
       primaryVehicle: req.context.primaryVehicle,
-      activeSearchFilters: req.context.activeSearchFilters ?? null,
+      activeSearchFilters: authoritativeSearchFilters,
     } satisfies AgentMemoryPayload,
     lastUserText
   );
@@ -2043,7 +2083,7 @@ async function runVautoAgentInner(
 
   // UI meta-feedback — re-emit pinned results; never keyword-search "Nematau".
   if (lastUserText && isRevealActiveResultsIntent(lastUserText)) {
-    const recentIds = req.context.recentSearchListingIds?.filter(Boolean) ?? [];
+    const recentIds = authoritativeRecentSearchListingIds.filter(Boolean);
     if (recentIds.length) {
       emitAgentEvent(onEvent, {
         type: "status",
@@ -2055,9 +2095,9 @@ async function runVautoAgentInner(
         toolCalls: [],
         actions: {
           type: "search",
-          searchQuery: req.context.activeSearchFilters?.query ?? "",
+          searchQuery: authoritativeSearchFilters?.query ?? "",
           listingIds: recentIds,
-          filters: req.context.activeSearchFilters ?? undefined,
+          filters: authoritativeSearchFilters ?? undefined,
         },
       };
     }
@@ -2072,12 +2112,21 @@ async function runVautoAgentInner(
 
   // Instant selection fast-path — open a recent search hit without Gemini.
   if (lastUserText && isResultSelectionIntent(lastUserText)) {
-    const recentIds = req.context.recentSearchListingIds?.filter(Boolean) ?? [];
+    const recentIds = authoritativeRecentSearchListingIds.filter(Boolean);
     const snapshot = ctx.listingsSnapshot ?? [];
     const byId = new Map(snapshot.map((l) => [l.id, l]));
     const recent = (
       recentIds.length
-        ? recentIds.map((id) => byId.get(id)).filter(Boolean)
+        ? recentIds.map(
+            (id) =>
+              byId.get(id) ?? {
+                id,
+                title: "Skelbimas",
+                price: 0,
+                category: "other",
+                location: "",
+              }
+          )
         : snapshot.slice(0, 12)
     ) as NonNullable<(typeof snapshot)[number]>[];
     const pick = resolveRecentListingSelection(lastUserText, recent);
@@ -2391,7 +2440,7 @@ async function runVautoAgentInner(
       `query=${sanitizePromptUserInput(po.query ?? req.context.lastSearchQuery ?? "").text}`,
       `resultCount=${po.resultCount ?? req.context.searchResultCount ?? ""}`,
       `filters=${clampJsonBlock(
-        req.context.activeSearchFilters ?? po.filters ?? null,
+        authoritativeSearchFilters ?? po.filters ?? null,
         CONTEXT_BLOCK_BUDGET.searchFiltersJson
       )}`,
     ].join("\n");
@@ -2418,7 +2467,7 @@ async function runVautoAgentInner(
     const offerPayload = [
       `query=${sanitizePromptUserInput(q).text}`,
       `filters=${clampJsonBlock(
-        req.context.activeSearchFilters ?? req.context.proactiveOffer?.filters ?? null,
+        authoritativeSearchFilters ?? req.context.proactiveOffer?.filters ?? null,
         CONTEXT_BLOCK_BUDGET.searchFiltersJson
       )}`,
     ].join("\n");
@@ -3174,7 +3223,7 @@ async function runVautoAgentInner(
     const titleHint =
       plannerDecision.subject?.trim() ||
       String(req.context.threadSearchContext?.subject ?? "").trim() ||
-      String(req.context.activeSearchFilters?.query ?? "").trim() ||
+      String(authoritativeSearchFilters?.query ?? "").trim() ||
       lastUserText;
     try {
       const mi = await executeAgentTool(

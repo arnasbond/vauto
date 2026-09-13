@@ -12,17 +12,22 @@ import { tryResolveListingCategoryId } from "../../shared/category-registry.js";
 /**
  * Resolve the search category. A valid model category (canonical id or known
  * alias) is kept; an unknown/hallucinated model category is OMITTED (never
- * coerced to "other") and the user-derived category is used instead. Returns
- * `undefined` when there is no supported category.
+ * coerced to "other") and the user-derived category is used instead; the prior
+ * persisted category is the lowest-priority fallback (R4.3B search continuity).
+ * Returns `undefined` when there is no supported category.
  */
 export function resolveSearchCategory(
   modelCategory: string | undefined,
-  userCategory: string | undefined
+  userCategory: string | undefined,
+  priorCategory?: string | undefined
 ): string | undefined {
   const model = modelCategory
     ? tryResolveListingCategoryId(String(modelCategory))
     : null;
-  return model ?? userCategory ?? undefined;
+  // The category deterministically extracted from the current user turn is
+  // authoritative. A valid model category may fill a gap, but must never
+  // replace a category the user actually named.
+  return userCategory ?? model ?? priorCategory ?? undefined;
 }
 
 export interface SearchPriceResult {
@@ -47,6 +52,9 @@ export function resolveSearchPrice(input: {
   modelMax?: unknown;
   userMin?: number;
   userMax?: number;
+  /** R4.3B — prior persisted search state (lowest authority fallback). */
+  priorMin?: number;
+  priorMax?: number;
 }): SearchPriceResult {
   const modelMinNum =
     input.modelMin != null ? Number(input.modelMin) : undefined;
@@ -71,6 +79,13 @@ export function resolveSearchPrice(input: {
     modelMinNum >= 0
   ) {
     minPrice = modelMinNum;
+  } else if (
+    input.priorMin != null &&
+    Number.isFinite(input.priorMin) &&
+    input.priorMin >= 0
+  ) {
+    // R4.3B — carry the prior persisted bound forward (continuity).
+    minPrice = input.priorMin;
   }
 
   if (
@@ -86,6 +101,13 @@ export function resolveSearchPrice(input: {
     modelMaxNum >= 0
   ) {
     maxPrice = modelMaxNum;
+  } else if (
+    input.priorMax != null &&
+    Number.isFinite(input.priorMax) &&
+    input.priorMax >= 0
+  ) {
+    // R4.3B — carry the prior persisted bound forward (continuity).
+    maxPrice = input.priorMax;
   }
 
   if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
@@ -109,13 +131,17 @@ export function resolveSearchPrice(input: {
 /**
  * Resolve the search city string. An explicit current-user location outranks a
  * model-only (stale/hallucinated) city; the model may supply a city only when
- * the user stated none.
+ * the user stated none; the prior persisted city is the lowest-priority
+ * fallback (R4.3B search continuity).
  */
 export function resolveSearchCity(
   modelCity: string | undefined,
-  userCity: string | undefined
+  userCity: string | undefined,
+  priorCity?: string | undefined
 ): string {
   const explicit = (userCity ?? "").trim();
   if (explicit) return explicit;
-  return modelCity ? String(modelCity).trim() : "";
+  const model = modelCity ? String(modelCity).trim() : "";
+  if (model) return model;
+  return priorCity ? String(priorCity).trim() : "";
 }
