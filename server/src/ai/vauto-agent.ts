@@ -178,6 +178,7 @@ import {
   executorSellPreviewReply,
   executorUnauthPublishReply,
   resolvePlannerDecision,
+  type PlannerContextInput,
 } from "./planner/index.js";
 import { extractConditionFromText } from "../shared/fact-conflict.js";
 import { extractCityFromText } from "./listing-contact-parse.js";
@@ -215,7 +216,7 @@ export interface VautoAgentRequest {
       description?: string;
     }[];
     lastError?: { code: string; message?: string };
-    wizardMode?: "listing_review" | "search" | "idle";
+    wizardMode?: "listing_review" | "listing_edit" | "search" | "idle";
     listingDraft?: {
       title?: string;
       description?: string;
@@ -662,6 +663,135 @@ function vinChallengeOutcomeReply(outcome: VinChallengeOutcome): string {
   }
 }
 
+/**
+ * Real planner-context construction boundary for an incoming agent request.
+ * Derives task-aware search context and feeds canonical thread facts.
+ */
+export function buildAgentPlannerContext(
+  req: VautoAgentRequest,
+  opts?: {
+    listingDraft?: typeof req.context.listingDraft | null;
+    flowState?: import("../shared/listing-organism.js").ListingFlowState | null;
+    hasGemini?: boolean;
+    lastUserText?: string;
+    canonicalMessages?: Array<{ role: "user" | "assistant"; text: string }>;
+    activeTaskGoal?: string;
+    authoritativeSearchFilters?: AgentSearchFilters | null;
+    authoritativeRecentSearchListingIds?: string[];
+    isolateSellerFromSearch?: boolean;
+  }
+): PlannerContextInput {
+  const isolate =
+    opts?.isolateSellerFromSearch ??
+    (Boolean(req.context.freshListingSession) ||
+      Boolean(req.context.searchSessionReset) ||
+      Boolean(req.context.omitPriorListingDraft) ||
+      req.context.wizardMode === "listing_review" ||
+      req.context.wizardMode === "listing_edit");
+
+  const canonicalMessages =
+    opts?.canonicalMessages ??
+    (req.messages ?? []).map((m) => ({
+      role: m.role,
+      text: String(m.text ?? ""),
+    }));
+
+  const lastUserTextRaw =
+    opts?.lastUserText ??
+    [...canonicalMessages].reverse().find((m) => m.role === "user")?.text ??
+    "";
+  const lastUserText = scrubProfanity(lastUserTextRaw);
+
+  let listingDraft: typeof req.context.listingDraft | null =
+    opts?.listingDraft !== undefined ? opts.listingDraft : req.context.listingDraft ?? null;
+  if (listingDraft && isGenericListingDraftTitle(listingDraft.title)) {
+    listingDraft = null;
+  }
+
+  const draftPhotoCount = Array.isArray(
+    (listingDraft as { orderedImageUrls?: unknown } | null | undefined)?.orderedImageUrls
+  )
+    ? (listingDraft as { orderedImageUrls: unknown[] }).orderedImageUrls.length
+    : 0;
+
+  const flowState =
+    opts?.flowState ??
+    inferListingFlowState({
+      listingFlowState: listingDraft?.listingFlowState,
+      hasDraft: Boolean(listingDraft?.title?.trim() || listingDraft),
+      photoCount: draftPhotoCount,
+    });
+
+  const hasGemini = opts?.hasGemini ?? Boolean(resolveGeminiApiKey());
+
+  const authoritativeSearchFilters =
+    opts?.authoritativeSearchFilters !== undefined
+      ? opts.authoritativeSearchFilters
+      : isolate
+        ? null
+        : req.context.threadAuthoritative
+          ? (req.context.threadSearchContext?.activeSearchFilters ?? null)
+          : (req.context.activeSearchFilters ??
+            req.context.threadSearchContext?.activeSearchFilters ??
+            null);
+
+  const authoritativeRecentSearchListingIds =
+    opts?.authoritativeRecentSearchListingIds !== undefined
+      ? opts.authoritativeRecentSearchListingIds
+      : isolate
+        ? []
+        : req.context.threadAuthoritative
+          ? (req.context.threadSearchContext?.lastSearchListingIds ?? [])
+          : (req.context.recentSearchListingIds ??
+            req.context.threadSearchContext?.lastSearchListingIds ??
+            []);
+
+  const activeTaskGoal =
+    opts?.activeTaskGoal ??
+    (() => {
+      if (listingDraft?.title?.trim()) {
+        return `pardavimo skelbimas: ${listingDraft.title.trim()}`;
+      }
+      const q = authoritativeSearchFilters?.query?.trim();
+      if (q) return `prekių paieška: ${q}`;
+      return "";
+    })();
+
+  return buildPlannerContext({
+    messages: canonicalMessages,
+    lastUserText,
+    hasDraft: Boolean(listingDraft),
+    draftTitle: listingDraft?.title,
+    draftCategory: listingDraft?.category,
+    draftPrice: listingDraft?.price,
+    draftLocation: listingDraft?.location,
+    flowState: flowState ?? undefined,
+    isAuthenticated: Boolean(req.context.isAuthenticated),
+    hasSearchSession: isolate
+      ? false
+      : detectSearchSession(canonicalMessages, lastUserText),
+    modelAvailable: hasGemini,
+    draftAttributes: (listingDraft?.attributes ?? {}) as Record<string, string>,
+    currentIntent: activeTaskGoal,
+    // R4.3B — surface the prior persisted search object so the planner can
+    // semantically decide CONTINUE / REFINE / CORRECT / SWITCH.
+    activeSearchFilters: authoritativeSearchFilters,
+    // R4.3D — surface the last shown search-result referent (server-owned).
+    // Task-aware isolation: when seller-flow isolation is active, search referents
+    // must not leak to the planner.
+    lastSearchListingIds: authoritativeRecentSearchListingIds.length
+      ? authoritativeRecentSearchListingIds
+      : null,
+    myListings: (req.context.myListings ?? []).map((l) => ({
+      id: String(l.id ?? ""),
+      title: String(l.title ?? ""),
+      status: String(l.status ?? "active"),
+    })),
+    activeListingId:
+      req.context.currentPageContext?.active_listing_id?.trim() || undefined,
+  });
+}
+
 async function runVautoAgentInner(
   req: VautoAgentRequest,
   onEvent?: RunVautoAgentOptions["onEvent"]
@@ -673,7 +803,9 @@ async function runVautoAgentInner(
   const isolateSellerFromSearch =
     Boolean(req.context.freshListingSession) ||
     Boolean(req.context.searchSessionReset) ||
-    Boolean(req.context.omitPriorListingDraft);
+    Boolean(req.context.omitPriorListingDraft) ||
+    req.context.wizardMode === "listing_review" ||
+    req.context.wizardMode === "listing_edit";
   if (isolateSellerFromSearch) {
     req.context.activeSearchFilters = null;
     req.context.lastSearchQuery = undefined;
@@ -1000,37 +1132,16 @@ async function runVautoAgentInner(
     return "";
   })();
   const plannerDecision = await resolvePlannerDecision(
-    buildPlannerContext({
-      messages: canonicalMessages,
+    buildAgentPlannerContext(req, {
+      listingDraft,
+      flowState,
+      hasGemini,
       lastUserText,
-      hasDraft: Boolean(listingDraft),
-      draftTitle: listingDraft?.title,
-      draftCategory: listingDraft?.category,
-      draftPrice: listingDraft?.price,
-      draftLocation: listingDraft?.location,
-      flowState: flowState ?? undefined,
-      isAuthenticated: Boolean(req.context.isAuthenticated),
-      hasSearchSession: detectSearchSession(canonicalMessages, lastUserText),
-      modelAvailable: hasGemini,
-      draftAttributes: (listingDraft?.attributes ??
-        {}) as Record<string, string>,
-      currentIntent: activeTaskGoal,
-      // R4.3B — surface the prior persisted search object so the planner can
-      // semantically decide CONTINUE / REFINE / CORRECT / SWITCH.
-      activeSearchFilters: authoritativeSearchFilters,
-      // R4.3D — surface the last shown search-result referent (server-owned).
-      lastSearchListingIds:
-        req.context.threadSearchContext?.lastSearchListingIds ?? null,
-      // E2.6 — canonical seller listings + the open listing: the policy
-      // layer resolves consequential-action targets from THIS state, never
-      // from the model's guess.
-      myListings: (req.context.myListings ?? []).map((l) => ({
-        id: String(l.id ?? ""),
-        title: String(l.title ?? ""),
-        status: String(l.status ?? "active"),
-      })),
-      activeListingId:
-        req.context.currentPageContext?.active_listing_id?.trim() || undefined,
+      canonicalMessages,
+      activeTaskGoal,
+      authoritativeSearchFilters,
+      authoritativeRecentSearchListingIds,
+      isolateSellerFromSearch,
     })
   );
 

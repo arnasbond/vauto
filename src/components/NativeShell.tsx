@@ -115,8 +115,12 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
 
       void App.addListener("appUrlOpen", ({ url }) => {
         const payload = storeOAuthCallbackPayload(url);
-        if (payload?.idToken) {
-          router.replace("/");
+        if (payload?.idToken || payload?.code) {
+          const target =
+            payload.returnPath && payload.returnPath.startsWith("/")
+              ? payload.returnPath
+              : "/";
+          router.replace(target);
           return;
         }
         try {

@@ -20,6 +20,9 @@ import { extractVehicleYearFromText } from "../vehicle-attribute-extract.js";
 import { enrichVehicleVisionDraft } from "../../shared/vehicle-vision-enrich.js";
 import { isPublishReadyIntent, isShowDraftPreviewIntent } from "../../shared/listing-organism.js";
 import { isFieldUserCorrected, markUserCorrectedField, mergeFieldAuthorityAttrs } from "../../shared/field-authority.js";
+import { InMemoryThreadStore, newThreadRecord } from "../../agent-core/thread-store.js";
+import { setThreadStoreForTests } from "../../agent-core/thread-store-instance.js";
+import { runThreadTurn } from "../../agent-core/thread-service.js";
 import type { VautoAgentRequest } from "../vauto-agent.js";
 
 type AgentListingDraft = NonNullable<VautoAgentRequest["context"]["listingDraft"]>;
@@ -167,33 +170,118 @@ describe("P0.2 — Scenario C: Vision Enrichment Respects User-Corrected Fields"
     assert.equal(merged.heating, "Centrinis", "Non-conflicting inferred attribute is added");
   });
 
-  it("stale client draft cannot overwrite newer server draft", async () => {
-    // Server thread owns newer draft with price=4500 and user-corrected year=2008
-    const serverDraft = baseCarDraft({
+  it("stale client draft cannot overwrite newer server draft (real ThreadService / runThreadTurn)", async () => {
+    const store = new InMemoryThreadStore();
+    setThreadStoreForTests(store);
+
+    // 1. Persist a thread containing a NEWER canonical server listing draft.
+    // Must include at least: title, price, year, userCorrectedFields.
+    const initialRecord = newThreadRecord({ ownerUserId: "user_authority_test" });
+    initialRecord.listingDraft = {
+      title: "BMW 320 2008",
       price: 4500,
+      category: "vehicles",
+      location: "Vilnius",
+      listingFlowState: "DRAFT_READY",
+      orderedImageUrls: ["https://example.com/bmw.jpg"],
       attributes: {
         make: "BMW",
         model: "320",
         year: "2008",
-        userCorrectedFields: "price|year",
+        userCorrectedFields: "price|year|title",
       },
-    });
+    };
+    await store.create(initialRecord);
 
-    // Stale client sends older aiDraft with price=3500 and year=2007
-    const staleClientDraft = baseCarDraft({
-      price: 3500,
+    // 2. Send request context containing an OLDER / conflicting client draft with different values.
+    const staleClientDraft = {
+      title: "Audi A4 2005",
+      price: 2500,
+      category: "vehicles",
+      location: "Kaunas",
       attributes: {
-        make: "BMW",
-        model: "320",
-        year: "2007",
+        make: "Audi",
+        model: "A4",
+        year: "2005",
       },
+      listingFlowState: "DRAFTING_TEXT",
+    };
+
+    // 3. Execute the real thread turn.
+    await runThreadTurn({
+      threadId: initialRecord.threadId,
+      authUserId: "user_authority_test",
+      clientMessages: [{ role: "user", text: "Kokia tavo nuomonė apie automobilį?" }],
+      context: {
+        listingDraft: staleClientDraft,
+      },
+      turnId: "turn_stale_draft_check",
     });
 
-    // In thread-service.ts: current.listingDraft ?? input.context?.listingDraft
-    // When server owns current.listingDraft, it takes precedence over stale client draft
-    const effectiveDraft = (serverDraft ?? staleClientDraft) as AgentListingDraft;
-    assert.equal(effectiveDraft.price, 4500, "Server draft price (4500) takes precedence over stale client (3500)");
-    assert.equal(effectiveDraft.attributes?.year, "2008", "Server draft year (2008) takes precedence over stale client (2007)");
+    // 4. Assert after the turn that canonical persisted draft still contains the server-authoritative values.
+    const updatedThread = await store.get(initialRecord.threadId);
+    assert.ok(updatedThread, "Thread must exist in store");
+    const persistedDraft = updatedThread.listingDraft as Record<string, unknown>;
+    assert.ok(persistedDraft, "Listing draft must exist in canonical thread state");
+
+    // Specifically verify:
+    // - server price preserved
+    assert.equal(persistedDraft.price, 4500, "Server price 4500 must be preserved, not overwritten by stale client price 2500");
+    // - server year preserved
+    const attrs = (persistedDraft.attributes ?? {}) as Record<string, string>;
+    assert.equal(attrs.year, "2008", "Server year 2008 must be preserved, not overwritten by stale client year 2005");
+    // - server title preserved
+    assert.equal(persistedDraft.title, "BMW 320 2008", "Server title 'BMW 320 2008' must be preserved, not overwritten by stale client title");
+    // - userCorrectedFields preserved
+    assert.ok(
+      attrs.userCorrectedFields?.includes("price") && attrs.userCorrectedFields?.includes("year"),
+      "userCorrectedFields must preserve price and year markers"
+    );
+    // - stale client values did not overwrite them
+    assert.notEqual(persistedDraft.price, 2500, "Stale client price 2500 must not overwrite server price");
+    assert.notEqual(attrs.year, "2005", "Stale client year 2005 must not overwrite server year");
+    assert.notEqual(persistedDraft.title, "Audi A4 2005", "Stale client title must not overwrite server title");
+  });
+
+  it("control case: new thread without server draft allows initial client draft seeding (real ThreadService / runThreadTurn)", async () => {
+    const store = new InMemoryThreadStore();
+    setThreadStoreForTests(store);
+
+    const initialClientDraft = {
+      title: "Volkswagen Golf 2012",
+      price: 5200,
+      category: "vehicles",
+      location: "Klaipėda",
+      orderedImageUrls: ["https://example.com/golf.jpg"],
+      attributes: {
+        make: "Volkswagen",
+        model: "Golf",
+        year: "2012",
+      },
+      listingFlowState: "DRAFT_READY",
+    };
+
+    const turn = await runThreadTurn({
+      threadId: null,
+      authUserId: "user_initial_test",
+      clientMessages: [{ role: "user", text: "Parduodu Volkswagen Golf 2012 Klaipėdoje už 5200" }],
+      context: {
+        listingDraft: initialClientDraft,
+      },
+      turnId: "turn_initial_draft_check",
+    });
+
+    const newThread = await store.get(turn.thread.threadId);
+    assert.ok(newThread, "New thread must be created in store");
+    const persistedDraft = newThread.listingDraft as Record<string, unknown>;
+    assert.ok(persistedDraft, "Listing draft must be seeded on the new thread");
+    assert.equal(persistedDraft.price, 5200, "Initial client price must seed draft when no server draft exists");
+    const attrs = (persistedDraft.attributes ?? {}) as Record<string, string>;
+    assert.equal(attrs.year, "2012", "Initial client year must seed draft when no server draft exists");
+    assert.ok(
+      String(persistedDraft.title).includes("Golf"),
+      "Initial client title must seed draft when no server draft exists"
+    );
   });
 });
 

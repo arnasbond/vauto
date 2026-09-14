@@ -8,6 +8,7 @@ import {
   valueGroundedInUserText,
 } from "../shared/field-authority.js";
 import {
+  resolveContinuityPrior,
   resolveSearchCategory,
   resolveSearchCity,
   resolveSearchPrice,
@@ -1372,11 +1373,15 @@ export async function executeAgentTool(
       // R4.3B — the prior persisted search object (server-owned) is the
       // lowest-priority continuity source; a searchSessionReset discards it.
       const prior = ctx.searchSessionReset ? null : (ctx.activeSearchFilters ?? null);
-      // Supplying a new object is REPLACE semantics. Old hard filters and soft
-      // preferences belong to the old object and must not leak into the new
-      // search. For a refinement the planner omits `query`, so the complete
-      // prior object remains available as the continuity fallback.
-      const continuityPrior = rawQuery ? null : prior;
+      // R4.3B — search continuity authority: resolve whether this turn is
+      // KEEP / REFINE (same object or pure refinement) or SWITCH / REPLACE (new object / topic pivot).
+      // Model-supplied query repetition ("volvo" -> "volvo" + budget) does NOT discard the prior object.
+      const continuityPrior = resolveContinuityPrior({
+        prior,
+        rawQuery,
+        userText: fallbackQuery || rawQuery,
+        searchSessionReset: Boolean(ctx.searchSessionReset),
+      });
       // Strict NLP from latest utterance — never merge historical topics here.
       const nl = extractSearchNlFilters(rawForIntent);
       const intent = extractProductSearchIntent(rawForIntent);
@@ -1594,18 +1599,20 @@ export async function executeAgentTool(
       // real_estate), the recorded query still echoes the USER's words.
       const searchQuery = (searchKeyword || query || rawForIntent || category || "").trim();
 
-      // Soft category for keyword searches; hard category for pure category browse.
-      const softCategoryForUi = Boolean(searchKeyword && category && !categoryBrowse);
+      const categoryRetainedFromPrior = Boolean(
+        continuityPrior?.category && continuityPrior.category === category
+      );
+      // Soft category for keyword searches; hard category for pure category browse or retained prior state.
+      const softCategoryForUi = Boolean(
+        searchKeyword &&
+        category &&
+        !categoryBrowse &&
+        !categoryRetainedFromPrior
+      );
 
       const searchFilters: AgentSearchFilters = {
         query: searchKeyword || undefined,
-        category: softCategoryForUi
-          ? undefined
-          : categoryBrowse
-            ? category
-            : searchKeyword
-              ? undefined
-              : category,
+        category: softCategoryForUi ? undefined : category || undefined,
         city: cityNominative || undefined,
         maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
         minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,

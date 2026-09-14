@@ -80,6 +80,30 @@ describe("R4.3B — search continuity (KEEP / REPLACE / SWITCH)", () => {
     assert.equal(f.preferences, undefined, "old soft preferences do not leak into the new object");
   });
 
+  it("REFINE: model repeating object query preserves category, city, minPrice, and preferences", async () => {
+    const { sideEffect } = await executeAgentTool(
+      "searchListings",
+      { query: "volvo", maxPrice: 12000 },
+      ctxWith({
+        lastUserQuery: "volvo iki 12000",
+        activeSearchFilters: {
+          query: "volvo",
+          category: "vehicles",
+          city: "Vilnius",
+          minPrice: 5000,
+          preferences: { fuelType: "Dyzelinas" },
+        },
+      })
+    );
+    const f = filtersOf(sideEffect);
+    assert.equal(f.query, "Volvo", "prior object query is preserved");
+    assert.equal(f.category, "vehicles", "prior category is retained");
+    assert.equal(f.city, "Vilnius", "prior city is retained");
+    assert.equal(f.minPrice, 5000, "prior minPrice is retained");
+    assert.equal(f.maxPrice, 12000, "new maxPrice is applied");
+    assert.equal(f.preferences?.fuelType, "Dyzelinas", "prior preferences are retained");
+  });
+
   it("reset: searchSessionReset discards the prior object", async () => {
     const { sideEffect } = await executeAgentTool(
       "searchListings",

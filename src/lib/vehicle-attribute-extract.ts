@@ -166,38 +166,9 @@ export function applyVinCandidateToAttrs<
   ) as unknown as T & VinAttributes;
 }
 
-export function extractVehicleYearFromText(text: string): string | null {
-  // 1. Explicit year markers: e.g. "metai 2008", "2008 m.", "2008 metų"
-  const explicitPre = text.match(/\b(?:metai|metų|metu|pagaminimo|laidos)\s*:?\s*((?:19|20)\d{2})\b/i);
-  if (explicitPre?.[1]) {
-    return normalizeVehicleYear(explicitPre[1]);
-  }
-  const explicitPost = text.match(/\b((?:19|20)\d{2})\s*(?:m\.|m\b|metai|metų|metu)\b/i);
-  if (explicitPost?.[1]) {
-    return normalizeVehicleYear(explicitPost[1]);
-  }
+import { extractVehicleYearFromText } from "@vauto/shared/price-year-disambiguation";
+export { extractVehicleYearFromText };
 
-  // 2. Generic 4-digit candidate: must NOT be followed by currency or preceded by price word
-  const candidates = text.matchAll(/\b((?:19|20)\d{2})\b/g);
-  for (const match of candidates) {
-    const raw = match[1];
-    const idx = match.index ?? 0;
-    const after = text.slice(idx + raw.length, idx + raw.length + 15);
-    // If followed by currency symbol/words: e.g. "2000 €", "2000 eur", "2000eur" -> skip (price)
-    if (/^\s*(?:€|eur[\p{L}]*|\$|usd)/iu.test(after)) {
-      continue;
-    }
-    const before = text.slice(Math.max(0, idx - 20), idx);
-    // If preceded by price signal: e.g. "kaina 2000", "už 2000" -> skip (price)
-    if (/\b(?:kaina|kainuoja|kainos|už|uz)\s*:?\s*$/i.test(before)) {
-      continue;
-    }
-    const y = normalizeVehicleYear(raw);
-    if (y) return y;
-  }
-
-  return null;
-}
 
 export function extractVehicleAttributesFromText(
   text: string

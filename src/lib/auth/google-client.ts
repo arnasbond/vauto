@@ -3,12 +3,14 @@ import {
   createOAuthState,
   getAuthOrigin,
   getGoogleRedirectUris,
+  getNativeAuthCallbackUrl,
   getWebAuthCallbackUrl,
   isAllowedAuthOrigin,
   isNativeAuthEnvironment,
   persistOAuthLaunchContext,
   prefersOAuthRedirectFlow,
 } from "@/lib/auth/oauth-redirect";
+import { resolveNativeAuthAdapter } from "@/lib/auth/native-auth";
 
 declare global {
   interface Window {
@@ -123,18 +125,24 @@ export function startGoogleRedirectSignIn(opts: {
     };
   }
 
+  const isNative = isNativeAuthEnvironment();
   const state = createOAuthState();
   const nonce = createNonce();
   persistOAuthLaunchContext({
     provider: "google",
     state,
+    nonce,
     returnPath: opts.returnPath || "/",
     signupIntent: opts.signupIntent,
   });
 
+  const redirectUri = isNative
+    ? getNativeAuthCallbackUrl()
+    : getWebAuthCallbackUrl();
+
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: getWebAuthCallbackUrl(),
+    redirect_uri: redirectUri,
     response_type: "id_token",
     scope: "openid email profile",
     nonce,
@@ -144,17 +152,27 @@ export function startGoogleRedirectSignIn(opts: {
 
   const targetUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 
-  // Native Android/iOS: open via system browser to bypass Google's 403 disallowed_useragent block
-  if (isNativeAuthEnvironment()) {
-    const vautoAndroid = (
-      window as unknown as {
-        VautoAndroid?: { openExternalUrl: (url: string) => void };
-      }
-    ).VautoAndroid;
-    if (vautoAndroid?.openExternalUrl) {
-      vautoAndroid.openExternalUrl(targetUrl);
-      return { status: "redirecting" };
+  // Native Android/iOS: open via system browser to bypass Google's 403 disallowed_useragent block.
+  // Never fall through to embedded WebView (which triggers 403 disallowed_useragent).
+  // If native adapter is missing on a native platform: FAIL CLOSED.
+  if (isNative) {
+    const adapter = resolveNativeAuthAdapter();
+    if (!adapter) {
+      console.warn("[VAUTO Auth] Native authentication adapter unavailable — failing closed");
+      return {
+        status: "error",
+        message: "Saugi autorizacija šioje platformoje nepalaikoma (trūksta native adapterio)",
+      };
     }
+    const opened = adapter.openExternalAuthUrl(targetUrl);
+    if (!opened) {
+      console.warn("[VAUTO Auth] Native adapter failed to open external browser");
+      return {
+        status: "error",
+        message: "Nepavyko atidaryti sistemos naršyklės autorizacijai",
+      };
+    }
+    return { status: "redirecting" };
   }
 
   window.location.assign(targetUrl);
