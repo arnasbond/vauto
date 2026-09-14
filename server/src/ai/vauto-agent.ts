@@ -782,6 +782,14 @@ export function buildAgentPlannerContext(
     lastSearchListingIds: authoritativeRecentSearchListingIds.length
       ? authoritativeRecentSearchListingIds
       : null,
+    recentSearchResults: isolate
+      ? null
+      : (req.context.listings ?? []).slice(0, 3).map((l) => ({
+          id: String(l.id ?? ""),
+          title: String(l.title ?? ""),
+          price: typeof l.price === "number" ? l.price : undefined,
+          location: String(l.location ?? ""),
+        })),
     myListings: (req.context.myListings ?? []).map((l) => ({
       id: String(l.id ?? ""),
       title: String(l.title ?? ""),

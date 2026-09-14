@@ -56,12 +56,14 @@ export interface PlannerContextBuilderInput {
   } | null;
   /** R4.3D — last shown search-result IDs (server-owned referent, bounded). */
   lastSearchListingIds?: string[] | null;
+  /** R4.3D — last shown search result summaries for referent grounding. */
+  recentSearchResults?: Array<{ id: string; title: string; price?: number; location?: string }> | null;
 }
 
 const RECENT_WINDOW = 10;
 const MEMORY_MAX_ITEMS = 14;
 const MEMORY_ITEM_MAX_CHARS = 160;
-const FACTS_MAX = 10;
+const FACTS_MAX = 14;
 const SALIENT_MAX_CHARS = 2200;
 const SALIENT_LINE_MAX_CHARS = 160;
 
@@ -137,6 +139,22 @@ function factsFromSearch(
       value: String(input.lastSearchListingIds.length),
       source: "search",
     });
+  }
+  if (input.recentSearchResults?.length) {
+    const topSummaries = input.recentSearchResults
+      .slice(0, 3)
+      .map(
+        (r, i) =>
+          `[${i + 1}] ${r.title}${r.price ? ` (${r.price} €)` : ""}${r.location ? ` - ${r.location}` : ""}`
+      )
+      .join(", ");
+    if (topSummaries) {
+      out.push({
+        key: "recentSearchResults",
+        value: topSummaries,
+        source: "search",
+      });
+    }
   }
   return out;
 }

@@ -32,6 +32,16 @@ export interface EvalTurnReference {
   forbiddenTools?: string[];
   /** Naturalness floor — a reply shorter than this is COMMAND_PARSER_BEHAVIOR. */
   minReplyChars?: number;
+  /** Expected structured search filters after this turn (continuity assertion). */
+  expectedSearchFilters?: {
+    query?: string;
+    category?: string;
+    city?: string;
+    maxPrice?: number;
+    minPrice?: number;
+  };
+  /** Expected active task ('search' | 'sell' | intent) after this turn. */
+  expectedActiveTask?: string;
 }
 
 export interface EvalTurn {

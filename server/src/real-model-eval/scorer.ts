@@ -52,6 +52,10 @@ export interface TurnScore {
   toolCalls: string[];
   searchCategory?: string;
   draftAfter: Record<string, unknown> | null;
+  activeTaskAfter?: string | null;
+  searchFiltersAfter?: Record<string, unknown> | null;
+  consequentialEffects?: string[];
+  providerFailure?: boolean;
 }
 
 export interface CaseScore {
@@ -196,7 +200,23 @@ export function scoreTurn(
       continuity = 1;
     }
   }
-  if (outcome.error) continuity = 0;
+  if (ref.expectedSearchFilters) {
+    const actual = outcome.searchFiltersAfter ?? {};
+    for (const [k, expectedVal] of Object.entries(ref.expectedSearchFilters)) {
+      if (expectedVal !== undefined && actual[k] !== expectedVal) {
+        continuity = Math.max(0, continuity - 1);
+        structured = Math.max(0, structured - 1);
+        flags.add("CONTEXT_RESET");
+      }
+    }
+  }
+  if (ref.expectedActiveTask) {
+    if (outcome.activeTaskAfter !== ref.expectedActiveTask) {
+      continuity = Math.max(0, continuity - 1);
+      flags.add("CONTEXT_RESET");
+    }
+  }
+  if (outcome.error || outcome.providerFailure) continuity = 0;
 
   // ── Human correction authority ───────────────────────────────────────────
   let correction = 2;
@@ -242,7 +262,7 @@ export function scoreTurn(
 
   const failureClass: FailureClass | null = classifyFailure(
     flags,
-    outcome.error != null,
+    outcome.error != null || Boolean(outcome.providerFailure),
     ref
   );
 
@@ -258,6 +278,10 @@ export function scoreTurn(
     toolCalls: outcome.toolCalls,
     searchCategory: outcome.searchCategory,
     draftAfter: outcome.draftAfter,
+    activeTaskAfter: outcome.activeTaskAfter,
+    searchFiltersAfter: outcome.searchFiltersAfter,
+    consequentialEffects: outcome.consequentialEffects,
+    providerFailure: outcome.providerFailure,
   };
 }
 

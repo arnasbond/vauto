@@ -8,6 +8,7 @@ import {
   valueGroundedInUserText,
 } from "../shared/field-authority.js";
 import {
+  isPureSearchRefinement,
   resolveContinuityPrior,
   resolveSearchCategory,
   resolveSearchCity,
@@ -673,6 +674,11 @@ export const AGENT_FUNCTION_DECLARATIONS = [
             alternatives: { type: "ARRAY", items: { type: "STRING" } },
             exclusions: { type: "ARRAY", items: { type: "STRING" } },
           },
+        },
+        categoryAttributes: {
+          type: "OBJECT",
+          description:
+            "Specifiniai vertikalės atributai (pvz. rooms, area, condition, gearbox, fuelType ir pan.)",
         },
       },
     },
@@ -1390,17 +1396,23 @@ export async function executeAgentTool(
       // extracted from the USER's raw utterance so an explicit constraint
       // ("iki 600", "Kaunas") is never dropped when the model rewrites/omits it.
       const userNl = fallbackQuery ? extractSearchNlFilters(fallbackQuery) : nl;
-      // R4.3B — object continuity: the model's explicit `query` is the OBJECT
-      // (REPLACE); a pure refinement turn (budget/location/attribute only)
-      // omits the query, so the prior persisted object is KEPT. Deterministic
-      // NLP keyword is only the last-resort fallback for fresh searches.
-      const query = normalizeProductSearchQuery(
-        rawQuery ||
-          continuityPrior?.query?.trim() ||
-          intent.keyword ||
-          nl.keyword ||
-          fallbackQuery
+      // R4.3B — object continuity:
+      // When continuityPrior exists and this turn is a pure refinement (budget, city, vertical attribute),
+      // keep the prior object query. If the model or user explicitly named a new object (REPLACE/SWITCH),
+      // the new query wins. Deterministic NLP keyword is the last-resort fallback for fresh searches.
+      const isRefinementTurn = Boolean(
+        continuityPrior &&
+        isPureSearchRefinement(rawQuery, fallbackQuery)
       );
+      const effectiveQueryInput = isRefinementTurn
+        ? (continuityPrior?.query || rawQuery)
+        : (rawQuery ||
+            continuityPrior?.query?.trim() ||
+            intent.keyword ||
+            nl.keyword ||
+            fallbackQuery);
+
+      const query = normalizeProductSearchQuery(effectiveQueryInput);
       // Category authority: a valid model category (canonical or known alias) is
       // used; an unknown/hallucinated model category is OMITTED (never coerced to
       // "other") and falls back to the user-derived category, else the prior
@@ -1610,12 +1622,30 @@ export async function executeAgentTool(
         !categoryRetainedFromPrior
       );
 
+      const roomsMatch = rawForIntent.match(/(\d+)\s*kambar/i);
+      const extractedRooms = roomsMatch?.[1];
+      const categoryAttributes: Record<string, string> = {
+        ...(continuityPrior?.categoryAttributes ?? {}),
+        ...(args.categoryAttributes && typeof args.categoryAttributes === "object"
+          ? (args.categoryAttributes as Record<string, string>)
+          : {}),
+        ...(extractedRooms ? { rooms: extractedRooms } : {}),
+      };
+
+      const rawResolvedQuery = isRefinementTurn && continuityPrior?.query
+        ? continuityPrior.query
+        : (searchKeyword || query || undefined);
+      const resolvedQueryForFilters = rawResolvedQuery
+        ? normalizeProductSearchQuery(rawResolvedQuery) || rawResolvedQuery
+        : undefined;
+
       const searchFilters: AgentSearchFilters = {
-        query: searchKeyword || undefined,
+        query: resolvedQueryForFilters,
         category: softCategoryForUi ? undefined : category || undefined,
         city: cityNominative || undefined,
         maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
         minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
+        ...(Object.keys(categoryAttributes).length ? { categoryAttributes } : {}),
         ...(preferences ? { preferences } : {}),
       };
 
