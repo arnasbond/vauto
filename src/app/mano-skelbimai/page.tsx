@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { AgentChatStrip } from "@/components/home/AgentChatStrip";
@@ -11,7 +11,25 @@ import { useVautoAgent } from "@/context/VautoAgentContext";
 import { isEmbeddedAgentChatVisible } from "@/lib/agent-chat-layout";
 
 export default function ManoSkelbimaiPage() {
+  return (
+    <Suspense
+      fallback={
+        <VautoAdaptiveLayout variant="plain">
+          <div className="flex min-h-[40vh] items-center justify-center text-sm text-[var(--anonser-text-muted)]">
+            Kraunama…
+          </div>
+        </VautoAdaptiveLayout>
+      }
+    >
+      <ManoSkelbimaiPageContent />
+    </Suspense>
+  );
+}
+
+function ManoSkelbimaiPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const targetId = searchParams.get("id")?.trim() || undefined;
   const { authHydrated, isAuthenticated, listings, user } = useVauto();
   const { messages, busy } = useVautoAgent();
   const chatActive = isEmbeddedAgentChatVisible(messages, busy);
@@ -51,7 +69,7 @@ export default function ManoSkelbimaiPage() {
           <AgentChatStrip />
         </div>
       )}
-      <ManoSkelbimaiDashboard listings={myListings} />
+      <ManoSkelbimaiDashboard listings={myListings} targetId={targetId} />
     </VautoAdaptiveLayout>
   );
 }

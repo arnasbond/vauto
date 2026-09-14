@@ -866,7 +866,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           // Applied last so they win over admin review-queue copies.
           const cleared = mineRes.data
             .map(withDefaultExpiry)
-            .filter((l) => !l.banned)
             .map((l) => {
               const sessionImages = filterSessionListingImages(l.images);
               const needsDesc =
@@ -890,13 +889,14 @@ export function VautoProvider({ children }: { children: ReactNode }) {
                 images: sessionImages,
                 attributes,
                 requiresReview:
-                  l.requiresReview && (l.status === "active" || !l.status)
+                  !l.banned && l.requiresReview && (l.status === "active" || !l.status)
                     ? false
                     : l.requiresReview,
               };
             });
           extras.push(...cleared);
           const dirtyPatches = cleared
+            .filter((l) => !l.banned)
             .map((l) => {
               const original = mineRes.data.find((o) => o.id === l.id);
               if (!original) return null;

@@ -7,7 +7,8 @@ export type DashboardListingState =
   | "paused"
   | "sold"
   | "expired"
-  | "deleted";
+  | "deleted"
+  | "rejected";
 
 export function isListingPublicInFeed(listing: Listing): boolean {
   if (listing.banned) return false;
@@ -24,9 +25,10 @@ export function isListingPublicInFeed(listing: Listing): boolean {
 }
 
 export function dashboardListingState(listing: Listing): DashboardListingState {
+  if (listing.banned) return "rejected";
   if (listing.status === "deleted") return "deleted";
   if (listing.status === "sold") return "sold";
-  if (listing.status === "pending") return "pending";
+  if (listing.status === "pending" || listing.requiresReview) return "pending";
   if (listing.status === "paused") return "paused";
   if (!isListingActive(listing)) return "expired";
   return "active";
@@ -34,6 +36,8 @@ export function dashboardListingState(listing: Listing): DashboardListingState {
 
 export function dashboardStateLabel(state: DashboardListingState): string {
   switch (state) {
+    case "rejected":
+      return "Atmestas";
     case "active":
       return "Aktyvus";
     case "pending":
@@ -51,6 +55,8 @@ export function dashboardStateLabel(state: DashboardListingState): string {
 
 export function dashboardStateClass(state: DashboardListingState): string {
   switch (state) {
+    case "rejected":
+      return "bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200";
     case "active":
       return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200";
     case "pending":

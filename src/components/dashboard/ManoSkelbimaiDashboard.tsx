@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LayoutGrid,
   Sparkles,
@@ -16,10 +16,12 @@ import type { Listing } from "@/lib/types";
 
 interface ManoSkelbimaiDashboardProps {
   listings: Listing[];
+  targetId?: string;
 }
 
 export function ManoSkelbimaiDashboard({
   listings,
+  targetId,
 }: ManoSkelbimaiDashboardProps) {
   const {
     deleteListing,
@@ -34,16 +36,25 @@ export function ManoSkelbimaiDashboard({
   const { openMicroPayment } = useZeroUiScreen();
   const [statsTarget, setStatsTarget] = useState<Listing | null>(null);
 
+  useEffect(() => {
+    if (!targetId) return;
+    const el = document.getElementById(`listing-card-${targetId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [targetId]);
+
   const sorted = useMemo(
     () =>
       [...listings].sort((a, b) => {
         const order = {
-          active: 0,
+          rejected: 0,
           pending: 1,
-          paused: 2,
-          expired: 3,
-          sold: 4,
-          deleted: 5,
+          active: 2,
+          paused: 3,
+          expired: 4,
+          sold: 5,
+          deleted: 6,
         };
         const sa = order[dashboardListingState(a)];
         const sb = order[dashboardListingState(b)];
@@ -227,6 +238,7 @@ export function ManoSkelbimaiDashboard({
             <ListingManagementCard
               key={listing.id}
               listing={listing}
+              isHighlighted={listing.id === targetId}
               onEdit={() =>
                 startEditListingFlow(listing, { stayOnPage: true })
               }

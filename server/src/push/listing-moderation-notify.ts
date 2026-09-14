@@ -3,7 +3,10 @@ import type { ApiListing } from "../types.js";
 import { notifyUsersFcm } from "./fcm.js";
 import { sendWebPushToUsers } from "./web-push.js";
 
-function listingUrl(listing: ApiListing): string {
+export function listingUrl(listing: ApiListing, kind?: string): string {
+  if (kind === "listing_rejected" || kind === "listing_pending_review") {
+    return `/mano-skelbimai/?id=${encodeURIComponent(listing.id)}`;
+  }
   const slug = listing.slug ?? listing.id;
   return `/listing/${slug}/`;
 }
@@ -12,7 +15,7 @@ async function deliverSellerModerationNotice(
   listing: ApiListing,
   input: { kind: string; title: string; body: string; tag: string }
 ): Promise<void> {
-  const url = listingUrl(listing);
+  const url = listingUrl(listing, input.kind);
   await insertUserNotification({
     userId: listing.sellerId,
     kind: input.kind,

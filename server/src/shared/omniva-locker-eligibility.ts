@@ -3,6 +3,8 @@
  * Hard-disable lockers for non-shippable categories and oversized goods.
  */
 
+import { canUseShipping } from "./marketplace-domain/index.js";
+
 export const OMNIVA_LOCKER_MAX = {
   /** Longest edge (cm) */
   lengthCm: 64,
@@ -132,6 +134,16 @@ function parseWeightKgFromText(text: string): number | null {
   return null;
 }
 
+function isNonShippableCategory(category?: string): boolean {
+  const c = String(category ?? "")
+    .toLowerCase()
+    .trim();
+  if (!c) return false;
+  if (!canUseShipping(c)) return true;
+  if (categoryHardBlocked(c)) return true;
+  return false;
+}
+
 function categoryHardBlocked(category?: string): boolean {
   const c = String(category ?? "")
     .toLowerCase()
@@ -193,13 +205,13 @@ export function resolveOmnivaLockerEligibility(input: {
     .join(" • ");
 
   const vautoCat = attrString(attrs, "_vautoCategory");
-  if (categoryHardBlocked(input.category) || categoryHardBlocked(vautoCat)) {
+  if (isNonShippableCategory(input.category) || isNonShippableCategory(vautoCat)) {
     return {
       eligible: false,
       estimatedSize: "OVERSIZED",
       fitsOmnivaLocker: false,
-      reason: "kategorija netinka paštomatui",
-      noteLt: OMNIVA_LOCKER_OVERSIZE_NOTE,
+      reason: "kategorija netinka siuntimui",
+      noteLt: "",
       defaultShipping: "pickup_or_courier",
     };
   }
