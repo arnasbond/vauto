@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Package, Truck } from "lucide-react";
+import { MapPin, Package, Truck } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { apiFetchHealthDetails } from "@/lib/api/client";
 import { isDataApiEnabled } from "@/lib/api/config";
@@ -10,6 +10,7 @@ import {
   resolveOmnivaLockerEligibility,
   type OmnivaLockerEligibility,
 } from "@vauto/shared/omniva-locker-eligibility";
+import { getCategoryCapabilities } from "@vauto/shared/marketplace-domain";
 import type { ListingCategory } from "@/lib/types";
 
 export type PrePublishShippingMode = "omniva_locker" | "pickup_or_courier";
@@ -56,6 +57,9 @@ export function PrePublishShippingOptions({
   disabled,
   onChange,
 }: PrePublishShippingOptionsProps) {
+  const caps = getCategoryCapabilities(category);
+  const { supportsShipping, supportsPickup } = caps;
+
   const eligibility = resolvePrePublishShippingEligibility({
     title,
     description,
@@ -63,7 +67,7 @@ export function PrePublishShippingOptions({
     attributes,
     allowPastomatas,
   });
-  const showOmniva = eligibility.eligible && eligibility.fitsOmnivaLocker;
+  const showOmniva = supportsShipping && eligibility.eligible && eligibility.fitsOmnivaLocker;
   const active: PrePublishShippingMode = showOmniva
     ? value
     : "pickup_or_courier";
@@ -94,6 +98,43 @@ export function PrePublishShippingOptions({
     };
   }, []);
 
+  // 1. Neither shipping nor pickup supported (e.g. jobs, services, real_estate): render nothing.
+  if (!supportsShipping && !supportsPickup) {
+    return null;
+  }
+
+  // 2. Pickup supported without shipping (e.g. vehicles/transport): render local handoff ONLY.
+  if (!supportsShipping && supportsPickup) {
+    return (
+      <section
+        className="space-y-2 rounded-xl border border-[var(--vauto-border)]/70 bg-[var(--vauto-surface-muted)]/25 p-3"
+        data-delivery-mode="pickup_only"
+      >
+        <p className="text-sm font-semibold text-[var(--vauto-text)]">
+          Perdavimas
+        </p>
+        <div
+          className="flex items-start gap-2.5 rounded-lg border border-[var(--vauto-border)]/80 bg-[var(--vauto-card-bg)] px-2.5 py-2.5"
+          role="note"
+        >
+          <MapPin
+            className="mt-0.5 h-4 w-4 shrink-0 text-[var(--vauto-primary)]"
+            aria-hidden
+          />
+          <div className="min-w-0 flex-1">
+            <span className="flex items-center gap-2 text-[13px] font-semibold text-[var(--vauto-text)]">
+              Atsiėmimas vietoje
+            </span>
+            <span className="mt-0.5 block text-[11px] leading-snug text-[var(--vauto-text-muted)]">
+              Tiesioginis susitarimas ir perdavimas vietoje
+            </span>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // 3. Shippable items (e.g. electronics, clothing, home): render full shipping presentation.
   const showLive = omnivaLive === true;
   const showSim = omnivaLive === false;
 
@@ -207,7 +248,7 @@ export function PrePublishShippingOptions({
         </label>
       </div>
 
-      {!showOmniva ? (
+      {!showOmniva && supportsShipping && (eligibility.noteLt || OMNIVA_LOCKER_OVERSIZE_NOTE) ? (
         <p
           className="rounded-lg border border-amber-500/25 bg-amber-500/8 px-2.5 py-2 text-[12px] leading-snug text-[var(--vauto-text)]"
           role="status"

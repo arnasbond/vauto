@@ -8,6 +8,7 @@ import {
   valueGroundedInUserText,
 } from "../shared/field-authority.js";
 import {
+  resolveContinuityPrior,
   resolveSearchCategory,
   resolveSearchCity,
   resolveSearchPrice,
@@ -230,6 +231,8 @@ export interface AgentToolContext {
   searchSessionReset?: boolean;
   /** R4.2 — active soft preferences from the prior search turn (continuity). */
   activeSearchPreferences?: SearchPreference;
+  /** R4.3B — prior persisted search object (server-owned continuity state). */
+  activeSearchFilters?: AgentSearchFilters | null;
   monetization?: MonetizationState;
   listingDraft?: {
     title?: string;
@@ -1367,6 +1370,18 @@ export async function executeAgentTool(
       const rawQuery = String(args.query ?? "").trim();
       const fallbackQuery = ctx.lastUserQuery?.trim() ?? "";
       const rawForIntent = (rawQuery || fallbackQuery).trim();
+      // R4.3B — the prior persisted search object (server-owned) is the
+      // lowest-priority continuity source; a searchSessionReset discards it.
+      const prior = ctx.searchSessionReset ? null : (ctx.activeSearchFilters ?? null);
+      // R4.3B — search continuity authority: resolve whether this turn is
+      // KEEP / REFINE (same object or pure refinement) or SWITCH / REPLACE (new object / topic pivot).
+      // Model-supplied query repetition ("volvo" -> "volvo" + budget) does NOT discard the prior object.
+      const continuityPrior = resolveContinuityPrior({
+        prior,
+        rawQuery,
+        userText: fallbackQuery || rawQuery,
+        searchSessionReset: Boolean(ctx.searchSessionReset),
+      });
       // Strict NLP from latest utterance — never merge historical topics here.
       const nl = extractSearchNlFilters(rawForIntent);
       const intent = extractProductSearchIntent(rawForIntent);
@@ -1375,16 +1390,25 @@ export async function executeAgentTool(
       // extracted from the USER's raw utterance so an explicit constraint
       // ("iki 600", "Kaunas") is never dropped when the model rewrites/omits it.
       const userNl = fallbackQuery ? extractSearchNlFilters(fallbackQuery) : nl;
-      // Prefer creative intent extraction; NL keyword is a secondary clean-up.
+      // R4.3B — object continuity: the model's explicit `query` is the OBJECT
+      // (REPLACE); a pure refinement turn (budget/location/attribute only)
+      // omits the query, so the prior persisted object is KEPT. Deterministic
+      // NLP keyword is only the last-resort fallback for fresh searches.
       const query = normalizeProductSearchQuery(
-        intent.keyword || nl.keyword || rawQuery || fallbackQuery
+        rawQuery ||
+          continuityPrior?.query?.trim() ||
+          intent.keyword ||
+          nl.keyword ||
+          fallbackQuery
       );
       // Category authority: a valid model category (canonical or known alias) is
       // used; an unknown/hallucinated model category is OMITTED (never coerced to
-      // "other") and falls back to the user-derived category, else no category.
+      // "other") and falls back to the user-derived category, else the prior
+      // persisted category, else no category.
       const category = resolveSearchCategory(
         args.category ? String(args.category) : undefined,
-        intent.category || inferSearchCategory(rawForIntent)
+        intent.category || inferSearchCategory(rawForIntent),
+        continuityPrior?.category
       );
 
       // Category browse („rūbai“, „automobilis“, „paslaugos“) — no literal keyword gate.
@@ -1452,14 +1476,18 @@ export async function executeAgentTool(
         modelMax: args.maxPrice,
         userMin: userNl.minPrice,
         userMax: userNl.maxPrice,
+        priorMin: continuityPrior?.minPrice,
+        priorMax: continuityPrior?.maxPrice,
       });
       const minPrice = priceBounds.minPrice;
       const maxPrice = priceBounds.maxPrice;
       // Explicit current-user location outranks a model-only (stale/hallucinated)
-      // city; the model may supply a city only when the user stated none.
+      // city; the model may supply a city only when the user stated none; the
+      // prior persisted city is the lowest-priority fallback (R4.3B).
       const cityRaw = resolveSearchCity(
         args.city ? String(args.city) : undefined,
-        userNl.city || nl.city
+        userNl.city || nl.city,
+        continuityPrior?.city
       );
       const cityNominative = cityRaw ? resolveLtCityNominative(cityRaw) : "";
       const city = cityNominative ? normCityForFilter(cityNominative) : "";
@@ -1503,7 +1531,7 @@ export async function executeAgentTool(
       // cross-turn continuity.
       const incomingPreferences = normalizeSearchPreferences(args.preferences);
       const preferences = mergeSearchPreferences(
-        ctx.activeSearchPreferences,
+        continuityPrior?.preferences,
         incomingPreferences
       );
 
@@ -1571,18 +1599,20 @@ export async function executeAgentTool(
       // real_estate), the recorded query still echoes the USER's words.
       const searchQuery = (searchKeyword || query || rawForIntent || category || "").trim();
 
-      // Soft category for keyword searches; hard category for pure category browse.
-      const softCategoryForUi = Boolean(searchKeyword && category && !categoryBrowse);
+      const categoryRetainedFromPrior = Boolean(
+        continuityPrior?.category && continuityPrior.category === category
+      );
+      // Soft category for keyword searches; hard category for pure category browse or retained prior state.
+      const softCategoryForUi = Boolean(
+        searchKeyword &&
+        category &&
+        !categoryBrowse &&
+        !categoryRetainedFromPrior
+      );
 
       const searchFilters: AgentSearchFilters = {
         query: searchKeyword || undefined,
-        category: softCategoryForUi
-          ? undefined
-          : categoryBrowse
-            ? category
-            : searchKeyword
-              ? undefined
-              : category,
+        category: softCategoryForUi ? undefined : category || undefined,
         city: cityNominative || undefined,
         maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
         minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,

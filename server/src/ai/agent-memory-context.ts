@@ -42,6 +42,8 @@ export interface AgentSearchFilters {
 export interface PersistedSearchContext {
   subject?: string;
   activeSearchFilters?: AgentSearchFilters;
+  /** R4.3D — last shown search-result IDs (server-owned referent, bounded). */
+  lastSearchListingIds?: string[];
 }
 
 export interface AgentMemoryPayload {

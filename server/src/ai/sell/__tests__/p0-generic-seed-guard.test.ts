@@ -62,7 +62,7 @@ const CATEGORY_MATRIX: Array<{ category: string; text: string; expected: string 
   { category: "Mada", text: "Parduodu striuk", expected: "clothing" },
   { category: "Namai ir buitis", text: "Parduodu stal", expected: "home" },
   { category: "Paslaugos", text: "Teikiu paslaug", expected: "services" },
-  { category: "Darbas", text: "Ieškau darbo", expected: "jobs" },
+  { category: "Darbas", text: "Noriu įkelti skelbimą, kad ieškau darbo", expected: "jobs" },
   { category: "Kita", text: "Parduodu žaisl", expected: "other" },
 ];
 
@@ -82,6 +82,35 @@ describe("P0 — generic seed guard through runVautoAgent (8-category real first
       assert.equal(draft.category, row.expected);
     });
   }
+
+  it("Darbas: forged generic draft + cold 'Ieškau darbo' does NOT create hidden draft (clarification / no fake update)", async () => {
+    const response = await runVautoAgent(requestFor(forgedGenericDraft(), "Ieškau darbo"));
+    // Never the dishonest price-update intro:
+    assert.doesNotMatch(response.reply, /atnaujinau kainą/i);
+    // Discarded forged generic draft leaves no active draft; cold query routes to clarification, not hidden seller draft:
+    assert.equal(response.actions.type, "none");
+    assert.match(response.reply, /pirkti ar parduoti|patikslinkite/i);
+  });
+
+  it("Darbas: active jobs draft continuation preserves draft identity and refines it", async () => {
+    const activeJobsDraft = {
+      title: "Statybininkas",
+      description: "Ieškau statybininko darbo",
+      price: 1500,
+      location: "Vilnius",
+      category: "jobs",
+      listingFlowState: "DRAFT_READY" as const,
+      attributes: { jobTitle: "Statybininkas" },
+    };
+    const response = await runVautoAgent(requestFor(activeJobsDraft, "Kaina 1800"));
+    // Active jobs draft continues draft flow and updates price:
+    assert.match(response.reply, /atnaujinau kainą/i);
+    assert.equal(response.actions.type, "listing_draft");
+    const draft = draftOf(response);
+    assert.equal(draft.price, 1800);
+    assert.equal(draft.category, "jobs");
+    assert.equal(draft.title, "Statybininkas");
+  });
 
   it("empty-title forged draft is also routed to fresh-create", async () => {
     const response = await runVautoAgent(

@@ -6,18 +6,9 @@ import {
 } from "./listing-gallery-roles.js";
 import { isNegotiablePriceChatInput } from "../shared/negotiable-price.js";
 import { coerceListingCategoryForDb } from "../shared/category-registry.js";
+import { parseDisambiguatedPrice } from "../shared/price-year-disambiguation.js";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
-// E2 — natural price corrections may carry 1–2 filler words after „kaina“
-// („kaina dabar 700“, „Pakeisk kainą į 720“) — tolerate them, never the amount.
-const PRICE_EXPLICIT_RE =
-  /(?:(?:kaina|kainą|uz|už|price)\s+(?:\p{L}+(?:\s+|$)){0,2}[:=]?\s*(\d{1,7}(?:[.,]\d{1,2})?)|(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur(?:ų|u|ais)?))/iu;
-const PRICE_BARE_IN_SHORT_RE =
-  /(?:^|[^\d])(\d{3,7})(?:[.,]\d{1,2})?(?=[^\d]|$)/;
-
-function isLikelyVehicleYear(n: number): boolean {
-  return Number.isInteger(n) && n >= 1985 && n <= 2026;
-}
 
 export interface ListingDraftContext {
   title?: string;
@@ -91,75 +82,8 @@ export function applyNaturalLanguageDescriptionEdits(
   return { description: next, removed };
 }
 
-/**
- * Normalize thin spaces / thousand separators so „2 250 €“ and „2.250“ parse reliably.
- * HARD: never glue rim/model digits to price („R17 150€“ must stay 150, not 17150).
- */
-function normalizePriceChatText(text: string): string {
-  let t = text
-    .trim()
-    .replace(/[\u00a0\u202f]/g, " ")
-    // Isolate rim / tire size tokens from adjacent amounts.
-    .replace(/\b([Rr]\s*\d{2})\b/g, " $1 ")
-    .replace(/\b(\d{2})\s*col(?:i[uų]|ių|iu)?\b/gi, " $1colių ");
-  // Dot/comma thousands: 2.250 / 2,250
-  t = t.replace(/(\d)[.,](\d{3})\b/g, "$1$2");
-  // Space thousands ONLY when left side is not part of a larger digit run
-  // (prevents R17 150 → R17150).
-  t = t.replace(/(^|[^\dA-Za-z])(\d{1,3})\s(\d{3})\b/g, "$1$2$3");
-  return t.replace(/\s+/g, " ").trim();
-}
+export const parsePriceFromChatInput = parseDisambiguatedPrice;
 
-function parseFinitePrice(raw: string): number | null {
-  const n = Number.parseFloat(raw.replace(",", "."));
-  if (!Number.isFinite(n) || n <= 0 || n >= 100_000_000) return null;
-  return Math.round(n);
-}
-
-export function parsePriceFromChatInput(text: string): number | null {
-  const t = normalizePriceChatText(text);
-  if (!t) return null;
-
-  const explicit = t.match(PRICE_EXPLICIT_RE);
-  if (explicit) {
-    const n = parseFinitePrice(explicit[1] || explicit[2] || "");
-    if (n != null) return n;
-  }
-
-  if (PRICE_ONLY_RE.test(t)) {
-    const hasCurrency = /€|eur/i.test(t);
-    const n = parseFinitePrice(t.replace(/[^\d.,]/g, ""));
-    if (n == null) return null;
-    if (!hasCurrency && isLikelyVehicleYear(n)) return null;
-    return n;
-  }
-
-  if (t.length <= 80) {
-    const bare = t.match(PRICE_BARE_IN_SHORT_RE);
-    if (bare?.[1]) {
-      // P0 — a bare amount is a price ONLY when the message is essentially
-      // about the price: brand/model tokens („WH-1000XM5“, „DDF484“,
-      // „LEGO Technic 42171“) and multi-word sentences never count. A number
-      // leading the text and followed by a sentence end stays a price.
-      const isLeadingAmount = /^\d[\d.,]*(?:\s*(?:€|eur[\p{L}]*))?\s*(?:[.!]|$)/iu.test(t);
-      const contextWords = t
-        .replace(/€|eur[\p{L}]*/giu, " ")
-        .replace(/\d[\d.,\s-]*/g, " ")
-        .split(/\s+/)
-        .filter(
-          (w) =>
-            /\p{L}{2,}/u.test(w) &&
-            !/^(parduodu|parduosiu|noriu|norėčiau|noreciau|siūlau|siulau|teikiu|parduoti)$/iu.test(w)
-        );
-      if (isLeadingAmount || contextWords.length <= 1) {
-        const n = Number.parseInt(bare[1], 10);
-        if (Number.isFinite(n) && n >= 50 && !isLikelyVehicleYear(n)) return n;
-      }
-    }
-  }
-
-  return null;
-}
 
 /** Alias used by vision / draft merge paths — same hardened parser. */
 export const parsePriceFromText = parsePriceFromChatInput;

@@ -1,4 +1,5 @@
 import { applyVehicleCatalogSpecs } from "./vehicle-spec-catalog.js";
+import { isFieldUserCorrected } from "./field-authority.js";
 
 function attrStr(
   attrs: Record<string, string | string[] | undefined>,
@@ -18,6 +19,7 @@ function setAttr(
   key: string,
   value: string
 ): void {
+  if (isFieldUserCorrected(attrs as Record<string, string | undefined>, key)) return;
   if (value.trim()) attrs[key] = value.trim();
 }
 
@@ -314,13 +316,18 @@ export function enrichVehicleVisionDraft<T extends VehicleDraftLike>(draft: T): 
     title: draft.title,
     description: draft.description,
   });
-  Object.assign(attrs, catalog.attributes);
+  for (const [k, v] of Object.entries(catalog.attributes)) {
+    if (!isFieldUserCorrected(attrs as Record<string, string | undefined>, k) && v !== undefined) {
+      attrs[k] = v;
+    }
+  }
 
   const yearForTitle = attrStr(attrs, "year") || year;
   let title = (draft.title ?? "").trim();
+  const titleUserCorrected = isFieldUserCorrected(attrs as Record<string, string | undefined>, "title");
   const makeOut = attrStr(attrs, "make", "brand");
   const modelOut = attrStr(attrs, "model");
-  if (makeOut && modelOut) {
+  if (makeOut && modelOut && !titleUserCorrected) {
     const preferred = `${makeOut} ${modelOut}${yearForTitle ? ` ${yearForTitle}` : ""}`.trim();
     if (
       !title ||

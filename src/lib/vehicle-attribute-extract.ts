@@ -166,7 +166,13 @@ export function applyVinCandidateToAttrs<
   ) as unknown as T & VinAttributes;
 }
 
-export function extractVehicleAttributesFromText(text: string): VehicleAttributePatch {
+import { extractVehicleYearFromText } from "@vauto/shared/price-year-disambiguation";
+export { extractVehicleYearFromText };
+
+
+export function extractVehicleAttributesFromText(
+  text: string
+): VehicleAttributePatch {
   const source = text.trim();
   if (!source) return {};
 
@@ -174,10 +180,9 @@ export function extractVehicleAttributesFromText(text: string): VehicleAttribute
   const make = normalizeVehicleMake(source) ?? detectVehicleMake(source);
   if (make) patch.make = make;
 
-  const yearMatch = source.match(/\b(19|20)\d{2}\b/);
-  if (yearMatch) {
-    const year = normalizeVehicleYear(yearMatch[0]);
-    if (year) patch.year = year;
+  const year = extractVehicleYearFromText(source);
+  if (year) {
+    patch.year = year;
   }
 
   if (patch.make) {

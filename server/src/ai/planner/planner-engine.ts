@@ -43,6 +43,7 @@ import {
   PUBLISH_INTENT_MARKER_RE,
   QUESTION_MARKER_RE,
   SEARCH_VERB_RE,
+  isBareAmbiguousNoun,
   isExplicitExecutionDirective,
   isExplicitWantedRequest,
   isNonExecutionDiscovery,
@@ -156,6 +157,31 @@ function planTurnInner(input: PlannerContextInput): PlannerDecision {
 
   // ── 2. SELL CONTINUATION — active draft owns the reasoning context ──────
   if (input.hasDraft) {
+    if (
+      input.draftCategory === "jobs" &&
+      isJobSeekerListingCreateIntent(text)
+    ) {
+      const facts = extractFacts(text, input);
+      if (hasFactPatch(facts)) {
+        return decision("sell_update", "deterministic_executor", {
+          goal: "apply corrected job facts to the canonical draft",
+          continuationOf: "sell_draft",
+          action: "update_listing_draft",
+          tool: "updateListingDraft",
+          toolArgs: facts,
+          reasons: ["jobs_draft_continuation", "fact_patch"],
+          confidence: 0.95,
+        });
+      }
+      return decision("sell_create", "deterministic_executor", {
+        goal: "refine active job seeker draft",
+        continuationOf: "sell_draft",
+        action: "create_listing_draft",
+        reasons: ["jobs_draft_continuation"],
+        confidence: 0.9,
+      });
+    }
+
     if (isBareVin && vehicleDraft) {
       return decision("vin_candidate", "deterministic_executor", {
         goal: "record a VIN candidate through the VIN review state machine",
@@ -211,6 +237,7 @@ function planTurnInner(input: PlannerContextInput): PlannerDecision {
         reasons: ["question_marker", "active_draft"],
       });
     }
+
 
     const switchSearch =
       SEARCH_VERB_RE.test(lower) &&
@@ -339,15 +366,7 @@ function planTurnInner(input: PlannerContextInput): PlannerDecision {
     // Ambiguous single product noun → ONE clarification question. A price /
     // digit phrase is never a product noun („Kaina 700“ stays a query);
     // dialog stopwords („padėk man“, „aš persigalvojau“) never are either.
-    const words = text.split(/\s+/).filter(Boolean);
-    const isAmbiguousNoun =
-      words.length <= 2 &&
-      productNounScore(text) > 0 &&
-      !DIALOG_STOPWORD_RE.test(lower) &&
-      !QUESTION_MARKER_RE.test(text) &&
-      !/\d/.test(text) &&
-      !/\b(kaina|eur|€|kainos)\b/i.test(lower);
-    if (isAmbiguousNoun) {
+    if (isBareAmbiguousNoun(text)) {
       return decision("clarify_ambiguous", "deterministic_executor", {
         goal: "disambiguate buy vs sell",
         action: "clarify_buy_or_sell",
@@ -378,8 +397,11 @@ function planTurnInner(input: PlannerContextInput): PlannerDecision {
     }
   }
 
-  // Explicit sell intent.
-  if (detectServerSellIntent(text) || isJobSeekerListingCreateIntent(text)) {
+  // Explicit sell intent or active jobs draft continuation.
+  const isJobSeekerDraftContinuation =
+    Boolean(input.hasDraft && input.draftCategory === "jobs") &&
+    isJobSeekerListingCreateIntent(text);
+  if (detectServerSellIntent(text) || isJobSeekerDraftContinuation) {
     if (isSparseSellRequest(text)) {
       const isJobSeeker = isJobSeekerListingCreateIntent(text);
       const hasCondition = Boolean(extractConditionFromText(text));

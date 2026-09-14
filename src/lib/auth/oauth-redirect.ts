@@ -90,6 +90,8 @@ export function prefersOAuthRedirectFlow(): boolean {
 export interface OAuthPendingPayload {
   provider: "google" | "apple";
   idToken?: string;
+  code?: string;
+  nonce?: string;
   credential?: string;
   email?: string;
   name?: string;
@@ -103,6 +105,7 @@ export interface OAuthPendingPayload {
 export interface OAuthLaunchContext {
   provider: "google" | "apple";
   state: string;
+  nonce?: string;
   returnPath: string;
   signupIntent?: "private" | "pro" | "wardrobe";
   createdAt: string;
@@ -172,10 +175,13 @@ export function clearOAuthLaunchContext(): void {
 }
 
 export function verifyOAuthState(state: string | null | undefined): boolean {
-  if (!state) return false;
+  if (!state || typeof state !== "string" || !state.trim()) return false;
   const fromCookie = readOAuthStateCookie();
   const fromContext = loadOAuthLaunchContext()?.state;
-  return state === fromCookie || state === fromContext;
+  return Boolean(
+    (fromCookie && state === fromCookie) ||
+    (fromContext && state === fromContext)
+  );
 }
 
 function parseAppleUserParam(
@@ -214,17 +220,35 @@ export function storeOAuthCallbackPayload(rawUrl: string): OAuthPendingPayload |
 
     const params = url.searchParams;
     const hashParams = new URLSearchParams(url.hash.replace(/^#/, ""));
+
+    // Security requirements 4 & 8: Reject insecure token transport in query params.
+    // ID tokens / credentials / access tokens must use URL fragment (hash), never query string.
+    if (params.has("id_token") || params.has("credential") || params.has("access_token")) {
+      console.warn("[VAUTO] Insecure query token transport rejected — tokens must use fragment");
+      clearOAuthLaunchContext();
+      return null;
+    }
+
+    // Security requirements 1, 2, 6, 7:
+    // State MUST be present and MUST match the persisted launch context or state cookie.
+    const state = params.get("state") ?? hashParams.get("state") ?? undefined;
+    if (!state || !verifyOAuthState(state)) {
+      console.warn("[VAUTO] Missing, invalid, or replayed OAuth state — rejecting callback");
+      clearOAuthLaunchContext();
+      return null;
+    }
+
+    // Extract ID token strictly from hash fragment
     const idToken =
-      params.get("id_token") ??
       hashParams.get("id_token") ??
-      params.get("credential") ??
       hashParams.get("credential") ??
       undefined;
 
-    const state =
-      params.get("state") ?? hashParams.get("state") ?? undefined;
-    if (state && !verifyOAuthState(state)) {
-      console.warn("[VAUTO] OAuth state mismatch — rejecting callback");
+    // Authorization code from query params (if present for secure backend exchange)
+    const code = params.get("code") ?? undefined;
+
+    if (!idToken && !code) {
+      console.warn("[VAUTO] OAuth callback contains neither id_token nor code — rejecting callback");
       clearOAuthLaunchContext();
       return null;
     }
@@ -233,7 +257,7 @@ export function storeOAuthCallbackPayload(rawUrl: string): OAuthPendingPayload |
       (params.get("provider") as "google" | "apple" | null) ??
       (hashParams.get("provider") as "google" | "apple" | null) ??
       (loadOAuthLaunchContext()?.provider as "google" | "apple" | undefined) ??
-      "apple";
+      "google";
 
     const userRaw = params.get("user") ?? hashParams.get("user");
     const appleUser = parseAppleUserParam(userRaw);
@@ -242,7 +266,9 @@ export function storeOAuthCallbackPayload(rawUrl: string): OAuthPendingPayload |
     const payload: OAuthPendingPayload = {
       provider,
       idToken: idToken ?? undefined,
+      code: code ?? undefined,
       credential: idToken ?? undefined,
+      nonce: ctx?.nonce,
       email:
         appleUser.email ??
         params.get("email") ??
@@ -257,6 +283,7 @@ export function storeOAuthCallbackPayload(rawUrl: string): OAuthPendingPayload |
     };
 
     sessionStorage.setItem(OAUTH_PENDING_STORAGE_KEY, JSON.stringify(payload));
+    // Immediately clear launch context & state cookie so state cannot be replayed
     clearOAuthLaunchContext();
     return payload;
   } catch {

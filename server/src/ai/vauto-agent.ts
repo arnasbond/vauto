@@ -53,6 +53,7 @@ import {
   resolveAmbiguousVerticalPatch,
   readSemanticConflicts,
   buildSemanticConflictContext,
+  VERTICAL_CONFLICT_FIELDS,
 } from "./sell/vertical-conflict-state.js";
 import { isVehicleFamilyCategory } from "../shared/category-registry.js";
 import {
@@ -115,6 +116,7 @@ import {
   isHeroFlowLocked,
   isGenericListingDraftTitle,
   isPublishReadyIntent,
+  isShowDraftPreviewIntent,
   isVisionObjectSellChip,
   nounFromVisionObjectSellChip,
   PRE_PUBLISH_CARD_INTRO,
@@ -176,10 +178,11 @@ import {
   executorSellPreviewReply,
   executorUnauthPublishReply,
   resolvePlannerDecision,
+  type PlannerContextInput,
 } from "./planner/index.js";
 import { extractConditionFromText } from "../shared/fact-conflict.js";
 import { extractCityFromText } from "./listing-contact-parse.js";
-import { markUserCorrectedField } from "../shared/field-authority.js";
+import { isFieldUserCorrected, markUserCorrectedField } from "../shared/field-authority.js";
 // E2.8 — provenance boundary for model-suggested identity attributes.
 import { groundBrandAttributesInUserText } from "./agent-ui-tools.js";
 import {
@@ -213,7 +216,7 @@ export interface VautoAgentRequest {
       description?: string;
     }[];
     lastError?: { code: string; message?: string };
-    wizardMode?: "listing_review" | "search" | "idle";
+    wizardMode?: "listing_review" | "listing_edit" | "search" | "idle";
     listingDraft?: {
       title?: string;
       description?: string;
@@ -252,6 +255,8 @@ export interface VautoAgentRequest {
     };
     activeSearchFilters?: AgentSearchFilters | null;
     searchSessionReset?: boolean;
+    /** Server thread service reconstructed this context from durable state. */
+    threadAuthoritative?: boolean;
     /** R4.2 — server-restored conversational search context (thread-owned). */
     threadSearchContext?: PersistedSearchContext | null;
     /** Recent pinned search hit IDs for instant selection fast-path. */
@@ -503,21 +508,43 @@ const sleepMs = (ms: number): Promise<void> =>
  * strips them to a genuinely absent key so `factsFromAttributes` reads "no
  * conflict" (an empty string would otherwise still count as a present value).
  */
+export function isExplicitYearCorrectionText(text: string): boolean {
+  if (!text) return false;
+  return (
+    /\b(?:metai|metų|metus|metams)\s*(?:yra\s*)?(?:19|20)\d{2}\b/i.test(text) ||
+    /\b(?:19|20)\d{2}\s*(?:m\.|m\b|metai|metų|metus)\b/i.test(text) ||
+    /\b(?:pataisyk|pakeisk|keisk|nustat(?:yk)?|neteising(?:i|i)|tikr(?:i|ieji)?)\b.*?\b(?:19|20)\d{2}\b/i.test(text)
+  );
+}
+
 export function resolveYearConflictPatch(input: {
   priorAttributes?: Record<string, string | undefined>;
   incomingYear?: string;
+  isExplicitCorrection?: boolean;
 }): Record<string, string> {
   const priorAttrs = input.priorAttributes ?? {};
   const priorYearConflict = String(priorAttrs.yearConflict ?? "") === "true";
   const priorCanonicalYear = String(priorAttrs.year ?? "").trim();
   const priorCandidateYear = String(priorAttrs.yearConflictCandidate ?? "").trim();
   const incomingYear = String(input.incomingYear ?? "").trim();
+  const isExplicit = input.isExplicitCorrection ?? false;
+
+  if (!incomingYear) {
+    // Unrelated field/message update this turn — preserve the pending conflict verbatim.
+    return {};
+  }
+
+  // Explicit user correction ("metai 2008", "pataisyk metus į 2008"):
+  // User explicitly asserted year — overrides prior value/conflict and marks resolved.
+  if (isExplicit) {
+    return {
+      year: incomingYear,
+      yearConflict: "",
+      yearConflictCandidate: "",
+    };
+  }
 
   if (priorYearConflict) {
-    if (!incomingYear) {
-      // Unrelated field/message update this turn — preserve the pending conflict verbatim.
-      return {};
-    }
     if (incomingYear === priorCanonicalYear || incomingYear === priorCandidateYear) {
       // Explicit choice of A or B — resolve and clear both markers.
       return { year: incomingYear, yearConflict: "", yearConflictCandidate: "" };
@@ -529,6 +556,11 @@ export function resolveYearConflictPatch(input: {
       yearConflict: "true",
       yearConflictCandidate: priorCandidateYear,
     };
+  }
+
+  // Model/vision inference competing with user-corrected year: user-corrected year survives.
+  if (isFieldUserCorrected(priorAttrs, "year")) {
+    return { year: priorCanonicalYear };
   }
 
   // No conflict pending — detect a fresh one instead of silently overwriting.
@@ -631,6 +663,135 @@ function vinChallengeOutcomeReply(outcome: VinChallengeOutcome): string {
   }
 }
 
+/**
+ * Real planner-context construction boundary for an incoming agent request.
+ * Derives task-aware search context and feeds canonical thread facts.
+ */
+export function buildAgentPlannerContext(
+  req: VautoAgentRequest,
+  opts?: {
+    listingDraft?: typeof req.context.listingDraft | null;
+    flowState?: import("../shared/listing-organism.js").ListingFlowState | null;
+    hasGemini?: boolean;
+    lastUserText?: string;
+    canonicalMessages?: Array<{ role: "user" | "assistant"; text: string }>;
+    activeTaskGoal?: string;
+    authoritativeSearchFilters?: AgentSearchFilters | null;
+    authoritativeRecentSearchListingIds?: string[];
+    isolateSellerFromSearch?: boolean;
+  }
+): PlannerContextInput {
+  const isolate =
+    opts?.isolateSellerFromSearch ??
+    (Boolean(req.context.freshListingSession) ||
+      Boolean(req.context.searchSessionReset) ||
+      Boolean(req.context.omitPriorListingDraft) ||
+      req.context.wizardMode === "listing_review" ||
+      req.context.wizardMode === "listing_edit");
+
+  const canonicalMessages =
+    opts?.canonicalMessages ??
+    (req.messages ?? []).map((m) => ({
+      role: m.role,
+      text: String(m.text ?? ""),
+    }));
+
+  const lastUserTextRaw =
+    opts?.lastUserText ??
+    [...canonicalMessages].reverse().find((m) => m.role === "user")?.text ??
+    "";
+  const lastUserText = scrubProfanity(lastUserTextRaw);
+
+  let listingDraft: typeof req.context.listingDraft | null =
+    opts?.listingDraft !== undefined ? opts.listingDraft : req.context.listingDraft ?? null;
+  if (listingDraft && isGenericListingDraftTitle(listingDraft.title)) {
+    listingDraft = null;
+  }
+
+  const draftPhotoCount = Array.isArray(
+    (listingDraft as { orderedImageUrls?: unknown } | null | undefined)?.orderedImageUrls
+  )
+    ? (listingDraft as { orderedImageUrls: unknown[] }).orderedImageUrls.length
+    : 0;
+
+  const flowState =
+    opts?.flowState ??
+    inferListingFlowState({
+      listingFlowState: listingDraft?.listingFlowState,
+      hasDraft: Boolean(listingDraft?.title?.trim() || listingDraft),
+      photoCount: draftPhotoCount,
+    });
+
+  const hasGemini = opts?.hasGemini ?? Boolean(resolveGeminiApiKey());
+
+  const authoritativeSearchFilters =
+    opts?.authoritativeSearchFilters !== undefined
+      ? opts.authoritativeSearchFilters
+      : isolate
+        ? null
+        : req.context.threadAuthoritative
+          ? (req.context.threadSearchContext?.activeSearchFilters ?? null)
+          : (req.context.activeSearchFilters ??
+            req.context.threadSearchContext?.activeSearchFilters ??
+            null);
+
+  const authoritativeRecentSearchListingIds =
+    opts?.authoritativeRecentSearchListingIds !== undefined
+      ? opts.authoritativeRecentSearchListingIds
+      : isolate
+        ? []
+        : req.context.threadAuthoritative
+          ? (req.context.threadSearchContext?.lastSearchListingIds ?? [])
+          : (req.context.recentSearchListingIds ??
+            req.context.threadSearchContext?.lastSearchListingIds ??
+            []);
+
+  const activeTaskGoal =
+    opts?.activeTaskGoal ??
+    (() => {
+      if (listingDraft?.title?.trim()) {
+        return `pardavimo skelbimas: ${listingDraft.title.trim()}`;
+      }
+      const q = authoritativeSearchFilters?.query?.trim();
+      if (q) return `prekių paieška: ${q}`;
+      return "";
+    })();
+
+  return buildPlannerContext({
+    messages: canonicalMessages,
+    lastUserText,
+    hasDraft: Boolean(listingDraft),
+    draftTitle: listingDraft?.title,
+    draftCategory: listingDraft?.category,
+    draftPrice: listingDraft?.price,
+    draftLocation: listingDraft?.location,
+    flowState: flowState ?? undefined,
+    isAuthenticated: Boolean(req.context.isAuthenticated),
+    hasSearchSession: isolate
+      ? false
+      : detectSearchSession(canonicalMessages, lastUserText),
+    modelAvailable: hasGemini,
+    draftAttributes: (listingDraft?.attributes ?? {}) as Record<string, string>,
+    currentIntent: activeTaskGoal,
+    // R4.3B — surface the prior persisted search object so the planner can
+    // semantically decide CONTINUE / REFINE / CORRECT / SWITCH.
+    activeSearchFilters: authoritativeSearchFilters,
+    // R4.3D — surface the last shown search-result referent (server-owned).
+    // Task-aware isolation: when seller-flow isolation is active, search referents
+    // must not leak to the planner.
+    lastSearchListingIds: authoritativeRecentSearchListingIds.length
+      ? authoritativeRecentSearchListingIds
+      : null,
+    myListings: (req.context.myListings ?? []).map((l) => ({
+      id: String(l.id ?? ""),
+      title: String(l.title ?? ""),
+      status: String(l.status ?? "active"),
+    })),
+    activeListingId:
+      req.context.currentPageContext?.active_listing_id?.trim() || undefined,
+  });
+}
+
 async function runVautoAgentInner(
   req: VautoAgentRequest,
   onEvent?: RunVautoAgentOptions["onEvent"]
@@ -642,7 +803,9 @@ async function runVautoAgentInner(
   const isolateSellerFromSearch =
     Boolean(req.context.freshListingSession) ||
     Boolean(req.context.searchSessionReset) ||
-    Boolean(req.context.omitPriorListingDraft);
+    Boolean(req.context.omitPriorListingDraft) ||
+    req.context.wizardMode === "listing_review" ||
+    req.context.wizardMode === "listing_edit";
   if (isolateSellerFromSearch) {
     req.context.activeSearchFilters = null;
     req.context.lastSearchQuery = undefined;
@@ -938,31 +1101,47 @@ async function runVautoAgentInner(
     role: m.role,
     text: String(m.text ?? ""),
   }));
+  // In a durable thread, server-restored state is authoritative. Client state
+  // remains a compatibility source only for the legacy non-thread endpoint.
+  const authoritativeSearchFilters = isolateSellerFromSearch
+    ? null
+    : req.context.threadAuthoritative
+      ? (req.context.threadSearchContext?.activeSearchFilters ?? null)
+      : (req.context.activeSearchFilters ??
+        req.context.threadSearchContext?.activeSearchFilters ??
+        null);
+  const authoritativeRecentSearchListingIds = isolateSellerFromSearch
+    ? []
+    : req.context.threadAuthoritative
+      ? (req.context.threadSearchContext?.lastSearchListingIds ?? [])
+      : (req.context.recentSearchListingIds ??
+        req.context.threadSearchContext?.lastSearchListingIds ??
+        []);
+  // R4.3C — active conversational task signal. The planner is told WHAT job the
+  // user is currently in (sell draft vs search) from CANONICAL server state, so
+  // a fragmentary continuation ("su 4 kėdėmis") can be recognized as a
+  // continuation of the same task rather than a fresh command. The model still
+  // decides CONTINUE / REFINE / CORRECT / SWITCH; this is context, not authority.
+  const activeTaskGoal = (() => {
+    if (listingDraft?.title?.trim()) {
+      return `pardavimo skelbimas: ${listingDraft.title.trim()}`;
+    }
+    const q =
+      authoritativeSearchFilters?.query?.trim();
+    if (q) return `prekių paieška: ${q}`;
+    return "";
+  })();
   const plannerDecision = await resolvePlannerDecision(
-    buildPlannerContext({
-      messages: canonicalMessages,
+    buildAgentPlannerContext(req, {
+      listingDraft,
+      flowState,
+      hasGemini,
       lastUserText,
-      hasDraft: Boolean(listingDraft),
-      draftTitle: listingDraft?.title,
-      draftCategory: listingDraft?.category,
-      draftPrice: listingDraft?.price,
-      draftLocation: listingDraft?.location,
-      flowState: flowState ?? undefined,
-      isAuthenticated: Boolean(req.context.isAuthenticated),
-      hasSearchSession: detectSearchSession(canonicalMessages, lastUserText),
-      modelAvailable: hasGemini,
-      draftAttributes: (listingDraft?.attributes ??
-        {}) as Record<string, string>,
-      // E2.6 — canonical seller listings + the open listing: the policy
-      // layer resolves consequential-action targets from THIS state, never
-      // from the model's guess.
-      myListings: (req.context.myListings ?? []).map((l) => ({
-        id: String(l.id ?? ""),
-        title: String(l.title ?? ""),
-        status: String(l.status ?? "active"),
-      })),
-      activeListingId:
-        req.context.currentPageContext?.active_listing_id?.trim() || undefined,
+      canonicalMessages,
+      activeTaskGoal,
+      authoritativeSearchFilters,
+      authoritativeRecentSearchListingIds,
+      isolateSellerFromSearch,
     })
   );
 
@@ -1213,7 +1392,14 @@ async function runVautoAgentInner(
           location: req.context.userCity || "",
           category: "other",
         }),
-        orderedImageUrls: pendingChatImages.slice(0, 6),
+        orderedImageUrls: Array.from(
+          new Set([
+            ...(Array.isArray(listingDraft?.orderedImageUrls)
+              ? (listingDraft.orderedImageUrls as string[])
+              : []),
+            ...pendingChatImages,
+          ])
+        ).slice(0, 10),
         attributes: {
           ...((listingDraft?.attributes as Record<string, string> | undefined) ??
             {}),
@@ -1478,7 +1664,7 @@ async function runVautoAgentInner(
     const hasSpecs = isVehicleDraft && Object.keys(specPatch).length > 0;
     const priceToApply = negotiable
       ? 0
-      : price != null && !(specPatch.year && String(price) === String(specPatch.year))
+      : price != null
         ? price
         : null;
     const descEdit = applyNaturalLanguageDescriptionEdits(
@@ -1573,6 +1759,7 @@ async function runVautoAgentInner(
       const yearResolution = resolveYearConflictPatch({
         priorAttributes: listingDraft.attributes,
         incomingYear: specPatch.year,
+        isExplicitCorrection: isExplicitYearCorrectionText(lastUserText),
       });
       // Phase 2C: reconcile any fresh chat-text VIN signal against the PRIOR draft's
       // confirmed/candidate VIN state first — this never writes `vin` directly, only
@@ -1624,13 +1811,38 @@ async function runVautoAgentInner(
       );
       // R4.1 — explicit current-user corrections become human-authoritative so a
       // later photo/vision cannot silently overwrite them.
-      const userCorrected: string[] = [];
-      if (priceToApply != null) userCorrected.push("price");
-      if (cityFromText) userCorrected.push("city");
-      if (conditionFromText) userCorrected.push("condition");
-      if (hasDescEdit) userCorrected.push("description");
+      // Schema-driven: record every field path updated on this turn across all verticals.
+      const userCorrected = new Set<string>();
+      if (priceToApply != null) userCorrected.add("price");
+      if (cityFromText) userCorrected.add("city");
+      if (conditionFromText) userCorrected.add("condition");
+      if (hasDescEdit) userCorrected.add("description");
+      for (const k of Object.keys(specPatchWithoutVin)) {
+        if (/conflict|candidate/i.test(k)) continue;
+        userCorrected.add(k);
+        if (isVehicleDraft && (k === "make" || k === "model" || k === "year")) {
+          userCorrected.add("title");
+        }
+      }
+      for (const field of Object.keys(VERTICAL_CONFLICT_FIELDS) as (keyof typeof VERTICAL_CONFLICT_FIELDS)[]) {
+        const patch =
+          field === "rooms"
+            ? roomsPatch
+            : field === "area"
+            ? areaPatch
+            : field === "yearBuilt"
+            ? yearBuiltPatch
+            : field === "storage"
+            ? storagePatch
+            : workTypePatch;
+        if (patch && Object.prototype.hasOwnProperty.call(patch, field) && patch[field] !== undefined) {
+          userCorrected.add(field);
+        }
+      }
+
       let authorityAttrs = mergedAttrs;
       for (const f of userCorrected) {
+        if (!f || /conflict|candidate/i.test(f)) continue;
         authorityAttrs = markUserCorrectedField(authorityAttrs, f);
       }
       let nextDescription = hasSpecs
@@ -1694,6 +1906,7 @@ async function runVautoAgentInner(
       // so the user can verify the correction instead of guessing.
       const factSummary = [
         priceToApply != null ? `kainą į ${priceToApply} €` : null,
+        specPatch.year ? `metus į ${specPatch.year} m.` : null,
         conditionFromText ? `būklę: ${conditionFromText}` : null,
         cityFromText ? `miestą: ${cityFromText}` : null,
       ].filter(Boolean);
@@ -1763,8 +1976,16 @@ async function runVautoAgentInner(
   }
 
   // Ignore legacy workflow edit chips that would roll the machine backward.
-  if (inputRoute.kind === "workflow_command" && listingDraft && lastUserText) {
-    if (flowState === "AWAITING_CONFIRMATION") {
+  if (
+    (inputRoute.kind === "workflow_command" || inputRoute.kind === "publish_gateway") &&
+    listingDraft &&
+    lastUserText
+  ) {
+    if (
+      flowState === "AWAITING_CONFIRMATION" ||
+      ((flowState === "DRAFT_READY" || (flowState === "AWAITING_PHOTOS" && draftPhotoCount > 0)) &&
+        (isPublishReadyIntent(lastUserText) || isShowDraftPreviewIntent(lastUserText)))
+    ) {
       const gateway = resolvePrePublishGatewayResponse({
         isAuthenticated: req.context.isAuthenticated,
         profilePhone: req.context.profilePhone,
@@ -1775,12 +1996,22 @@ async function runVautoAgentInner(
         pendingImageUrls: req.context.pendingImageUrls,
         geoCityHint: req.context.geoCityHint,
       });
+      const nextFlowState = gateway.prePublishCard
+        ? "AWAITING_CONFIRMATION"
+        : listingDraft.listingFlowState ?? "DRAFT_READY";
       return {
         ok: true,
         reply: gateway.reply || PRE_PUBLISH_CARD_INTRO,
         ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
         toolCalls: [],
-        actions: { type: "none" },
+        actions: {
+          type: "listing_draft",
+          listingDraft: normalizeListingDraftForAction(listingDraft, {
+            contact: req.context.contact,
+            userCity: req.context.userCity,
+            listingFlowState: nextFlowState,
+          }),
+        },
       };
     }
     if (
@@ -1818,12 +2049,13 @@ async function runVautoAgentInner(
     };
   }
 
-  // Job-seeker create (“Ieškau darbo…”) with active draft / sell intent —
-  // always soft jobs draft, NEVER catalog searchListings.
+  // Active jobs draft continuation or explicit create intent —
+  // refine existing draft or create when explicitly requested, NEVER hijack cold searches.
   const jobSeekerCreate =
     Boolean(lastUserText) &&
     isJobSeekerListingCreateIntent(lastUserText) &&
-    (Boolean(listingDraft) || detectServerSellIntent(lastUserText));
+    (Boolean(listingDraft && listingDraft.category === "jobs") ||
+      detectServerSellIntent(lastUserText));
 
   // Sparse sell without photos → clarify BEFORE Gemini (never invent placeholder draft).
   if (
@@ -1937,14 +2169,15 @@ async function runVautoAgentInner(
         }
       : undefined,
     listingsSnapshot: req.context.listings,
-    recentSearchListingIds: req.context.recentSearchListingIds,
+    recentSearchListingIds: authoritativeRecentSearchListingIds,
     lastUserQuery: lastUserText || undefined,
     searchSessionReset: Boolean(req.context.searchSessionReset),
     // R4.2 — active preferences: fresh client/model state wins; restored thread
     // search context is the server-authoritative fallback when the client is empty.
     activeSearchPreferences:
-      req.context.activeSearchFilters?.preferences ??
-      req.context.threadSearchContext?.activeSearchFilters?.preferences,
+      authoritativeSearchFilters?.preferences,
+    // R4.3B — prior persisted search object (server-owned continuity state).
+    activeSearchFilters: authoritativeSearchFilters,
     monetization: resolveMonetizationState({
       userRole: req.context.userRole,
       billingPlan: req.context.monetization?.billingPlan,
@@ -2028,7 +2261,7 @@ async function runVautoAgentInner(
     {
       defaultRegion: req.context.defaultRegion ?? ctx.userCity,
       primaryVehicle: req.context.primaryVehicle,
-      activeSearchFilters: req.context.activeSearchFilters ?? null,
+      activeSearchFilters: authoritativeSearchFilters,
     } satisfies AgentMemoryPayload,
     lastUserText
   );
@@ -2043,7 +2276,7 @@ async function runVautoAgentInner(
 
   // UI meta-feedback — re-emit pinned results; never keyword-search "Nematau".
   if (lastUserText && isRevealActiveResultsIntent(lastUserText)) {
-    const recentIds = req.context.recentSearchListingIds?.filter(Boolean) ?? [];
+    const recentIds = authoritativeRecentSearchListingIds.filter(Boolean);
     if (recentIds.length) {
       emitAgentEvent(onEvent, {
         type: "status",
@@ -2055,9 +2288,9 @@ async function runVautoAgentInner(
         toolCalls: [],
         actions: {
           type: "search",
-          searchQuery: req.context.activeSearchFilters?.query ?? "",
+          searchQuery: authoritativeSearchFilters?.query ?? "",
           listingIds: recentIds,
-          filters: req.context.activeSearchFilters ?? undefined,
+          filters: authoritativeSearchFilters ?? undefined,
         },
       };
     }
@@ -2072,12 +2305,21 @@ async function runVautoAgentInner(
 
   // Instant selection fast-path — open a recent search hit without Gemini.
   if (lastUserText && isResultSelectionIntent(lastUserText)) {
-    const recentIds = req.context.recentSearchListingIds?.filter(Boolean) ?? [];
+    const recentIds = authoritativeRecentSearchListingIds.filter(Boolean);
     const snapshot = ctx.listingsSnapshot ?? [];
     const byId = new Map(snapshot.map((l) => [l.id, l]));
     const recent = (
       recentIds.length
-        ? recentIds.map((id) => byId.get(id)).filter(Boolean)
+        ? recentIds.map(
+            (id) =>
+              byId.get(id) ?? {
+                id,
+                title: "Skelbimas",
+                price: 0,
+                category: "other",
+                location: "",
+              }
+          )
         : snapshot.slice(0, 12)
     ) as NonNullable<(typeof snapshot)[number]>[];
     const pick = resolveRecentListingSelection(lastUserText, recent);
@@ -2391,7 +2633,7 @@ async function runVautoAgentInner(
       `query=${sanitizePromptUserInput(po.query ?? req.context.lastSearchQuery ?? "").text}`,
       `resultCount=${po.resultCount ?? req.context.searchResultCount ?? ""}`,
       `filters=${clampJsonBlock(
-        req.context.activeSearchFilters ?? po.filters ?? null,
+        authoritativeSearchFilters ?? po.filters ?? null,
         CONTEXT_BLOCK_BUDGET.searchFiltersJson
       )}`,
     ].join("\n");
@@ -2418,7 +2660,7 @@ async function runVautoAgentInner(
     const offerPayload = [
       `query=${sanitizePromptUserInput(q).text}`,
       `filters=${clampJsonBlock(
-        req.context.activeSearchFilters ?? req.context.proactiveOffer?.filters ?? null,
+        authoritativeSearchFilters ?? req.context.proactiveOffer?.filters ?? null,
         CONTEXT_BLOCK_BUDGET.searchFiltersJson
       )}`,
     ].join("\n");
@@ -3174,7 +3416,7 @@ async function runVautoAgentInner(
     const titleHint =
       plannerDecision.subject?.trim() ||
       String(req.context.threadSearchContext?.subject ?? "").trim() ||
-      String(req.context.activeSearchFilters?.query ?? "").trim() ||
+      String(authoritativeSearchFilters?.query ?? "").trim() ||
       lastUserText;
     try {
       const mi = await executeAgentTool(

@@ -22,6 +22,7 @@ import {
   resolveOmnivaLockerEligibility,
   applyOmnivaEligibilityToDraft,
 } from "../../shared/omniva-locker-eligibility.js";
+import { canUseShipping } from "../../shared/marketplace-domain/index.js";
 
 const SUPERVISOR = buildSupervisorSystemInstruction();
 const FULL = buildVautoAgentSystemInstruction("full");
@@ -115,5 +116,27 @@ describe("C — Omniva capability boundary (conversational + deterministic)", ()
     });
     assert.equal(draft.allowPastomatas, false);
     assert.equal(draft.attributes.fitsOmnivaLocker, "false");
+  });
+
+  it("P2 — capability-driven shipping: non-shippable verticals are blocked and omit oversize note", () => {
+    const nonShippable = ["vehicles", "real_estate", "jobs", "services"];
+    for (const cat of nonShippable) {
+      assert.equal(canUseShipping(cat), false, `${cat} must have supportsShipping=false`);
+      const r = resolveOmnivaLockerEligibility({ category: cat });
+      assert.equal(r.eligible, false, `${cat} must not be locker eligible`);
+      assert.equal(r.fitsOmnivaLocker, false);
+      assert.equal(r.defaultShipping, "pickup_or_courier");
+      assert.equal(r.noteLt, "", `${cat} must have empty noteLt (no oversize parcel note)`);
+      assert.equal(r.reason, "kategorija netinka siuntimui");
+    }
+
+    const shippable = ["electronics", "clothing", "home"];
+    for (const cat of shippable) {
+      assert.equal(canUseShipping(cat), true, `${cat} must have supportsShipping=true`);
+      const r = resolveOmnivaLockerEligibility({ category: cat });
+      assert.equal(r.eligible, true, `${cat} default item must be locker eligible`);
+      assert.equal(r.fitsOmnivaLocker, true);
+      assert.equal(r.defaultShipping, "locker");
+    }
   });
 });

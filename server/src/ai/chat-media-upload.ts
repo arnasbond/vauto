@@ -313,12 +313,17 @@ async function resolveListingPhotoScan(input: {
   // description; vision must not silently erase those.
   const priorCategoryHuman = isFieldUserCorrected(priorDraftAttrs, "category");
   const priorPriceHuman = isFieldUserCorrected(priorDraftAttrs, "price");
+  const priorTitleHuman = isFieldUserCorrected(priorDraftAttrs, "title");
+  const priorYearHuman = isFieldUserCorrected(priorDraftAttrs, "year");
   const priorDescriptionHuman =
     isHumanAuthoritativeSource(priorDraftAttrs.descriptionSource) ||
     Boolean(priorDraftAttrs.confirmationToken);
 
   const visionDraft = {
-    title: parsed.listing.title,
+    title:
+      priorTitleHuman && input.listingDraft?.title
+        ? input.listingDraft.title
+        : parsed.listing.title,
     description: priorDescriptionHuman
       ? input.listingDraft?.description
       : mergeVisionDescription(
@@ -414,6 +419,7 @@ async function resolveListingPhotoScan(input: {
   };
 
   const preferTitle = (a?: string, b?: string) => {
+    if (priorTitleHuman && a?.trim()) return a.trim();
     const left = String(a ?? "").trim();
     const right = String(b ?? "").trim();
     if (!left) return right;

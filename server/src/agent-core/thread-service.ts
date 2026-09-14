@@ -374,6 +374,16 @@ export async function runThreadTurn(
     actions.type === "search" || actions.type === "empty_search"
       ? (actions.filters as Record<string, unknown> | undefined)
       : undefined;
+  // R4.3D — persist the last shown search-result IDs (server-owned referent).
+  const lastSearchListingIds =
+    actions.type === "search" && Array.isArray(actions.listingIds)
+      ? (actions.listingIds as unknown[])
+          .filter((id): id is string => typeof id === "string" && Boolean(id.trim()))
+          .map((id) => id.trim())
+          .slice(0, 12)
+      : actions.type === "empty_search" || actions.type === "browse_all"
+        ? []
+        : undefined;
   const priorSearchContext =
     (current.searchContext as Record<string, unknown> | null) ?? {};
   const nextSearchContext: Record<string, unknown> = {
@@ -382,6 +392,7 @@ export async function runThreadTurn(
       ? { subject: response.subject.trim() }
       : {}),
     ...(searchSideEffect ? { activeSearchFilters: searchSideEffect } : {}),
+    ...(lastSearchListingIds !== undefined ? { lastSearchListingIds } : {}),
   };
 
   const next: ThreadRecord = {

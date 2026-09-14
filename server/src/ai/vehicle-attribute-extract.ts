@@ -172,15 +172,18 @@ function normalizeModel(make: string, raw: string): string {
   return trimmed;
 }
 
+import { extractVehicleYearFromText } from "../shared/price-year-disambiguation.js";
+export { extractVehicleYearFromText };
+
+
 function extractFromText(text: string): Record<string, string> {
   const patch: Record<string, string> = {};
   const make = normalizeMake(text) ?? detectMake(text);
   if (make) patch.make = make;
 
-  const yearMatch = text.match(/\b(19|20)\d{2}\b/);
-  if (yearMatch) {
-    const year = normalizeYear(yearMatch[0]);
-    if (year) patch.year = year;
+  const year = extractVehicleYearFromText(text);
+  if (year) {
+    patch.year = year;
   }
 
   if (patch.make) {

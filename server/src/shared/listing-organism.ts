@@ -225,6 +225,9 @@ export function isImmediatePublishCommand(text: string): boolean {
 export function isShowDraftPreviewIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t || t.length > 100) return false;
+  if (/^(?:dar\s+)?ne\b|neskelbk|nepublikuok|palauk|sustok|atšauk|atsauk/i.test(t)) {
+    return false;
+  }
   if (/tiesiog\s+parodyk/i.test(t)) return true;
   if (/parodyk\s+(skelbim|juodrašt|juodrast|kortel|prepublish|peržiūr|perziur)/i.test(t)) {
     return true;
@@ -248,6 +251,16 @@ export function isShowDraftPreviewIntent(text: string): boolean {
 export function isPublishReadyIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
+
+  // Human control: cancel / hold markers NEVER mean publish ready.
+  if (
+    /^(?:ne\s*,?\s*)?(?:dar\s+)?ne\b|palauk|pala|luktel|kol\s+kas\s+ne|neskelbk|nepublikuok|sustokim?|atšauk|atsauk|stabdyk|dar\s+nenoriu|nenoriu\s+(?:publikuoti|skelbti)|nereikia\s+(?:publikuoti|skelbti)/i.test(
+      t
+    )
+  ) {
+    return false;
+  }
+
   if (isShowDraftPreviewIntent(t)) return true;
   if (isImmediatePublishCommand(t)) return true;
   // Explicit multi-word confirmations (chip-like), not bare "taip"/"ok".
@@ -264,9 +277,9 @@ export function isPublishReadyIntent(text: string): boolean {
   if (/tiesiai\s+prie\s+(prepublish|publik|peržiūr)/i.test(t)) return true;
   if (/^(pakanka|užtenka|uztenka)\b/i.test(t)) return true;
   if (/^taip[,!]?\s*(publiku|tinka|judam|keliam)/i.test(t)) return true;
-  // „Ne nereikia, publikuok“ / „daugiau nereikia“ — publish, not bare „nenoriu“.
+  // „Ne nereikia, publikuok“ / „daugiau nereikia, keliam“ — explicit continue.
   if (
-    /be\s+daugiau|nebereikia|ne,?\s*nereikia|daugiau\s+nereikia|nereikia,?\s*publiku/i.test(
+    /(?:nebereikia|daugiau\s+nereikia|be\s+daugiau)\s*[,.]?\s*(?:publiku|keliam|tinka)/i.test(
       t
     )
   ) {

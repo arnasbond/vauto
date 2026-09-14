@@ -60,7 +60,9 @@ import { maybeRefreshAccessToken } from "@/lib/auth/token-refresh";
 import {
   activateUserScope,
   clearUserScope,
+  getActiveUserScope,
 } from "@/lib/auth/user-scope";
+import { purgeClientSessionAndDraftState } from "@/lib/auth/logout-cleanup";
 
 import {
 
@@ -252,6 +254,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const applyAuthenticatedUser = useCallback(
     async (profile: UserProfile, session: AuthSession) => {
+      const activeUser = getActiveUserScope();
+      if (activeUser && activeUser !== profile.id) {
+        purgeClientSessionAndDraftState();
+      }
       activateUserScope(profile.id);
       await persistAuthSessionFull(session, profile);
       setUser(profile);
@@ -1101,19 +1107,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   const logout = useCallback(() => {
-
     setIsAuthenticated(false);
-
     clearAuthSession();
-
     void clearAuthSessionFull();
-
     clearUser();
-
-    clearUserScope();
-
+    purgeClientSessionAndDraftState();
     setUser(ANONYMOUS_USER);
-
   }, []);
 
 

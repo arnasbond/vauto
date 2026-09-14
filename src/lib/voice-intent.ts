@@ -3,6 +3,10 @@ import { isAiProxyAvailable } from "@/lib/api/config";
 import { detectSellerListingIntent, isBuyerSearchIntent } from "@/lib/scoring";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import { extractVehicleAttributesFromText } from "@/lib/vehicle-attribute-extract";
+import {
+  parseDisambiguatedPrice,
+  extractVehicleYearFromText,
+} from "@vauto/shared/price-year-disambiguation";
 import { isVehicleQuery } from "@/lib/vehicle-keywords";
 import { buildPartialListingVoicePrompt } from "@/lib/voice-listing-context";
 import {
@@ -60,8 +64,10 @@ function mockAnalyzeVoiceIntent(
   const isPhone = /telefon|iphone|samsung|xiaomi|huawei|mobilus/i.test(lower);
   const isCar = isVehicleQuery(lower);
   const hasModel = /\b(c[1-5]|xsara|berlingo|308|208|golf|passat|corolla|520|320|a4|a6|c3|c4|c5|v70|v50|v60)\b/i.test(lower);
-  const hasYear = /\b(19|20)\d{2}\b/.test(lower);
-  const hasPrice = /\b\d{2,6}\s*(eur|€|euro)\b/i.test(lower);
+  const parsedPrice = parseDisambiguatedPrice(merged);
+  const parsedYear = extractVehicleYearFromText(merged);
+  const hasYear = Boolean(parsedYear);
+  const hasPrice = parsedPrice != null && parsedPrice > 0;
   const rounds = history.filter((h) => h.role === "assistant").length;
 
   if (rounds >= 2) {
@@ -87,7 +93,7 @@ function mockAnalyzeVoiceIntent(
         model: extracted.model,
         year: extracted.year,
       },
-      price: hasPrice ? 1 : 0,
+      price: hasPrice ? (parsedPrice ?? 0) : 0,
     });
 
     if (voicePrompt && (!hasYear || !hasPrice)) {

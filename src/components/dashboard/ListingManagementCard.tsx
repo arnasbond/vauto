@@ -23,6 +23,7 @@ import { cn } from "@/lib/cn";
 
 export type ListingManagementCardProps = {
   listing: Listing;
+  isHighlighted?: boolean;
   onEdit: () => void;
   onStats: () => void;
   onAiOptimize: () => void;
@@ -40,11 +41,14 @@ function statusBadge(state: DashboardListingState): {
   tone: "success" | "warning" | "neutral" | "danger" | "info";
 } {
   switch (state) {
+    case "rejected":
+      return { label: "Atmestas", tone: "danger" };
     case "active":
       return { label: "Aktyvus", tone: "success" };
     case "sold":
       return { label: "Parduotas", tone: "neutral" };
     case "pending":
+      return { label: "Laukia peržiūros", tone: "warning" };
     case "paused":
       return { label: "Juodraštis", tone: "warning" };
     case "expired":
@@ -56,6 +60,9 @@ function statusBadge(state: DashboardListingState): {
 
 /** UI-only AI rekomendacija iš esamų skelbimo laukų / metrikų. */
 export function resolveListingAiTip(listing: Listing): string {
+  if (listing.banned) {
+    return "Skelbimas atmestas moderacijos. Peržiūrėkite taisykles arba susisiekite su pagalba.";
+  }
   const imgs = listing.images?.filter(Boolean).length ?? 0;
   if (imgs < 3) {
     return "Pasiūlymas: Atnaujinkite nuotrauką — pridėkite bent 3 aiškias nuotraukas.";
@@ -83,6 +90,7 @@ export function resolveListingAiTip(listing: Listing): string {
  */
 export function ListingManagementCard({
   listing,
+  isHighlighted = false,
   onEdit,
   onStats,
   onAiOptimize,
@@ -98,6 +106,7 @@ export function ListingManagementCard({
   const badge = statusBadge(state);
   const isDeleted = state === "deleted";
   const isSold = state === "sold";
+  const isRejected = state === "rejected";
   const tip = resolveListingAiTip(listing);
   const publicHref = listing.id?.trim()
     ? `/listing/?id=${encodeURIComponent(listing.id.trim())}`
@@ -107,6 +116,10 @@ export function ListingManagementCard({
     ? [
         { id: "restore", label: "Atkurti skelbimą" },
         { id: "purge", label: "Ištrinti visam laikui", danger: true },
+      ]
+    : isRejected
+    ? [
+        { id: "delete", label: "Ištrinti", danger: true },
       ]
     : [
         ...(isSold
@@ -120,27 +133,51 @@ export function ListingManagementCard({
     <Card
       variant="default"
       data-listing-management-card
-      className={cn("overflow-hidden p-0", className)}
+      data-listing-id={listing.id}
+      id={`listing-card-${listing.id}`}
+      className={cn(
+        "overflow-hidden p-0 transition-all duration-300",
+        isHighlighted && "ring-2 ring-[var(--ds-brand,var(--vauto-primary))] shadow-lg",
+        className
+      )}
     >
       <div className="flex flex-col gap-0 sm:flex-row">
-        <Link
-          href={publicHref}
-          className="relative block aspect-[4/3] w-full shrink-0 overflow-hidden bg-[var(--ds-surface-muted)] sm:aspect-auto sm:h-auto sm:w-40 md:w-44"
-        >
-          <Image
-            src={getListingCoverImage(listing)}
-            alt={listing.title}
-            fill
-            sizes="(max-width: 640px) 100vw, 176px"
-            className="object-cover"
-          />
-          <Badge
-            tone={badge.tone}
-            className="absolute left-2 top-2 shadow-sm"
+        {isRejected ? (
+          <div className="relative block aspect-[4/3] w-full shrink-0 overflow-hidden bg-[var(--ds-surface-muted)] sm:aspect-auto sm:h-auto sm:w-40 md:w-44">
+            <Image
+              src={getListingCoverImage(listing)}
+              alt={listing.title}
+              fill
+              sizes="(max-width: 640px) 100vw, 176px"
+              className="object-cover opacity-60 grayscale"
+            />
+            <Badge
+              tone={badge.tone}
+              className="absolute left-2 top-2 shadow-sm"
+            >
+              {badge.label}
+            </Badge>
+          </div>
+        ) : (
+          <Link
+            href={publicHref}
+            className="relative block aspect-[4/3] w-full shrink-0 overflow-hidden bg-[var(--ds-surface-muted)] sm:aspect-auto sm:h-auto sm:w-40 md:w-44"
           >
-            {badge.label}
-          </Badge>
-        </Link>
+            <Image
+              src={getListingCoverImage(listing)}
+              alt={listing.title}
+              fill
+              sizes="(max-width: 640px) 100vw, 176px"
+              className="object-cover"
+            />
+            <Badge
+              tone={badge.tone}
+              className="absolute left-2 top-2 shadow-sm"
+            >
+              {badge.label}
+            </Badge>
+          </Link>
+        )}
 
         <div className="flex min-w-0 flex-1 flex-col p-4">
           <div className="flex items-start justify-between gap-2">
@@ -200,6 +237,25 @@ export function ListingManagementCard({
                   onClick={onPermanentDelete}
                 >
                   Ištrinti visam laikui
+                </Button>
+              </>
+            ) : isRejected ? (
+              <>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<Pencil className="h-3.5 w-3.5" />}
+                  onClick={onEdit}
+                >
+                  Redaguoti
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                  onClick={onDelete}
+                >
+                  Ištrinti
                 </Button>
               </>
             ) : (

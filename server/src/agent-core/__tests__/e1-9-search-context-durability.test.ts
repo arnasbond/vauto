@@ -226,4 +226,67 @@ describe("E1.9 — R4.2 search state is server-durable across an instance replac
       /thread_ownership_violation/
     );
   });
+
+  it("an empty replacement search clears the prior result referent", async () => {
+    const store = new PostgresThreadStore(makeQueryable());
+    setThreadStoreForTests(store);
+    let turn = 0;
+    const stub = (async (): Promise<VautoAgentResponse> => {
+      turn += 1;
+      return turn === 1
+        ? {
+            ok: true,
+            reply: "Radau du.",
+            toolCalls: [],
+            actions: {
+              type: "search",
+              searchQuery: "Volvo",
+              listingIds: ["listing_1", "listing_2"],
+              filters: { query: "Volvo" },
+            },
+            subject: "Volvo",
+          }
+        : {
+            ok: true,
+            reply: "Neradome.",
+            toolCalls: [],
+            actions: {
+              type: "empty_search",
+              searchQuery: "iPhone",
+              filters: { query: "iPhone" },
+            },
+            subject: "iPhone",
+          };
+    }) as typeof import("../../ai/vauto-agent.js").runVautoAgent;
+    setThreadAgentForTests(stub);
+
+    const first = await runThreadTurn({
+      threadId: null,
+      authUserId: "user_result_clear",
+      clientMessages: [{ role: "user", text: "Ieškau Volvo" }],
+      context: {},
+      turnId: "result_clear_1",
+    });
+    const persistedFirst = await store.get(first.thread.threadId);
+    assert.deepEqual(
+      (persistedFirst?.searchContext as { lastSearchListingIds?: string[] })
+        .lastSearchListingIds,
+      ["listing_1", "listing_2"]
+    );
+
+    const second = await runThreadTurn({
+      threadId: first.thread.threadId,
+      authUserId: "user_result_clear",
+      clientMessages: [{ role: "user", text: "O dabar iPhone" }],
+      context: {},
+      turnId: "result_clear_2",
+    });
+    const persistedSecond = await store.get(second.thread.threadId);
+    assert.deepEqual(
+      (persistedSecond?.searchContext as { lastSearchListingIds?: string[] })
+        .lastSearchListingIds,
+      [],
+      "an empty new result set must not leave old listings addressable"
+    );
+  });
 });
