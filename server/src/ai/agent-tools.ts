@@ -8,7 +8,6 @@ import {
   valueGroundedInUserText,
 } from "../shared/field-authority.js";
 import {
-  isPureSearchRefinement,
   resolveContinuityPrior,
   resolveSearchCategory,
   resolveSearchCity,
@@ -679,6 +678,12 @@ export const AGENT_FUNCTION_DECLARATIONS = [
           type: "OBJECT",
           description:
             "Specifiniai vertikalės atributai (pvz. rooms, area, condition, gearbox, fuelType ir pan.)",
+        },
+        operation: {
+          type: "STRING",
+          enum: ["refine", "replace", "reset"],
+          description:
+            "Struktūrinė paieškos būsenos operacija: 'refine' (papildo esamą paiešką filtrais/atributais/kaina, išsaugant objektą), 'replace' (pakeičia paieškos objektą kitu), 'reset' (išvalo paieškos istoriją).",
         },
       },
     },
@@ -1374,43 +1379,60 @@ export async function executeAgentTool(
 
     case "searchListings": {
       const rawQuery = String(args.query ?? "").trim();
+      const operation =
+        typeof args.operation === "string" ? args.operation.trim().toLowerCase() : undefined;
       const fallbackQuery = ctx.lastUserQuery?.trim() ?? "";
       const rawForIntent = (rawQuery || fallbackQuery).trim();
       // R4.3B — the prior persisted search object (server-owned) is the
       // lowest-priority continuity source; a searchSessionReset discards it.
       const prior = ctx.searchSessionReset ? null : (ctx.activeSearchFilters ?? null);
-      // R4.3B — search continuity authority: resolve whether this turn is
-      // KEEP / REFINE (same object or pure refinement) or SWITCH / REPLACE (new object / topic pivot).
-      // Model-supplied query repetition ("volvo" -> "volvo" + budget) does NOT discard the prior object.
-      const continuityPrior = resolveContinuityPrior({
-        prior,
-        rawQuery,
-        userText: fallbackQuery || rawQuery,
-        searchSessionReset: Boolean(ctx.searchSessionReset),
-      });
       // Strict NLP from latest utterance — never merge historical topics here.
       const nl = extractSearchNlFilters(rawForIntent);
       const intent = extractProductSearchIntent(rawForIntent);
       const jobIntent = isJobSearchQuery(rawForIntent);
+
+      const priorQuery = (prior?.query ?? "").trim().toLowerCase();
+      const rawQueryLower = rawQuery.toLowerCase();
+      const isPurePriceBound = Boolean(
+        rawQuery &&
+        rawQuery.replace(/(?:iki|nuo|max|min|eur|€|\d|\s)/gi, "").length === 0
+      );
+      const isNewSearchObject = Boolean(
+        !isPurePriceBound &&
+        priorQuery &&
+        rawQuery &&
+        rawQueryLower !== priorQuery &&
+        nl.keyword &&
+        nl.keyword.toLowerCase() !== priorQuery
+      );
+
+      // R4.3B — search continuity authority:
+      // Structured operations ('refine'|'replace'|'reset') come from model/planner intent.
+      // Deterministic validation applies the operation without keyword cages;
+      // preserving prior state is the safe fallback when uncertain.
+      const continuityPrior = resolveContinuityPrior({
+        prior,
+        operation,
+        rawQuery,
+        userText: fallbackQuery || rawQuery,
+        searchSessionReset: Boolean(ctx.searchSessionReset),
+        isNewSearchObject,
+      });
+
       // R4.1 — deterministic facts (price bounds, explicit location) are
       // extracted from the USER's raw utterance so an explicit constraint
       // ("iki 600", "Kaunas") is never dropped when the model rewrites/omits it.
       const userNl = fallbackQuery ? extractSearchNlFilters(fallbackQuery) : nl;
       // R4.3B — object continuity:
-      // When continuityPrior exists and this turn is a pure refinement (budget, city, vertical attribute),
-      // keep the prior object query. If the model or user explicitly named a new object (REPLACE/SWITCH),
-      // the new query wins. Deterministic NLP keyword is the last-resort fallback for fresh searches.
-      const isRefinementTurn = Boolean(
-        continuityPrior &&
-        isPureSearchRefinement(rawQuery, fallbackQuery)
-      );
-      const effectiveQueryInput = isRefinementTurn
-        ? (continuityPrior?.query || rawQuery)
-        : (rawQuery ||
-            continuityPrior?.query?.trim() ||
-            intent.keyword ||
-            nl.keyword ||
-            fallbackQuery);
+      // When continuityPrior exists (safe preserve or refine), keep the established prior object.
+      // If operation is 'replace' or no prior exists, the new query wins.
+      const effectiveQueryInput =
+        continuityPrior?.query && (isPurePriceBound || operation === "refine" || !rawQuery || rawQueryLower === priorQuery)
+          ? (rawQuery && continuityPrior.query.toLowerCase() === rawQuery.toLowerCase() ? rawQuery : continuityPrior.query)
+          : (rawQuery ||
+              intent.keyword ||
+              nl.keyword ||
+              fallbackQuery);
 
       const query = normalizeProductSearchQuery(effectiveQueryInput);
       // Category authority: a valid model category (canonical or known alias) is
@@ -1622,17 +1644,23 @@ export async function executeAgentTool(
         !categoryRetainedFromPrior
       );
 
-      const roomsMatch = rawForIntent.match(/(\d+)\s*kambar/i);
-      const extractedRooms = roomsMatch?.[1];
+      // Universal attributes: validate and merge structured attributes without per-vertical regex cages.
+      const rawIncomingAttrs =
+        args.categoryAttributes && typeof args.categoryAttributes === "object"
+          ? (args.categoryAttributes as Record<string, unknown>)
+          : {};
+      const normalizedIncomingAttrs: Record<string, string> = {};
+      for (const [k, v] of Object.entries(rawIncomingAttrs)) {
+        if (v !== undefined && v !== null && String(v).trim()) {
+          normalizedIncomingAttrs[k] = String(v).trim();
+        }
+      }
       const categoryAttributes: Record<string, string> = {
         ...(continuityPrior?.categoryAttributes ?? {}),
-        ...(args.categoryAttributes && typeof args.categoryAttributes === "object"
-          ? (args.categoryAttributes as Record<string, string>)
-          : {}),
-        ...(extractedRooms ? { rooms: extractedRooms } : {}),
+        ...normalizedIncomingAttrs,
       };
 
-      const rawResolvedQuery = isRefinementTurn && continuityPrior?.query
+      const rawResolvedQuery = continuityPrior?.query
         ? continuityPrior.query
         : (searchKeyword || query || undefined);
       const resolvedQueryForFilters = rawResolvedQuery

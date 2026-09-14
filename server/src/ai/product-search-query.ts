@@ -129,9 +129,7 @@ function titleCaseQuery(q: string): string {
         ? w.toUpperCase()
         : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
     })
-    .join(" ")
-    .replace(/\bVolvo\b/i, "Volvo")
-    .replace(/\bBmw\b/i, "BMW");
+    .join(" ");
 }
 
 /**

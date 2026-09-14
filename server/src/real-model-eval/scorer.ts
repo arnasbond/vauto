@@ -107,6 +107,24 @@ function draftFactValue(
   return String(((draft.attributes ?? {}) as Record<string, unknown>)[key] ?? "");
 }
 
+function matchesFilterValue(actual: unknown, expected: unknown): boolean {
+  if (expected === actual) return true;
+  if (expected === undefined || expected === null) return actual === expected;
+  if (actual === undefined || actual === null) return false;
+  if (typeof expected === "object" && typeof actual === "object") {
+    const expObj = expected as Record<string, unknown>;
+    const actObj = actual as Record<string, unknown>;
+    return Object.entries(expObj).every(([k, v]) => matchesFilterValue(actObj[k], v));
+  }
+  if (typeof expected === "string" || typeof actual === "string") {
+    return String(actual).trim().toLowerCase() === String(expected).trim().toLowerCase();
+  }
+  if (typeof expected === "number" || typeof actual === "number") {
+    return Number(actual) === Number(expected);
+  }
+  return false;
+}
+
 /** Score a single turn against its reference. */
 export function scoreTurn(
   turn: EvalTurn,
@@ -203,7 +221,19 @@ export function scoreTurn(
   if (ref.expectedSearchFilters) {
     const actual = outcome.searchFiltersAfter ?? {};
     for (const [k, expectedVal] of Object.entries(ref.expectedSearchFilters)) {
-      if (expectedVal !== undefined && actual[k] !== expectedVal) {
+      const actualVal =
+        actual[k] !== undefined
+          ? actual[k]
+          : k === "maxPrice"
+          ? actual["priceMax"]
+          : k === "priceMax"
+          ? actual["maxPrice"]
+          : k === "minPrice"
+          ? actual["priceMin"]
+          : k === "priceMin"
+          ? actual["minPrice"]
+          : undefined;
+      if (expectedVal !== undefined && !matchesFilterValue(actualVal, expectedVal)) {
         continuity = Math.max(0, continuity - 1);
         structured = Math.max(0, structured - 1);
         flags.add("CONTEXT_RESET");

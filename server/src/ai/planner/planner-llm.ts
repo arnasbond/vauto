@@ -36,6 +36,7 @@ const PLANNER_SYSTEM_INSTRUCTION = [  "Esi VAUTO klasifikuotojo planeris. Tu NEA
   "- DAUGIAU NEI VIENAS TIKSLAS: pagrindinis → intent+tool; susijęs antrinis (kaina, alternatyva) → secondary. Niekada nenumetyk antrinio tikslo.",
   "- SUBJEKTAS: kai klausimas susijęs su ankstesniu objektu („kiek TOKS kainuoja“), nurodyk subject pagal kontekstą (NE pažodinę žinutę). Atnaujink subject, kai objektas aiškiai pasikeičia.",
   "- Kompaktinė atmintis yra PATARIAMOJI; kanoniniai faktai (factsBlock) yra autoritetinga būsena — jei jie konfliktuoja su neseniai pasakyta fraze, laimi kanoniniai faktai.",
+  "- Paieškos tęstinumas: kai vartotojas tikslina ar tęsia esamą paiešką (prideda savybę, filtrą, biudžetą), nurodyk continuationOf: 'search_session', o searchListings toolArgs pateik operation: 'refine'. Kai vartotojas pradeda naują paiešką ar pakeičia objektą („ieškokime kitko“, „ne X, o Y“), pateik operation: 'replace'. Resetui naudok operation: 'reset'. Specifiniai vertikalių atributai (kambariai, plotas, dydis, atmintis ir kt.) perduodami per toolArgs.categoryAttributes.",
   "- confidence 0–1; neaišku → žemesnė confidence, ne garantuotas tool.",
 ].join("\n");
 
@@ -79,7 +80,7 @@ const PLAN_TURN_DECLARATION = {
       },
       toolArgs: {
         type: "OBJECT",
-        description: "Griežtai pagal pasirinktą tool; nežinomi laukai atmetami. searchListings toolArgs gali turėti preferences (soft), pvz. {bodyType, fuelType, preferredLocation, alternatives, exclusions, maxPriceHint} — NIEKADA neversk soft preference į hard category/city/maxPrice.",
+        description: "Griežtai pagal pasirinktą tool; nežinomi laukai atmetami. searchListings toolArgs gali turėti preferences (soft), pvz. {bodyType, fuelType, preferredLocation, alternatives, exclusions, maxPriceHint} — NIEKADA neversk soft preference į hard category/city/maxPrice. searchListings operation ('refine'|'replace'|'reset') nurodo ar tai esamos paieškos tęsinys/patikslinimas, ar naujas paieškos objektas. Specifiniai kategorijos atributai (plotas, kambariai, talpa, dydis) perduodami per categoryAttributes objektą.",
       },
       secondary: {
         type: "OBJECT",

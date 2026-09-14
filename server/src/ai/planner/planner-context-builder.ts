@@ -53,6 +53,7 @@ export interface PlannerContextBuilderInput {
     city?: string;
     maxPrice?: number;
     minPrice?: number;
+    categoryAttributes?: Record<string, string>;
   } | null;
   /** R4.3D — last shown search-result IDs (server-owned referent, bounded). */
   lastSearchListingIds?: string[] | null;
@@ -132,6 +133,12 @@ function factsFromSearch(
   }
   if (s.minPrice != null && Number.isFinite(s.minPrice)) {
     out.push({ key: "searchMinPrice", value: String(s.minPrice), source: "search" });
+  }
+  if (s.categoryAttributes && Object.keys(s.categoryAttributes).length > 0) {
+    const attrSummary = Object.entries(s.categoryAttributes)
+      .map(([k, v]) => `${k}=${v}`)
+      .join(", ");
+    out.push({ key: "searchCategoryAttributes", value: attrSummary, source: "search" });
   }
   if (input.lastSearchListingIds?.length) {
     out.push({
