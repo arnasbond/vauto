@@ -2257,6 +2257,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         // P0.2 canonical convergence: do NOT mutate aiDraft locally here via tryApplyListingChatInput.
         // The server receives trimmed + aiDraft, executes canonical reasoning, and returns
         // the authoritative updated draft via actions.listingDraft.
+        const nextState =
+          transitionListingFlow(
+            aiDraft.listingFlowState ?? "DRAFTING_TEXT",
+            "DRAFT_SAVED"
+          ) ?? "DRAFT_READY";
+        if (nextState !== aiDraft.listingFlowState) {
+          updateAiDraft({ listingFlowState: nextState });
+          if (draftForTurn) {
+            draftForTurn = { ...draftForTurn, listingFlowState: nextState };
+          }
+        }
       }
 
       // Photo/document-only (or + short caption) must reach media handling below.
