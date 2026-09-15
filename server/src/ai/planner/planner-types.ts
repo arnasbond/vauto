@@ -45,7 +45,7 @@ export type PlannerRouting =
   | "fallthrough";
 
 /** Canonical fact patch the planner extracted from the user turn. */
-export interface PlannerFactPatch {
+export interface PlannerFactPatch extends Record<string, unknown> {
   price?: number;
   condition?: string;
   city?: string;

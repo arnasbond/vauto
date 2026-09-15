@@ -125,7 +125,7 @@ function matchesFilterValue(actual: unknown, expected: unknown): boolean {
   return false;
 }
 
-function intentsMatch(actual: string | undefined, expected: string | undefined): boolean {
+function intentsMatch(actual: string | null | undefined, expected: string | null | undefined): boolean {
   if (!expected) return true;
   if (!actual) return false;
   if (actual === expected) return true;

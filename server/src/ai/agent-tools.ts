@@ -3562,9 +3562,11 @@ export type AgentSideEffect =
   | {
       type: "listing_draft";
       listingDraft: {
+        id?: string;
         title: string;
         description?: string;
         price: number;
+        priceLabel?: string;
         location: string;
         contact: string;
         category: string;

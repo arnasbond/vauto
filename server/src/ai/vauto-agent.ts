@@ -218,9 +218,11 @@ export interface VautoAgentRequest {
     lastError?: { code: string; message?: string };
     wizardMode?: "listing_review" | "listing_edit" | "search" | "idle";
     listingDraft?: {
+      id?: string;
       title?: string;
       description?: string;
       price?: number;
+      priceLabel?: string;
       location?: string;
       category?: string;
       attributes?: Record<string, string>;
