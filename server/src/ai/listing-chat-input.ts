@@ -11,6 +11,7 @@ import { parseDisambiguatedPrice } from "../shared/price-year-disambiguation.js"
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
 
 export interface ListingDraftContext {
+  id?: string;
   title?: string;
   description?: string;
   price?: number;
@@ -116,6 +117,7 @@ export function normalizeListingDraftForAction(
     listingFlowState?: ListingDraftContext["listingFlowState"];
   }
 ): {
+  id?: string;
   title: string;
   description?: string;
   price: number;
@@ -142,6 +144,7 @@ export function normalizeListingDraftForAction(
     fallback: "other",
   });
   return {
+    ...(draft.id ? { id: draft.id } : {}),
     title: draft.title?.trim() || "Naujas skelbimas",
     description: draft.description,
     price: opts?.price ?? draft.price ?? 0,
