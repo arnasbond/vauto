@@ -239,7 +239,8 @@ export async function geminiSupervisorTurn(
 
 export async function runDeterministicSupervisorSearch(
   rawQuery: string,
-  ctx: AgentToolContext
+  ctx: AgentToolContext,
+  plannerToolArgs?: Record<string, unknown> | null
 ): Promise<{ result: unknown; sideEffect?: AgentSideEffect; toolName: string }> {
   const trimmed = rawQuery.trim();
   // F3 — universal structured expansion; falls back transparently to a
@@ -257,27 +258,67 @@ export async function runDeterministicSupervisorSearch(
     parsed.canonicalCategory !== "other" ||
     Boolean(nl) ||
     Boolean(rooms);
-  const query = parsed.categoryBrowse
-    ? ""
-    : hasParsedFacets
-      ? parsed.freeTextKeywords.join(" ")
-      : normalizeProductSearchQuery(
-          parsed.freeTextKeywords.join(" ") || trimmed
-        );
+
+  const plannerQuery =
+    typeof plannerToolArgs?.query === "string" && plannerToolArgs.query.trim()
+      ? plannerToolArgs.query.trim()
+      : undefined;
+
+  const query = plannerQuery
+    ? plannerQuery
+    : parsed.categoryBrowse
+      ? ""
+      : hasParsedFacets
+        ? parsed.freeTextKeywords.join(" ")
+        : normalizeProductSearchQuery(
+            parsed.freeTextKeywords.join(" ") || trimmed
+          );
+
   const category =
-    parsed.canonicalCategory === "other" ? undefined : parsed.canonicalCategory;
+    plannerToolArgs?.category && typeof plannerToolArgs.category === "string" && plannerToolArgs.category !== "other"
+      ? plannerToolArgs.category
+      : parsed.canonicalCategory === "other"
+        ? undefined
+        : parsed.canonicalCategory;
+
+  const operation =
+    typeof plannerToolArgs?.operation === "string" && plannerToolArgs.operation.trim()
+      ? plannerToolArgs.operation.trim().toLowerCase()
+      : undefined;
 
   const { result, sideEffect: rawSideEffect } = await executeAgentTool(
     "searchListings",
     {
       query,
       ...(category ? { category } : {}),
-      ...(parsed.priceMin != null ? { minPrice: parsed.priceMin } : {}),
-      ...(parsed.priceMax != null ? { maxPrice: parsed.priceMax } : {}),
-      ...(parsed.location ? { city: parsed.location } : {}),
-      ...(nl?.minPrice != null ? { minPrice: nl.minPrice } : {}),
-      ...(nl?.maxPrice != null ? { maxPrice: nl.maxPrice } : {}),
-      ...(nl?.city ? { city: nl.city } : {}),
+      ...(plannerToolArgs?.minPrice != null
+        ? { minPrice: plannerToolArgs.minPrice }
+        : parsed.priceMin != null
+          ? { minPrice: parsed.priceMin }
+          : nl?.minPrice != null
+            ? { minPrice: nl.minPrice }
+            : {}),
+      ...(plannerToolArgs?.maxPrice != null
+        ? { maxPrice: plannerToolArgs.maxPrice }
+        : parsed.priceMax != null
+          ? { maxPrice: parsed.priceMax }
+          : nl?.maxPrice != null
+            ? { maxPrice: nl.maxPrice }
+            : {}),
+      ...(plannerToolArgs?.city && typeof plannerToolArgs.city === "string"
+        ? { city: plannerToolArgs.city }
+        : parsed.location
+          ? { city: parsed.location }
+          : nl?.city
+            ? { city: nl.city }
+            : {}),
+      ...(operation ? { operation } : {}),
+      ...(plannerToolArgs?.preferences && typeof plannerToolArgs.preferences === "object"
+        ? { preferences: plannerToolArgs.preferences }
+        : {}),
+      ...(plannerToolArgs?.categoryAttributes && typeof plannerToolArgs.categoryAttributes === "object"
+        ? { categoryAttributes: plannerToolArgs.categoryAttributes }
+        : {}),
       limit: 80,
     },
     { ...ctx, lastUserQuery: trimmed }
@@ -295,11 +336,12 @@ export async function runDeterministicSupervisorSearch(
     sideEffect &&
     (sideEffect.type === "empty_search" || sideEffect.type === "search")
   ) {
+    const displayKeyword = plannerQuery ?? (parsed.freeTextKeywords.join(" ") || "");
     const displayQuery = [
-      parsed.freeTextKeywords.join(" ") || "",
-      parsed.location ?? nl?.city ?? "",
-      parsed.priceMax != null ? `iki ${parsed.priceMax}` : "",
-      parsed.priceMin != null ? `nuo ${parsed.priceMin}` : "",
+      displayKeyword,
+      parsed.location ?? nl?.city ?? (typeof plannerToolArgs?.city === "string" ? plannerToolArgs.city : ""),
+      parsed.priceMax != null ? `iki ${parsed.priceMax}` : (plannerToolArgs?.maxPrice != null ? `iki ${plannerToolArgs.maxPrice}` : ""),
+      parsed.priceMin != null ? `nuo ${parsed.priceMin}` : (plannerToolArgs?.minPrice != null ? `nuo ${plannerToolArgs.minPrice}` : ""),
       rooms ? `${rooms} kamb.` : "",
     ]
       .filter(Boolean)

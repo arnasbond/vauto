@@ -62,6 +62,7 @@ function syntheticOutcome(overrides: Partial<EvalTurnOutcome> = {}): EvalTurnOut
     needsClarification: false,
     clarificationQuestion: null,
     advisoryContext: false,
+    activeTaskAfter: "search",
     draftAfter: { category: "electronics", price: 450 },
     toolArgs: null,
     searchCategory: undefined,
@@ -217,6 +218,66 @@ describe("real-model-eval — remediation regressions", () => {
     const sc = scoreCase(c, [outcome], ["gemini-2.5-flash"]);
     assert.ok(sc.failureClasses.length > 0, "critical flag must force case FAIL regardless of points");
     assert.ok(sc.failureClasses.includes("MODEL SEMANTIC FAILURE"));
+  });
+
+  it("9. expectedSearchFilters and expectedActiveTask match correctly", () => {
+    const sPass = scoreTurn(
+      {
+        text: "ieškau buto Vilniuje iki 120000",
+        reference: {
+          intent: "catalog_search",
+          expectedTool: "searchListings",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { city: "Vilnius", maxPrice: 120000 },
+        },
+      },
+      syntheticOutcome({
+        activeTaskAfter: "search",
+        searchFiltersAfter: { city: "vilnius", priceMax: 120000 },
+        reply: "Rasta butų Vilniuje pagal jūsų pageidaujamą kainą.",
+      }),
+      null,
+      "real_estate"
+    );
+    assert.ok(!sPass.flags.includes("CONTEXT_RESET"));
+
+    const sFail = scoreTurn(
+      {
+        text: "ieškau buto Vilniuje",
+        reference: {
+          intent: "catalog_search",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { city: "Vilnius" },
+        },
+      },
+      syntheticOutcome({
+        activeTaskAfter: "sell",
+        searchFiltersAfter: { city: "Kaunas" },
+        reply: "Rasta Kaune.",
+      }),
+      null,
+      "real_estate"
+    );
+    assert.ok(sFail.flags.includes("CONTEXT_RESET"));
+  });
+
+  it("10. expectedSearchFilters categoryAttributes deep match", () => {
+    const sPass = scoreTurn(
+      {
+        text: "3 kambarių butas",
+        reference: {
+          intent: "catalog_search",
+          expectedSearchFilters: { categoryAttributes: { rooms: 3 } },
+        },
+      },
+      syntheticOutcome({
+        searchFiltersAfter: { categoryAttributes: { rooms: 3, floor: 2 } },
+        reply: "Rasti 3 kambarių butai.",
+      }),
+      null,
+      "real_estate"
+    );
+    assert.ok(!sPass.flags.includes("CONTEXT_RESET"));
   });
 });
 

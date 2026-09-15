@@ -97,18 +97,39 @@ function stripBroadCategoryNoun(text: string, category: string): string {
   return text.replace(rule.re, " ").replace(/\s+/g, " ").trim();
 }
 
+const LT_LOWER_WORDS = new Set([
+  "iki",
+  "nuo",
+  "su",
+  "be",
+  "už",
+  "uz",
+  "po",
+  "per",
+  "tik",
+  "ar",
+  "ir",
+  "tai",
+  "kad",
+  "jog",
+  "eur",
+  "ct",
+]);
+
 function titleCaseQuery(q: string): string {
   return q
     .split(/\s+/)
     .filter(Boolean)
-    .map((w) =>
-      w.length <= 3
+    .map((w) => {
+      const lower = w.toLowerCase();
+      if (LT_LOWER_WORDS.has(lower)) {
+        return lower;
+      }
+      return w.length <= 3
         ? w.toUpperCase()
-        : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
-    )
-    .join(" ")
-    .replace(/\bVolvo\b/i, "Volvo")
-    .replace(/\bBmw\b/i, "BMW");
+        : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    })
+    .join(" ");
 }
 
 /**

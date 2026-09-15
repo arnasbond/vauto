@@ -151,68 +151,57 @@ export interface ContinuityPriorResult<T> {
   isSwitch: boolean;
 }
 
-const RESET_PHRASES_RE =
-  /\b(?:nauja\s+paie[sš]k\w*|prad[eė]k\s+i[sš]\s+naujo|i[sš]valyk|reset|clean\s+search|clear\s+search|start\s+over)\b/i;
-
-/**
- * R4.3B — search continuity authority:
- * Distinguish KEEP / REFINE (same object or pure refinement) from SWITCH / REPLACE (new object / topic pivot).
- *
- * Rules:
- * 1. searchSessionReset or explicit reset keyword in user text -> SWITCH (null).
- * 2. If user text or model query matches the prior query (normalized) -> REFINE (keep prior).
- * 3. If model query is empty and user text is a refinement (budget, city, etc.) -> REFINE (keep prior).
- * 4. If model query or user text names a genuinely different object -> SWITCH (null).
- */
-export function resolveContinuityPrior<T extends { query?: string; category?: string }>(input: {
+export interface ContinuityPriorInput<T> {
   prior: T | null;
+  /** Explicit structured state operation from model/planner: 'refine' | 'replace' | 'reset'. */
+  operation?: "refine" | "replace" | "reset" | string;
   rawQuery?: string;
   userText?: string;
   searchSessionReset?: boolean;
-}): T | null {
-  const { prior, searchSessionReset } = input;
-  if (!prior || searchSessionReset) return null;
-
-  const userText = (input.userText ?? "").trim();
-  if (userText && RESET_PHRASES_RE.test(userText)) {
-    return null;
-  }
-
-  const modelQuery = (input.rawQuery ?? "").trim().toLowerCase();
-  const priorQuery = (prior.query ?? "").trim().toLowerCase();
-
-  // No model query given (e.g. pure refinement turn like "gerai, tada iki 12000")
-  if (!modelQuery) {
-    // If user text contains a topic pivot away from prior, return null
-    if (userText && priorQuery && isSearchTopicPivot(priorQuery, userText)) {
-      return null;
-    }
-    return prior;
-  }
-
-  // Model repeated the exact same or equivalent query (e.g. "volvo" == "volvo")
-  if (priorQuery && (modelQuery === priorQuery || modelQuery.includes(priorQuery) || priorQuery.includes(modelQuery))) {
-    return prior;
-  }
-
-  // Model supplied a different query. If the model query is genuinely a different object
-  // (e.g. "bmw" vs "volvo", "iphone 13" vs "volvo"), this is a SWITCH / REPLACE.
-  return null;
+  /** True when the caller passed a distinct new query object without an explicit refine signal. */
+  isNewSearchObject?: boolean;
 }
 
 /**
- * Detect if userText is pivoting to a completely new search topic compared to priorQuery.
+ * R4.3B — search continuity authority:
+ *
+ * Natural-language decisions (continue/refine, correct, replace search object,
+ * switch task, reset) come from the planner/model structured intent and state operations.
+ *
+ * Deterministic code validates and applies those operations without semantic regex cages:
+ * - 'reset' or searchSessionReset -> clears prior state (SWITCH / null).
+ * - 'replace' -> caller replaces search object with new query (SWITCH / null).
+ * - 'refine' -> caller refines the active search object (KEEP / prior).
+ *
+ * Preserving prior search state is the safe fallback when semantic operation is
+ * omitted or uncertain — unknown natural-language refinement does NOT default to reset.
  */
-function isSearchTopicPivot(priorQuery: string, userText: string): boolean {
-  const lower = userText.toLowerCase();
-  const prior = priorQuery.toLowerCase().trim();
-  if (!prior) return false;
+export function resolveContinuityPrior<
+  T extends { query?: string; category?: string; categoryAttributes?: Record<string, string> }
+>(input: ContinuityPriorInput<T>): T | null {
+  const { prior, operation, searchSessionReset, isNewSearchObject } = input;
+  if (!prior || searchSessionReset) return null;
 
-  // If user text explicitly names something else with pivot signals ("ne X, o Y", "gal pažiūrėkim", etc.)
-  const pivotSignal = /\b(?:ne\s+|o\s+gal\s+|ver[cč]iau\s+|geriau\s+pa[zž]i[uū]r[eė]kim|ie[sš]kokime\s+kitko)\b/i;
-  if (pivotSignal.test(lower) && !lower.includes(prior)) {
-    return true;
+  // Explicit structured reset or replace signal from planner/model
+  if (operation === "reset" || operation === "replace") {
+    return null;
   }
 
-  return false;
+  // Explicit structured refine signal from planner/model
+  if (operation === "refine") {
+    return prior;
+  }
+
+  // When operation is omitted:
+  // If a caller explicitly provided a distinct new search query object,
+  // the new query replaces the prior object rather than trapping the user in prior state.
+  if (isNewSearchObject) {
+    return null;
+  }
+
+  // Safe fallback when operation is omitted/uncertain:
+  // Preserving prior search state ensures natural-language refinements
+  // are never dropped into an unintended reset.
+  return prior;
 }
+

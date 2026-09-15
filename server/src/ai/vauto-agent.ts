@@ -218,9 +218,11 @@ export interface VautoAgentRequest {
     lastError?: { code: string; message?: string };
     wizardMode?: "listing_review" | "listing_edit" | "search" | "idle";
     listingDraft?: {
+      id?: string;
       title?: string;
       description?: string;
       price?: number;
+      priceLabel?: string;
       location?: string;
       category?: string;
       attributes?: Record<string, string>;
@@ -782,6 +784,14 @@ export function buildAgentPlannerContext(
     lastSearchListingIds: authoritativeRecentSearchListingIds.length
       ? authoritativeRecentSearchListingIds
       : null,
+    recentSearchResults: isolate
+      ? null
+      : (req.context.listings ?? []).slice(0, 3).map((l) => ({
+          id: String(l.id ?? ""),
+          title: String(l.title ?? ""),
+          price: typeof l.price === "number" ? l.price : undefined,
+          location: String(l.location ?? ""),
+        })),
     myListings: (req.context.myListings ?? []).map((l) => ({
       id: String(l.id ?? ""),
       title: String(l.title ?? ""),
@@ -1753,7 +1763,8 @@ async function runVautoAgentInner(
       hasVerticalConflictUpdate ||
       Boolean(vinSignal) ||
       Boolean(conditionFromText) ||
-      Boolean(cityFromText)
+      Boolean(cityFromText) ||
+      plannerDecision.intent === "sell_update"
     ) {
       const negoPatch = negotiable ? negotiablePricePatch() : null;
       const yearResolution = resolveYearConflictPatch({
@@ -1784,6 +1795,32 @@ async function runVautoAgentInner(
         ...workTypePatch,
         ...(conditionFromText ? { condition: conditionFromText } : {}),
       };
+      const VEHICLE_ONLY_ATTRS = new Set([
+        "make",
+        "model",
+        "year",
+        "engine",
+        "powerKw",
+        "fuelType",
+        "mileage",
+        "transmission",
+        "vin",
+        "vinCandidate",
+        "vinUncertain",
+        "vinConflict",
+        "yearConflict",
+        "yearConflictCandidate",
+      ]);
+      const toolAttrs = ((plannerDecision.toolArgs as Record<string, unknown> | undefined)?.attributes ??
+        (plannerDecision.toolArgs as Record<string, unknown> | undefined)?.categoryAttributes) as Record<string, unknown> | undefined;
+      if (toolAttrs && typeof toolAttrs === "object") {
+        for (const [k, v] of Object.entries(toolAttrs)) {
+          if (v !== undefined && v !== null && String(v).trim()) {
+            if (!isVehicleDraft && VEHICLE_ONLY_ATTRS.has(k)) continue;
+            mergedAttrs[k] = String(v).trim();
+          }
+        }
+      }
       if (mergedAttrs.yearConflict === "") delete mergedAttrs.yearConflict;
       if (mergedAttrs.yearConflictCandidate === "") delete mergedAttrs.yearConflictCandidate;
       for (const key of [
@@ -1817,6 +1854,14 @@ async function runVautoAgentInner(
       if (cityFromText) userCorrected.add("city");
       if (conditionFromText) userCorrected.add("condition");
       if (hasDescEdit) userCorrected.add("description");
+      if (toolAttrs && typeof toolAttrs === "object") {
+        for (const [k, v] of Object.entries(toolAttrs)) {
+          if (v !== undefined && v !== null && String(v).trim()) {
+            if (!isVehicleDraft && VEHICLE_ONLY_ATTRS.has(k)) continue;
+            userCorrected.add(k);
+          }
+        }
+      }
       for (const k of Object.keys(specPatchWithoutVin)) {
         if (/conflict|candidate/i.test(k)) continue;
         userCorrected.add(k);
@@ -1840,11 +1885,10 @@ async function runVautoAgentInner(
         }
       }
 
-      let authorityAttrs = mergedAttrs;
-      for (const f of userCorrected) {
-        if (!f || /conflict|candidate/i.test(f)) continue;
-        authorityAttrs = markUserCorrectedField(authorityAttrs, f);
-      }
+      const plannerDesc = typeof (plannerDecision.toolArgs as Record<string, unknown> | undefined)?.description === "string"
+        ? String((plannerDecision.toolArgs as Record<string, unknown>).description).trim()
+        : null;
+
       let nextDescription = hasSpecs
         ? buildVehicleDescriptionFromAttributes(mergedAttrs, {
             location: listingDraft.location,
@@ -1857,6 +1901,55 @@ async function runVautoAgentInner(
           nextDescription,
           lastUserText
         ).description;
+      } else if (plannerDesc && !hasSpecs) {
+        nextDescription = plannerDesc;
+        userCorrected.add("description");
+      } else if (
+        !isVehicleDraft &&
+        Object.keys(extractVehicleSpecsFromChat(lastUserText)).length === 0 &&
+        !(priceToApply != null && /^\s*(?:kaina\s+)?\d+(?:[.,]\d+)?\s*(?:€|eur|eurų)?\s*$/i.test(lastUserText.trim())) &&
+        plannerDecision.intent === "sell_update" &&
+        lastUserText.trim()
+      ) {
+        const rawText = lastUserText.trim();
+        const CORRECTION_RE = /^(?:ne\s*,?\s*(?:suklydau|ne|neteisingai|tiksliau)?\s*,?\s*|pataisyk\s+(?:į\s+)?|vietoj\s+.*?\s+parašyk\s+|keisk\s+(?:į\s+)?)/i;
+        const isCorrection = CORRECTION_RE.test(rawText);
+        const cleanDetail = rawText.replace(CORRECTION_RE, "").trim();
+
+        if (cleanDetail) {
+          if (isCorrection) {
+            const priorDetail = String(listingDraft.attributes?.details ?? "").trim();
+            if (priorDetail && nextDescription && nextDescription.includes(priorDetail)) {
+              nextDescription = nextDescription.replace(priorDetail, cleanDetail);
+            } else if (nextDescription) {
+              const lines = nextDescription.split("\n");
+              if (lines.length > 1) {
+                lines[lines.length - 1] = cleanDetail;
+                nextDescription = lines.join("\n");
+              } else {
+                nextDescription = `${nextDescription}\n${cleanDetail}`;
+              }
+            } else {
+              nextDescription = cleanDetail;
+            }
+            mergedAttrs.details = cleanDetail;
+            userCorrected.add("details");
+            userCorrected.add("description");
+          } else {
+            if (!nextDescription || !nextDescription.includes(cleanDetail)) {
+              nextDescription = nextDescription ? `${nextDescription}\n${cleanDetail}` : cleanDetail;
+              userCorrected.add("description");
+            }
+            mergedAttrs.details = cleanDetail;
+            userCorrected.add("details");
+          }
+        }
+      }
+
+      let authorityAttrs = mergedAttrs;
+      for (const f of userCorrected) {
+        if (!f || /conflict|candidate/i.test(f)) continue;
+        authorityAttrs = markUserCorrectedField(authorityAttrs, f);
       }
       const nextTitle =
         isVehicleDraft && mergedAttrs.make && mergedAttrs.model
@@ -1910,6 +2003,23 @@ async function runVautoAgentInner(
         conditionFromText ? `būklę: ${conditionFromText}` : null,
         cityFromText ? `miestą: ${cityFromText}` : null,
       ].filter(Boolean);
+      const draftAttrsChanged =
+        JSON.stringify(authorityAttrs) !== JSON.stringify(listingDraft.attributes ?? {});
+      const draftDescChanged = (nextDescription ?? "") !== (listingDraft.description ?? "");
+      const draftPriceChanged = priceToApply != null && priceToApply !== listingDraft.price;
+      const draftTitleChanged = (nextTitle || listingDraft.title) !== listingDraft.title;
+      const draftLocationChanged = !!cityFromText && cityFromText !== listingDraft.location;
+      const draftPriceLabelChanged = !!negoPatch && negoPatch.priceLabel !== listingDraft.priceLabel;
+
+      const draftChanged =
+        draftAttrsChanged ||
+        draftDescChanged ||
+        draftPriceChanged ||
+        draftTitleChanged ||
+        draftLocationChanged ||
+        draftPriceLabelChanged ||
+        Boolean(vinSignal);
+
       const intro = vinSignal
         ? "Užfiksavau VIN kandidatą — patvirtinkite peržiūroje."
         : negotiable
@@ -1922,7 +2032,9 @@ async function runVautoAgentInner(
                 ? "Puiku — atnaujinau kainą!"
                 : verticalOnlyUpdate && bits.length
                   ? `Supratau — atnaujinau juodraštį (${bits.join(", ")}).`
-                  : "Puiku — atnaujinau juodraštį!";
+                  : draftChanged
+                    ? "Puiku — atnaujinau juodraštį!"
+                    : "Juodraštis jau atitinka šią informaciją.";
       const vinReviewChips = buildVinReviewDisplayChips(mergedAttrs);
       const vinReviewPayload = buildVinReviewSideEffect(mergedAttrs);
       // P0 — the single canonical readiness source decides whether the reply
@@ -1944,16 +2056,18 @@ async function runVautoAgentInner(
           vinReviewChips ?? buildDraftReadyChatChips(nextDraft, { readinessOk }),
         // E2 — the deterministic update is the capability the model would
         // have called; the ledger records it as the executed tool.
-        toolCalls: [
-          {
-            name: "updateListingDraft",
-            result: {
-              ok: true,
-              ...(priceToApply != null ? { price: priceToApply } : {}),
-              attributes: mergedAttrs,
-            },
-          },
-        ],
+        toolCalls: draftChanged
+          ? [
+              {
+                name: "updateListingDraft",
+                result: {
+                  ok: true,
+                  ...(priceToApply != null ? { price: priceToApply } : {}),
+                  attributes: mergedAttrs,
+                },
+              },
+            ]
+          : [],
         actions: {
           type: "listing_draft",
           listingDraft: nextDraft,
@@ -2419,7 +2533,8 @@ async function runVautoAgentInner(
       });
       const deterministic = await runDeterministicSupervisorSearch(
         lastUserText,
-        ctx
+        ctx,
+        plannerDecision.toolArgs
       );
       emitAgentEvent(onEvent, {
         type: "tool_result",
@@ -2829,7 +2944,8 @@ async function runVautoAgentInner(
         });
         const deterministic = await runDeterministicSupervisorSearch(
           lastUserText,
-          ctx
+          ctx,
+          plannerDecision.toolArgs
         );
         toolCalls.push({
           name: deterministic.toolName,

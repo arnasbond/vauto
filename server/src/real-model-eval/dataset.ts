@@ -32,6 +32,17 @@ export interface EvalTurnReference {
   forbiddenTools?: string[];
   /** Naturalness floor — a reply shorter than this is COMMAND_PARSER_BEHAVIOR. */
   minReplyChars?: number;
+  /** Expected structured search filters after this turn (continuity assertion). */
+  expectedSearchFilters?: {
+    query?: string;
+    category?: string;
+    city?: string;
+    maxPrice?: number;
+    minPrice?: number;
+    categoryAttributes?: Record<string, unknown>;
+  };
+  /** Expected active task ('search' | 'sell' | intent) after this turn. */
+  expectedActiveTask?: string;
 }
 
 export interface EvalTurn {
@@ -67,6 +78,8 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
           intent: "catalog_search",
           expectedTool: "searchListings",
           vertical: "vehicles",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { maxPrice: 5000 },
           replyMustMention: ["volvo"],
           minReplyChars: 20,
         },
@@ -85,6 +98,8 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
           intent: "catalog_search",
           expectedTool: "searchListings",
           vertical: "real_estate",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { maxPrice: 180000 },
           replyMustMention: ["but"],
           minReplyChars: 20,
         },
@@ -103,6 +118,8 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
           intent: "catalog_search",
           expectedTool: "searchListings",
           vertical: "electronics",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { maxPrice: 500 },
           replyMustMention: ["iphone"],
           minReplyChars: 20,
         },
@@ -121,6 +138,7 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
           intent: "catalog_search",
           expectedTool: "searchListings",
           vertical: "clothing",
+          expectedActiveTask: "search",
           replyMustMention: ["striuk"],
           minReplyChars: 20,
         },
@@ -139,6 +157,8 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
           intent: "catalog_search",
           expectedTool: "searchListings",
           vertical: "services",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { city: "Kaunas" },
           minReplyChars: 20,
         },
       },
@@ -156,6 +176,8 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
           intent: "catalog_search",
           expectedTool: "searchListings",
           vertical: "jobs",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { city: "Vilnius" },
           minReplyChars: 20,
         },
       },
@@ -173,6 +195,8 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
           intent: "catalog_search",
           expectedTool: "searchListings",
           vertical: "home",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { maxPrice: 200 },
           minReplyChars: 20,
         },
       },
@@ -189,6 +213,7 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
         reference: {
           intent: "catalog_search",
           expectedTool: "searchListings",
+          expectedActiveTask: "search",
           minReplyChars: 20,
         },
       },
@@ -238,11 +263,25 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
     turns: [
       {
         text: "ieškau buto Vilniuje",
-        reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "real_estate", minReplyChars: 20 },
+        reference: {
+          intent: "catalog_search",
+          expectedTool: "searchListings",
+          vertical: "real_estate",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { city: "Vilnius" },
+          minReplyChars: 20,
+        },
       },
       {
         text: "gal iki 120000 ir su 3 kambariais",
-        reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "real_estate", minReplyChars: 20 },
+        reference: {
+          intent: "catalog_search",
+          expectedTool: "searchListings",
+          vertical: "real_estate",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { city: "Vilnius", maxPrice: 120000 },
+          minReplyChars: 20,
+        },
       },
     ],
   },
@@ -254,11 +293,25 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
     turns: [
       {
         text: "ieškau Volvo iki 10000",
-        reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "vehicles", minReplyChars: 20 },
+        reference: {
+          intent: "catalog_search",
+          expectedTool: "searchListings",
+          vertical: "vehicles",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { maxPrice: 10000 },
+          minReplyChars: 20,
+        },
       },
       {
         text: "gerai, tada iki 12000",
-        reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "vehicles", minReplyChars: 20 },
+        reference: {
+          intent: "catalog_search",
+          expectedTool: "searchListings",
+          vertical: "vehicles",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { maxPrice: 12000 },
+          minReplyChars: 20,
+        },
       },
     ],
   },
@@ -270,11 +323,25 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
     turns: [
       {
         text: "ieškau Audi",
-        reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "vehicles", minReplyChars: 20 },
+        reference: {
+          intent: "catalog_search",
+          expectedTool: "searchListings",
+          vertical: "vehicles",
+          expectedActiveTask: "search",
+          minReplyChars: 20,
+        },
       },
       {
         text: "ne, ne Audi, o BMW",
-        reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "vehicles", replyMustMention: ["bmw"], minReplyChars: 20 },
+        reference: {
+          intent: "catalog_search",
+          expectedTool: "searchListings",
+          vertical: "vehicles",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { query: "BMW" },
+          replyMustMention: ["bmw"],
+          minReplyChars: 20,
+        },
       },
     ],
   },
@@ -286,11 +353,22 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
     turns: [
       {
         text: "parodyk automobilius iki 8000",
-        reference: { intent: "catalog_search", expectedTool: "searchListings", vertical: "vehicles", minReplyChars: 20 },
+        reference: {
+          intent: "catalog_search",
+          expectedTool: "searchListings",
+          vertical: "vehicles",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { maxPrice: 8000 },
+          minReplyChars: 20,
+        },
       },
       {
         text: "šitas visai patinka, ar yra dar panašių?",
-        reference: { expectedTool: "searchListings", minReplyChars: 20 },
+        reference: {
+          expectedTool: "searchListings",
+          expectedActiveTask: "search",
+          minReplyChars: 20,
+        },
       },
     ],
   },
@@ -307,6 +385,7 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
         reference: {
           intent: "sell_create",
           vertical: "electronics",
+          expectedActiveTask: "sell",
           forbiddenEffects: ["listing_published"],
           minReplyChars: 20,
         },
@@ -324,6 +403,7 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
         reference: {
           intent: "sell_create",
           vertical: "clothing",
+          expectedActiveTask: "sell",
           forbiddenEffects: ["listing_published"],
           minReplyChars: 20,
         },
@@ -338,11 +418,23 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
     turns: [
       {
         text: "Parduodu medinį stalą, 150 eur",
-        reference: { intent: "sell_create", vertical: "home", forbiddenEffects: ["listing_published"], minReplyChars: 20 },
+        reference: {
+          intent: "sell_create",
+          vertical: "home",
+          expectedActiveTask: "sell",
+          forbiddenEffects: ["listing_published"],
+          minReplyChars: 20,
+        },
       },
       {
         text: "su 4 kėdėmis, ąžuolas",
-        reference: { intent: "sell_update", expectedTool: "updateListingDraft", vertical: "home", minReplyChars: 20 },
+        reference: {
+          intent: "sell_update",
+          expectedTool: "updateListingDraft",
+          vertical: "home",
+          expectedActiveTask: "sell",
+          minReplyChars: 20,
+        },
       },
     ],
   },
@@ -368,6 +460,7 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
           intent: "sell_update",
           expectedTool: "updateListingDraft",
           draftFact: { key: "price", value: "450" },
+          expectedActiveTask: "sell",
           forbiddenEffects: ["listing_published"],
           minReplyChars: 20,
         },
@@ -392,7 +485,11 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
     turns: [
       {
         text: "paruošk skelbimą, bet dar nepublikuok",
-        reference: { forbiddenEffects: ["listing_published"], minReplyChars: 20 },
+        reference: {
+          expectedActiveTask: "sell",
+          forbiddenEffects: ["listing_published"],
+          minReplyChars: 20,
+        },
       },
     ],
   },
@@ -410,6 +507,8 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
           intent: "catalog_search",
           expectedTool: "searchListings",
           vertical: "electronics",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { city: "Kaunas" },
           minReplyChars: 20,
         },
       },
@@ -427,6 +526,8 @@ export const REAL_MODEL_EVAL_CASES: EvalCase[] = [
           intent: "catalog_search",
           expectedTool: "searchListings",
           vertical: "vehicles",
+          expectedActiveTask: "search",
+          expectedSearchFilters: { maxPrice: 8000 },
           minReplyChars: 20,
         },
       },

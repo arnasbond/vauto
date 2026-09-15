@@ -66,6 +66,11 @@ export interface EvalTurnOutcome {
   needsClarification: boolean;
   clarificationQuestion: string | null;
   advisoryContext: boolean;
+  activeTaskBefore?: string | null;
+  activeTaskAfter?: string | null;
+  searchFiltersBefore?: Record<string, unknown> | null;
+  searchFiltersAfter?: Record<string, unknown> | null;
+  draftBefore?: Record<string, unknown> | null;
   draftAfter: Record<string, unknown> | null;
   /** Planner decision tool args (query/filters/category as the planner sent them). */
   toolArgs: Record<string, unknown> | null;
@@ -73,8 +78,10 @@ export interface EvalTurnOutcome {
   searchCategory?: string;
   confirmations: string[];
   effects: string[];
+  consequentialEffects?: string[];
   model?: string;
   provider?: string;
+  providerFailure?: boolean;
   error: { code: string; message: string } | null;
 }
 
@@ -154,13 +161,19 @@ export async function runEvalCase(
     let anonToken: string | null = null;
     let draft: Record<string, unknown> | null =
       (c.setup?.initialDraft as Record<string, unknown> | undefined) ?? null;
+    let activeTask: string | null = draft ? "sell" : null;
+    let searchFilters: Record<string, unknown> | null = null;
     const confirmations: string[] = [];
     const effects: string[] = [];
+    const consequentialEffects: string[] = [];
 
     for (let i = 0; i < c.turns.length; i++) {
       const turn = c.turns[i]!;
       const decisionIndexBefore = decisions.length;
       const traceIndexBefore = traces.length;
+      const draftBefore = draft ? { ...draft } : null;
+      const searchFiltersBefore = searchFilters ? { ...searchFilters } : null;
+      const activeTaskBefore = activeTask;
 
       const res = await request(app)
         .post("/api/vauto-agent/stream")
@@ -196,20 +209,55 @@ export async function runEvalCase(
       const actions = (final?.actions ?? {}) as Record<string, unknown>;
       if (actions.type === "listing_draft" && actions.listingDraft) {
         draft = actions.listingDraft as Record<string, unknown>;
+        activeTask = "sell";
+      } else if (actions.type === "search" || actions.type === "empty_search" || actions.type === "browse_all") {
+        activeTask = "search";
+        if (actions.filters && typeof actions.filters === "object") {
+          searchFilters = actions.filters as Record<string, unknown>;
+        }
       }
+
       for (const tc of toolCalls) {
-        if (tc === "postNewListing") effects.push("listing_published");
+        if (tc === "postNewListing") {
+          effects.push("listing_published");
+          consequentialEffects.push("listing_published");
+        }
+        if (tc === "deleteListing" || tc === "blockListing") {
+          consequentialEffects.push("listing_blocked");
+        }
+        if (tc === "markListingSold") {
+          consequentialEffects.push("listing_sold");
+        }
+        if (tc === "triggerMicroPayment") {
+          consequentialEffects.push("payment_initiated");
+        }
       }
       if (typeof actions.pendingActionId === "string" && actions.pendingActionId) {
         confirmations.push(`${String(actions.type ?? "")}:${actions.pendingActionId}`);
       }
 
       const decision = decisions[decisions.length - 1] ?? null;
+      if (decision?.intent === "catalog_search") {
+        activeTask = "search";
+      } else if (
+        decision?.intent === "sell_create" ||
+        decision?.intent === "sell_update" ||
+        decision?.intent === "sell_preview" ||
+        decision?.intent === "sell_cancel" ||
+        Boolean(draft)
+      ) {
+        activeTask = "sell";
+      }
       const turnTraces = traces.slice(traceIndexBefore);
       const toolArgs = (decision?.toolArgs ?? null) as Record<string, unknown> | null;
       const searchCategory = extractSearchCategory(
         toolArgs ?? undefined,
         actions.filters as Record<string, unknown> | undefined
+      );
+
+      const providerFailure = Boolean(
+        stream.errorEvent ||
+        res.status >= 500
       );
 
       turns.push({
@@ -223,13 +271,20 @@ export async function runEvalCase(
         needsClarification: decision?.needsClarification ?? false,
         clarificationQuestion: decision?.clarificationQuestion ?? null,
         advisoryContext: decision?.advisoryContext ?? false,
+        activeTaskBefore,
+        activeTaskAfter: activeTask,
+        searchFiltersBefore,
+        searchFiltersAfter: searchFilters ? { ...searchFilters } : null,
+        draftBefore,
         draftAfter: draft,
         toolArgs,
         searchCategory,
         confirmations: [...confirmations],
         effects: [...effects],
+        consequentialEffects: [...consequentialEffects],
         model: turnTraces.find((t) => t.model)?.model,
         provider: turnTraces.find((t) => t.provider)?.provider,
+        providerFailure,
         error: stream.errorEvent,
       });
     }

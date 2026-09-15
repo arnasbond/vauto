@@ -118,4 +118,132 @@ describe("R4.3B — search continuity (KEEP / REPLACE / SWITCH)", () => {
     assert.ok(f.query && f.query.toLowerCase().includes("iphone"), "fresh query used");
     assert.ok(!(f.query ?? "").toLowerCase().includes("volvo"), "prior discarded on reset");
   });
+
+  it("KEEP: model passing pure refinement string in args.query preserves prior object and sets budget", async () => {
+    const { sideEffect } = await executeAgentTool(
+      "searchListings",
+      { query: "iki 12000" },
+      ctxWith({
+        lastUserQuery: "iki 12000",
+        activeSearchFilters: {
+          query: "Volvo",
+          category: "vehicles",
+          city: "Vilnius",
+        },
+      })
+    );
+    const f = filtersOf(sideEffect);
+    assert.equal(f.query, "Volvo", "prior Volvo object is preserved despite refinement in query");
+    assert.equal(f.maxPrice, 12000, "budget extracted and applied");
+    assert.equal(f.category, "vehicles", "prior category retained");
+  });
+
+  it("KEEP: multi-vertical attribute accumulation (real estate rooms + budget)", async () => {
+    // Turn 2: "3 kambarių" with structured categoryAttributes and operation: 'refine'
+    const t2 = await executeAgentTool(
+      "searchListings",
+      { query: "3 kambarių", categoryAttributes: { rooms: "3" }, operation: "refine" },
+      ctxWith({
+        lastUserQuery: "3 kambarių",
+        activeSearchFilters: {
+          query: "butas",
+          category: "real_estate",
+          city: "Vilnius",
+        },
+      })
+    );
+    const f2 = filtersOf(t2.sideEffect);
+    assert.equal(f2.query, "butas", "object query retained");
+    assert.equal(f2.category, "real_estate", "category retained");
+    assert.equal(f2.categoryAttributes?.rooms, "3", "rooms attribute accumulated");
+
+    // Turn 3: "iki 120000" with operation: 'refine'
+    const t3 = await executeAgentTool(
+      "searchListings",
+      { query: "iki 120000", maxPrice: 120000, operation: "refine" },
+      ctxWith({
+        lastUserQuery: "iki 120000",
+        activeSearchFilters: f2,
+      })
+    );
+    const f3 = filtersOf(t3.sideEffect);
+    assert.equal(f3.query, "butas", "object query retained across multiple turns");
+    assert.equal(f3.category, "real_estate", "category retained");
+    assert.equal(f3.categoryAttributes?.rooms, "3", "rooms attribute retained");
+    assert.equal(f3.maxPrice, 120000, "maxPrice applied");
+  });
+
+  it("KEEP: unseen natural-language refinements work without hardcoded regex cages", async () => {
+    // 1. Volvo -> raudonas
+    const rColor = await executeAgentTool(
+      "searchListings",
+      { operation: "refine", preferences: { color: "raudona" } },
+      ctxWith({
+        lastUserQuery: "raudonas",
+        activeSearchFilters: { query: "Volvo", category: "vehicles", city: "Vilnius" },
+      })
+    );
+    const fColor = filtersOf(rColor.sideEffect);
+    assert.equal(fColor.query, "Volvo", "Volvo preserved on color refinement");
+    assert.equal(fColor.city, "Vilnius", "City preserved");
+
+    // 2. Volvo -> su garantija
+    const rWarranty = await executeAgentTool(
+      "searchListings",
+      { operation: "refine" },
+      ctxWith({
+        lastUserQuery: "su garantija",
+        activeSearchFilters: { query: "Volvo", category: "vehicles" },
+      })
+    );
+    const fWarranty = filtersOf(rWarranty.sideEffect);
+    assert.equal(fWarranty.query, "Volvo", "Volvo preserved on warranty refinement");
+
+    // 3. butas -> su balkonu
+    const rBalcony = await executeAgentTool(
+      "searchListings",
+      { operation: "refine", categoryAttributes: { balcony: "true" } },
+      ctxWith({
+        lastUserQuery: "su balkonu",
+        activeSearchFilters: { query: "butas", category: "real_estate", city: "Vilnius" },
+      })
+    );
+    const fBalcony = filtersOf(rBalcony.sideEffect);
+    assert.equal(fBalcony.query, "butas", "butas preserved on balcony refinement");
+    assert.equal(fBalcony.categoryAttributes?.balcony, "true", "balcony attribute retained");
+
+    // 4. striukė -> neperšlampama
+    const rJacket = await executeAgentTool(
+      "searchListings",
+      { operation: "refine", categoryAttributes: { feature: "waterproof" } },
+      ctxWith({
+        lastUserQuery: "neperšlampama",
+        activeSearchFilters: { query: "striukė", category: "clothing" },
+      })
+    );
+    const fJacket = filtersOf(rJacket.sideEffect);
+    assert.equal(fJacket.query, "Striukė", "striukė preserved on waterproof refinement");
+    assert.equal(fJacket.categoryAttributes?.feature, "waterproof");
+  });
+
+  it("REPLACE: operation 'replace' cleanly resets prior attributes and query", async () => {
+    const { sideEffect } = await executeAgentTool(
+      "searchListings",
+      { query: "Audi", operation: "replace" },
+      ctxWith({
+        lastUserQuery: "ieškokime Audi",
+        activeSearchFilters: {
+          query: "Volvo",
+          category: "vehicles",
+          city: "Vilnius",
+          maxPrice: 10000,
+          categoryAttributes: { fuel: "diesel" },
+        },
+      })
+    );
+    const f = filtersOf(sideEffect);
+    assert.equal(f.query, "Audi", "new query replaces prior");
+    assert.equal(f.categoryAttributes, undefined, "stale categoryAttributes wiped on replace");
+    assert.equal(f.maxPrice, undefined, "stale budget wiped on replace");
+  });
 });

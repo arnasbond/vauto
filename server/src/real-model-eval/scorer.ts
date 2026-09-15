@@ -52,6 +52,10 @@ export interface TurnScore {
   toolCalls: string[];
   searchCategory?: string;
   draftAfter: Record<string, unknown> | null;
+  activeTaskAfter?: string | null;
+  searchFiltersAfter?: Record<string, unknown> | null;
+  consequentialEffects?: string[];
+  providerFailure?: boolean;
 }
 
 export interface CaseScore {
@@ -103,6 +107,39 @@ function draftFactValue(
   return String(((draft.attributes ?? {}) as Record<string, unknown>)[key] ?? "");
 }
 
+function matchesFilterValue(actual: unknown, expected: unknown): boolean {
+  if (expected === actual) return true;
+  if (expected === undefined || expected === null) return actual === expected;
+  if (actual === undefined || actual === null) return false;
+  if (typeof expected === "object" && typeof actual === "object") {
+    const expObj = expected as Record<string, unknown>;
+    const actObj = actual as Record<string, unknown>;
+    return Object.entries(expObj).every(([k, v]) => matchesFilterValue(actObj[k], v));
+  }
+  if (typeof expected === "string" || typeof actual === "string") {
+    return String(actual).trim().toLowerCase() === String(expected).trim().toLowerCase();
+  }
+  if (typeof expected === "number" || typeof actual === "number") {
+    return Number(actual) === Number(expected);
+  }
+  return false;
+}
+
+function intentsMatch(actual: string | null | undefined, expected: string | null | undefined): boolean {
+  if (!expected) return true;
+  if (!actual) return false;
+  if (actual === expected) return true;
+  // Conversational intents: dialog and context_question are semantically equivalent
+  // for advisory / non-execution dialog turns.
+  if (
+    (expected === "dialog" || expected === "context_question") &&
+    (actual === "dialog" || actual === "context_question")
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** Score a single turn against its reference. */
 export function scoreTurn(
   turn: EvalTurn,
@@ -117,7 +154,7 @@ export function scoreTurn(
   // ── Semantic understanding ───────────────────────────────────────────────
   let semantic = 2;
   if (outcome.error) semantic = 0;
-  else if (ref.intent && outcome.intent !== ref.intent) {
+  else if (ref.intent && !intentsMatch(outcome.intent, ref.intent)) {
     semantic = 0;
     // BLOCKER 1 — material expected-intent mismatch is a measurement-level
     // failure; it must not remain a passing conversation.
@@ -125,7 +162,7 @@ export function scoreTurn(
     if (ref.intent === "catalog_search" && outcome.intent === "sell_create") {
       flags.add("COMMAND_PARSER_BEHAVIOR");
     }
-  } else if (ref.intent && outcome.intent === ref.intent && !ref.replyMustMention?.length) {
+  } else if (ref.intent && intentsMatch(outcome.intent, ref.intent) && !ref.replyMustMention?.length) {
     semantic = 2;
   } else if (!ref.intent && outcome.intent) {
     semantic = 1;
@@ -196,7 +233,35 @@ export function scoreTurn(
       continuity = 1;
     }
   }
-  if (outcome.error) continuity = 0;
+  if (ref.expectedSearchFilters) {
+    const actual = outcome.searchFiltersAfter ?? {};
+    for (const [k, expectedVal] of Object.entries(ref.expectedSearchFilters)) {
+      const actualVal =
+        actual[k] !== undefined
+          ? actual[k]
+          : k === "maxPrice"
+          ? actual["priceMax"]
+          : k === "priceMax"
+          ? actual["maxPrice"]
+          : k === "minPrice"
+          ? actual["priceMin"]
+          : k === "priceMin"
+          ? actual["minPrice"]
+          : undefined;
+      if (expectedVal !== undefined && !matchesFilterValue(actualVal, expectedVal)) {
+        continuity = Math.max(0, continuity - 1);
+        structured = Math.max(0, structured - 1);
+        flags.add("CONTEXT_RESET");
+      }
+    }
+  }
+  if (ref.expectedActiveTask) {
+    if (outcome.activeTaskAfter !== ref.expectedActiveTask) {
+      continuity = Math.max(0, continuity - 1);
+      flags.add("CONTEXT_RESET");
+    }
+  }
+  if (outcome.error || outcome.providerFailure) continuity = 0;
 
   // ── Human correction authority ───────────────────────────────────────────
   let correction = 2;
@@ -242,7 +307,7 @@ export function scoreTurn(
 
   const failureClass: FailureClass | null = classifyFailure(
     flags,
-    outcome.error != null,
+    outcome.error != null || Boolean(outcome.providerFailure),
     ref
   );
 
@@ -258,6 +323,10 @@ export function scoreTurn(
     toolCalls: outcome.toolCalls,
     searchCategory: outcome.searchCategory,
     draftAfter: outcome.draftAfter,
+    activeTaskAfter: outcome.activeTaskAfter,
+    searchFiltersAfter: outcome.searchFiltersAfter,
+    consequentialEffects: outcome.consequentialEffects,
+    providerFailure: outcome.providerFailure,
   };
 }
 

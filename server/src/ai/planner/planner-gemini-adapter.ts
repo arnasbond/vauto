@@ -114,7 +114,7 @@ function buildBody(req: PlannerStructuredRequest): Record<string, unknown> {
       },
     ],
     toolConfig: { functionCallingConfig: { mode: "ANY" } },
-    generationConfig: { temperature: 0, maxOutputTokens: 1024 },
+    generationConfig: { temperature: 0, maxOutputTokens: 2048 },
   };
 }
 
@@ -175,7 +175,7 @@ export function createGeminiPlannerAdapter(
               { retryExhausted: true, attempts, modelsTried }
             );
           }
-          const attemptTimeoutMs = Math.min(GEMINI_AGENT_TIMEOUT_MS, remaining);
+          const attemptTimeoutMs = Math.min(12_000, remaining);
 
           attempts += 1;
           let res: Response;
@@ -226,7 +226,12 @@ export function createGeminiPlannerAdapter(
                 { retryExhausted: false, attempts, modelsTried }
               );
             }
-            const canRetry = attempt < t.maxRetries;
+            // For 503 (model experiencing high demand), quickly fail over to the compatible fallback
+            const maxModelRetries =
+              status === 503 && models.length > 1 && model !== PLANNER_FALLBACK_MODEL
+                ? 0
+                : t.maxRetries;
+            const canRetry = attempt < maxModelRetries;
             console.warn(
               `[planner] ${model} attempt ${attempt + 1} status ${status}${canRetry ? " (will retry)" : ""}`,
               detail.slice(0, 200)
@@ -243,13 +248,18 @@ export function createGeminiPlannerAdapter(
 
           const data = (await res.json()) as {
             candidates?: {
-              content?: { parts?: Array<{ functionCall?: GeminiFunctionCall }> };
+              content?: { parts?: Array<{ functionCall?: GeminiFunctionCall; text?: string }> };
             }[];
           };
           const call = findFunctionCall(data, req.schemaName);
           if (!call?.args) {
-            // Model answered but the structured output was missing — a
-            // semantic/schema failure, NEVER retried as provider overload.
+            if (models.length > 1 && model !== models[models.length - 1]) {
+              console.warn(
+                `[planner] ${model} returned no valid function call (possible MALFORMED_FUNCTION_CALL) — failing over to fallback model`
+              );
+              break;
+            }
+            // Last model exhausted or no fallback — honest structured output error.
             throw new PlannerStructuredOutputError(
               "planner returned no planTurn function call"
             );

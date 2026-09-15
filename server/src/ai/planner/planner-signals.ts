@@ -48,7 +48,7 @@ export const QUESTION_MARKER_RE =
  * `context_question`. Class-based, not a phrase dictionary.
  */
 export const META_ASSISTANT_QUESTION_RE =
-  /\b(ką\s+tu\s+(?:gali|moki|darai)|ką\s+(?:gali|moki)\b|kas\s+tu\b|tavo\s+(?:galimyb[ėe]s?|funkcij\w*))\b/i;
+  /\b(kaip\s+veikia\s+vauto|ką\s+tu\s+(?:gali|moki|darai)|ką\s+(?:gali|moki)\b|kas\s+tu\b|tavo\s+(?:galimyb[ėe]s?|funkcij\w*))\b/i;
 
 /** E2.6 — is the utterance interrogative (a question, not a statement)? */
 export function isInterrogative(text: string): boolean {
@@ -103,7 +103,7 @@ export function isExplicitExecutionDirective(text: string): boolean {
  * form („Gal gali surasti…?" stays search).
  */
 const DISCOVERY_CLASS_RE =
-  /\b(nežinau\s*,?\s*(?:ko|ką|kokį|kokią|kokio|kokios|kurį|kurią|kurio)|ką\s+(?:rinktis|rinktumeisi|rinktumėtės|rinkčiausi|rinktis|rekomenduotum(?:ėte|et)?|patartum(?:ėte|et)?|manai|daryti|pirkti|žiūrėti)|nuo\s+ko\s+pradėt(?:um|i|i)?|kas\s+(?:geriau|geresnis|tinka|tiktų|labiausiai\s+tiktų)|kaip\s+manai|ar\s+verta\b|nesu\s+tikr(?:a|as)\b|ieškau\s+patarimo|noriu\s+suprasti|koks\s+geriausias|rinktumeisi|rinktumėtės|pasiūlyk(?:ite)?|patark(?:ite)?)\b/iu;
+  /\b(nežinau\s*,?\s*(?:ko|ką|kokį|kokią|kokio|kokios|kurį|kurią|kurio)|ką\s+(?:rinktis|rinktumeisi|rinktumėtės|rinkčiausi|rinktis|rekomenduotum(?:ėte|et)?|patartum(?:ėte|et)?|manai|daryti|pirkti|žiūrėti)|nuo\s+ko\s+pradėt(?:um|i|i)?|(?:kas|kaip)\s+(?:geriau|geresnis|tinka|tiktų|labiausiai\s+tiktų)|kaip\s+manai|ar\s+verta\b|nesu\s+tikr(?:a|as)\b|ieškau\s+patarimo|noriu\s+suprasti|koks\s+geriausias|rinktumeisi|rinktumėtės|pasiūlyk(?:ite)?|patark(?:ite)?)\b/iu;
 
 /**
  * E2.8 — UNICODE-SAFE semantic boundaries.
@@ -156,7 +156,6 @@ export function isNonExecutionDiscovery(text: string): boolean {
   if (FOLDED_META_ASSISTANT_RE.test(foldBoundary(t))) return false;
   const advisoryOrDiscovery =
     isAdvisoryInterrogative(t) ||
-    isInterrogative(t) ||
     FOLDED_DISCOVERY_CLASS_RE.test(foldBoundary(t));
   if (!advisoryOrDiscovery) return false;
   return !isExplicitExecutionDirective(t);
