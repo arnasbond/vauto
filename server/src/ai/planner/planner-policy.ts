@@ -281,7 +281,7 @@ export function applyDeterministicClamps(
   //     context but can NEVER override this class — no clarify buy/sell
   //     echo, no catalog fast-path, no turn with advisoryContext unset.
   //     Extracted facets are PARAMETERS ONLY — never execution authority.
-  if (isNonExecutionDiscovery(text)) {
+  if (isNonExecutionDiscovery(text) && !(input.hasSearchSession && decision.intent === "catalog_search")) {
     clamped.push("advisory_interrogative_override");
     return {
       clamped,

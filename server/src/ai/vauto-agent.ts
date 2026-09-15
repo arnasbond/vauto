@@ -1761,7 +1761,8 @@ async function runVautoAgentInner(
       hasVerticalConflictUpdate ||
       Boolean(vinSignal) ||
       Boolean(conditionFromText) ||
-      Boolean(cityFromText)
+      Boolean(cityFromText) ||
+      plannerDecision.intent === "sell_update"
     ) {
       const negoPatch = negotiable ? negotiablePricePatch() : null;
       const yearResolution = resolveYearConflictPatch({
@@ -1865,6 +1866,11 @@ async function runVautoAgentInner(
           nextDescription,
           lastUserText
         ).description;
+      } else if (!hasSpecs && !hasDescEdit && plannerDecision.intent === "sell_update" && lastUserText.trim()) {
+        nextDescription = listingDraft.description
+          ? `${listingDraft.description}\n${lastUserText.trim()}`
+          : lastUserText.trim();
+        userCorrected.add("description");
       }
       const nextTitle =
         isVehicleDraft && mergedAttrs.make && mergedAttrs.model
@@ -2427,7 +2433,8 @@ async function runVautoAgentInner(
       });
       const deterministic = await runDeterministicSupervisorSearch(
         lastUserText,
-        ctx
+        ctx,
+        plannerDecision.toolArgs
       );
       emitAgentEvent(onEvent, {
         type: "tool_result",
@@ -2837,7 +2844,8 @@ async function runVautoAgentInner(
         });
         const deterministic = await runDeterministicSupervisorSearch(
           lastUserText,
-          ctx
+          ctx,
+          plannerDecision.toolArgs
         );
         toolCalls.push({
           name: deterministic.toolName,

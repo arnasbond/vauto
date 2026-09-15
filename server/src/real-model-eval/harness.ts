@@ -161,7 +161,7 @@ export async function runEvalCase(
     let anonToken: string | null = null;
     let draft: Record<string, unknown> | null =
       (c.setup?.initialDraft as Record<string, unknown> | undefined) ?? null;
-    let activeTask: string | null = null;
+    let activeTask: string | null = draft ? "sell" : null;
     let searchFilters: Record<string, unknown> | null = null;
     const confirmations: string[] = [];
     const effects: string[] = [];
@@ -239,7 +239,13 @@ export async function runEvalCase(
       const decision = decisions[decisions.length - 1] ?? null;
       if (decision?.intent === "catalog_search") {
         activeTask = "search";
-      } else if (decision?.intent === "sell_create" || decision?.intent === "sell_update") {
+      } else if (
+        decision?.intent === "sell_create" ||
+        decision?.intent === "sell_update" ||
+        decision?.intent === "sell_preview" ||
+        decision?.intent === "sell_cancel" ||
+        Boolean(draft)
+      ) {
         activeTask = "sell";
       }
       const turnTraces = traces.slice(traceIndexBefore);

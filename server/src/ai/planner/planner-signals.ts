@@ -85,7 +85,7 @@ export function isAdvisoryInterrogative(text: string): boolean {
  * patarimo" does NOT (advice-seeking, not catalog seeking).
  */
 export const EXECUTION_DIRECTIVE_RE =
-  /\b(?:surask(?:ite)?|rask(?:ite)?|ieškok(?:ite)?|paieškok(?:ite)?|parodyk(?:ite)?|atrask(?:ite)?|ieškau(?!\s+(?:darbo\s*$|patarimo|patarimą|pagalbos|patarimų))|ieskau(?!\s+(?:darbo\s*$|patarimo|patarimą|pagalbos|patarimų))|find|search|show\s+me|noriu\s+(?:rasti|pirkti|pamatyti|peržiūrėti)|(?:gal|ar)\s+(?:gali(?:te)?|gal[ėe]t\p{L}*)\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti)|gal[ėe]t\p{L}*\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti))\b/iu;
+  /\b(?:surask(?:ite)?|rask(?:ite)?|ieškok(?:ite)?|paieškok(?:ite)?|parodyk(?:ite)?|atrask(?:ite)?|ieškau(?!\s+(?:darbo\s*$|patarimo|patarimą|pagalbos|patarimų))|ieskau(?!\s+(?:darbo\s*$|patarimo|patarimą|pagalbos|patarimų))|find|search|show\s+me|noriu\s+(?:rasti|pirkti|pamatyti|peržiūrėti)|reikia\s+(?:man\s+)?(?:meistro|paslaug\w*|remonto|specialisto|darbuotojo)|ar\s+yra\s+(?:dar\s+)?(?:panaši\w*|kit\w*|daugiau)|(?:gal|ar)\s+(?:gali(?:te)?|gal[ėe]t\p{L}*)\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti)|gal[ėe]t\p{L}*\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti))\b/iu;
 
 export function isExplicitExecutionDirective(text: string): boolean {
   const t = text.trim();

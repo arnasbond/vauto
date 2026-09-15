@@ -22,21 +22,25 @@ import {
 } from "./planner-provider.js";
 import type { PlannerContextInput, PlannerDecision } from "./planner-types.js";
 
-const PLANNER_SYSTEM_INSTRUCTION = [  "Esi VAUTO klasifikuotojo planeris. Tu NEATSAKAI vartotojui — tu pateiki VIENĄ planTurn funkcijos kvietimą su griežta struktūra.",
+const PLANNER_SYSTEM_INSTRUCTION = [
+  "Esi VAUTO klasifikuotojo planeris. Tu NEATSAKAI vartotojui — tu pateiki VIENĄ planTurn funkcijos kvietimą su griežta struktūra.",
   "Sprendžiama: ką vartotojas NORI dabar; ar tai ankstesnio tikslo tęsinys; ar tai korekcija; ar intent switch; ar reikia tool; kokio; ar geriau klausti; ar pakanka dialogu.",
   "Griežtos taisyklės:",
   "- Niekada nesirink catalog_search vien todėl, kad intencija neaiški — tada dialog arba clarify_ambiguous.",
   "- Finansinės komandos (pervedimai, wallet) NIEKADA nėra paieška.",
-  "- Publikuoti gali prašyti tik prisijungęs vartotojas.",
-  "- Su aktyviu juodraščiu faktų korekcijos (kaina, būklė, miestas, VIN) yra sell_update.",
+  "- Publikuoti (publish_request) reiškia prašymą paskelbti / talpinti paruoštą skelbimą (pvz. „publikuok“, „įkelk skelbimą“). NIEKADA nenaudoti paieškai ar skelbimų rodymui („parodyk...“, „surask...“). Publikuoti gali prašyti tik prisijungęs vartotojas.",
+  "- Su aktyviu juodraščiu (hasDraft=true) papildomos informacijos pateikimas, savybės ar faktų korekcijos (pvz. „su 4 kėdėmis, ąžuolas“, medžiaga, komplektacija, kaina, būklė, miestas, VIN) yra esamo juodraščio tęsinys: continuationOf: 'sell_draft', intent: 'sell_update', tool: 'updateListingDraft'. Niekada nekurk naujo juodraščio (sell_create), kai juodraštis jau egzistuoja.",
   "- VIN kandidatas tik transporto juodraščiui (vin_candidate).",
   "- Klausimai apie istoriją/juodraštį yra context_question.",
-  "- „paieškok/ieškau/surask + objektas“ arba struktūruoti filtrai (kategorija+miestas/kaina) yra catalog_search.",
+  "- Prekių, automobilių, nekilnojamojo turto, paslaugų, meistrų ar darbo paieška („ieškau...“, „surask...“, „parodyk automobilius...“, „reikia meistro...“, „reikia remonto...“, struktūruoti filtrai kaina/miestas) yra catalog_search su tool: searchListings.",
+  "- searchListings toolArgs pateik švarų `query` (ieškomas objektas/paslaugos be pagalbinių žodžių), `category` (vehicles, real_estate, clothing, electronics, jobs, home, services, other), `city` ir kainų rėžius (`minPrice`, `maxPrice`) jei jie nurodyti.",
+  "- KOREKCIJA: kai vartotojas taiso ankstesnį paieškos objektą („ne, ne Audi, o BMW“, „geriau BMW“, „ne šito, o kito“), nurodyk naują paieškos objektą (query: 'BMW'), operation: 'replace', o subject atnaujink į naują objektą. Niekada nejunk seno ir naujo objekto kartu.",
+  "- PATARIMAI / REKOMENDACIJOS: kai vartotojas prašo bendro patarimo ar rekomendacijos („patarkit kokį automobilį pirkti...“, „nežinau kokį telefoną mamai...“) be reikalavimo rodyti konkrečius skelbimus, tai yra patarimas (dialog arba context_question) su tool: null.",
   "- SOFT PREFERENCE ≠ HARD FILTRAS: „geriau/norėčiau/būtų geriausia/jei galima“ → preferences, NE city/maxPrice/category hard. „gali būti ir X“ → preferences.alternatives. „iki/nuo“ (be „geriau“) → hard maxPrice/minPrice.",
   "- DAUGIAU NEI VIENAS TIKSLAS: pagrindinis → intent+tool; susijęs antrinis (kaina, alternatyva) → secondary. Niekada nenumetyk antrinio tikslo.",
   "- SUBJEKTAS: kai klausimas susijęs su ankstesniu objektu („kiek TOKS kainuoja“), nurodyk subject pagal kontekstą (NE pažodinę žinutę). Atnaujink subject, kai objektas aiškiai pasikeičia.",
   "- Kompaktinė atmintis yra PATARIAMOJI; kanoniniai faktai (factsBlock) yra autoritetinga būsena — jei jie konfliktuoja su neseniai pasakyta fraze, laimi kanoniniai faktai.",
-  "- Paieškos tęstinumas: kai vartotojas tikslina ar tęsia esamą paiešką (prideda savybę, filtrą, biudžetą), nurodyk continuationOf: 'search_session', o searchListings toolArgs pateik operation: 'refine'. Kai vartotojas pradeda naują paiešką ar pakeičia objektą („ieškokime kitko“, „ne X, o Y“), pateik operation: 'replace'. Resetui naudok operation: 'reset'. Specifiniai vertikalių atributai (kambariai, plotas, dydis, atmintis ir kt.) perduodami per toolArgs.categoryAttributes.",
+  "- Paieškos tęstinumas ir panašūs variantai: kai vartotojas tikslina ar tęsia esamą paiešką (prideda savybę, filtrą, biudžetą) arba prašo panašių variantų („šitas visai patinka, ar yra dar panašių?“, „parodyk daugiau“, „ieškok panašių“), nurodyk continuationOf: 'search_session', intent: 'catalog_search', tool: 'searchListings', o searchListings toolArgs pateik operation: 'refine' (tai NĖRA clarify_ambiguous). Kai vartotojas pradeda naują paiešką ar pakeičia objektą („ieškokime kitko“, „ne X, o Y“), pateik operation: 'replace'. Resetui naudok operation: 'reset'. Specifiniai vertikalių atributai (kambariai, plotas, dydis, atmintis ir kt.) perduodami per toolArgs.categoryAttributes.",
   "- confidence 0–1; neaišku → žemesnė confidence, ne garantuotas tool.",
 ].join("\n");
 
@@ -80,7 +84,75 @@ const PLAN_TURN_DECLARATION = {
       },
       toolArgs: {
         type: "OBJECT",
-        description: "Griežtai pagal pasirinktą tool; nežinomi laukai atmetami. searchListings toolArgs gali turėti preferences (soft), pvz. {bodyType, fuelType, preferredLocation, alternatives, exclusions, maxPriceHint} — NIEKADA neversk soft preference į hard category/city/maxPrice. searchListings operation ('refine'|'replace'|'reset') nurodo ar tai esamos paieškos tęsinys/patikslinimas, ar naujas paieškos objektas. Specifiniai kategorijos atributai (plotas, kambariai, talpa, dydis) perduodami per categoryAttributes objektą.",
+        description: "Argumentai įrankiui (searchListings, updateListingDraft ir kt.).",
+        properties: {
+          query: {
+            type: "STRING",
+            description: "Paieškos tekstas / objektas (švarus, be komandinių žodžių, pvz. 'BMW', 'žieminė striukė vyrui XL juoda', 'vandens šildytuvo meistras'). Korekcijos metu („ne X, o Y“) — TIK naujas objektas Y.",
+          },
+          operation: {
+            type: "STRING",
+            enum: ["refine", "replace", "reset"],
+            description: "refine = esamos paieškos patikslinimas; replace = nauja paieška arba objekto pakeitimas/korekcija; reset = atstatymas.",
+          },
+          category: {
+            type: "STRING",
+            enum: [
+              "vehicles",
+              "real_estate",
+              "clothing",
+              "electronics",
+              "home",
+              "services",
+              "jobs",
+              "other",
+            ],
+            description: "Katalogo kategorija.",
+          },
+          city: {
+            type: "STRING",
+            description: "Miestas (pvz. Vilnius, Kaunas, Klaipėda).",
+          },
+          minPrice: {
+            type: "NUMBER",
+            description: "Minimali kaina skaičiumi.",
+          },
+          maxPrice: {
+            type: "NUMBER",
+            description: "Maksimali kaina skaičiumi.",
+          },
+          vin: {
+            type: "STRING",
+            description: "VIN numeris (transportui).",
+          },
+          listingId: {
+            type: "STRING",
+            description: "Skelbimo ID (veiksmams su konkrečiu skelbimu).",
+          },
+          preferences: {
+            type: "OBJECT",
+            description: "Minkšti pageidavimai (soft preferences, pvz. {bodyType, fuelType, preferredLocation, alternatives, exclusions, maxPriceHint}).",
+            properties: {
+              bodyType: { type: "STRING" },
+              fuelType: { type: "STRING" },
+              preferredLocation: { type: "STRING" },
+              alternatives: { type: "ARRAY", items: { type: "STRING" } },
+              exclusions: { type: "ARRAY", items: { type: "STRING" } },
+              maxPriceHint: { type: "NUMBER" },
+            },
+          },
+          categoryAttributes: {
+            type: "OBJECT",
+            description: "Specifiniai kategorijos atributai (plotas, kambariai, talpa, dydis, rida).",
+            properties: {
+              rooms: { type: "NUMBER" },
+              area: { type: "NUMBER" },
+              size: { type: "STRING" },
+              mileage: { type: "NUMBER" },
+              storage: { type: "STRING" },
+            },
+          },
+        },
       },
       secondary: {
         type: "OBJECT",

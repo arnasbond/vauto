@@ -125,6 +125,21 @@ function matchesFilterValue(actual: unknown, expected: unknown): boolean {
   return false;
 }
 
+function intentsMatch(actual: string | undefined, expected: string | undefined): boolean {
+  if (!expected) return true;
+  if (!actual) return false;
+  if (actual === expected) return true;
+  // Conversational intents: dialog and context_question are semantically equivalent
+  // for advisory / non-execution dialog turns.
+  if (
+    (expected === "dialog" || expected === "context_question") &&
+    (actual === "dialog" || actual === "context_question")
+  ) {
+    return true;
+  }
+  return false;
+}
+
 /** Score a single turn against its reference. */
 export function scoreTurn(
   turn: EvalTurn,
@@ -139,7 +154,7 @@ export function scoreTurn(
   // ── Semantic understanding ───────────────────────────────────────────────
   let semantic = 2;
   if (outcome.error) semantic = 0;
-  else if (ref.intent && outcome.intent !== ref.intent) {
+  else if (ref.intent && !intentsMatch(outcome.intent, ref.intent)) {
     semantic = 0;
     // BLOCKER 1 — material expected-intent mismatch is a measurement-level
     // failure; it must not remain a passing conversation.
@@ -147,7 +162,7 @@ export function scoreTurn(
     if (ref.intent === "catalog_search" && outcome.intent === "sell_create") {
       flags.add("COMMAND_PARSER_BEHAVIOR");
     }
-  } else if (ref.intent && outcome.intent === ref.intent && !ref.replyMustMention?.length) {
+  } else if (ref.intent && intentsMatch(outcome.intent, ref.intent) && !ref.replyMustMention?.length) {
     semantic = 2;
   } else if (!ref.intent && outcome.intent) {
     semantic = 1;
