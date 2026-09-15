@@ -1866,11 +1866,6 @@ async function runVautoAgentInner(
           nextDescription,
           lastUserText
         ).description;
-      } else if (!hasSpecs && !hasDescEdit && plannerDecision.intent === "sell_update" && lastUserText.trim()) {
-        nextDescription = listingDraft.description
-          ? `${listingDraft.description}\n${lastUserText.trim()}`
-          : lastUserText.trim();
-        userCorrected.add("description");
       }
       const nextTitle =
         isVehicleDraft && mergedAttrs.make && mergedAttrs.model
