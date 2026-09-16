@@ -122,6 +122,13 @@ export interface ThreadStore {
    *  losers get {ok:false} and must fail closed (turn_in_progress). Safe ONLY
    *  because execution provably never started. */
   retryTurn(threadId: string, turnId: string): Promise<TurnReserveResult>;
+  /**
+   * FC-1 — authenticated draft discovery: list a user's OWN threads that still
+   * hold a non-null listing draft, most recently updated first. Ownership is
+   * the ONLY access predicate (server-verified owner_user_id) — never a
+   * client-supplied pointer.
+   */
+  listDraftThreads(userId: string): Promise<ThreadRecord[]>;
 }
 
 export function mintThreadId(): string {
@@ -316,6 +323,13 @@ export class InMemoryThreadStore implements ThreadStore {
     };
     m.set(turnId, next);
     return { ok: true, turn: { ...next } };
+  }
+
+  async listDraftThreads(userId: string): Promise<ThreadRecord[]> {
+    return [...this.map.values()]
+      .filter((r) => r.ownerUserId === userId && r.listingDraft != null)
+      .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))
+      .map((r) => cloneRecord(r));
   }
 }
 
@@ -528,6 +542,16 @@ export class PostgresThreadStore implements ThreadStore {
     const existing = await this.getTurn(threadId, turnId);
     if (!existing) return { ok: false, reason: "not_found" };
     return { ok: false, reason: "stale_status" };
+  }
+
+  async listDraftThreads(userId: string): Promise<ThreadRecord[]> {
+    const rows = await this.db.query<Record<string, unknown>>(
+      `SELECT * FROM agent_threads
+        WHERE owner_user_id = $1 AND listing_draft IS NOT NULL
+        ORDER BY updated_at DESC`,
+      [userId]
+    );
+    return rows.map(rowToThread);
   }
 }
 

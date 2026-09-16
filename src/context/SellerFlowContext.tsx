@@ -413,6 +413,12 @@ import {
   removeMultiListingDraft,
   upsertMultiListingDraft,
 } from "@/lib/listing-draft-storage";
+import {
+  buildEnrichmentSyncDelta,
+  buildSyncDelta,
+  hasSyncableDelta,
+  syncAgentListingDraft,
+} from "@/lib/agent-draft-sync";
 
 export type PublishListingResult =
   | { ok: true; listing: Listing; visibilityCheckout?: CheckoutSession | null }
@@ -1412,6 +1418,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       } else if (replaceSession) {
         enriched = { ...enriched, orderedImageUrls: [] };
       }
+      // FC-1 — the client enrichment may have introduced canonical listing facts
+      // (vehicle make/model/year/…, clothing fashionCategory/brand/size/condition)
+      // that the incoming server-derived draft did not contain. Propose ONLY that
+      // minimal enrichment delta through the existing category-neutral sync so
+      // accepted facts survive an immediate browser close + recovery. When the
+      // server already holds the enrichment (recovered canonical state) the diff
+      // is empty and no sync fires — no loop, no redundant mutation.
+      const enrichmentDelta = buildEnrichmentSyncDelta(mergedDraft, enriched);
+      if (hasSyncableDelta(enrichmentDelta)) {
+        void syncAgentListingDraft({ delta: enrichmentDelta });
+      }
       const previousCategory = previousDraft?.category ?? null;
       const previousAttributes = previousDraft?.attributes ?? null;
       const hasPhotos =
@@ -1659,6 +1676,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         ...(lockedFlowState ? { listingFlowState: lockedFlowState } : {}),
       });
     });
+    // FC-1 — best-effort canonical sync for authenticated manual edits. The
+    // server owns canonical state and validates identity/ownership/version; a
+    // guest (no thread link) no-ops, and a stale/conflict result never advances
+    // the local version or falsely claims "saved".
+    void syncAgentListingDraft({ delta: buildSyncDelta(patch) });
   }, [syncDraftWithProfile, user.city, user.phone]);
 
   /**

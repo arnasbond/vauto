@@ -363,7 +363,13 @@ export async function runThreadTurn(
     [k: string]: unknown;
   };
   const nextDraft =
-    actions.type === "listing_draft" && actions.listingDraft
+    // FC-1 — canonical draft boundary: a guest thread (no server-verified
+    // owner) NEVER persists a listing draft. The conversational reply still
+    // carries the understood sell intent; only canonical persistence is gated
+    // on ownership. Authority (not phrases) is the persistence boundary.
+    actions.type === "listing_draft" &&
+    actions.listingDraft &&
+    current.ownerUserId
       ? actions.listingDraft
       : current.listingDraft;
 
@@ -482,4 +488,118 @@ export async function claimThreadForUser(
   );
   if (!result.ok) return result;
   return { ok: true, threadId: result.record.threadId, version: result.record.version };
+}
+
+/**
+ * FC-1 — authenticated draft discovery (cross-browser/device recovery).
+ *
+ * Returns the user's OWN threads that still hold an active listing draft,
+ * most recently updated first. Ownership is verified server-side via
+ * owner_user_id (never a client pointer); intentionally separate drafts are
+ * returned as a LIST — they are NEVER silently merged. Deterministic
+ * selection: the caller picks the most-recent by `updatedAt`.
+ */
+export async function discoverActiveDraftThreads(
+  userId: string
+): Promise<
+  Array<{
+    threadId: string;
+    version: number;
+    draft: Record<string, unknown> | null;
+    flowState: string | null;
+    updatedAt: string;
+  }>
+> {
+  const records = await getThreadStore().listDraftThreads(userId);
+  return records.map((r) => ({
+    threadId: r.threadId,
+    version: r.version,
+    draft: r.listingDraft,
+    flowState: r.listingFlowState,
+    updatedAt: r.updatedAt,
+  }));
+}
+
+/** FC-1 — client-proposed draft field keys the server may merge into the
+ *  canonical draft. Determinism owns the WHITELIST (structured state); it never
+ *  interprets natural language. Unknown keys are ignored, never persisted. */
+const SYNCABLE_DRAFT_KEYS = new Set([
+  "title",
+  "description",
+  "price",
+  "priceLabel",
+  "location",
+  "contact",
+  "category",
+  "allowPastomatas",
+  "attributes",
+]);
+
+/**
+ * FC-1 — merge a client-proposed draft delta into the canonical draft. The
+ * browser proposes; the server owns and validates. `attributes` shallow-merges
+ * (provided keys win); scalar fields are replaced only when explicitly present.
+ * Unknown keys are DROPPED — never an authority for canonical state.
+ */
+export function mergeDraftDelta(
+  canonical: Record<string, unknown> | null,
+  delta: Record<string, unknown>
+): Record<string, unknown> {
+  const base = canonical ?? {};
+  const merged: Record<string, unknown> = { ...base };
+  for (const key of SYNCABLE_DRAFT_KEYS) {
+    const value = (delta as Record<string, unknown>)[key];
+    if (value === undefined) continue;
+    if (key === "attributes" && value && typeof value === "object" && !Array.isArray(value)) {
+      merged.attributes = {
+        ...((base.attributes as Record<string, unknown>) ?? {}),
+        ...(value as Record<string, unknown>),
+      };
+    } else {
+      merged[key] = value;
+    }
+  }
+  return merged;
+}
+
+/**
+ * FC-1 — authenticated draft synchronization (client → canonical server).
+ *
+ * Applies a client-proposed delta to the user's OWN canonical draft with OCC:
+ * the caller's `expectedVersion` must match the current thread version, so a
+ * stale browser holding an older draft can NEVER silently overwrite a newer
+ * canonical draft. On conflict the newer canonical state is preserved and a
+ * recoverable `stale_version` result is returned.
+ */
+export async function syncListingDraft(input: {
+  userId: string;
+  threadId: string;
+  expectedVersion?: number;
+  delta: Record<string, unknown>;
+}): Promise<
+  | { ok: true; draft: Record<string, unknown> | null; version: number }
+  | { ok: false; reason: "not_found" | "ownership_violation" | "stale_version" }
+> {
+  const store = getThreadStore();
+  const current = await store.get(input.threadId);
+  if (!current) return { ok: false, reason: "not_found" };
+  if (current.ownerUserId !== input.userId) {
+    return { ok: false, reason: "ownership_violation" };
+  }
+  if (
+    input.expectedVersion != null &&
+    input.expectedVersion !== current.version
+  ) {
+    return { ok: false, reason: "stale_version" };
+  }
+  const merged = mergeDraftDelta(current.listingDraft, input.delta);
+  const updated = await store.update(
+    input.threadId,
+    (rec) => ({ ...rec, listingDraft: merged }),
+    { expectedVersion: current.version }
+  );
+  if (!updated.ok) {
+    return { ok: false, reason: updated.reason === "stale_version" ? "stale_version" : "not_found" };
+  }
+  return { ok: true, draft: updated.record.listingDraft, version: updated.record.version };
 }
