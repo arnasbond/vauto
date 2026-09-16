@@ -104,17 +104,17 @@ describe("R4.1 — F-3 search interpreted-state validation", () => {
     assert.equal(r.conflict, true);
   });
 
-  it("mixed-provenance: explicit user max survives, model min dropped", () => {
+  it("mixed-provenance: valid model min survives, heuristic max dropped", () => {
     const r = resolveSearchPrice({ modelMin: 900, userMax: 600 });
-    assert.equal(r.maxPrice, 600);
-    assert.equal(r.minPrice, undefined);
+    assert.equal(r.maxPrice, undefined);
+    assert.equal(r.minPrice, 900);
     assert.equal(r.conflict, false);
   });
 
-  it("mixed-provenance: explicit user min survives, model max dropped", () => {
+  it("mixed-provenance: valid model max survives, heuristic min dropped", () => {
     const r = resolveSearchPrice({ userMin: 900, modelMax: 600 });
-    assert.equal(r.minPrice, 900);
-    assert.equal(r.maxPrice, undefined);
+    assert.equal(r.minPrice, undefined);
+    assert.equal(r.maxPrice, 600);
     assert.equal(r.conflict, false);
   });
 
@@ -134,9 +134,9 @@ describe("R4.1 — F-3 search interpreted-state validation", () => {
     assert.equal(neg.maxPrice, undefined);
   });
 
-  it("explicit user price survives a model disagreement (user bound kept)", () => {
+  it("valid structured model price survives a heuristic disagreement", () => {
     const r = resolveSearchPrice({ modelMax: 900, userMax: 600 });
-    assert.equal(r.maxPrice, 600);
+    assert.equal(r.maxPrice, 900);
   });
 
   it("user max price survives when model omits it", () => {

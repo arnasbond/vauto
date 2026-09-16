@@ -40,12 +40,19 @@ export interface SearchPriceResult {
 /**
  * Validate price bounds with PROVENANCE. NaN / negative values are dropped.
  *
- * - Mixed provenance (one bound explicit-user, the other model/stale) with
- *   min > max: the model/stale bound is DROPPED and the explicit user bound is
- *   kept — never swapped into an invented range that overrides the user.
- * - Same provenance (both user or both model) with min > max: cannot be proven
- *   to be a mere reversal, so fail safe — both bounds are omitted (broader,
- *   never an invented valid range), and `conflict` is surfaced.
+ * FC-SEARCH authority — the model's valid STRUCTURED numeric bound is the
+ * authority. The deterministic heuristic parse (userMin/userMax, extracted from
+ * the raw utterance) is a FALLBACK only: it fills a gap when the model omitted
+ * or produced an invalid value, but it NEVER overrides a valid structured model
+ * bound with a conflicting heuristic number (e.g. "iki 20 tūkstančių" must not
+ * replace a model `maxPrice: 20000` with a heuristic `20`).
+ *
+ * - Mixed provenance (one bound model, the other heuristic/prior) with
+ *   min > max: the lower-authority (heuristic/prior) bound is DROPPED and the
+ *   valid model bound is kept — never swapped into an invented range.
+ * - Same provenance (both model or both fallback) with min > max: cannot be
+ *   proven to be a mere reversal, so fail safe — both bounds are omitted
+ *   (broader, never an invented valid range), and `conflict` is surfaced.
  */
 export function resolveSearchPrice(input: {
   modelMin?: unknown;
@@ -63,22 +70,22 @@ export function resolveSearchPrice(input: {
 
   let minPrice: number | undefined;
   let maxPrice: number | undefined;
-  let minFromUser = false;
-  let maxFromUser = false;
+  let minFromModel = false;
+  let maxFromModel = false;
 
   if (
-    input.userMin != null &&
-    Number.isFinite(input.userMin) &&
-    input.userMin >= 0
-  ) {
-    minPrice = input.userMin;
-    minFromUser = true;
-  } else if (
     modelMinNum != null &&
     Number.isFinite(modelMinNum) &&
     modelMinNum >= 0
   ) {
     minPrice = modelMinNum;
+    minFromModel = true;
+  } else if (
+    input.userMin != null &&
+    Number.isFinite(input.userMin) &&
+    input.userMin >= 0
+  ) {
+    minPrice = input.userMin;
   } else if (
     input.priorMin != null &&
     Number.isFinite(input.priorMin) &&
@@ -89,18 +96,18 @@ export function resolveSearchPrice(input: {
   }
 
   if (
-    input.userMax != null &&
-    Number.isFinite(input.userMax) &&
-    input.userMax >= 0
-  ) {
-    maxPrice = input.userMax;
-    maxFromUser = true;
-  } else if (
     modelMaxNum != null &&
     Number.isFinite(modelMaxNum) &&
     modelMaxNum >= 0
   ) {
     maxPrice = modelMaxNum;
+    maxFromModel = true;
+  } else if (
+    input.userMax != null &&
+    Number.isFinite(input.userMax) &&
+    input.userMax >= 0
+  ) {
+    maxPrice = input.userMax;
   } else if (
     input.priorMax != null &&
     Number.isFinite(input.priorMax) &&
@@ -111,10 +118,11 @@ export function resolveSearchPrice(input: {
   }
 
   if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
-    if (minFromUser !== maxFromUser) {
-      // Mixed provenance: the explicit user bound wins, the model/stale bound
-      // is dropped. Never transform into an invented [userMax, modelMin] range.
-      if (maxFromUser) {
+    if (minFromModel !== maxFromModel) {
+      // Mixed provenance: the valid model bound wins, the heuristic/prior
+      // bound is dropped. Never transform into an invented range that
+      // overrides the model.
+      if (maxFromModel) {
         minPrice = undefined;
       } else {
         maxPrice = undefined;
