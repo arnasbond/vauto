@@ -921,6 +921,64 @@ export async function apiClaimAgentThread(
   );
 }
 
+/** FC-1 — client draft-sync result (canonical server authority). */
+export type SyncListingDraftResult =
+  | { ok: true; draft: Record<string, unknown>; version: number }
+  | {
+      ok: false;
+      code:
+        | "auth_required"
+        | "invalid_request"
+        | "not_found"
+        | "ownership_violation"
+        | "stale_version"
+        | "network";
+      error?: string;
+      draft?: Record<string, unknown>;
+      version?: number;
+    };
+
+/**
+ * FC-1 — propose a structured draft delta to the canonical server draft.
+ * POST /api/vauto-agent/draft/sync. The server owns canonical state and
+ * validates identity + ownership + OCC (expectedVersion). The browser proposes;
+ * it never becomes authoritative.
+ */
+export async function apiSyncListingDraft(input: {
+  threadId: string;
+  expectedVersion?: number;
+  delta: Record<string, unknown>;
+}): Promise<SyncListingDraftResult> {
+  const res = await dataFetch<{ draft: Record<string, unknown>; version: number }>(
+    "/api/vauto-agent/draft/sync",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        threadId: input.threadId,
+        ...(input.expectedVersion != null ? { expectedVersion: input.expectedVersion } : {}),
+        delta: input.delta,
+      }),
+    }
+  );
+  if (res.ok) {
+    return { ok: true, draft: res.data.draft, version: res.data.version };
+  }
+  const status = res.status ?? 0;
+  const code =
+    status === 409
+      ? "stale_version"
+      : status === 404
+        ? "not_found"
+        : status === 403
+          ? "ownership_violation"
+          : status === 401
+            ? "auth_required"
+            : status === 400
+              ? "invalid_request"
+              : "network";
+  return { ok: false, code, error: res.error };
+}
+
 export async function apiUpdateUserProfile(patch: {
   firstName?: string;
   lastName?: string;

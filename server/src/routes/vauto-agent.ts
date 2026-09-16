@@ -12,10 +12,77 @@ import { resolveAuthenticatedAgentContext } from "../ai/user-agent-context.js";
 import { isGenericListingDraftTitle } from "../shared/listing-organism.js";
 import {
   claimThreadForUser,
+  discoverActiveDraftThreads,
   runThreadTurn,
+  syncListingDraft,
 } from "../agent-core/thread-service.js";
 
 export const vautoAgentRouter = Router();
+
+/**
+ * FC-1 — authenticated active-draft discovery (cross-browser/device recovery).
+ * GET /api/vauto-agent/draft — returns the caller's OWN draft threads (most
+ * recent first), server-verified by JWT userId. No client pointer required;
+ * intentionally separate drafts are returned as a LIST and never merged.
+ */
+vautoAgentRouter.get("/draft", requireAuth, async (req: AuthedRequest, res) => {
+  const userId = req.authUserId;
+  if (!userId) {
+    res.status(401).json({ ok: false, code: "auth_required" });
+    return;
+  }
+  try {
+    const drafts = await discoverActiveDraftThreads(userId);
+    res.json({ ok: true, drafts });
+  } catch (e) {
+    const err = normalizeAgentRouteError(e);
+    res.status(err.status).json({ ok: false, code: err.code, error: err.message });
+  }
+});
+
+/**
+ * FC-1 — authenticated draft synchronization (client → canonical server).
+ * POST /api/vauto-agent/draft/sync — merges a client-proposed delta into the
+ * caller's OWN canonical draft with OCC (`expectedVersion`). A stale client
+ * cannot silently overwrite a newer draft (409 stale_version). The browser
+ * proposes; the server owns, whitelists and validates canonical state.
+ */
+vautoAgentRouter.post("/draft/sync", requireAuth, async (req: AuthedRequest, res) => {
+  const userId = req.authUserId;
+  if (!userId) {
+    res.status(401).json({ ok: false, code: "auth_required" });
+    return;
+  }
+  const body = req.body as {
+    threadId?: unknown;
+    expectedVersion?: unknown;
+    delta?: unknown;
+  };
+  const threadId = typeof body?.threadId === "string" ? body.threadId.trim() : "";
+  const delta =
+    body?.delta && typeof body.delta === "object" && !Array.isArray(body.delta)
+      ? (body.delta as Record<string, unknown>)
+      : null;
+  const expectedVersion =
+    typeof body?.expectedVersion === "number" ? body.expectedVersion : undefined;
+  if (!threadId || !delta) {
+    res.status(400).json({ ok: false, code: "invalid_request" });
+    return;
+  }
+  try {
+    const result = await syncListingDraft({ userId, threadId, expectedVersion, delta });
+    if (!result.ok) {
+      const status =
+        result.reason === "stale_version" ? 409 : result.reason === "not_found" ? 404 : 403;
+      res.status(status).json({ ok: false, code: result.reason });
+      return;
+    }
+    res.json({ ok: true, draft: result.draft, version: result.version });
+  } catch (e) {
+    const err = normalizeAgentRouteError(e);
+    res.status(err.status).json({ ok: false, code: err.code, error: err.message });
+  }
+});
 
 async function buildAgentRequest(req: AuthedRequest) {
   const {
