@@ -183,8 +183,14 @@ export function extractProductSearchIntent(raw: string): ProductSearchIntent {
       return { keyword: "", category: broad, categoryBrowse: true };
     }
     // „raudoni rūbai“ / „pigus automobilis BMW“ — keep specifics + category hint.
+    // FC-SEARCH — keep the FULL object (qualifier + category noun) so the
+    // category noun is NOT discarded from the keyword ("šeimos automobilis"
+    // → "šeimos automobilis", never "šeimos"). The category is still returned
+    // separately for the SQL/UI filter; the keyword must retain the object the
+    // model named, otherwise a conversational refinement degrades to a bare
+    // qualifier fragment.
     return {
-      keyword: titleCaseQuery(leftover),
+      keyword: titleCaseQuery(working),
       category: broad,
       categoryBrowse: false,
     };
