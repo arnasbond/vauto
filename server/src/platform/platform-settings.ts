@@ -1,4 +1,4 @@
-import { query } from "../db.js";
+import { createPoolTxQueryable } from "../transaction/index.js";
 
 export type PlatformFlagKey =
   | "maintenanceMode"
@@ -29,11 +29,28 @@ function parseBool(raw: string | null | undefined): boolean {
   return v === "1" || v === "true" || v === "yes" || v === "on";
 }
 
+/**
+ * Read/write platform_settings through the canonical overridable queryable.
+ * In production this resolves to the same `pg.Pool` the rest of the API uses;
+ * the Stage 12A Playwright harness overrides it (setTxQueryableOverride) with
+ * an in-memory PGlite so the same settings data can be seeded for tests.
+ * This keeps production semantics identical while letting the harness model
+ * the real "checkout is explicitly enabled" precondition.
+ */
+async function settingsQuery<T extends Record<string, unknown>>(
+  text: string,
+  params?: unknown[]
+): Promise<T[]> {
+  const q = createPoolTxQueryable();
+  const res = await q.query<T>(text, params);
+  return res.rows;
+}
+
 export async function getPlatformSetting(
   key: string
 ): Promise<string | null> {
   try {
-    const rows = await query<{ value: string }>(
+    const rows = await settingsQuery<{ value: string }>(
       `SELECT value FROM platform_settings WHERE key = $1 LIMIT 1`,
       [key]
     );
@@ -48,7 +65,7 @@ export async function setPlatformSetting(
   value: string,
   updatedBy?: string | null
 ): Promise<void> {
-  await query(
+  await settingsQuery(
     `INSERT INTO platform_settings (key, value, updated_at, updated_by)
      VALUES ($1, $2, now(), $3)
      ON CONFLICT (key) DO UPDATE SET
@@ -61,7 +78,7 @@ export async function setPlatformSetting(
 
 export async function getPlatformFlags(): Promise<PlatformFlags> {
   try {
-    const rows = await query<{ key: string; value: string }>(
+    const rows = await settingsQuery<{ key: string; value: string }>(
       `SELECT key, value FROM platform_settings
        WHERE key = ANY($1::text[])`,
       [FLAG_KEYS]
@@ -91,7 +108,7 @@ export async function getPlatformFlags(): Promise<PlatformFlags> {
  */
 export async function getCheckoutDisabledFlag(): Promise<boolean | null> {
   try {
-    const rows = await query<{ value: string }>(
+    const rows = await settingsQuery<{ value: string }>(
       `SELECT value FROM platform_settings WHERE key = $1 LIMIT 1`,
       ["disableCheckout"]
     );
