@@ -22,9 +22,10 @@ test.describe("VAUTO smoke", () => {
 
   test("home page loads with listings", async ({ page }) => {
     await waitForHomeReady(page);
-    // MASTER Wave 2 correction: "AI padeda. Žmogus sprendžia." moved out of
-    // the H1 into the hero subtitle (still visible, first-viewport).
-    await expect(page.getByText(/Žmogus sprendžia/i).first()).toBeVisible({
+    // FC-UX V5 — "AI padeda. Žmogus sprendžia." moved out of the hero into the
+    // /add funnel + DUK; the certified first-5-seconds promise is now the
+    // concise hero H1/subtitle. Assert the new hierarchy instead of removed copy.
+    await expect(page.getByText(/Pasakyk arba parodyk/i).first()).toBeVisible({
       timeout: 10_000,
     });
     await expect(page.getByText(/Naujausi skelbimai/i).first()).toBeVisible({
@@ -176,7 +177,10 @@ test.describe("VAUTO smoke", () => {
     await expect(results.getByText(/Skelbimai Lietuvoje:.*rezultat/i)).toBeVisible({
       timeout: 10_000,
     });
-    await expect(results.getByText(/Filtrai · AI patikslinimas|Patikslinkite žemiau/i)).toBeVisible();
+    // FC-UX V5 — the legacy "Filtrai · AI patikslinimas / Patikslinkite žemiau"
+    // AI readout was replaced by the compact filter drawer; assert the current
+    // canonical filter affordance is reachable instead.
+    await expect(results.locator("[data-facet-drawer-trigger]")).toBeVisible();
   });
 
   test("bottom navigation visible on home", async ({ page }) => {

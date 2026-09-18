@@ -52,7 +52,7 @@ function emptyMessage(vertical: VerticalPresentationId): string {
   }
 }
 
-export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant?: boolean }) {
+export function ListingGrid({ hideEmptyAssistant = false, hideInterpretation = false }: { hideEmptyAssistant?: boolean; hideInterpretation?: boolean }) {
   const { displayListings, fallbackListings, listings } = useVauto();
   const { messages, busy: agentBusy } = useVautoAgent();
   const {
@@ -87,7 +87,9 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     (v) => v.mode === "map"
   )?.enabled;
   const renderMode =
-    effectiveMode === "map" && mapCapabilityEnabled === false
+    !isMobile && !viewModeExplicit && effectiveMode === "grid"
+      ? "list"
+      : effectiveMode === "map" && mapCapabilityEnabled === false
       ? isMobile
         ? "list"
         : "grid"
@@ -190,13 +192,13 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     if (renderMode === "list") {
       return (
         <>
-          <div className="listing-card-row mt-1 space-y-2">
+          <div className="listing-card-row mt-1 grid grid-cols-1 gap-x-6 lg:grid-cols-2">
             {visible.map((listing, index) => (
               <ListingCard
                 key={listing.id}
                 listing={listing}
                 layout="list"
-                priceColor="var(--ds-brand, var(--vauto-ink))"
+                priceColor="var(--ds-text-primary)"
                 priority={index === 0}
               />
             ))}
@@ -216,8 +218,8 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
           className={cn(
             "mt-3 grid gap-3 sm:gap-4",
             activeVertical === "real_estate" || activeVertical === "jobs"
-              ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
-              : "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4"
+              ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5"
+              : "grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-5"
           )}
         >
           {visible.map((listing, index) => (
@@ -225,7 +227,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
               key={listing.id}
               listing={listing}
               layout="grid"
-              priceColor="var(--ds-brand, var(--vauto-ink))"
+              priceColor="var(--ds-text-primary)"
               priority={index === 0}
             />
           ))}
@@ -254,7 +256,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         />
       </div>
 
-      {effectiveSearchQuery.trim().length > 0 && (
+      {!hideInterpretation && effectiveSearchQuery.trim().length > 0 && (
         <AiInterpretationChips
           searchQuery={effectiveSearchQuery}
           filters={marketplaceFilters}

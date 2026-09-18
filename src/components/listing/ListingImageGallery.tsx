@@ -89,7 +89,7 @@ export function ListingImageGallery({
 <button
 type="button"
 onClick={() => setZoomOpen(true)}
-className="relative block h-[min(52vh,480px)] max-h-[560px] w-full cursor-zoom-in lg:h-[min(58vh,520px)]"
+className="relative block h-[min(48svh,480px)] max-h-[560px] w-full cursor-zoom-in lg:h-[min(58vh,520px)]"
 aria-label="Padidinti nuotrauką"
 >
 {brokenSrcs.has(activeSrc) ? (
@@ -100,8 +100,8 @@ src={activeSrc}
 alt={resolveImageAlt(listing, activeIndex)}
 title={activeIndex === 0 ? listing.imageTitle ?? listing.title : undefined}
 fill
-sizes="(max-width: 768px) 100vw, 640px"
-className="object-contain"
+sizes="(max-width: 1023px) 100vw, 850px"
+className="object-cover"
 priority
 onError={() => markBroken(activeSrc)}
 />

@@ -29,8 +29,7 @@ import { SafeMeetingTips } from "@/components/listing/SafeMeetingTips";
 import { ListingDetailOwnerBar } from "@/components/listing/ListingDetailOwnerBar";
 import { ListingDetailStickyPanel } from "@/components/listing/ListingDetailStickyPanel";
 import { SimilarListingsSection } from "@/components/listing/SimilarListingsSection";
-import { resolveAiPriceSignal } from "@/components/marketplace/ListingCard";
-import { AiInsightCard, Badge, Card } from "@/design-system";
+import { Badge, Card } from "@/design-system";
 import { formatListingPlaceLine, formatPrice } from "@/data/mockListings";
 import { apiFetchListingById } from "@/lib/api/client";
 import { isDataApiEnabled } from "@/lib/api/config";
@@ -294,7 +293,6 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     }
     return sanitizeListingDescription(raw);
   })();
-  const aiPrice = resolveAiPriceSignal(listing);
   const offersOmnivaShipping = listingOffersOmnivaShipping(listing);
 
   const handleNegotiate = () => {
@@ -409,40 +407,13 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       {categoryLabel ? (
         <Badge tone="category">{categoryLabel}</Badge>
       ) : null}
-      <h1 className="mt-2 font-[family-name:var(--font-outfit)] text-xl font-bold leading-snug text-[var(--ds-text-primary,var(--vauto-ink))]">
-        {listing.title}
-      </h1>
-      <p className="mt-1 text-2xl font-extrabold tracking-tight text-[var(--ds-brand,var(--vauto-ink))]">
+      <p className="mt-1 text-2xl font-extrabold tracking-tight text-[var(--ds-text-primary)]">
         {formatPrice(listing.price, listing.priceLabel)}
       </p>
+      <h1 className="mt-1 font-[family-name:var(--font-outfit)] text-xl font-bold leading-snug text-[var(--ds-text-primary,var(--vauto-ink))]">
+        {listing.title}
+      </h1>
       {vatLine}
-      {!isOwner ? (
-        <div className="mt-3">
-          {aiPrice ? (
-            <AiInsightCard
-              title={aiPrice.label}
-              body={
-                aiPrice.label === "Gera kaina"
-                  ? "Pagal panašius skelbimus ši kaina atrodo patraukli pirkėjui."
-                  : aiPrice.label === "Rinkos mediana"
-                    ? "Kaina artima rinkos viduriui — derėtis galima, bet vertė aiški."
-                    : "AI įvertino šį skelbimą pagal nuotrauką ir aprašymą — tai rekomendacija, ne garantija."
-              }
-              ctaLabel="AI klausimai"
-              onCta={() => setBuyerTipsOpen(true)}
-              className="p-3"
-            />
-          ) : (
-            <AiInsightCard
-              title="Paklauskite AI"
-              body="Gaukite saugius klausimus pardavėjui — kainą, būklę, pristatymą."
-              ctaLabel="AI klausimai"
-              onCta={() => setBuyerTipsOpen(true)}
-              className="p-3"
-            />
-          )}
-        </div>
-      ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
         {offersOmnivaShipping ? (
           <Badge tone="success" className="gap-1">
@@ -499,7 +470,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       >
         <div className="lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
           {/* Left: gallery + description */}
-          <div className="min-w-0 lg:col-span-7">
+          <div className="min-w-0 lg:col-span-8">
             <ListingImageGallery
               listing={listing}
               topRightSlot={
@@ -524,7 +495,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             <div className="mt-4 lg:hidden">{mobileTitleBlock}</div>
 
             {(aboutDescription || detailRows.length > 0) && (
-              <Card variant="default" className="mt-6">
+              <Card variant="default" className="listing-v5-section mt-6">
                 <section aria-labelledby="listing-about-heading">
                   <h2
                     id="listing-about-heading"
@@ -546,7 +517,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
                       {detailRows.map((row) => (
                         <div
                           key={row.label}
-                          className="flex justify-between gap-4 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle,var(--vauto-border-subtle))] bg-[var(--ds-surface-muted,var(--vauto-surface-page))] px-3 py-2.5 text-sm"
+                          className="flex justify-between gap-4 border-b border-[var(--ds-border-subtle)] py-2 text-sm"
                         >
                           <dt className="text-[var(--ds-text-muted,var(--vauto-subtle))]">
                             {row.label}
@@ -562,7 +533,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               </Card>
             )}
 
-            <Card variant="muted" className="mt-4">
+            <Card variant="muted" className="listing-v5-section mt-4">
               <section aria-labelledby="listing-location-heading">
                 <h2
                   id="listing-location-heading"
@@ -607,7 +578,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           </div>
 
           {/* Right: sticky buyer / contact panel (desktop) */}
-          <aside className="mt-5 min-w-0 lg:col-span-5 lg:mt-0">
+          <aside className="mt-5 min-w-0 lg:col-span-4 lg:mt-0">
             <ListingDetailStickyPanel
               listing={listing}
               categoryLabel={categoryLabel}

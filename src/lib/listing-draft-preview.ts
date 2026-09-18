@@ -104,7 +104,7 @@ export function buildDraftPreviewBlock(draft: ListingDraftPreviewInput): string 
 }
 
 const DRAFT_REFINE_INVITE =
-  "Galite čia patikslinti (pvz. „pataisyk kainą“, „pridėk faktą“) — kai bus gerai, atidarysime PrePublish ir publikuosite mygtuku.";
+  "Galite čia patikslinti (pvz. „pataisyk kainą“, „pridėk faktą“) — kai bus gerai, atidarysime skelbimo peržiūrą ir publikuosite mygtuku.";
 
 export function buildConsultantFollowUpQuestion(
   draft: ListingDraftPreviewInput

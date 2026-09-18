@@ -47,7 +47,7 @@ async function waitForAddListingPage(page: Page) {
     .getByRole("button", { name: /Pridėti failą|Įkelti nuotraukas/i })
     .first();
   const opening = page.getByRole("heading", {
-    name: /Atidarome VAUTO asistentą|Atidarome AI asistentą|Naujas skelbimas|Kelkite skelbimą/i,
+    name: /Atidarome VAUTO asistentą|Atidarome AI asistentą|Naujas skelbimas|Ką parduodate\?|Kelkite skelbimą/i,
   });
   await expect(photoBtn.or(opening).first()).toBeVisible({ timeout: 20_000 });
 }

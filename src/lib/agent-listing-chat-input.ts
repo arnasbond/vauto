@@ -230,7 +230,7 @@ export function tryApplyListingChatInput(
       }),
       {
         intro:
-          "Supratau — kaina sutartinė. Galime peržiūrėti skelbimą PrePublish kortelėje.",
+          "Supratau — kaina sutartinė. Galime peržiūrėti skelbimą peržiūros kortelėje.",
       }
     );
   }

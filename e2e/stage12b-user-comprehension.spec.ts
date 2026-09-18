@@ -27,29 +27,16 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     const h1 = page.locator("[data-home-h1]");
     const subtitle = page.locator("[data-home-subtitle]");
     const search = homeSearchbox(page);
-    // MASTER Wave 2 correction: the hero's buyer/seller button row was
-    // removed (natural-language search is now the dominant hero CTA, matching
-    // the MASTER reference). Selling remains discoverable via the persistent
-    // canonical navigation "Įdėti" control (desktop header / mobile bottom
-    // nav) rather than a hero-level button — see stage12b Test 4/11/12 for
-    // the downstream /add/ funnel certification.
+    // MASTER Wave 2 / V5 correction: the hero's buyer/seller button row was
+    // removed (natural-language search is now the dominant hero CTA). Selling
+    // remains discoverable via the persistent canonical navigation "Įdėti".
     const sellNavCta = navAddListingCta(page);
-    // The compact hero "how it works" strip was removed to eliminate
-    // duplication with the full downstream "Kaip tai veikia" section — that
-    // section is the current home for this comprehension content.
-    const howItWorks = page.locator(
-      "section[aria-labelledby='home-visual-flow-heading']"
-    );
 
+    // FC-UX V5 — the certified first-5-seconds hierarchy: identity/promise,
+    // concise support line, dominant search, sell nav — all first-viewport.
     await expect(h1).toContainText(/VAUTO/);
-    await expect(subtitle).toContainText(/pirkimas ir pardavimas/i);
-    await expect(subtitle).toContainText(/NT/);
-    await expect(subtitle).toContainText(/paslaug/);
-    await expect(subtitle).toContainText(/transporto/i);
-    await expect(subtitle).toContainText(/AI paruošia/i);
-    await expect(subtitle).toContainText(/jūs tvirtinate/i);
-    await expect(subtitle).toContainText(/AI padeda/i);
-    await expect(subtitle).toContainText(/Žmogus sprendžia/i);
+    await expect(h1).toContainText(/Pasakyk arba parodyk/);
+    await expect(subtitle).toContainText(/Ieškok, pirk arba parduok/);
 
     await expect(search).toBeVisible();
     await expect(sellNavCta).toBeVisible();
@@ -58,14 +45,6 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     await expectInFirstViewport(subtitle, page);
     await expectInFirstViewport(search, page);
     await expectInFirstViewport(sellNavCta, page);
-
-    // Full "how it works" comprehension content lives in the downstream
-    // section now (not first-viewport by design, matching MASTER) — verify
-    // it is present and reachable rather than requiring hero placement.
-    await howItWorks.scrollIntoViewIfNeeded();
-    await expect(howItWorks).toContainText(/Rask \/ Paruošk/);
-    await expect(howItWorks).toContainText(/Susitark/);
-    await expect(howItWorks).toContainText(/Sandorio eiga/);
 
     const title = await page.title();
     expect(title).toMatch(/VAUTO/i);
@@ -81,7 +60,11 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     }) => {
       await openHome(page, { width: vp.width, height: vp.height });
       const grid = page.locator("[data-home-category-grid]");
+      // FC-UX V5 — categories are secondary navigation, progressively
+      // disclosed via a collapsible "Naršyti pagal kategoriją" disclosure.
+      // Open it before asserting the 8 categories remain reachable.
       await grid.scrollIntoViewIfNeeded();
+      await grid.locator("summary").click();
       await expect(grid).toBeVisible();
 
       // F7 — the home grid exposes EXACTLY the 8 user-visible categories
@@ -118,12 +101,11 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     await openHome(page, { width: 1280, height: 800 }, { searchStub: "hits" });
 
     const examples = page.locator("[data-search-examples] button");
-    await expect(examples).toHaveCount(4);
+    // FC-UX V5 — the certified hero carries 2 concise examples (not 4).
+    await expect(examples).toHaveCount(2);
     const chips = (await examples.allTextContents()).map((t) => t.trim());
     expect(chips.some((c) => /butas|NT|120 000/i.test(c))).toBeTruthy();
-    expect(chips.some((c) => /MacBook|elektronik/i.test(c))).toBeTruthy();
     expect(chips.some((c) => /nuoma|ekskavator/i.test(c))).toBeTruthy();
-    expect(chips.some((c) => /universalas|transport|dyzel/i.test(c))).toBeTruthy();
 
     const search = homeSearchbox(page);
     await expect(search).toBeVisible();
@@ -162,7 +144,7 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
 
     const funnel = page.locator("[data-seller-funnel]");
     await expect(funnel).toBeVisible({ timeout: 15_000 });
-    await expect(funnel).toContainText(/kategorij|objektą \/ prekę/i);
+    await expect(funnel).toContainText(/Nufotografuokite prekę|aprašykite/i);
     await expect(funnel).not.toContainText(VEHICLE_ATTR_RE);
 
     const steps = page.locator("[data-seller-steps]");
@@ -171,6 +153,9 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     await expect(steps).toContainText(/Kategorija ar aprašymas/);
     await expect(steps).not.toContainText(VEHICLE_ATTR_RE);
 
+    // FC-UX V5 — categories are progressively disclosed behind a collapsible
+    // "Naršyti pagal kategoriją" disclosure; open it before selecting one.
+    await page.locator("[data-home-category-grid] summary").click();
     const electronics = page.locator(
       '[data-home-category-grid] button[data-vertical-id="electronics"]'
     );
@@ -188,20 +173,17 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
   });
 
   test("Test 5 — AI role boundary is discoverable", async ({ page }) => {
-    await openHome(page, { width: 1280, height: 800 });
-    const hero = `${await page.locator("[data-home-h1]").innerText()} ${await page.locator("[data-home-subtitle]").innerText()}`;
-    expect(hero).toMatch(/AI padeda/i);
-    expect(hero).toMatch(/Žmogus sprendžia/i);
-    expect(hero).toMatch(/jūs tvirtinate|Sandorį tvirtinate jūs/i);
-
-    await page.locator("#home-visual-flow-heading").scrollIntoViewIfNeeded();
-    const flow = await page
-      .locator("section[aria-labelledby='home-visual-flow-heading']")
-      .innerText();
-    const combined = `${hero}\n${flow}\n${await page.locator("body").innerText()}`;
-    expect(combined).toMatch(/rekomendacija|ne garantuot/i);
-    expect(combined).toMatch(/tvirtinate jūs|žmogus sprendžia|atsakingi/i);
-    expect(combined).not.toMatch(/AI garantuoja|AI priima sprendimą/i);
+    // FC-UX V5 — the "AI padeda. Žmogus sprendžia." boundary moved out of the
+    // homepage hero into the /add funnel (subtitle + steps) and the DUK page.
+    await page.goto("/add/");
+    await dismissGdpr(page);
+    await expect(page.locator("[data-seller-funnel]")).toBeVisible({ timeout: 15_000 });
+    const addText = await visibleBodyText(page);
+    expect(addText).toMatch(/VAUTO padės|paruošti skelbimą/i);
+    expect(addText).toMatch(/Žmogus sprendžia/i);
+    expect(addText).toMatch(/nesiunčia skelbimo|nepriima kainos/i);
+    expect(addText).toMatch(/rekomendacija/i);
+    expect(addText).not.toMatch(/AI garantuoja|AI priima sprendimą/i);
 
     await page.goto("/duk/");
     await dismissGdpr(page);
@@ -214,16 +196,11 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
 
   test("Test 6 — Score / AI signal is not a guarantee", async ({ page }) => {
     await openHome(page, { width: 1280, height: 800 });
-    await page.getByText(/VAUTO Score ir kainos rėžis/i).scrollIntoViewIfNeeded();
-    await expect(
-      page.getByText(/VAUTO Score ir kainos rėžis yra analitinė rekomendacija/i)
-    ).toBeVisible();
-    await expect(
-      page.getByText(/ne garantuota rinkos kaina/i)
-    ).toBeVisible();
-
+    // FC-UX V5 — the dedicated "VAUTO Score" explainer section was removed; the
+    // "analytical signal, not a guarantee" invariant now lives on the listing
+    // card's AI price-signal badge title.
     const signal = page.locator("[data-ai-price-signal]").first();
-    if (await signal.isVisible().catch(() => false)) {
+    if (await signal.isVisible({ timeout: 15_000 }).catch(() => false)) {
       await expect(signal).toHaveAttribute(
         "title",
         /ne garantija|ne pirkimo rekomendacija/i
@@ -235,25 +212,11 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     page,
   }) => {
     await openHome(page, { width: 1280, height: 800 });
-    // Downstream "Kaip tai veikia" section — the compact hero strip was
-    // removed as a duplicate of this full section (MASTER Wave 2 correction).
-    const how = page.locator("section[aria-labelledby='home-visual-flow-heading']");
-    await how.scrollIntoViewIfNeeded();
-    await expect(how).toContainText(/Rask \/ Paruošk/);
-    await expect(how).toContainText(/Susitark/);
-    await expect(how).toContainText(/Sandorio eiga/);
-    await expect(how).toContainText(/lėšos laikomos iki gavimo/i);
-    await expect(how).not.toContainText(/Saugus sandoris/);
-    await expect(how).not.toContainText(/100\s*%/);
-
-    await page.locator("#home-visual-flow-heading").scrollIntoViewIfNeeded();
-    const visual = page.locator("#home-visual-flow-heading").locator("xpath=ancestor::section[1]");
-    await expect(visual).toContainText(/Pasiūlymas Deal Room|Susitark/);
-    await expect(visual).toContainText(/Lėšos iki gavimo|patvirtinimo/);
-    await expect(visual).toContainText(/atsakingi už objektą/i);
-
+    // FC-UX V5 — the homepage "Kaip tai veikia" section was removed; the deal
+    // flow is now exposed through the listing detail "Pradėti sandorio eigą"
+    // CTA and must never promise a "safe/guaranteed" deal.
     const article = listingResults(page).locator("article").first();
-    if (await article.isVisible().catch(() => false)) {
+    if (await article.isVisible({ timeout: 15_000 }).catch(() => false)) {
       await article.getByRole("link").first().click();
       await expect(page.locator("body")).not.toContainText(/Skelbimas nerastas/i, {
         timeout: 15_000,
@@ -394,7 +357,10 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
       await search.fill("");
       await search.press("Enter");
       await expect(emptySearchHint(page)).toBeVisible();
-      await page.locator("[data-search-examples] button").nth(2).click();
+      // FC-UX V5 — examples are progressively disclosed behind a collapsible
+      // "Paieškos pavyzdžiai" summary; open it before selecting a chip.
+      await page.locator("details:has([data-search-examples]) summary").click();
+      await page.locator("[data-search-examples] button").first().click();
       await expect(emptySearchHint(page)).toHaveCount(0);
 
       await search.fill("MacBook Pro M3 Max");
@@ -443,14 +409,14 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
 
     const grid = page.locator("[data-home-category-grid]");
     await grid.scrollIntoViewIfNeeded();
+    // FC-UX V5 — categories are progressively disclosed; open the collapsible
+    // "Naršyti pagal kategoriją" before asserting they remain reachable.
+    await grid.locator("summary").click();
     await expect(categoryButtons(page)).toHaveCount(8);
     for (const label of [...CERTIFIED_VERTICALS, "Mada", "Kita"]) {
       await expect(page.locator("[data-home-category-grid]").getByText(label)).toBeVisible();
     }
 
-    const how = page.locator("section[aria-labelledby='home-visual-flow-heading']");
-    await how.scrollIntoViewIfNeeded();
-    await expect(how).toContainText(/Sandorio eiga|lėšos laikomos/i);
     expect(await horizontalOverflowPx(page)).toBeLessThanOrEqual(1);
 
     // Canonical add-listing route — always reachable regardless of hero layout.
@@ -483,7 +449,11 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     await page.keyboard.type("butas Vilnius");
     await expect(homeSearchbox(page)).toHaveValue(/butas Vilnius/);
 
-    await page.locator("[data-home-category-grid]").scrollIntoViewIfNeeded();
+    const grid = page.locator("[data-home-category-grid]");
+    await grid.scrollIntoViewIfNeeded();
+    // FC-UX V5 — categories are progressively disclosed; open the disclosure so
+    // the first category control is keyboard-reachable.
+    await grid.locator("summary").click();
     const firstCat = page.locator("[data-home-category-grid] button").first();
     await firstCat.focus();
     await expect(firstCat).toBeFocused();

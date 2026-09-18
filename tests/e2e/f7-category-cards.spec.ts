@@ -32,6 +32,28 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     await forceOfflineCatalog(page);
     await page.goto("/");
     await acceptGdprConsentIfPrompted(page);
+    // FC-UX V5 — desktop Search defaults to the LIST presentation; assert the
+    // mode-independent results container rather than the grid-only
+    // [data-listing-grid].
+    const results = page.locator("#listing-results");
+    await expect(results.locator("[data-listing-card]").first()).toBeVisible({
+      timeout: 20_000,
+    });
+    return results;
+  }
+
+  async function openCategoryDisclosure(page: import("@playwright/test").Page) {
+    const grid = page.locator("[data-home-category-grid]");
+    await grid.scrollIntoViewIfNeeded();
+    await grid.locator("summary").click();
+    await expect(grid.locator("button").first()).toBeVisible({ timeout: 20_000 });
+  }
+
+  async function openHomeGrid(page: import("@playwright/test").Page) {
+    await openHome(page);
+    // The desktop sidebar and the (hidden) mobile bar both render view-mode
+    // toggles; target the actually-visible desktop "Tinklelis" control.
+    await page.locator('[data-view-mode="grid"]:visible').click();
     const grid = page.locator("[data-listing-grid]");
     await expect(grid).toBeVisible({ timeout: 20_000 });
     return grid;
@@ -41,6 +63,7 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     page,
   }) => {
     await openHome(page);
+    await openCategoryDisclosure(page);
     const categoryGrid = page.locator("[data-home-category-grid]");
     await expect(categoryGrid).toBeVisible({ timeout: 20_000 });
     const buttons = categoryGrid.locator("button");
@@ -64,6 +87,7 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     page,
   }) => {
     await openHome(page);
+    await openCategoryDisclosure(page);
     const jobsTile = page.locator(
       '[data-home-category-grid] button[data-category-id="jobs"]'
     );
@@ -78,6 +102,7 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     page,
   }) => {
     await openHome(page);
+    await openCategoryDisclosure(page);
     const tiles = page.locator("[data-home-category-grid] button");
     await expect(tiles).toHaveCount(8);
     for (const id of ALL_CATEGORY_IDS) {
@@ -97,6 +122,7 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     page,
   }) => {
     await openHome(page);
+    await openCategoryDisclosure(page);
     const grid = page.locator("[data-home-category-grid]");
     await grid.scrollIntoViewIfNeeded();
 
@@ -154,6 +180,7 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
       }, theme);
       await page.emulateMedia({ colorScheme: theme });
       await openHome(page);
+      await openCategoryDisclosure(page);
       for (const id of ["clothing", "jobs", "other"]) {
         const img = page.locator(
           `[data-home-category-grid] button[data-category-id="${id}"] img`
@@ -224,7 +251,9 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     const back = notFound.getByRole("link", { name: /Grįžti į skelbimus/i });
     await expect(back).toBeVisible();
     await back.click();
-    await expect(page.locator("[data-listing-grid]")).toBeVisible({
+    // FC-UX V5 — desktop Search defaults to LIST; assert the listing card,
+    // not the grid-only [data-listing-grid].
+    await expect(page.locator("[data-listing-card]").first()).toBeVisible({
       timeout: 20_000,
     });
   });
@@ -233,6 +262,7 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     page,
   }) => {
     await openHome(page);
+    await openCategoryDisclosure(page);
     const kita = page.locator(
       '[data-home-category-grid] button[data-category-id="other"]'
     );
@@ -371,7 +401,9 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
   test("kategorijų etiketės: „Mada“, „Namai ir buitis“, „Transportas“ ant kortelių", async ({
     page,
   }) => {
-    const grid = await openHome(page);
+    // FC-UX V5 — the card category label lives on the GRID card; switch to the
+    // explicit grid presentation before asserting it.
+    const grid = await openHomeGrid(page);
 
     const clothing = grid.locator('[data-listing-id="lt-clo-001"]');
     await expect(clothing).toBeVisible({ timeout: 20_000 });
@@ -395,7 +427,9 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
   test("kortelės hierarchija: kaina prieš pavadinimą; foto blokas viršuje; light theme gylis", async ({
     page,
   }) => {
-    const grid = await openHome(page);
+    // FC-UX V5 — price-before-title and the price data attribute are GRID-card
+    // contracts; switch to the explicit grid presentation before asserting.
+    const grid = await openHomeGrid(page);
     const card = grid.locator('[data-listing-id="lt-auto-001"]');
     await expect(card).toBeVisible({ timeout: 20_000 });
 
@@ -498,6 +532,9 @@ test.describe("F7 — kortelių vientisumas (mobile)", () => {
 
     const grid = page.locator("[data-home-category-grid]");
     await grid.scrollIntoViewIfNeeded();
+    // FC-UX V5 — categories are progressively disclosed; open the collapsible
+    // "Naršyti pagal kategoriją" before asserting the 8 tiles.
+    await grid.locator("summary").click();
     await expect(grid).toBeVisible({ timeout: 20_000 });
     await expect(grid.locator("button")).toHaveCount(8);
     for (const id of ALL_CATEGORY_IDS) {

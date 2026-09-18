@@ -104,7 +104,7 @@ export function ListingDetailStickyPanel({
       variant="elevated"
       data-listing-sticky-panel
       className={cn(
-        "hidden lg:sticky lg:top-20 lg:block lg:shadow-[var(--ds-shadow-md)]",
+        "listing-v5-panel hidden lg:sticky lg:top-20 lg:block",
         className
       )}
     >
@@ -114,41 +114,15 @@ export function ListingDetailStickyPanel({
         </Badge>
       ) : null}
 
-      <h1 className="font-[family-name:var(--font-outfit)] text-[length:var(--ds-text-h2-size)] font-bold leading-tight tracking-tight text-[var(--ds-text-primary)]">
-        {listing.title}
-      </h1>
-      <p className="mt-2 text-[clamp(1.75rem,2.5vw,2.25rem)] font-extrabold tracking-tight text-[var(--ds-brand)]">
+      <p className="text-[clamp(1.75rem,2.5vw,2.25rem)] font-extrabold tracking-tight text-[var(--ds-text-primary)]">
         {formatPrice(listing.price, listing.priceLabel)}
       </p>
+      <h1 className="mt-1 font-[family-name:var(--font-outfit)] text-[length:var(--ds-text-h2-size)] font-bold leading-tight tracking-tight text-[var(--ds-text-primary)]">
+        {listing.title}
+      </h1>
       {vatLine}
 
-      {aiPrice ? (
-        <div className="mt-4">
-          <AiInsightCard
-            title={aiPrice.label}
-            body={
-              aiPrice.label === "Gera kaina"
-                ? "Pagal panašius skelbimus ši kaina atrodo patraukli pirkėjui."
-                : aiPrice.label === "Rinkos mediana"
-                  ? "Kaina artima rinkos viduriui — derėtis galima, bet vertė aiški."
-                  : "AI įvertino šį skelbimą pagal nuotrauką ir aprašymą."
-            }
-            ctaLabel={isOwner ? undefined : "AI klausimai pardavėjui"}
-            onCta={isOwner ? undefined : onOpenTips}
-          />
-        </div>
-      ) : !isOwner ? (
-        <div className="mt-4">
-          <AiInsightCard
-            title="Paklauskite AI"
-            body="Gaukite saugius klausimus pardavėjui — kainą, būklę, pristatymą."
-            ctaLabel="Atidaryti AI patarimus"
-            onCta={onOpenTips}
-          />
-        </div>
-      ) : null}
-
-      <div className="mt-5 space-y-3 rounded-[var(--ds-radius-control)] border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-muted)] p-3">
+      <div className="mt-5 space-y-3 border-y border-[var(--ds-border-subtle)] py-4">
         <div className="flex items-center gap-3">
           <span
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--ds-brand-soft)] text-sm font-bold text-[var(--ds-brand)]"
@@ -311,9 +285,35 @@ export function ListingDetailStickyPanel({
       {!isOwner ? (
         <div className="mt-5 border-t border-[var(--ds-border-subtle)] pt-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ds-text-muted)]">
-            Dalintis
+            Paklausk VAUTO apie šį skelbimą
           </p>
-          <ShareListingPanel listing={listing} compact />
+          {aiPrice ? (
+            <AiInsightCard
+              title={aiPrice.label}
+              body={
+                aiPrice.label === "Gera kaina"
+                  ? "Pagal panašius skelbimus ši kaina atrodo patraukli pirkėjui."
+                  : aiPrice.label === "Rinkos mediana"
+                    ? "Kaina artima rinkos viduriui — derėtis galima, bet vertė aiški."
+                    : "AI įvertino šį skelbimą pagal nuotrauką ir aprašymą."
+              }
+              ctaLabel="AI klausimai pardavėjui"
+              onCta={onOpenTips}
+            />
+          ) : (
+            <AiInsightCard
+              title="Paklauskite AI"
+              body="Gaukite saugius klausimus pardavėjui — kainą, būklę, pristatymą."
+              ctaLabel="Atidaryti AI patarimus"
+              onCta={onOpenTips}
+            />
+          )}
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--ds-text-muted)]">
+              Dalintis
+            </p>
+            <ShareListingPanel listing={listing} compact />
+          </div>
         </div>
       ) : null}
     </Card>

@@ -38,7 +38,7 @@ export function HomeTrendingStrip({
     >
       <div className="mb-3 flex items-center justify-between gap-3">
         <h2 className="text-sm font-bold tracking-tight text-[var(--ds-text-primary)]">
-          Naujausi skelbimai rinkoje
+          Naujausi skelbimai
         </h2>
         {onSeeAll ? (
           <button
@@ -51,13 +51,13 @@ export function HomeTrendingStrip({
           </button>
         ) : null}
       </div>
-      <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 lg:mx-0 lg:grid lg:grid-cols-6 lg:gap-3 lg:overflow-visible lg:px-0">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {featured.map((listing, index) => (
           <ListingCard
             key={listing.id}
             listing={listing}
             variant="compact"
-            className="w-[150px] shrink-0 snap-start sm:w-[168px] lg:w-full"
+            className="min-w-0 w-full"
             priority={index === 0}
           />
         ))}

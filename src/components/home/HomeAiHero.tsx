@@ -141,51 +141,18 @@ export function HomeAiHero({
 
   return (
     <div className="relative mb-4 overflow-hidden md:mb-6">
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 -mx-4 h-[30rem] md:mx-0"
-        aria-hidden
-        style={{
-          background:
-            "linear-gradient(180deg, color-mix(in srgb, var(--ds-brand, #10b981) 7%, transparent) 0%, color-mix(in srgb, var(--ds-brand, #10b981) 2.5%, transparent) 45%, transparent 100%)",
-        }}
-      />
-      <div
-        className="pointer-events-none absolute inset-0 -mx-4 opacity-30 md:mx-0"
-        aria-hidden
-      >
-        <div
-          className="absolute -left-16 top-0 h-80 w-80 rounded-full blur-3xl"
-          style={{
-            background:
-              "radial-gradient(circle, color-mix(in srgb, var(--ds-brand, #10b981) 14%, transparent), transparent 70%)",
-          }}
-        />
-        <div
-          className="absolute -right-10 top-8 h-72 w-72 rounded-full blur-3xl"
-          style={{
-            background:
-              "radial-gradient(circle, color-mix(in srgb, var(--ds-brand, #10b981) 9%, transparent), transparent 68%)",
-          }}
-        />
-        <div
-          className="absolute left-1/3 top-24 h-64 w-64 rounded-full blur-3xl"
-          style={{
-            background:
-              "radial-gradient(circle, color-mix(in srgb, var(--ds-text-primary, #0f172a) 4%, transparent), transparent 70%)",
-          }}
-        />
-      </div>
-      <HomeHeroAtmosphere />
-
       <div className="relative">
         {!chatActive && (
-          <div className="animate-[fadeIn_0.35s_var(--ds-ease,ease)_both]">
+          <div>
+            <div className="home-v5-photo relative isolate overflow-hidden rounded-2xl px-4 pb-6 pt-6 md:px-8 md:pb-8 md:pt-10">
+            <HomeHeroAtmosphere />
+            <div className="relative">
             <h1
               data-home-h1
-              className="max-w-3xl font-[family-name:var(--font-outfit)] text-[clamp(1.7rem,4.2vw,3.15rem)] font-extrabold leading-[1.08] tracking-[-0.03em] text-[var(--ds-text-primary,var(--vauto-ink))]"
+              className="max-w-3xl font-[family-name:var(--font-outfit)] text-[clamp(1.75rem,3.2vw,2.75rem)] font-extrabold leading-[1.1] tracking-[-0.02em] text-[var(--ds-text-primary,var(--vauto-ink))]"
             >
-              <span className="block">Pasakyk, ko nori.</span>
-              <span className="mt-1.5 block">
+              <span className="block">Pasakyk arba parodyk, ko nori.</span>
+              <span className="mt-3 block text-base font-medium leading-snug md:text-xl">
                 <span className="text-[var(--ds-brand,var(--vauto-primary))]">
                   VAUTO
                 </span>{" "}
@@ -195,22 +162,12 @@ export function HomeAiHero({
 
             <p
               data-home-subtitle
-              className="mt-2.5 max-w-2xl text-sm leading-relaxed text-[var(--ds-text-secondary,var(--vauto-muted))] sm:text-[length:var(--ds-text-body-lg-size,1.125rem)]"
+              className="mt-2.5 max-w-2xl text-[length:var(--ds-text-body-lg-size,1.125rem)] font-medium text-[var(--ds-text-secondary,var(--vauto-muted))]"
             >
-              Išmanus pirkimas ir pardavimas: nuo NT ir technikos iki paslaugų
-              bei transporto. AI paruošia paiešką ar juodraštį — jūs tvirtinate
-              kainą, mokėjimą ir gavimą. AI padeda. Žmogus sprendžia.
+              Ieškok, pirk arba parduok.
             </p>
 
             <div className="home-ai-copilot-shell relative mt-4 w-full max-w-3xl">
-              <div
-                className="pointer-events-none absolute -inset-1 rounded-[1.75rem] opacity-20"
-                style={{
-                  background:
-                    "radial-gradient(60% 80% at 50% 50%, color-mix(in srgb, var(--ds-brand) 16%, transparent), transparent)",
-                }}
-                aria-hidden
-              />
               <AiCommandBar
                 placement="hero"
                 seedQuery={seedQuery}
@@ -233,13 +190,17 @@ export function HomeAiHero({
               </div>
             )}
 
+            </div>
+            </div>
+            <details className="mt-2 text-xs text-[var(--ds-text-muted)]">
+              <summary className="cursor-pointer py-2">Paieškos pavyzdžiai</summary>
             <div
-              className="mt-3.5 flex max-w-3xl flex-wrap gap-2"
+              className="mt-1 flex max-w-3xl flex-wrap gap-2"
               role="group"
               aria-label="Pavyzdžio frazės"
               data-search-examples
             >
-              {EXAMPLE_CHIPS.map((chip) => (
+              {EXAMPLE_CHIPS.slice(0, 2).map((chip) => (
                 <button
                   key={chip}
                   type="button"
@@ -257,9 +218,13 @@ export function HomeAiHero({
                   <span className="line-clamp-2 break-words">{chip}</span>
                 </button>
               ))}
-              </div>
+            </div>
+
+            </details>
+            <HomeTrendingStrip listings={newestListings} onSeeAll={() => router.push("/search")} className="mt-3 pt-3" />
 
             <HomeCategoryGrid
+              className="mt-6"
               counts={categoryCounts}
               onSelect={(query, _label, slug) => {
                 const verticalId = resolveVerticalId(slug);
@@ -282,8 +247,6 @@ export function HomeAiHero({
                 router.push("/search");
               }}
             />
-
-            <HomeTrendingStrip listings={newestListings} />
           </div>
         )}
 

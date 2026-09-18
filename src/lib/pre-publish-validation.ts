@@ -130,6 +130,26 @@ export function buildPrePublishCardPayload(
   };
 }
 
+/**
+ * FC-UX manual flow — build the EDITOR payload from an INCOMPLETE draft.
+ * Publication readiness gates PUBLISH, never EDITING: the manual (no-AI) listing
+ * entry opens the editor before title/price/photo are supplied. This is the ONLY
+ * caller-allowed path around the readiness gate; the conversational missing-guide
+ * (F9) still uses `buildPrePublishCardPayload` which remains gated on `ok`.
+ */
+export function buildManualEditCardPayload(
+  readiness: PrePublishReadiness,
+  previewImage?: string | null,
+  opts?: { vatCode?: string | null; pendingImageUrls?: string[] }
+): PrePublishCardPayload | null {
+  if (!readiness.syncedDraft) return null;
+  return buildPrePublishCardPayload(
+    { ...readiness, ok: true },
+    previewImage,
+    opts
+  );
+}
+
 export interface PrePublishCheckInput {
   isAuthenticated: boolean;
   user: Pick<UserProfile, "id" | "phone" | "email" | "city">;

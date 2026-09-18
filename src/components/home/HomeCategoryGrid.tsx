@@ -26,7 +26,7 @@ function CategoryVisual({ category }: { category: HomeCategory }) {
   // premium illustration must render an <img>.
   if (broken || !image) {
     return (
-      <span className="inline-flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded-xl bg-[var(--ds-brand-soft,#ecfdf5)] text-[var(--ds-brand)] sm:h-[5.25rem] sm:w-[5.25rem] lg:h-24 lg:w-24">
+      <span className="inline-flex h-[3.75rem] w-[3.75rem] shrink-0 items-center justify-center rounded-xl bg-[var(--ds-brand-soft,#ecfdf5)] text-[var(--ds-brand)] sm:h-[4.5rem] sm:w-[4.5rem] lg:h-20 lg:w-20">
         <Icon className="h-8 w-8" aria-hidden />
       </span>
     );
@@ -35,7 +35,7 @@ function CategoryVisual({ category }: { category: HomeCategory }) {
   return (
     <div
       data-category-image-zone
-      className="relative flex h-[4.5rem] w-[4.5rem] shrink-0 items-end justify-center sm:h-[5.25rem] sm:w-[5.25rem] lg:h-24 lg:w-24"
+      className="relative flex h-[3.75rem] w-[3.75rem] shrink-0 items-end justify-center sm:h-[4.5rem] sm:w-[4.5rem] lg:h-20 lg:w-20"
     >
       {/* Restrained grounding contact-shadow — an intentional, consistent
           "object on a surface" cue independent of each asset's own faint
@@ -66,13 +66,13 @@ function CategoryVisual({ category }: { category: HomeCategory }) {
 
 export function HomeCategoryGrid({ onSelect, className, counts }: HomeCategoryGridProps) {
   return (
-    <div
+    <details
       className={cn("mt-4 w-full max-w-4xl", className)}
       data-home-category-grid
     >
-      <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-[var(--ds-text-muted)]">
-        Kategorijos
-      </p>
+      <summary className="cursor-pointer rounded-lg py-3 text-sm font-semibold text-[var(--ds-text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ds-brand)]">
+        Naršyti pagal kategoriją
+      </summary>
       <ul
         className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4"
         aria-label="Pagrindinės skelbimų kategorijos"
@@ -93,7 +93,7 @@ export function HomeCategoryGrid({ onSelect, className, counts }: HomeCategoryGr
                 data-category-card
                 data-category-card-id={category.id}
                 className={cn(
-                  "group relative flex h-full min-h-[8.25rem] w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl",
+                  "group relative flex h-full min-h-[6.75rem] w-full flex-col items-center justify-center gap-1 overflow-hidden rounded-2xl",
                   "border border-[var(--ds-border-subtle)] px-2 py-3 text-center",
                   "transition-[transform,box-shadow,border-color] duration-[180ms] ease-[var(--ds-ease)]",
                   "hover:-translate-y-px hover:border-[var(--ds-brand)]/40 hover:shadow-[var(--ds-shadow-sm)]"
@@ -140,6 +140,6 @@ export function HomeCategoryGrid({ onSelect, className, counts }: HomeCategoryGr
           );
         })}
       </ul>
-    </div>
+    </details>
   );
 }

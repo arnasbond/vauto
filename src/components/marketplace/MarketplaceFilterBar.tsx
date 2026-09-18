@@ -253,7 +253,7 @@ export function MarketplaceFilterBar({
             {formatResultsLabel(searchQuery, resultCount)}
           </p>
           <p className="text-[10px] text-[var(--ds-text-muted)]">
-            Filtrai · AI patikslinimas žemiau
+            Keiskite filtrus bet kada
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
