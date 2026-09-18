@@ -9,6 +9,7 @@ import { ZodError } from "zod";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { requireAuth, userIsAdmin } from "../middleware/auth.js";
 import { sendInternalError } from "../lib/http-errors.js";
+import { rejectIfCheckoutDisabled } from "../platform/platform-guards.js";
 import { createPoolTxQueryable } from "../transaction/index.js";
 import {
   createFundsTransferService,
@@ -87,6 +88,9 @@ fundsTransferRouter.post(
   requireAuth,
   async (req: AuthedRequest, res) => {
     try {
+      // Soft-launch hard gate: no real funds transfer may be initiated while
+      // checkout is disabled. Rejects BEFORE the frozen financial core runs.
+      if (await rejectIfCheckoutDisabled(res)) return;
       const svc = createFundsTransferService(createPoolTxQueryable());
       const result = await svc.releaseToSeller({
         transactionId: req.params.id,
@@ -114,6 +118,9 @@ fundsTransferRouter.post(
   requireAuth,
   async (req: AuthedRequest, res) => {
     try {
+      // Soft-launch hard gate: no real refund may be initiated while checkout
+      // is disabled. Rejects BEFORE the frozen financial core runs.
+      if (await rejectIfCheckoutDisabled(res)) return;
       // C-02: buyer/seller self-serve refund forbidden — admin only on HTTP
       if (!(await userIsAdmin(req))) {
         res.status(403).json({

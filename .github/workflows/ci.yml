@@ -115,6 +115,9 @@ jobs:
       - name: Stage 16 security / authz / migration chain
         run: npm run test:stage16-security --prefix server
 
+      - name: Soft-launch P0 money hard-disable kill-switch
+        run: npm run test:soft-launch-p0 --prefix server
+
       - name: F9 release-readiness pack (auth role boundary + draft facts)
         run: npx tsx --test src/routes/__tests__/f9-user-authority.test.ts src/ai/__tests__/f9-draft-fact-preservation.test.ts src/tests/conversational-state-machine.test.ts
         working-directory: server

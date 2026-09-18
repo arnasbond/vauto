@@ -74,6 +74,23 @@ CREATE TABLE IF NOT EXISTS listings (
 );
 `;
 
+// Mirrors server/migrations/029_platform_settings.sql so the harness models the
+// production precondition "checkout is explicitly enabled" (disableCheckout=false)
+// through the SAME canonical settings table the money gate reads.
+const PLATFORM_SETTINGS_STUB = `
+CREATE TABLE IF NOT EXISTS platform_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_by TEXT
+);
+INSERT INTO platform_settings (key, value) VALUES
+  ('maintenanceMode', 'false'),
+  ('disableNewListings', 'false'),
+  ('disableCheckout', 'false')
+ON CONFLICT (key) DO NOTHING;
+`;
+
 function adaptPglite(db: PGlite): TxQueryable {
   return {
     async query(text, params = []) {
@@ -119,6 +136,7 @@ export async function startStage12aHarness(port = Number(process.env.PORT ?? 401
   await applySql(pglite, DISPUTE_FINALITY_MIGRATION_SQL);
   await applySql(pglite, REPUTATION_MIGRATION_SQL);
   await applySql(pglite, LISTINGS_STUB);
+  await applySql(pglite, PLATFORM_SETTINGS_STUB);
 
   const fakeCarrier = new FakeCarrierAdapter();
   setDeliveryCarrierOverride(fakeCarrier);

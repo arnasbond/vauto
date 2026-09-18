@@ -7,6 +7,7 @@ import { Router } from "express";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 import { sendInternalError } from "../lib/http-errors.js";
+import { rejectIfCheckoutDisabled } from "../platform/platform-guards.js";
 import { createPoolTxQueryable } from "../transaction/index.js";
 import { createUniversalDealRoomService } from "../marketplace/universal-deal-room-service.js";
 import { mapUniversalDealError } from "../marketplace/universal-deal-http.js";
@@ -165,6 +166,9 @@ universalDealRoomRouter.post(
   requireAuth,
   async (req: AuthedRequest, res) => {
     try {
+      // Soft-launch hard gate: no real payment intent may be initiated while
+      // checkout is disabled. Rejects BEFORE the frozen financial core runs.
+      if (await rejectIfCheckoutDisabled(res)) return;
       const body = (req.body ?? {}) as Record<string, unknown>;
       const svc = createUniversalDealRoomService(createPoolTxQueryable());
       const result = await svc.initiatePayment({

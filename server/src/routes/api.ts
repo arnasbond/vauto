@@ -169,7 +169,7 @@ import {
 } from "../controllers/user-controller.js";
 import { visualPipelineFeatures } from "../services/visual-pipeline/features.js";
 import { getInfraReadiness } from "../lib/infra-readiness.js";
-import { getPlatformFlags } from "../platform/platform-settings.js";
+import { getCheckoutDisabledFlag, getPlatformFlags } from "../platform/platform-settings.js";
 import {
   rejectIfListingsDisabled,
 } from "../platform/platform-guards.js";
@@ -524,6 +524,10 @@ apiRouter.get("/health", async (_req, res) => {
   const visualPipeline = visualPipelineFeatures();
   const infra = getInfraReadiness();
   const platformFlags = await getPlatformFlags();
+  // Soft-launch money gate: report the SAME canonical checkout safety source
+  // the request guard uses (tri-state), so health truthfully distinguishes
+  // enabled / disabled / UNKNOWN instead of fail-open false.
+  const checkoutDisabled = await getCheckoutDisabledFlag();
   const smsMode = getSmsProvider();
   const features = {
     sms: isSmsLive(),
@@ -562,7 +566,8 @@ apiRouter.get("/health", async (_req, res) => {
     ...infra,
     maintenanceMode: platformFlags.maintenanceMode,
     disableNewListings: platformFlags.disableNewListings,
-    disableCheckout: platformFlags.disableCheckout,
+    disableCheckout: checkoutDisabled,
+    checkoutStateKnown: checkoutDisabled !== null,
   };
 
   const schemaUnavailable = () =>

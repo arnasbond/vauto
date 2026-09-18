@@ -62,6 +62,12 @@ function prepareListing(raw: LegacyListingInput): Listing {
     ...withCoords,
     slug,
     images,
+    // Authoritative demo-fixture identity: everything built here is part of the
+    // demo catalog (INITIAL_LISTINGS), so mark it explicitly instead of relying
+    // on the accidental ID-shape regex. This keeps deterministic E2E/demo
+    // fixtures from expiring on the real wall clock regardless of their ID
+    // naming (e.g. lt-auto-001 vs lt-auto-v70-pnv).
+    isDemo: true,
     contact: withCoords.contact ?? "+370 612 34567",
     description:
       withCoords.description ??
