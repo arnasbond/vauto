@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Sparkles, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import {
   interpretAiFacets,
   type FacetChip,
@@ -265,14 +265,10 @@ export function AiInterpretationChips({
 
   return (
     <section
-      aria-label="Kaip AI suprato jūsų užklausą"
+      aria-label="Paieškos kriterijai"
       data-ai-interpretation
-      className="mb-4"
+      className="mb-2"
     >
-      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-[var(--ds-text-muted)]">
-        <Sparkles className="h-3.5 w-3.5 text-[var(--ds-brand)]" aria-hidden />
-        <span>VAUTO suprato tavo užklausą — kriterijus galite keisti arba pašalinti</span>
-      </div>
       <div className="flex flex-wrap items-start gap-2">
         <ul
           data-ai-chips

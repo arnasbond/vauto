@@ -18,8 +18,6 @@ import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 import { SearchEmptyAssistantBanner } from "@/components/search/SearchEmptyAssistantBanner";
 import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
 import { subscribeHomeReset } from "@/lib/home-reset";
-import { HomeAiValueBand } from "@/components/home/HomeValuePropCards";
-import { HomeVisualFlow } from "@/components/home/HomeVisualFlow";
 import { DesktopHomeLayout } from "@/components/layout/desktop/DesktopHomeLayout";
 import { resolveActiveSurface, catalogSurfaceVisible } from "@/lib/ai-surface-ownership";
 
@@ -36,7 +34,6 @@ function MarketplaceView() {
     agentBusy ||
     messages.some((m) => m.role === "user" || m.role === "assistant");
   const compactHero = hasSearch || hasAgentTurn;
-  const showHowItWorks = !compactHero;
 
   const emptySearchMode = hasSearch && rankedListings.length === 0 && !searchLoading;
 
@@ -52,14 +49,6 @@ function MarketplaceView() {
 
   useEffect(() => {
     return subscribeHomeReset(() => setSeedQuery(null));
-  }, []);
-
-  const focusCopilot = useCallback(() => {
-    const box = document.querySelector<HTMLElement>(
-      '[aria-label="Skelbimų paieška"] [role="searchbox"], [aria-label="Skelbimų paieška"] input'
-    );
-    box?.focus();
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
   return (
@@ -84,12 +73,6 @@ function MarketplaceView() {
           <span className="sr-only">VAUTO pagrindinis puslapis</span>
         </VerticalPageChrome>
       </HeroSection>
-      {showHowItWorks ? (
-        <>
-          <HomeVisualFlow onInsightCta={focusCopilot} />
-          <HomeAiValueBand />
-        </>
-      ) : null}
       {showCatalog && (
         <ContentSection>
           <DesktopHomeLayout>

@@ -173,8 +173,8 @@ export function ListingCard({
         data-listing-id={listing.id}
         data-listing-category={listing.category}
         className={cn(
-          "group flex gap-3 rounded-[var(--ds-radius-card)] border border-[var(--ds-card-border)] bg-[var(--ds-surface-card)] p-2.5",
-          "shadow-[var(--ds-card-shadow)]",
+          "group relative flex gap-3 border-b border-[var(--ds-border-subtle)] py-3",
+          "",
           "transition-[transform,box-shadow,border-color] duration-[180ms] ease-[var(--ds-ease)]",
           "hover:-translate-y-[2px] hover:border-[var(--ds-border-strong)] hover:shadow-[var(--ds-card-shadow-hover)]",
           "active:translate-y-0 active:shadow-[var(--ds-shadow-xs)]",
@@ -185,13 +185,13 @@ export function ListingCard({
       >
         <Link
           href={href}
-          className="relative aspect-[1/1] w-[46%] max-w-[176px] shrink-0 self-start overflow-hidden rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)]"
+          className="relative aspect-[1/1] w-[108px] sm:w-[132px] shrink-0 self-start overflow-hidden rounded-[var(--ds-radius-control)] bg-[var(--ds-surface-muted)]"
         >
           <ListingImage
             listing={listing}
             alt={listing.title}
             fill
-            sizes="(max-width: 640px) 46vw, 176px"
+            sizes="(max-width: 640px) 108px, 132px"
             className="object-cover transition-transform duration-[200ms] group-hover:scale-105"
             priority={priority}
           />
@@ -202,17 +202,15 @@ export function ListingCard({
             </span>
           ) : null}
         </Link>
-        <div className="min-w-0 flex-1">
-          <p className="text-[length:var(--ds-text-caption-size)] font-medium text-[var(--ds-text-muted)]">
-            {categoryLabel}
-          </p>
+        <div className="flex min-w-0 flex-1 flex-col pr-7">
+          <p className="sr-only">{categoryLabel}</p>
           <Link href={href}>
             <h3 className="mt-0.5 line-clamp-2 text-sm font-bold text-[var(--ds-text-primary)] transition-colors hover:text-[var(--ds-brand)]">
               {listing.title}
             </h3>
           </Link>
           <p
-            className="mt-1 text-lg font-extrabold tracking-tight"
+            className="-order-1 text-base font-extrabold tracking-tight"
             style={{ color: resolvedPrice }}
           >
             {formatPrice(listing.price, listing.priceLabel)}
@@ -245,7 +243,7 @@ export function ListingCard({
             </p>
           ) : null}
         </div>
-        {heart ? <div className="shrink-0 self-start">{heart}</div> : null}
+        {heart ? <div className="absolute right-0 top-2">{heart}</div> : null}
       </article>
     );
   }
@@ -268,7 +266,7 @@ export function ListingCard({
     >
       <div
         className={cn(
-          "relative aspect-[1/1] overflow-hidden bg-[var(--ds-surface-muted)]"
+          "relative aspect-[4/3] overflow-hidden bg-[var(--ds-surface-muted)]"
         )}
       >
         <Link href={href} className="block h-full w-full">
@@ -303,12 +301,12 @@ export function ListingCard({
       </div>
 
       {compact ? (
-        <Link href={href} className="block space-y-0.5 px-2.5 py-2">
+        <Link href={href} className="flex flex-col gap-0.5 px-2.5 py-2">
           <h3 className="line-clamp-1 text-[13px] font-bold leading-snug text-[var(--ds-text-primary)]">
             {listing.title}
           </h3>
           <p
-            className="text-base font-extrabold tracking-tight"
+            className="-order-1 text-base font-extrabold tracking-tight"
             style={{ color: resolvedPrice }}
           >
             {formatPrice(listing.price, listing.priceLabel)}

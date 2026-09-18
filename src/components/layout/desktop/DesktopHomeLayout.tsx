@@ -109,8 +109,7 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
           <section className="flex items-start gap-2 rounded-lg bg-[var(--anonser-surface-muted)] p-3 text-xs text-[var(--anonser-text-muted)]">
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--anonser-accent)]" />
             <span>
-              AI agentas ir paieška veikia identiškai kaip mobilioje versijoje —
-              tie patys backend srautai.
+              AI agentas ir paieška veikia identiškai kaip mobilioje versijoje.
             </span>
           </section>
         </div>

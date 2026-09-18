@@ -59,23 +59,13 @@ export default function SearchPage() {
               </>
             }
           >
-            <div className="search-hero-card mt-4 rounded-2xl p-4 shadow-sm">
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-primary)]">
-                Paieška
-              </p>
-              <h1 className="search-hero-title mt-1 text-xl font-extrabold">
-                Raskite tai, ko ieškote
-              </h1>
-              <p className="search-hero-subtitle mt-2 text-sm">
-                Rašykite paiešką, filtruokite ir perjunkite tinklelį, sąrašą ar žemėlapį.
-              </p>
-            </div>
+            <h1 className="sr-only">Paieškos rezultatai</h1>
           </VerticalPageChrome>
         </HeroSection>
 
         {showCatalog && (
           <ContentSection>
-            <ListingGrid />
+            <ListingGrid hideInterpretation />
           </ContentSection>
         )}
       </Suspense>

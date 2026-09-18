@@ -25,6 +25,7 @@ import { safeMessageKey, safeMessageText } from "@/lib/agent-message-safe";
 import { readListingEditSession } from "@/lib/listing-edit-session";
 import { buildPublishValidationToast } from "@/lib/listing-conversational-flow";
 import {
+  buildManualEditCardPayload,
   buildPrePublishCardPayload,
   evaluatePrePublishReadiness,
   type PrePublishCardPayload,
@@ -105,6 +106,8 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     sessionPendingImageUrls,
     pendingVinReview,
     sendVinReviewAction,
+    manualListingEditorOpen,
+    closeManualListingEditor,
   } = useVautoAgent();
   const {
     aiDraft,
@@ -160,6 +163,23 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
       pendingImageUrls: sessionPendingImageUrls,
     });
   }, [prePublishReadiness, sellerPreviewImage, aiDraft, user.vatCode, sessionPendingImageUrls]);
+
+  // FC-UX manual flow — the full editor must be reachable for an INCOMPLETE
+  // draft (no-AI listing creation). Readiness gates PUBLISH, not EDITING.
+  const manualEditCard: PrePublishCardPayload | null = useMemo(() => {
+    if (!manualListingEditorOpen || !aiDraft || !prePublishReadiness) return null;
+    return buildManualEditCardPayload(prePublishReadiness, sellerPreviewImage, {
+      vatCode: user.vatCode,
+      pendingImageUrls: sessionPendingImageUrls,
+    });
+  }, [
+    manualListingEditorOpen,
+    aiDraft,
+    prePublishReadiness,
+    sellerPreviewImage,
+    user.vatCode,
+    sessionPendingImageUrls,
+  ]);
 
   const showLivePrePublishCard =
     Boolean(livePrePublishCard) &&
@@ -475,6 +495,17 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
           publishing={isPublishingListing}
           attributes={aiDraft?.attributes}
           onClose={handleCardEdit}
+          onPublish={handleCardPublish}
+          onGalleryChange={handleGalleryChange}
+          onFieldsChange={handleFieldsChange}
+        />
+      ) : manualEditCard ? (
+        <PrePublishModal
+          open
+          card={manualEditCard}
+          publishing={isPublishingListing}
+          attributes={aiDraft?.attributes}
+          onClose={closeManualListingEditor}
           onPublish={handleCardPublish}
           onGalleryChange={handleGalleryChange}
           onFieldsChange={handleFieldsChange}

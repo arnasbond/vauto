@@ -368,6 +368,10 @@ interface VautoAgentContextValue {
     verticalId?: VerticalId | null;
     fashion?: boolean;
   }) => void;
+  /** FC-UX manual flow — true while the no-AI listing editor is open. */
+  manualListingEditorOpen: boolean;
+  /** Close the manual (no-AI) listing editor. */
+  closeManualListingEditor: () => void;
   /** Trusted VIN review payload currently awaiting human decision (Phase 2C). */
   pendingVinReview: import("@vauto/shared/vin-review").VinReviewSideEffectPayload | null;
   /** Emit a structured VIN review action bound to the current reviewId. */
@@ -528,6 +532,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [hidePrePublishCard, setHidePrePublishCard] = useState(false);
   const [listingPublishConfirmed, setListingPublishConfirmed] = useState(false);
+  /** FC-UX manual flow — true while the no-AI listing editor is open (may be incomplete). */
+  const [manualListingEditorOpen, setManualListingEditorOpen] = useState(false);
   /** Last 0-result search term for wishlist chip (searchQuery may be cleared by UI). */
   const lastEmptySearchQueryRef = useRef("");
 
@@ -1282,9 +1288,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setOpen(true);
   }, []);
 
+  const closeManualListingEditor = useCallback(() => {
+    setManualListingEditorOpen(false);
+    setHidePrePublishCard(false);
+    setListingPublishConfirmed(false);
+  }, []);
+
   const resetPublishSession = useCallback(() => {
     setListingPublishConfirmed(false);
     setHidePrePublishCard(false);
+    setManualListingEditorOpen(false);
     // Hard purge pending photos + PrePublish card artifacts after successful publish.
     setSessionPendingImageUrls([]);
     setMessages((prev) =>
@@ -3819,7 +3832,28 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         { replaceSession: true }
       );
       revealPrePublishCard();
+      // FC-UX — open the full editor for the INCOMPLETE manual draft. Editing
+      // must not require publication readiness; only publishing does.
+      setManualListingEditorOpen(true);
+      // The manual editor renders inside the embedded agent chat strip, which is
+      // only mounted once the chat has at least one turn. Seed a neutral turn so
+      // the editor is actually visible (this path never calls the LLM/agent).
+      setMessages([
+        {
+          role: "assistant",
+          text: "Pildote skelbimą patys — užpildykite laukus žemiau esančioje formoje.",
+        },
+      ]);
       trackEvent("kpi_listing_flow_start", { source: "manual_listing_entry" });
+      // The manual editor lives in the home agent chat, so land the user on the
+      // home route (same as the AI seller flow's navigateHome). Without this a
+      // direct deep-link would open the editor while still on /add.
+      const target = fashion ? "/fashion/" : "/";
+      const targetNorm = target.replace(/\/$/, "") || "/";
+      const current = (pathname || "/").replace(/\/$/, "") || "/";
+      if (current !== targetNorm) {
+        router.push(target);
+      }
     },
     [
       applyAgentListingDraft,
@@ -3827,6 +3861,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       revealPrePublishCard,
       trackEvent,
       user,
+      pathname,
+      router,
     ]
   );
 
@@ -4124,6 +4160,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     cancelSellerFlow();
     setHidePrePublishCard(false);
     setListingPublishConfirmed(false);
+    setManualListingEditorOpen(false);
     setAwaitingListingEditField(null);
     applyBrowseAllMarketplaceState({
       setSearchQuery,
@@ -4205,6 +4242,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       resetSellerChat,
       openAiSellerListingChat,
       startManualListing,
+      manualListingEditorOpen,
+      closeManualListingEditor,
       pendingVinReview,
       sendVinReviewAction,
     }),
@@ -4230,6 +4269,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       resetSellerChat,
       openAiSellerListingChat,
       startManualListing,
+      manualListingEditorOpen,
+      closeManualListingEditor,
       pendingVinReview,
       sendVinReviewAction,
     ]

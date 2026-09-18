@@ -67,7 +67,7 @@ export default function DukPage() {
           Sistema gali: vesti sandorį Deal Room, laikyti mokėjimą (Stripe) iki
           gavimo patvirtinimo, rodyti vežėjo sekimą (pvz. Omniva prekėms) ir
           priimti ginčą pagal sandorio bei siuntos įrodymus. Kiekvieną būseną
-          tvirtina backend — AI neperveda pinigų ir nekeičia būsenos už jus.
+          tvirtina sistema — AI neperveda pinigų ir nekeičia būsenos už jus.
         </p>
         <p className="mt-2">
           Pirkėjai ir pardavėjai lieka atsakingi už objekto būklę, apžiūrą,
