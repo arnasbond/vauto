@@ -4,18 +4,42 @@
  */
 
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import cors from "cors";
 import express from "express";
 import request from "supertest";
 import { signAccessToken } from "../../auth/tokens.js";
 import { optionalAuth } from "../../middleware/auth.js";
 import { securityHeaders } from "../../middleware/security-headers.js";
-import { apiRouter } from "../api.js";
 import { authRouter } from "../auth.js";
 import { disputeRouter } from "../disputes.js";
-import { fundsTransferRouter } from "../funds-transfer.js";
 import { transactionsRouter } from "../transactions.js";
+
+// Soft-launch P0: pin the checkout safety state to a KNOWN `false` for this
+// authorization harness so the checkout kill-switch passes and the real C-02
+// admin-only refund authorization is what the tests exercise (not the money
+// gate failing closed in a no-DB environment).
+mock.module("../../platform/platform-settings.js", {
+  namedExports: {
+    getPlatformFlags: async () => ({
+      maintenanceMode: false,
+      disableNewListings: false,
+      disableCheckout: false,
+    }),
+    getCheckoutDisabledFlag: async () => false,
+    PLATFORM_MAINTENANCE_MESSAGE:
+      "Platforma laikinai techninėje priežiūroje. Bandykite vėliau.",
+    PLATFORM_LISTINGS_DISABLED_MESSAGE:
+      "Naujų skelbimų kūrimas laikinai išjungtas.",
+    PLATFORM_CHECKOUT_DISABLED_MESSAGE:
+      "Mokėjimai laikinai išjungti. Bandykite vėliau.",
+  },
+});
+
+// Load the routers that (transitively) import platform-settings AFTER the mock
+// is registered, so the guard reads the pinned known-false state.
+const { apiRouter } = await import("../api.js");
+const { fundsTransferRouter } = await import("../funds-transfer.js");
 
 function createApp() {
   const app = express();
@@ -134,6 +158,8 @@ describe("Stage 16 HTTP IDOR / authz negatives", () => {
       .post("/api/transactions/tx-stranger/payment/refund-to-buyer")
       .set("Authorization", `Bearer ${sellerX}`)
       .send({});
+    // C-02 admin-only refund authorization is exercised directly: checkout is
+    // pinned false in this harness, so the admin check is the gate under test.
     assert.ok(res.status === 403 || res.status === 404);
   });
 

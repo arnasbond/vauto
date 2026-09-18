@@ -78,6 +78,30 @@ export async function getPlatformFlags(): Promise<PlatformFlags> {
   }
 }
 
+/**
+ * Read ONLY the checkout-disable flag with a trustworthy tri-state.
+ *
+ * `true`  = checkout explicitly disabled.
+ * `false` = checkout explicitly enabled (or the flag is absent).
+ * `null`  = the safety setting could NOT be reliably read.
+ *
+ * This exists so the financial kill-switch can fail CLOSED (block money on
+ * `null`) without changing the broader, deliberately fail-open
+ * `getPlatformFlags()` semantics for unrelated platform flags.
+ */
+export async function getCheckoutDisabledFlag(): Promise<boolean | null> {
+  try {
+    const rows = await query<{ value: string }>(
+      `SELECT value FROM platform_settings WHERE key = $1 LIMIT 1`,
+      ["disableCheckout"]
+    );
+    if (rows.length === 0) return false;
+    return parseBool(rows[0].value);
+  } catch {
+    return null;
+  }
+}
+
 export async function setPlatformFlags(
   patch: Partial<PlatformFlags>,
   updatedBy?: string | null

@@ -9,6 +9,7 @@ import { ZodError } from "zod";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 import { sendInternalError } from "../lib/http-errors.js";
+import { rejectIfCheckoutDisabled } from "../platform/platform-guards.js";
 import { createPoolTxQueryable } from "../transaction/index.js";
 import {
   createPaymentIntentService,
@@ -97,6 +98,9 @@ paymentIntentRouter.post(
   requireAuth,
   async (req: AuthedRequest, res) => {
     try {
+      // Soft-launch hard gate: no real payment intent may be initiated while
+      // checkout is disabled. Rejects BEFORE the frozen financial core runs.
+      if (await rejectIfCheckoutDisabled(res)) return;
       const claimed = req.body as { verticalId?: unknown; vertical?: unknown };
       const deal = createUniversalDealRoomService(createPoolTxQueryable());
       const result = await deal.initiatePayment({
@@ -139,6 +143,9 @@ paymentIntentRouter.post(
   requireAuth,
   async (req: AuthedRequest, res) => {
     try {
+      // Soft-launch hard gate: no Stripe PaymentIntent may be created while
+      // checkout is disabled. Rejects BEFORE the provider call.
+      if (await rejectIfCheckoutDisabled(res)) return;
       const body = (req.body ?? {}) as Record<string, unknown>;
       const { verticalId, vertical, ...stripeBody } = body;
       const deal = createUniversalDealRoomService(createPoolTxQueryable());

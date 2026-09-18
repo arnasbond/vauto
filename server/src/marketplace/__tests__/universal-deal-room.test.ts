@@ -4,7 +4,7 @@
  */
 
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { after, before, describe, it, mock } from "node:test";
 import { randomUUID } from "node:crypto";
 import express from "express";
 import request from "supertest";
@@ -21,10 +21,6 @@ import { OFFERS_MIGRATION_SQL, OfferEngine } from "../../transaction/offers/inde
 import { TRANSACTION_CHAT_MIGRATION_SQL } from "../../transaction-chat/index.js";
 import { DEAL_ROOM_MIGRATION_SQL } from "../../deal-room/index.js";
 import { PAYMENT_LEDGER_MIGRATION_SQL } from "../../payment/index.js";
-import { offersRouter } from "../../routes/offers.js";
-import { paymentIntentRouter } from "../../routes/payment-intent.js";
-import { universalDealRoomRouter } from "../../routes/universal-deal-room.js";
-import { dealRoomRouter } from "../../routes/deal-room.js";
 import {
   DealCapabilityDeniedError,
   createUniversalDealRoomService,
@@ -33,6 +29,37 @@ import { DealNegotiationStateError } from "../../shared/marketplace-domain/deal-
 
 process.env.JWT_SECRET =
   process.env.JWT_SECRET?.trim() || "vauto-dev-secret-change-in-production";
+
+// Soft-launch P0: the checkout kill-switch fails CLOSED on an unreadable
+// platform-settings DB. This suite exercises the real Deal Room vertical /
+// authz behavior via an in-memory PGlite, so pin the checkout safety state to
+// a KNOWN `false` — the guard then passes and the suite tests what it always
+// tested, not the kill-switch.
+mock.module("../../platform/platform-settings.js", {
+  namedExports: {
+    getPlatformFlags: async () => ({
+      maintenanceMode: false,
+      disableNewListings: false,
+      disableCheckout: false,
+    }),
+    getCheckoutDisabledFlag: async () => false,
+    PLATFORM_MAINTENANCE_MESSAGE:
+      "Platforma laikinai techninėje priežiūroje. Bandykite vėliau.",
+    PLATFORM_LISTINGS_DISABLED_MESSAGE:
+      "Naujų skelbimų kūrimas laikinai išjungtas.",
+    PLATFORM_CHECKOUT_DISABLED_MESSAGE:
+      "Mokėjimai laikinai išjungti. Bandykite vėliau.",
+  },
+});
+
+// Load the HTTP routers AFTER the platform-settings mock is registered so the
+// checkout guard reads the pinned (known-false) safety state.
+const { offersRouter } = await import("../../routes/offers.js");
+const { paymentIntentRouter } = await import("../../routes/payment-intent.js");
+const { universalDealRoomRouter } = await import(
+  "../../routes/universal-deal-room.js"
+);
+const { dealRoomRouter } = await import("../../routes/deal-room.js");
 
 function adaptPglite(db: PGlite): TxQueryable {
   return {
