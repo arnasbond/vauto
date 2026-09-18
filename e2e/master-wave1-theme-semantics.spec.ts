@@ -198,7 +198,14 @@ test.describe("MASTER Wave 1 — Theme Authority Contract", () => {
       await dismissGdpr(page);
       await expect.poll(() => appTheme(page)).toBe(theme);
       await page.getByRole("button", { name: /Vision AI paieška pagal nuotrauką/i }).click();
-      const sheet = page.locator(".vauto-auth-modal, [class*='ds-surface-card']").first();
+      // FC-UX V5 — the Vision button now opens PhotoSourceSheet (role=dialog,
+      // aria-label="Pridėti failą"), not the legacy auth modal. The sheet panel
+      // is the dialog's direct child surface card; assert ITS background so the
+      // "no hardcoded overlay/sheet colors" invariant stays protected against
+      // the current canonical component instead of a stale .vauto-auth-modal.
+      const sheet = page
+        .locator('[role="dialog"][aria-label="Pridėti failą"] > div')
+        .first();
       await expect(sheet).toBeVisible({ timeout: 10_000 });
       const bg = await sheet.evaluate((el) => getComputedStyle(el).backgroundColor);
       await page.keyboard.press("Escape").catch(() => undefined);
