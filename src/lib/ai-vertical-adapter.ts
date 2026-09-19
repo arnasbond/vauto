@@ -113,12 +113,17 @@ const ADAPTER_RULES: readonly VerticalAdapterRule[] = [
     ],
   },
   {
+    // R2 — "auto" and "masin" are deliberately NOT vehicle synonyms. As word
+    // prefixes they fabricate the vehicles category from ordinary words:
+    // "auto" → "autoriaus"/"automatas"/"autobusas", "masin" → "siuvimo/skalbimo
+    // mašina" (appliances). "automobil" is the unambiguous car stem; ambiguous
+    // "mašina"/"auto" utterances are left to the reasoning layer to resolve.
     verticalId: "TRANSPORT",
     synonyms: [
       "bmw", "audi", "vw", "volkswagen", "mercedes", "benz", "toyota", "opel",
       "ford", "peugeot", "citroen", "renault", "skoda", "seat", "nissan", "honda",
       "mazda", "volvo", "kia", "hyundai", "tesla", "dacia", "suzuki", "fiat",
-      "auto", "automobil", "masin", "vairas", "rida", "dyzel", "benzin", "varik",
+      "automobil", "vairas", "rida", "dyzel", "benzin", "varik",
       "sedan", "universal", "hecbek", "hatchback", "visureig", "suv", "greiciu",
     ],
   },
