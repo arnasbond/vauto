@@ -40,3 +40,23 @@ test("18.1: unknown query fails closed to all (no invented vertical)", () => {
   assert.equal(resolveAiVertical(""), "all");
   assert.equal(resolveAiVertical("qwertz uiopasdf ghjk"), "all");
 });
+
+test("R2: ambiguous 'mašina'/'auto' never fabricate the vehicles category", () => {
+  // "mašina" (machine) is ambiguous — "siuvimo/skalbimo mašina" are appliances,
+  // not cars. The deterministic adapter must fail closed (or resolve to the
+  // correct appliance vertical) and let the reasoning layer disambiguate,
+  // instead of inventing "vehicles".
+  assert.equal(resolveAiVertical("siuvimo mašina"), "all");
+  assert.equal(resolveAiVertical("skalbimo mašina"), "electronics");
+  assert.equal(resolveAiVertical("noriu mašinos"), "all");
+  // "auto" is a prefix, not a car noun — it must not turn "autoriaus"/"autobusas"
+  // into vehicle searches.
+  assert.equal(resolveAiVertical("ieškau autoriaus"), "all");
+  assert.equal(resolveAiVertical("autobusas"), "all");
+});
+
+test("R2: unambiguous 'automobil' stem still resolves to vehicles", () => {
+  assert.equal(resolveAiVertical("automobilis"), "vehicles");
+  assert.equal(resolveAiVertical("dyzelinis automobilis"), "vehicles");
+  assert.equal(resolveAiVertical("Toyota Corolla 2015"), "vehicles");
+});
