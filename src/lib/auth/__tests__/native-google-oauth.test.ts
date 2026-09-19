@@ -3,8 +3,8 @@
  *
  * Verifies the canonical Google OAuth contract across platforms:
  * 1. Web redirect preserves standard web callback URI.
- * 2. Android native invokes external adapter with registered app scheme (com.vauto.app://auth/callback).
- * 3. iOS native invokes external adapter with registered app scheme (com.vauto.app://auth/callback).
+ * 2. Android native invokes external adapter with the HTTPS App Link (https://www.vauto.lt/auth/callback/).
+ * 3. iOS native invokes external adapter with the HTTPS App Link (https://www.vauto.lt/auth/callback/).
  * 4. Missing native adapter fails closed (no fake redirect, no WebView fallback).
  * 5. Wrong state is rejected.
  * 6. Missing state is rejected.
@@ -172,15 +172,16 @@ describe("Item 5 — Native Google OAuth: Canonical Platform Matrix", () => {
     assert.ok(androidOpenedUrl, "VautoAndroid.openExternalUrl was invoked");
 
     const targetUrl = new URL(androidOpenedUrl!);
-    // Registered custom app scheme must be used on Android native
+    // The HTTPS App Link must be used on Android native (custom scheme is rejected by Google)
     assert.equal(targetUrl.searchParams.get("redirect_uri"), getNativeAuthCallbackUrl());
-    assert.equal(targetUrl.searchParams.get("redirect_uri"), "com.vauto.app://auth/callback");
+    assert.equal(targetUrl.searchParams.get("redirect_uri"), "https://www.vauto.lt/auth/callback/");
+    assert.notEqual(targetUrl.searchParams.get("redirect_uri"), "com.vauto.app://auth/callback");
 
     const state = targetUrl.searchParams.get("state")!;
     assert.ok(state);
 
-    // Simulate Android return through registered deep link
-    const callbackUrl = `com.vauto.app://auth/callback#id_token=valid_android_id_token&state=${encodeURIComponent(state)}`;
+    // Simulate Android return through the HTTPS App Link
+    const callbackUrl = `https://www.vauto.lt/auth/callback/#id_token=valid_android_id_token&state=${encodeURIComponent(state)}`;
     const payload = storeOAuthCallbackPayload(callbackUrl);
 
     assert.ok(payload, "Callback payload processed successfully");
@@ -210,13 +211,14 @@ describe("Item 5 — Native Google OAuth: Canonical Platform Matrix", () => {
 
     const targetUrl = new URL(iosOpenedUrl!);
     assert.equal(targetUrl.searchParams.get("redirect_uri"), getNativeAuthCallbackUrl());
-    assert.equal(targetUrl.searchParams.get("redirect_uri"), "com.vauto.app://auth/callback");
+    assert.equal(targetUrl.searchParams.get("redirect_uri"), "https://www.vauto.lt/auth/callback/");
+    assert.notEqual(targetUrl.searchParams.get("redirect_uri"), "com.vauto.app://auth/callback");
 
     const state = targetUrl.searchParams.get("state")!;
     assert.ok(state);
 
-    // Simulate iOS return through registered deep link
-    const callbackUrl = `com.vauto.app://auth/callback#id_token=valid_ios_id_token&state=${encodeURIComponent(state)}`;
+    // Simulate iOS return through the HTTPS App Link
+    const callbackUrl = `https://www.vauto.lt/auth/callback/#id_token=valid_ios_id_token&state=${encodeURIComponent(state)}`;
     const payload = storeOAuthCallbackPayload(callbackUrl);
 
     assert.ok(payload, "Callback payload processed successfully");
