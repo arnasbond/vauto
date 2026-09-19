@@ -191,6 +191,7 @@ import {
   isNonExecutionDiscovery,
   isExplicitExecutionDirective,
   isCompactCatalogBrowse,
+  isAdvisorySignal,
   extractGroundedVehicleMake,
 } from "./planner/planner-signals.js";
 import { resolveUniversalSearchQuery } from "./search/universal-search-query.js";
@@ -476,10 +477,15 @@ const GEMINI_RETRY_BASE_MS = 400;
  * wishlist registration, offers, drafts, publishes, consequential,
  * payments, session-state mutation.
  */
-const ADVISORY_SAFE_TOOL_NAMES = new Set([
+export const ADVISORY_SAFE_TOOL_NAMES = new Set([
   "analyzeMarketPrice",
   "getSellerTrustScore",
   "analyzeNegotiationTwin",
+  // R2-H1 — search is a READ capability, not the meaning of a buying question.
+  // An advice-seeking turn may still retrieve marketplace inventory to inform
+  // its recommendation; the search side effect is the user-requested result,
+  // never a financial/destructive action.
+  "searchListings",
 ]);
 
 function isRetriableAgentError(e: unknown): boolean {
@@ -2508,7 +2514,11 @@ async function runVautoAgentInner(
   const surfaceNonSearchGoal =
     detectServerSellIntent(lastUserText) ||
     isNonExecutionDiscovery(lastUserText) ||
-    isExplicitWantedRequest(lastUserText);
+    isExplicitWantedRequest(lastUserText) ||
+    // R2-H1 — a mixed "search + advise" utterance must NOT take the
+    // deterministic single-pass search fast-path (which would drop the advice).
+    // It goes through the model tool loop so the assistant can advise AND search.
+    isAdvisorySignal(lastUserText);
   const plannerForcesSearch =
     plannerDecision.routing === "deterministic_search" && !surfaceNonSearchGoal;
   const plannerEstablishedNonSearchGoal =

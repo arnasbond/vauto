@@ -24,6 +24,7 @@ import {
   PUBLISH_INTENT_MARKER_RE,
   SEARCH_VERB_RE,
   isAdvisoryInterrogative,
+  isAdvisorySignal,
   isBareAmbiguousNoun,
   isExplicitWantedRequest,
   isNonExecutionDiscovery,
@@ -437,6 +438,22 @@ export function applyDeterministicClamps(
         advisoryContext: true,
       },
     };
+  }
+
+  // 5d. R2-H1 — ADVISORY + SEARCH combination. An advice-seeking signal may
+  //     coexist with an explicit search/execution directive ("Ieškau X, ką
+  //     rekomenduotum?"). Keep the catalog_search intent and search tool (the
+  //     user DID ask to search) but mark the turn advisoryContext so the model
+  //     is instructed to ALSO answer the advice, and may use read-only search
+  //     to inform it. Search is a TOOL, not the mandatory meaning of a buying
+  //     question. Pure advisory already returned context_question above (3b/5c);
+  //     this clause only marks the surviving search decision.
+  if (
+    decision.intent === "catalog_search" &&
+    isAdvisorySignal(text)
+  ) {
+    clamped.push("advisory_plus_search");
+    decision = { ...decision, advisoryContext: true };
   }
 
   // 6. Tool whitelist — unknown tools are dropped (fail-closed to dialog).

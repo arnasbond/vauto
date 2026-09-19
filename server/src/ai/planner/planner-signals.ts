@@ -161,6 +161,28 @@ export function isNonExecutionDiscovery(text: string): boolean {
   return !isExplicitExecutionDirective(t);
 }
 
+/**
+ * R2-H1 — ADVISORY SIGNAL, independent of any search/execution verb.
+ *
+ * `isAdvisoryInterrogative`/`isNonExecutionDiscovery` treat an explicit
+ * search verb as fully overriding the advisory class, so a MIXED utterance
+ * ("Ieškau skalbimo mašinos, ką rekomenduotum?") loses the advice dimension.
+ * This signal reports only "the user is asking for advice/recommendation"
+ * (advice verb or discovery/indecision phrase) so the policy layer can keep
+ * BOTH search execution AND advisory reasoning on the same turn. It is a
+ * semantic CLASS (advice verbs + indecision phrases), never a phrase dictionary.
+ */
+export function isAdvisorySignal(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (FOLDED_META_ASSISTANT_RE.test(foldBoundary(t))) return false;
+  const folded = foldBoundary(t);
+  return (
+    FOLDED_ADVISORY_MARKER_RE.test(folded) ||
+    FOLDED_DISCOVERY_CLASS_RE.test(folded)
+  );
+}
+
 /** Dialog stopwords — a phrase containing any of these is NOT a product noun. */
 export const DIALOG_STOPWORD_RE =
   /\b(pad[ėe]k|papasakok|paaiškink|paaiskink|parodyk|rodyk|noriu|gal|prašau|prasau|patark|duok|aš|as|man|mano|persigalvojau)\b/i;
