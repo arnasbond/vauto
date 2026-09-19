@@ -304,7 +304,7 @@ export function consumeOAuthPendingPayload(): OAuthPendingPayload | null {
 }
 
 export function getNativeAuthCallbackUrl(): string {
-  return `${VAUTO_APP_SCHEME}://auth/callback`;
+  return `${SITE_URL.replace(/\/$/, "")}${AUTH_CALLBACK_PATH}`;
 }
 
 export function getWebAuthCallbackUrl(): string {
