@@ -210,14 +210,40 @@ export async function geminiSupervisorTurn(
     }
 
     const data = (await res.json()) as {
-      candidates?: { content?: { parts?: GeminiPart[] } }[];
+      candidates?: Array<{
+        content?: { parts?: GeminiPart[] };
+        finishReason?: string;
+      }>;
+      promptFeedback?: { blockReason?: string };
     };
-    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const candidates = data.candidates ?? [];
+    const candidate = candidates[0];
+    const parts = candidate?.content?.parts ?? [];
     const text = parts
       .filter((p): p is { text: string } => "text" in p && Boolean(p.text))
       .map((p) => p.text)
       .join("\n")
       .trim();
+
+    // R2-H3.1 — INTERNAL diagnostic observability. When the model returns no
+    // text, classify the reason so upstream silence (safety block, max tokens,
+    // tool-call-only, empty candidate) is distinguishable from a code-path
+    // silence. Logged server-side only — never user-facing, never user content.
+    if (!text) {
+      const finishReason = candidate?.finishReason ?? "NONE";
+      const blockReason = data.promptFeedback?.blockReason ?? "";
+      const hasFunctionCall = parts.some((p) => "functionCall" in p);
+      const signal = blockReason
+        ? `safety_block(${blockReason})`
+        : finishReason === "SAFETY"
+          ? "safety_block(SAFETY)"
+          : finishReason === "MAX_TOKENS"
+            ? "max_tokens"
+            : hasFunctionCall
+              ? "tool_call_only"
+              : `empty(${finishReason}, candidates=${candidates.length})`;
+      console.warn(`[vauto-agent] gemini empty output: ${signal}`);
+    }
 
     return { parts, text };
   } catch (e) {

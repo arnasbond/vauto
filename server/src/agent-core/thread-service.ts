@@ -26,6 +26,7 @@ import {
 } from "./thread-store.js";
 import { runVautoAgent } from "../ai/vauto-agent.js";
 import type { VautoAgentRequest, VautoAgentResponse } from "../ai/vauto-agent.js";
+import { executorAiDownReply } from "../ai/planner/planner-executor.js";
 import { createHash } from "node:crypto";
 
 export interface ThreadTurnInput {
@@ -352,6 +353,13 @@ export async function runThreadTurn(
       responseJson: null,
     });
     throw agentErr;
+  }
+
+  // R2-H3.1 — A USER TURN MUST NEVER END SILENTLY. If the agent produced no
+  // visible reply (empty/null/whitespace), substitute a truthful visible
+  // fallback so the client always renders something. Never fabricate success.
+  if (!String(response?.reply ?? "").trim()) {
+    response = { ...response, reply: executorAiDownReply(userText) };
   }
 
   // ── Persist the assistant turn + state with the RESERVED version.
