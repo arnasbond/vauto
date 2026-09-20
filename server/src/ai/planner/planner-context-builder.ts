@@ -17,6 +17,7 @@
 import { extractConditionFromText } from "../../shared/fact-conflict.js";
 import { extractLtCityNominativeFromText } from "../lithuanian-location-normalize.js";
 import { parsePriceFromChatInput } from "../listing-chat-input.js";
+import { inferSearchCategory } from "../product-search-query.js";
 import type { PlannerContextInput } from "./planner-types.js";
 
 export interface PlannerContextBuilderInput {
@@ -93,6 +94,11 @@ function factsFromText(text: string): Array<{ key: string; value: string }> {
   if (condition) out.push({ key: "condition", value: condition });
   const city = extractLtCityNominativeFromText(text);
   if (city) out.push({ key: "city", value: city });
+  // R2-H2 — the marketplace category is a fact: an advisory turn that names an
+  // object ("automobilis žmonai") establishes category=vehicles for a later
+  // "show per discussed criteria" turn to resolve.
+  const category = inferSearchCategory(text);
+  if (category) out.push({ key: "category", value: category });
   return out;
 }
 
