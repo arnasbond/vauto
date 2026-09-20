@@ -78,14 +78,19 @@ export function isAdvisoryInterrogative(text: string): boolean {
 }
 
 /**
- * E2.8 — EXECUTION DIRECTIVE semantic class: the user explicitly REQUESTS
- * catalog execution. Imperative search verbs, polite request modals and
- * explicit want-verbs count as directives. „Ar verta ieškoti…?" does NOT
- * (a meta-question about searching is not a request to search); „ieškau
- * patarimo" does NOT (advice-seeking, not catalog seeking).
+ * E2.8 / R2-H1.2 — EXECUTION DIRECTIVE semantic class: the user explicitly
+ * REQUESTS catalog execution with an UNMISTAKABLE imperative/command.
+ *
+ * This is EXECUTION AUTHORITY, so it is deliberately narrow. DESCRIPTIVE
+ * search language („ieškau X“ — I'm looking for, „noriu pirkti“ — I want to
+ * buy) describes a marketplace OBJECTIVE, NOT a command to execute search
+ * NOW, and is therefore NOT an execution directive — those go to the semantic
+ * planner/reasoning layer. Only imperatives („surask/rask/parodyk/ieškok“),
+ * polite request modals („gal gali surasti“) and the equivalent English
+ * commands authorize a deterministic model-bypassing fast path.
  */
 export const EXECUTION_DIRECTIVE_RE =
-  /\b(?:surask(?:ite)?|rask(?:ite)?|ieškok(?:ite)?|paieškok(?:ite)?|parodyk(?:ite)?|atrask(?:ite)?|ieškau(?!\s+(?:darbo\s*$|patarimo|patarimą|pagalbos|patarimų))|ieskau(?!\s+(?:darbo\s*$|patarimo|patarimą|pagalbos|patarimų))|find|search|show\s+me|noriu\s+(?:rasti|pirkti|pamatyti|peržiūrėti)|(?:gal|ar)\s+(?:gali(?:te)?|gal[ėe]t\p{L}*)\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti)|gal[ėe]t\p{L}*\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti))\b/iu;
+  /\b(?:surask(?:ite)?|rask(?:ite)?|ieškok(?:ite)?|paieškok(?:ite)?|parodyk(?:ite)?|atrask(?:ite)?|find|search|show\s+me|(?:gal|ar)\s+(?:gali(?:te)?|gal[ėe]t\p{L}*)\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti)|gal[ėe]t\p{L}*\s+(?:surasti|rasti|ieškoti|paieškoti|parodyti|atrasti))\b/iu;
 
 export function isExplicitExecutionDirective(text: string): boolean {
   const t = text.trim();

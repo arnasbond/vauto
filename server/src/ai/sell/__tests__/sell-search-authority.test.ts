@@ -228,16 +228,36 @@ describe("sell→search authority — adversarial planner matrix", () => {
     }
   });
 
-  it("R2-H1.1 — product + budget + advisory goal is NOT forced into catalog execution", async () => {
-    // No explicit search verb; a recommendation request. A dialog/context_question
-    // planner decision must own the turn — facets (product + budget) are NOT
-    // search authority by themselves.
-    for (const decision of [DIALOG, CONTEXT_Q]) {
+  it("R2-H1.2 — a non-search planner decision owns descriptive/facet turns (no advisory dictionary needed)", async () => {
+    // Descriptive search language ("ieškau") and facets are NOT execution
+    // authority. Even an advisory formulation absent from any deterministic
+    // dictionary ("dvejoju") must not be overridden: the planner's
+    // dialog/context_question/clarify decision owns the turn.
+    for (const decision of [DIALOG, CONTEXT_Q, CLARIFY]) {
       const tools = await runWithPlanner(
-        "reikia mobiliako mano sunui kurima 14 metu iki 400 euru, ka pasiulytum",
+        "ieškau būsto šeimai iki 150000, bet dar dvejoju",
         decision
       );
-      assert.ok(!tools.includes("searchListings"), `advisory must not search: ${decision.intent}`);
+      assert.ok(!tools.includes("searchListings"), `planner owns the turn: ${decision.intent}`);
+    }
+  });
+
+  it("R2-H1.2 — facets alone are NOT execution authority", async () => {
+    for (const decision of [DIALOG, CONTEXT_Q]) {
+      const tools = await runWithPlanner("BMW iki 10000", decision);
+      assert.ok(!tools.includes("searchListings"), `facets defer to planner: ${decision.intent}`);
+    }
+  });
+
+  it("R2-H1.2 — descriptive 'ieškau X' reaches search via planner catalog_search", async () => {
+    const tools = await runWithPlanner("ieškau būsto šeimai iki 150000 eur", CATALOG_SEARCH);
+    assert.ok(tools.includes("searchListings"), "planner catalog_search executes for descriptive language");
+  });
+
+  it("R2-H1.2 — explicit imperative still fast-paths retrieval", async () => {
+    for (const decision of [CONTEXT_Q, DIALOG]) {
+      const tools = await runWithPlanner("parodyk namus iki 150000 Kaune", decision);
+      assert.ok(tools.includes("searchListings"), `imperative executes: ${decision.intent}`);
     }
   });
 
