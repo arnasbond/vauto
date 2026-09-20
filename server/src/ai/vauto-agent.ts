@@ -3569,7 +3569,11 @@ async function runVautoAgentInner(
 
   return {
     ok: true,
-    reply: finalText ? stripStaleChatPromptTails(finalText) : finalText,
+    // R2-H3.1 — never end a turn with an empty visible reply (defense-in-depth
+    // on top of the thread-service guarantee).
+    reply: (finalText ? stripStaleChatPromptTails(finalText) : finalText)?.trim()
+      ? (finalText ? stripStaleChatPromptTails(finalText) : finalText)
+      : executorAiDownReply(lastUserText),
     quickReplies,
     toolCalls,
     actions: resolvedAction,
