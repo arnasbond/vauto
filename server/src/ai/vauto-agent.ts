@@ -2521,9 +2521,12 @@ async function runVautoAgentInner(
     isAdvisorySignal(lastUserText);
   const plannerForcesSearch =
     plannerDecision.routing === "deterministic_search" && !surfaceNonSearchGoal;
+  // R2-H1.1 — a "dialog" (conversational) planner decision is a NON-search
+  // goal. It must block the facets-based deterministic fast-path: mentioning a
+  // product/budget/category/use-case does NOT by itself authorize catalog
+  // execution — the reasoning layer decides advise/clarify/search/compare.
   const plannerEstablishedNonSearchGoal =
-    plannerDecision.intent !== "catalog_search" &&
-    plannerDecision.intent !== "dialog";
+    plannerDecision.intent !== "catalog_search";
   const fromSearchBarRealSearch =
     Boolean(req.context.fromSearchBar) &&
     !surfaceNonSearchGoal &&
