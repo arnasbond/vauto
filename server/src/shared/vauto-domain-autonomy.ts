@@ -14,6 +14,14 @@ export const VAUTO_DOMAIN_SCOPE_REDIRECT =
 export const VAUTO_IN_DOMAIN_RECOVERY =
   "Esu čia padėti su skelbimu ar paieška VAUTO — parašykite, ką norite parduoti, rasti ar pataisyti juodraštyje, ir tęsime.";
 
+/**
+ * R2-H3.3 — truthful visible state for an UNEXPECTED INTERNAL failure. It must
+ * never masquerade as successful reasoning and must never reuse the legacy
+ * listing/search/draft recovery string. Never fabricated success, never silent.
+ */
+export const VAUTO_INTERNAL_ERROR_REPLY =
+  "Atsiprašau — įvyko netikėta klaida apdorojant jūsų užklausą. Bandykite dar kartą kiek vėliau.";
+
 /** Core architectural rules injected into Gemini system prompts. */
 export const VAUTO_DOMAIN_AUTONOMY_RULES = `═══════════════════════════════════════════════════════════════
 VAUTO DOMAIN-BOUNDED AUTONOMY (PRIVALOMA ARCHITEKTŪRA)
