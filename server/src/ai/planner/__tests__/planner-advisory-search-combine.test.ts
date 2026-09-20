@@ -84,13 +84,16 @@ describe("R2-H1 — isAdvisorySignal (advisory independent of search verb)", () 
   });
 });
 
-describe("R2-H1 — mixed search + advisory keeps BOTH search and advice", () => {
-  it("planner: catalog_search survives but advisoryContext is set (advise + retrieve)", async () => {
+describe("R2-H1.2 — descriptive 'ieškau' + advisory reaches reasoning", () => {
+  it("mixed descriptive search + advisory becomes context_question (advisory owns the turn)", async () => {
+    // 'ieškau' is descriptive, not an execution directive: with an advisory
+    // marker the planner resolves to context_question + advisoryContext. The
+    // model may still retrieve (searchListings is advisory-safe) to inform its
+    // advice, but the turn is NOT hard-routed to catalog execution.
     const phrase = "Ieškau skalbimo mašinos iki 400 eurų, ką rekomenduotum?";
     setPlannerAdapterForTests(searchHappyAdapter());
     const d = await resolvePlannerDecision(ctx(phrase));
-    assert.equal(d.intent, "catalog_search", "search is NOT dropped");
-    assert.equal(d.tool, "searchListings", "search tool remains");
+    assert.equal(d.intent, "context_question", "advisory wins over descriptive search language");
     assert.equal(d.advisoryContext, true, "advice dimension is preserved");
   });
 
@@ -103,7 +106,7 @@ describe("R2-H1 — mixed search + advisory keeps BOTH search and advice", () =>
     assert.equal(d.advisoryContext, true);
   });
 
-  it("pure search stays catalog_search WITHOUT advisoryContext", async () => {
+  it("pure descriptive search (no advisory word) stays catalog_search WITHOUT advisoryContext", async () => {
     const phrase = "Ieškau skalbimo mašinos iki 400 eurų.";
     setPlannerAdapterForTests(searchHappyAdapter());
     const d = await resolvePlannerDecision(ctx(phrase));

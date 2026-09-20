@@ -190,7 +190,6 @@ import {
   isExplicitWantedRequest,
   isNonExecutionDiscovery,
   isExplicitExecutionDirective,
-  isCompactCatalogBrowse,
   isAdvisorySignal,
   extractGroundedVehicleMake,
 } from "./planner/planner-signals.js";
@@ -2521,17 +2520,16 @@ async function runVautoAgentInner(
     isAdvisorySignal(lastUserText);
   const plannerForcesSearch =
     plannerDecision.routing === "deterministic_search" && !surfaceNonSearchGoal;
-  // R2-H1.1 — a "dialog" (conversational) planner decision is a NON-search
-  // goal. It must block the facets-based deterministic fast-path: mentioning a
-  // product/budget/category/use-case does NOT by itself authorize catalog
-  // execution — the reasoning layer decides advise/clarify/search/compare.
-  const plannerEstablishedNonSearchGoal =
-    plannerDecision.intent !== "catalog_search";
+  // R2-H1.2 — the deterministic model-bypassing fast path is EXECUTION
+  // AUTHORITY, so it fires ONLY on a genuinely explicit imperative/command.
+  // Descriptive search language ("ieškau X") and structured facets are NOT
+  // execution authority: they reach the semantic planner/reasoning, which
+  // decides advise/clarify/search/compare. Planner catalog_search still
+  // fast-paths via plannerForcesSearch above.
   const fromSearchBarRealSearch =
     Boolean(req.context.fromSearchBar) &&
     !surfaceNonSearchGoal &&
-    (isExplicitExecutionDirective(lastUserText) ||
-      (!plannerEstablishedNonSearchGoal && isCompactCatalogBrowse(lastUserText)));
+    isExplicitExecutionDirective(lastUserText);
   const forceCatalogSearch =
     Boolean(lastUserText) &&
     !pendingChatImages?.length &&
