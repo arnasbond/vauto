@@ -86,7 +86,7 @@ import {
   isListingConfirmationPhrase,
   resolveBrowseAllIntent,
 } from "../lib/browse-all-intent.js";
-import { VAUTO_IN_DOMAIN_RECOVERY } from "../shared/vauto-domain-autonomy.js";
+import { VAUTO_INTERNAL_ERROR_REPLY } from "../shared/vauto-domain-autonomy.js";
 import {
   evaluateTextSafetyGate,
   replyForTextSafetyGate,
@@ -593,16 +593,25 @@ export async function runVautoAgent(
   try {
     return await runVautoAgentInner(req, options?.onEvent);
   } catch (e) {
-    console.warn("[vauto-agent] run failed:", e);
     // F1.3 — AI DOWN ≠ VAUTO DOWN skaidrumas: provider errors, rate-limits and
     // timeouts are honest AgentRouteErrors (502/503/504) and must reach the
     // client as errors — never be masked as an ok:true canned reply.
     if (e instanceof AgentRouteError) throw e;
-    // Unexpected internal bugs degrade to the deterministic recovery string
-    // (never invented data), keeping classic search/manual flows usable.
+    // R2-H3.3 — an unexpected internal failure must NOT masquerade as
+    // successful AI reasoning. Log a stable internal signal (error class +
+    // sanitized message; no secrets, no user content) and return a truthful
+    // visible retry state — never the legacy listing/search/draft recovery.
+    const err = e instanceof Error ? e : new Error(String(e));
+    const safeName = err.name || err.constructor?.name || "UnknownError";
+    const safeMessage = String(err.message ?? "")
+      .replace(/\s+/g, " ")
+      .slice(0, 300);
+    console.warn(
+      `[vauto-agent] unexpected internal error: ${safeName}: ${safeMessage}`
+    );
     return {
       ok: true,
-      reply: VAUTO_IN_DOMAIN_RECOVERY,
+      reply: VAUTO_INTERNAL_ERROR_REPLY,
       toolCalls: [],
       actions: { type: "none" },
     };
