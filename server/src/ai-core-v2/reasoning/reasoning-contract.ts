@@ -23,6 +23,16 @@ export interface ReasoningInput {
   history: ReasoningHistoryEntry[];
   state: MarketplaceState;
   capabilities: CapabilityDescription[];
+  /** Grounded capability results fed back to the model for interpretation. */
+  groundedResults?: GroundedCapabilityResult[];
+}
+
+/** A capability result surfaced to the model for interpretation (never the final answer). */
+export interface GroundedCapabilityResult {
+  capability: string;
+  ok: boolean;
+  summary?: string;
+  error?: string;
 }
 
 export interface CapabilityRequestShape {

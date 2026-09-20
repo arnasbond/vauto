@@ -15,6 +15,7 @@ import { MalformedReasoningDecisionError, runReasoningLoop } from "../reasoning/
 import type { ReasoningDecision, ReasoningInput, ReasoningProvider } from "../reasoning/reasoning-contract.js";
 import { applyStatePatches, StateTransitionError } from "../state/state-transitions.js";
 import type { MarketplaceState } from "../state/marketplace-state.js";
+import { ProviderFailureError } from "../provider/gemini-provider.js";
 
 export type ShadowFailureCode =
   | "provider_error"
@@ -58,6 +59,18 @@ function classifyShadowFailure(err: unknown): ShadowFailureCode {
   if (err instanceof MalformedReasoningDecisionError) return "malformed_result";
   if (err instanceof StateTransitionError) return "state_transition_error";
   if (err instanceof CapabilityPolicyRejectionError) return "capability_policy_rejection";
+  if (err instanceof ProviderFailureError) {
+    switch (err.code) {
+      case "timeout":
+        return "timeout";
+      case "provider_unavailable":
+      case "http_error":
+        return "provider_error";
+      case "malformed_json":
+      case "schema_invalid":
+        return "malformed_result";
+    }
+  }
   const msg = err instanceof Error ? err.message : String(err);
   if (/timeout|timed\s*out|abort/i.test(msg)) return "timeout";
   return "provider_error";
