@@ -55,6 +55,12 @@ export interface MarketplaceState {
   goal?: string;
   /** Canonical vertical/category hint (vehicles, real_estate, …). */
   vertical?: string;
+  /**
+   * Free-text SEARCH SUBJECT (e.g. "Toyota Corolla"). This is the ONLY free
+   * text that may influence retrieval, and ONLY when provenance is USER_STATED.
+   */
+  searchSubject?: string;
+  searchSubjectProvenance?: Provenance;
   hardConstraints: HardConstraints;
   hardConstraintProvenance: Partial<Record<keyof HardConstraints, Provenance>>;
   softPreferences: SoftPreference[];
@@ -130,4 +136,18 @@ export function executionEligibleHardConstraints(
   if (c.priceMax != null && isExecutionEligible(p.priceMax)) out.priceMax = c.priceMax;
   if (c.condition != null && isExecutionEligible(p.condition)) out.condition = c.condition;
   return out;
+}
+
+/**
+ * The free-text search subject is execution-eligible ONLY when USER_STATED.
+ * A MODEL_INFERRED subject (e.g. the model guessing "Toyota SUV") must never
+ * narrow retrieval.
+ */
+export function executionEligibleSearchSubject(
+  state: MarketplaceState
+): string | undefined {
+  if (state.searchSubject && isExecutionEligible(state.searchSubjectProvenance)) {
+    return state.searchSubject;
+  }
+  return undefined;
 }

@@ -98,6 +98,21 @@ export function setVertical(state: MarketplaceState, vertical: string): Marketpl
   return { ...state, vertical };
 }
 
+export function setSearchSubject(
+  state: MarketplaceState,
+  subject: string,
+  p: Provenance
+): MarketplaceState {
+  return { ...state, searchSubject: subject, searchSubjectProvenance: p };
+}
+
+export function removeSearchSubject(state: MarketplaceState): MarketplaceState {
+  const next = { ...state };
+  delete next.searchSubject;
+  delete next.searchSubjectProvenance;
+  return next;
+}
+
 export function addUnresolved(state: MarketplaceState, question: string): MarketplaceState {
   if (state.unresolved.includes(question)) return state;
   return { ...state, unresolved: [...state.unresolved, question] };
@@ -156,6 +171,12 @@ export function applyStatePatches(
         break;
       case "setVertical":
         s = setVertical(s, patch.vertical);
+        break;
+      case "setSearchSubject":
+        s = setSearchSubject(s, patch.subject, patch.provenance);
+        break;
+      case "removeSearchSubject":
+        s = removeSearchSubject(s);
         break;
       case "addUnresolved":
         s = addUnresolved(s, patch.question);

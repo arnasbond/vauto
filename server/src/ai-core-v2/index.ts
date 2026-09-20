@@ -16,4 +16,8 @@ export * from "./capability/capabilities/search-listings.js";
 export * from "./capability/capabilities/listing-details.js";
 export * from "./reasoning/reasoning-contract.js";
 export * from "./reasoning/reasoning-loop.js";
+export * from "./loop/multi-step-loop.js";
+export * from "./provider/prompt.js";
+export * from "./provider/schema.js";
+export * from "./provider/gemini-provider.js";
 export * from "./shadow/shadow-runner.js";

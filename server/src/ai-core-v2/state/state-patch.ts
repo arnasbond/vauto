@@ -11,6 +11,8 @@ import type { Provenance } from "./marketplace-state.js";
 export type StatePatch =
   | { op: "setHard"; key: string; value: string | number; provenance: Provenance }
   | { op: "removeHard"; key: string }
+  | { op: "setSearchSubject"; subject: string; provenance: Provenance }
+  | { op: "removeSearchSubject" }
   | { op: "addSoft"; label: string; provenance: Provenance }
   | { op: "removeSoft"; label: string }
   | { op: "setGoal"; goal: string }
