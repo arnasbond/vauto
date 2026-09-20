@@ -32,6 +32,7 @@ export const REASONING_DECISION_SCHEMA = {
           goal: { type: "string" as const },
           vertical: { type: "string" as const },
           question: { type: "string" as const },
+          evidence: { type: "string" as const },
           provenance: {
             type: "object" as const,
             properties: {
@@ -79,9 +80,24 @@ function parsePatch(raw: unknown): StatePatch {
   const op = String(r.op ?? "");
   switch (op) {
     case "setHard":
-      return { op, key: String(r.key ?? ""), value: r.value as string | number, provenance: parseProvenance(r.provenance) };
+      return {
+        op,
+        key: String(r.key ?? ""),
+        value: r.value as string | number,
+        provenance: parseProvenance(r.provenance),
+        ...(typeof r.evidence === "string" && r.evidence.trim() ? { evidence: r.evidence.trim() } : {}),
+      };
     case "removeHard":
       return { op, key: String(r.key ?? "") };
+    case "setSearchSubject":
+      return {
+        op,
+        subject: String(r.subject ?? ""),
+        provenance: parseProvenance(r.provenance),
+        ...(typeof r.evidence === "string" && r.evidence.trim() ? { evidence: r.evidence.trim() } : {}),
+      };
+    case "removeSearchSubject":
+      return { op };
     case "addSoft":
       return { op, label: String(r.label ?? ""), provenance: parseProvenance(r.provenance) };
     case "removeSoft":

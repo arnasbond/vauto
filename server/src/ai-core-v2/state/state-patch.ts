@@ -9,9 +9,9 @@
 import type { Provenance } from "./marketplace-state.js";
 
 export type StatePatch =
-  | { op: "setHard"; key: string; value: string | number; provenance: Provenance }
+  | { op: "setHard"; key: string; value: string | number; provenance: Provenance; evidence?: string }
   | { op: "removeHard"; key: string }
-  | { op: "setSearchSubject"; subject: string; provenance: Provenance }
+  | { op: "setSearchSubject"; subject: string; provenance: Provenance; evidence?: string }
   | { op: "removeSearchSubject" }
   | { op: "addSoft"; label: string; provenance: Provenance }
   | { op: "removeSoft"; label: string }

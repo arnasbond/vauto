@@ -18,11 +18,15 @@ import type {
   ReasoningProvider,
 } from "../reasoning/reasoning-contract.js";
 import { applyStatePatches } from "../state/state-transitions.js";
+import { groundStatePatches } from "./grounding.js";
+import type { AuthorityVerifier } from "./authority-verifier.js";
+import { continuityVerifier } from "./authority-verifier.js";
 import {
   executionEligibleHardConstraints,
   executionEligibleSearchSubject,
   type MarketplaceState,
 } from "../state/marketplace-state.js";
+import type { StatePatch } from "../state/state-patch.js";
 
 export const DEFAULT_MAX_ITERATIONS = 3;
 
@@ -32,6 +36,8 @@ export interface MultiStepLoopOptions {
   input: ReasoningInput;
   maxIterations?: number;
   onEvent?: (e: LoopEvent) => void;
+  /** Narrow authority verifier for USER_STATED grounding (default: continuity-only). */
+  authorityVerifier?: AuthorityVerifier;
 }
 
 export type LoopEvent =
@@ -51,6 +57,8 @@ export interface MultiStepLoopResult {
   finalState: MarketplaceState;
   iterations: number;
   capabilityCalls: CapabilityCallRecord[];
+  /** USER_STATED claims the grounding layer rejected (demoted to MODEL_INFERENCE). */
+  rejectedAuthority: Array<{ patch: StatePatch; reason: string }>;
 }
 
 /**
@@ -98,6 +106,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
   let state = opts.input.state;
   const groundedResults: GroundedCapabilityResult[] = [];
   const capabilityCalls: CapabilityCallRecord[] = [];
+  const rejectedAuthority: MultiStepLoopResult["rejectedAuthority"] = [];
   let decision: ReasoningDecision = {};
 
   for (let i = 0; i < max; i++) {
@@ -111,11 +120,19 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
     }
 
     if (decision.statePatches?.length) {
-      state = applyStatePatches(state, decision.statePatches);
+      // Ground before applying: the model cannot self-grant USER_STATED authority.
+      const grounded = await groundStatePatches(
+        state,
+        decision.statePatches,
+        opts.input.userTurn,
+        opts.authorityVerifier ?? continuityVerifier
+      );
+      state = applyStatePatches(state, grounded.accepted);
+      rejectedAuthority.push(...grounded.rejectedAuthority);
     }
 
     if (!decision.capabilityRequest) {
-      return { decision, finalState: state, iterations: i + 1, capabilityCalls };
+      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority };
     }
 
     const req = decision.capabilityRequest;
@@ -123,12 +140,12 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
     if (!contract) {
       capabilityCalls.push({ name: req.capability, ok: false, error: "unknown_capability" });
       opts.onEvent?.({ type: "capability", name: req.capability, ok: false, error: "unknown_capability" });
-      return { decision, finalState: state, iterations: i + 1, capabilityCalls };
+      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority };
     }
     if (contract.consequence !== "READ") {
       capabilityCalls.push({ name: req.capability, ok: false, error: "not_read_only" });
       opts.onEvent?.({ type: "capability", name: req.capability, ok: false, error: "not_read_only" });
-      return { decision, finalState: state, iterations: i + 1, capabilityCalls };
+      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority };
     }
 
     // Execution-safe args: search filters derive from USER_INTENT state only.
@@ -154,5 +171,5 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
   }
 
   opts.onEvent?.({ type: "bound_reached", iterations: max });
-  return { decision, finalState: state, iterations: max, capabilityCalls };
+  return { decision, finalState: state, iterations: max, capabilityCalls, rejectedAuthority };
 }
