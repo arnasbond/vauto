@@ -55,7 +55,8 @@ export interface AgentMemoryPayload {
 
 export const AGENT_MEMORY_SYSTEM_HINT = `ATMINTIS IR KONTEKSTAS (PRIVALOMA):
 - Numatytoji paieškos aprėptis: ${ALL_LITHUANIA_LABEL}. Jei vartotojas neįvardina miesto — NEPERDUOK searchListings.city ir postNewListing.city; ieškok visoje Lietuvoje be lokacijos filtro.
-- PAIEŠKOS IZOLIACIJA: searchListings.query GRIEŽTAI iš PASKUTINĖS vartotojo žinutės. NIEKADA nejunk nesusijusių temų („gitara“ + „automobilis“ → NE „gitaros ir automobilio“).
+- PAIEŠKOS SUBJEKTAS: searchListings.query = ieškomas OBJEKTAS (ne komanda, ne pagalbos žodžiai). Kai vartotojas nurodo NAUJĄ objektą — naudok jį. Kai vartotojas nurodo ANKSTESNĮ objektą arba „pagal aptartas sąlygas“ / „tuos“ / „tokius“ — IŠSPRĘSK objektą, kategoriją ir kainos rėžius iš pokalbio istorijos (automobilis→vehicles, 20k→maxPrice) ir perduok juos searchListings; nepalik tuščio query kaip komandos žodžių.
+- PAIEŠKOS IZOLIACIJA: NIEKADA nejunk nesusijusių temų („gitara“ + „automobilis“ → NE „gitaros ir automobilio“).
 - SESIJOS TĘSTINUMAS: Refine TIK kai aiškiai tęsia TĄ PAČIĄ temą (pvz. „O dabar tik pilkos“). Kitaip — nauja paieška be senų filtrų.
 - PROAKTYVUS FILTRŲ IŠVALYMAS: Kardinaliai nauja paieška / searchSessionReset=true — NENAUDOK senų activeSearchFilters; tik nauja užklausa + NLP filtrai (kaina, miestas).`;
 
