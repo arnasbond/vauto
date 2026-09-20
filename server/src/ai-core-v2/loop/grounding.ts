@@ -21,7 +21,7 @@ import {
 
 function isUserStated(p: StatePatch): boolean {
   return (
-    (p.op === "setHard" || p.op === "setSearchSubject") &&
+    (p.op === "setHard" || p.op === "setSearchSubject" || p.op === "addExclusion") &&
     p.provenance?.source === "USER_STATED"
   );
 }
@@ -29,6 +29,7 @@ function isUserStated(p: StatePatch): boolean {
 function demote(patch: StatePatch): StatePatch {
   if (patch.op === "setHard") return { ...patch, provenance: provenance("MODEL_INFERRED") };
   if (patch.op === "setSearchSubject") return { ...patch, provenance: provenance("MODEL_INFERRED") };
+  if (patch.op === "addExclusion") return { ...patch, provenance: provenance("MODEL_INFERRED") };
   return patch;
 }
 

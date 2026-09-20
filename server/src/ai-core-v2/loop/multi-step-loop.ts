@@ -59,6 +59,8 @@ export interface MultiStepLoopResult {
   capabilityCalls: CapabilityCallRecord[];
   /** USER_STATED claims the grounding layer rejected (demoted to MODEL_INFERENCE). */
   rejectedAuthority: Array<{ patch: StatePatch; reason: string }>;
+  /** Every proposed patch across all loop iterations (pre-grounding). */
+  allProposedPatches: StatePatch[];
 }
 
 /**
@@ -107,6 +109,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
   const groundedResults: GroundedCapabilityResult[] = [];
   const capabilityCalls: CapabilityCallRecord[] = [];
   const rejectedAuthority: MultiStepLoopResult["rejectedAuthority"] = [];
+  const allProposedPatches: StatePatch[] = [];
   let decision: ReasoningDecision = {};
 
   for (let i = 0; i < max; i++) {
@@ -120,6 +123,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
     }
 
     if (decision.statePatches?.length) {
+      allProposedPatches.push(...decision.statePatches);
       // Ground before applying: the model cannot self-grant USER_STATED authority.
       const grounded = await groundStatePatches(
         state,
@@ -132,7 +136,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
     }
 
     if (!decision.capabilityRequest) {
-      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority };
+      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
     }
 
     const req = decision.capabilityRequest;
@@ -140,12 +144,12 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
     if (!contract) {
       capabilityCalls.push({ name: req.capability, ok: false, error: "unknown_capability" });
       opts.onEvent?.({ type: "capability", name: req.capability, ok: false, error: "unknown_capability" });
-      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority };
+      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
     }
     if (contract.consequence !== "READ") {
       capabilityCalls.push({ name: req.capability, ok: false, error: "not_read_only" });
       opts.onEvent?.({ type: "capability", name: req.capability, ok: false, error: "not_read_only" });
-      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority };
+      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
     }
 
     // Execution-safe args: search filters derive from USER_INTENT state only.
@@ -171,5 +175,5 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
   }
 
   opts.onEvent?.({ type: "bound_reached", iterations: max });
-  return { decision, finalState: state, iterations: max, capabilityCalls, rejectedAuthority };
+  return { decision, finalState: state, iterations: max, capabilityCalls, rejectedAuthority, allProposedPatches };
 }

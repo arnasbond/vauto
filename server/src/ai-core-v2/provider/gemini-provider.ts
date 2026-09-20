@@ -14,8 +14,13 @@ import type {
 import { executionEligibleHardConstraints } from "../state/marketplace-state.js";
 import { CORE_V2_SYSTEM_INSTRUCTION, buildReasoningUserPrompt } from "./prompt.js";
 import { REASONING_DECISION_SCHEMA, parseReasoningDecision } from "./schema.js";
+import {
+  CORE_V2_MAX_REASONING_ATTEMPTS,
+  CORE_V2_MODEL,
+  CORE_V2_REASONING_TIMEOUT_MS,
+} from "./model-config.js";
 
-export const CORE_V2_MODEL = process.env.VAUTO_CORE_V2_MODEL?.trim() || "gemini-2.0-flash";
+export { CORE_V2_MODEL };
 
 export type ProviderFailureCode =
   | "provider_unavailable"
@@ -27,11 +32,23 @@ export type ProviderFailureCode =
 /** Typed provider failure so the shadow harness can classify cleanly. */
 export class ProviderFailureError extends Error {
   readonly code: ProviderFailureCode;
-  constructor(code: ProviderFailureCode, message: string) {
+  readonly status?: number;
+  constructor(code: ProviderFailureCode, message: string, status?: number) {
     super(message);
     this.name = "ProviderFailureError";
     this.code = code;
+    this.status = status;
   }
+}
+
+/** A transient failure worth a bounded retry (timeout / 5xx / rate-limit). */
+function isRetryableFailure(err: unknown): boolean {
+  if (!(err instanceof ProviderFailureError)) return false;
+  if (err.code === "timeout") return true;
+  if (err.code === "http_error") {
+    return err.status === 429 || (err.status != null && err.status >= 500);
+  }
+  return false;
 }
 
 function summarizeState(input: ReasoningInput): string {
@@ -39,11 +56,13 @@ function summarizeState(input: ReasoningInput): string {
   const hard = executionEligibleHardConstraints(s);
   const hardParts = Object.entries(hard).map(([k, v]) => `${k}=${String(v)}`);
   const soft = s.softPreferences.map((p) => p.label);
+  const exclusions = s.exclusions.map((e) => e.label);
   const lines: string[] = [];
   if (s.goal) lines.push(`goal=${s.goal}`);
   if (s.vertical) lines.push(`vertical=${s.vertical}`);
   if (hardParts.length) lines.push(`hard(user)=${hardParts.join(", ")}`);
   if (soft.length) lines.push(`soft=${soft.join(", ")}`);
+  if (exclusions.length) lines.push(`exclusions=${exclusions.join(", ")}`);
   if (s.unresolved.length) lines.push(`unresolved=${s.unresolved.join(" | ")}`);
   if (s.selectedListingIds.length) lines.push(`selected=${s.selectedListingIds.join(", ")}`);
   return lines.join("; ") || "(tuščia)";
@@ -73,6 +92,8 @@ export interface GeminiReasoningProviderOptions {
   fetchImpl?: typeof fetch;
   /** Provider timeout (ms). */
   timeoutMs?: number;
+  /** Bounded retry count for safe, idempotent READ reasoning. */
+  maxAttempts?: number;
 }
 
 export function createGeminiReasoningProvider(
@@ -80,12 +101,10 @@ export function createGeminiReasoningProvider(
 ): ReasoningProvider {
   const model = opts.model ?? CORE_V2_MODEL;
   const doFetch = opts.fetchImpl ?? fetch;
-  const timeoutMs = opts.timeoutMs ?? 30_000;
-  return async (input: ReasoningInput): Promise<ReasoningDecision> => {
-    const key = resolveGeminiApiKey();
-    if (!key) {
-      throw new ProviderFailureError("provider_unavailable", "GEMINI_API_KEY not configured");
-    }
+  const timeoutMs = opts.timeoutMs ?? CORE_V2_REASONING_TIMEOUT_MS;
+  const maxAttempts = opts.maxAttempts ?? CORE_V2_MAX_REASONING_ATTEMPTS;
+
+  async function attempt(input: ReasoningInput, key: string): Promise<ReasoningDecision> {
     const { systemInstruction, userPrompt } = buildReasoningRequest(input);
 
     let res: Response;
@@ -114,7 +133,7 @@ export function createGeminiReasoningProvider(
       throw new ProviderFailureError("http_error", err instanceof Error ? err.message : "fetch failed");
     }
     if (!res.ok) {
-      throw new ProviderFailureError("http_error", `Gemini HTTP ${res.status}`);
+      throw new ProviderFailureError("http_error", `Gemini HTTP ${res.status}`, res.status);
     }
     const data = (await res.json()) as {
       candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
@@ -139,5 +158,23 @@ export function createGeminiReasoningProvider(
         err instanceof Error ? err.message : "model output failed schema"
       );
     }
+  }
+
+  return async (input: ReasoningInput): Promise<ReasoningDecision> => {
+    const key = resolveGeminiApiKey();
+    if (!key) {
+      throw new ProviderFailureError("provider_unavailable", "GEMINI_API_KEY not configured");
+    }
+    let lastErr: unknown;
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        return await attempt(input, key);
+      } catch (err) {
+        lastErr = err;
+        if (!isRetryableFailure(err) || i === maxAttempts - 1) throw err;
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    }
+    throw lastErr;
   };
 }

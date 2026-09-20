@@ -23,7 +23,10 @@ export interface ScenarioRecord {
   userTurn: string;
   priorState: MarketplaceState;
   decision: ReasoningDecision;
-  proposedPatches: StatePatch[];
+  /** Patches proposed in the FINAL loop iteration only. */
+  finalIterationProposedPatches: StatePatch[];
+  /** Every proposed patch across all loop iterations (pre-grounding). */
+  allProposedPatches: StatePatch[];
   rejectedAuthority: Array<{ patch: StatePatch; reason: string }>;
   capabilityRequested?: string;
   executionSafeArgs?: Record<string, unknown>;
@@ -66,7 +69,8 @@ export async function runSemanticScenario(
       userTurn: opts.userTurn,
       priorState: opts.priorState,
       decision: result.decision,
-      proposedPatches: result.decision.statePatches ?? [],
+      finalIterationProposedPatches: result.decision.statePatches ?? [],
+      allProposedPatches: result.allProposedPatches ?? [],
       rejectedAuthority: result.rejectedAuthority,
       capabilityRequested: result.decision.capabilityRequest?.capability,
       finalResponse: result.decision.text,
@@ -90,12 +94,13 @@ export async function runSemanticScenario(
       userTurn: opts.userTurn,
       priorState: opts.priorState,
       decision: {},
-      proposedPatches: [],
+      finalIterationProposedPatches: [],
+      allProposedPatches: [],
       rejectedAuthority: [],
       iterations: 0,
       finalState: opts.priorState,
       failure: {
-        code: err instanceof Error ? err.name : "unknown",
+        code: (err as { code?: string } | null)?.code ?? (err instanceof Error ? err.name : "unknown"),
         reason: err instanceof Error ? err.message : String(err),
       },
     };

@@ -1,5 +1,5 @@
 /**
- * VAUTO AI Core v2.3 — narrow AUTHORITY VERIFIER.
+ * VAUTO AI Core v2.3A — narrow AUTHORITY VERIFIER.
  *
  * EVIDENCE LOCATION != SEMANTIC ENTAILMENT. A verbatim/normalized substring
  * match proves only that text exists in the user turn — it cannot prove the
@@ -8,7 +8,8 @@
  * authority engine.
  *
  * So the verifier is a NARROW, structurally-separate step that answers ONLY:
- * is this proposed USER_STATED value actually entailed by its evidence?
+ * is this proposed claim actually entailed by its evidence, INCLUDING its
+ * polarity/operation (positive inclusion vs negative exclusion)?
  * Verdicts: VERIFIED_USER_INTENT | CONTRADICTED | AMBIGUOUS | UNSUPPORTED.
  * Only VERIFIED_USER_INTENT may become execution-eligible.
  *
@@ -16,12 +17,18 @@
  *  - continuityVerifier (deterministic, conservative): only prior verified
  *    state re-statement is VERIFIED; everything else is UNSUPPORTED.
  *  - createGeminiAuthorityVerifier (model-assisted, narrow): judges semantic
- *    entailment from claim + evidence + user turn. Structurally separate from
- *    the reasoning provider and does NOT plan — it only verifies one claim.
+ *    entailment + polarity from claim + evidence + user turn. Structurally
+ *    separate from the reasoning provider and does NOT plan — it only
+ *    verifies one claim. Fails CLOSED (a provider failure is never
+ *    VERIFIED_USER_INTENT).
  */
 import { resolveGeminiApiKey } from "../../load-env.js";
 import type { MarketplaceState } from "../state/marketplace-state.js";
 import type { StatePatch } from "../state/state-patch.js";
+import {
+  CORE_V2_MODEL,
+  CORE_V2_VERIFIER_TIMEOUT_MS,
+} from "../provider/model-config.js";
 
 export type AuthorityVerdict =
   | "VERIFIED_USER_INTENT"
@@ -30,10 +37,11 @@ export type AuthorityVerdict =
   | "UNSUPPORTED";
 
 export interface AuthorityClaim {
-  op: "setHard" | "setSearchSubject";
+  op: "setHard" | "setSearchSubject" | "addExclusion";
   key?: string;
   value?: string | number;
   subject?: string;
+  label?: string;
   evidence?: string;
 }
 
@@ -54,6 +62,9 @@ export function claimFromPatch(patch: StatePatch): AuthorityClaim | null {
   if (patch.op === "setSearchSubject") {
     return { op: "setSearchSubject", subject: patch.subject, evidence: patch.evidence };
   }
+  if (patch.op === "addExclusion") {
+    return { op: "addExclusion", label: patch.label, evidence: patch.evidence };
+  }
   return null;
 }
 
@@ -68,6 +79,11 @@ function valueMatchesPrior(state: MarketplaceState, claim: AuthorityClaim): bool
     return (
       state.searchSubject === claim.subject &&
       state.searchSubjectProvenance?.source === "USER_STATED"
+    );
+  }
+  if (claim.op === "addExclusion") {
+    return state.exclusions.some(
+      (e) => e.label === claim.label && e.provenance.source === "USER_STATED"
     );
   }
   return false;
@@ -86,11 +102,15 @@ export const continuityVerifier: AuthorityVerifier = async (claim, ctx) => {
 const AUTHORITY_VERIFY_PROMPT = `Tu esi NARROWS autoriteto tikrintuvas (ne planeris). Įvertink VIENĄ teiginį.
 
 Vartotojo turnas: <USER_TURN>
-Teiginys: modelis siūlo normalizuotą reikšmę <CLAIM> su įrodymu <EVIDENCE>.
+Teiginys: modelis siūlo teiginį <CLAIM> su įrodymu <EVIDENCE>.
 
-Nustatyk, ar normalizuota reikšmė yra:
-- VERIFIED_USER_INTENT — įrodymas aiškiai patvirtina šią reikšmę;
-- CONTRADICTED — įrodymas reiškia PRIEŠINGĄ (pvz. neigimą „nenoriu X");
+OPERACIJOS SEMANTIKA (polarity):
+- op "setHard" / "setSearchSubject" = TEIGIAMAS įtraukimas: modelis teigia, kad vartotojas NORI šios reikšmės.
+- op "addExclusion" = NEIGIAMAS atmetimas: modelis teigia, kad vartotojas NENORI šios reikšmės.
+
+Nustatyk, ar teiginys su jo polarity/operation yra:
+- VERIFIED_USER_INTENT — įrodymas aiškiai patvirtina šią reikšmę su nurodyta polarity;
+- CONTRADICTED — įrodymas reiškia PRIEŠINGĄ polarity (pvz. teigiamas setHard apie "SUV", kai vartotojas sako "nenoriu SUV");
 - AMBIGUOUS — neaišku;
 - UNSUPPORTED — įrodymas nepatvirtina šios reikšmės.
 
@@ -106,9 +126,11 @@ const AUTHORITY_VERDICTS = new Set([
 export function createGeminiAuthorityVerifier(opts: {
   model?: string;
   fetchImpl?: typeof fetch;
+  timeoutMs?: number;
 } = {}): AuthorityVerifier {
-  const model = opts.model ?? "gemini-2.0-flash";
+  const model = opts.model ?? CORE_V2_MODEL;
   const doFetch = opts.fetchImpl ?? fetch;
+  const timeoutMs = opts.timeoutMs ?? CORE_V2_VERIFIER_TIMEOUT_MS;
   return async (claim, ctx) => {
     const key = resolveGeminiApiKey();
     if (!key) return "UNSUPPORTED";
@@ -116,24 +138,30 @@ export function createGeminiAuthorityVerifier(opts: {
     const prompt = AUTHORITY_VERIFY_PROMPT.replace("<USER_TURN>", ctx.userTurn)
       .replace("<CLAIM>", claimText)
       .replace("<EVIDENCE>", claim.evidence ?? "");
-    const res = await doFetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: "You are an authority verifier. Output exactly one verdict word." }] },
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0 },
-        }),
-      }
-    );
-    if (!res.ok) return "UNSUPPORTED";
-    const data = (await res.json()) as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-    };
-    const text = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim().toUpperCase();
-    const word = text.match(/VERIFIED_USER_INTENT|CONTRADICTED|AMBIGUOUS|UNSUPPORTED/)?.[0];
-    return AUTHORITY_VERDICTS.has(word ?? "") ? (word as AuthorityVerdict) : "UNSUPPORTED";
+    try {
+      const res = await doFetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: "You are an authority verifier. Output exactly one verdict word." }] },
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0 },
+          }),
+          signal: AbortSignal.timeout(timeoutMs),
+        }
+      );
+      if (!res.ok) return "UNSUPPORTED";
+      const data = (await res.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      };
+      const text = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim().toUpperCase();
+      const word = text.match(/VERIFIED_USER_INTENT|CONTRADICTED|AMBIGUOUS|UNSUPPORTED/)?.[0];
+      return AUTHORITY_VERDICTS.has(word ?? "") ? (word as AuthorityVerdict) : "UNSUPPORTED";
+    } catch {
+      // Fail CLOSED: a provider failure can never grant execution authority.
+      return "UNSUPPORTED";
+    }
   };
 }

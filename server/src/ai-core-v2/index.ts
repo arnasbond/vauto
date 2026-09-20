@@ -21,6 +21,7 @@ export * from "./loop/grounding.js";
 export * from "./loop/authority-verifier.js";
 export * from "./provider/prompt.js";
 export * from "./provider/schema.js";
+export * from "./provider/model-config.js";
 export * from "./provider/gemini-provider.js";
 export * from "./shadow/shadow-runner.js";
 export * from "./harness/semantic-harness.js";

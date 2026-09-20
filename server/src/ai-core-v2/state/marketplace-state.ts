@@ -28,17 +28,46 @@ export interface Provenance {
   at: string;
 }
 
+/**
+ * The canonical, execution-eligible hard-constraint keys for THIS v2 stage.
+ *
+ * These are the ONLY keys that the reasoning model may emit in a `setHard`
+ * patch, and the ONLY keys that `deriveSearchListingsArgs` maps into a
+ * `searchListings` execution. Anything else (e.g. "", "city", "bodyType",
+ * "propertyType") is a schema/state-contract rejection at parse time, never
+ * silently stored. This is a contract, not an intent cage.
+ */
+export const CANONICAL_HARD_CONSTRAINT_KEYS = [
+  "category",
+  "location",
+  "priceMin",
+  "priceMax",
+] as const;
+
+export type CanonicalHardConstraintKey =
+  (typeof CANONICAL_HARD_CONSTRAINT_KEYS)[number];
+
 /** Hard marketplace constraints — representable as concrete DB filters. */
 export interface HardConstraints {
   category?: string;
   location?: string;
   priceMin?: number;
   priceMax?: number;
-  condition?: string;
 }
 
 /** Soft preferences — reasoning/ranking context ONLY, never a hard filter. */
 export interface SoftPreference {
+  label: string;
+  provenance: Provenance;
+}
+
+/**
+ * A grounded negative/exclusion preference, e.g. "nenoriu SUV", "tik ne
+ * dyzelinio", "ne Kaune". NEVER mapped to a positive hard filter — the
+ * current search capability has no exclusion filter. Reasoning may use it to
+ * evaluate results; it is not execution authority.
+ */
+export interface Exclusion {
   label: string;
   provenance: Provenance;
 }
@@ -64,6 +93,8 @@ export interface MarketplaceState {
   hardConstraints: HardConstraints;
   hardConstraintProvenance: Partial<Record<keyof HardConstraints, Provenance>>;
   softPreferences: SoftPreference[];
+  /** Grounded negative/exclusion preferences (non-executable). */
+  exclusions: Exclusion[];
   /** Questions still open between the user and the assistant. */
   unresolved: string[];
   /** User-selected / grounded listing referents. */
@@ -78,6 +109,7 @@ export function emptyMarketplaceState(): MarketplaceState {
     hardConstraints: {},
     hardConstraintProvenance: {},
     softPreferences: [],
+    exclusions: [],
     unresolved: [],
     selectedListingIds: [],
   };
@@ -134,7 +166,6 @@ export function executionEligibleHardConstraints(
   if (c.location != null && isExecutionEligible(p.location)) out.location = c.location;
   if (c.priceMin != null && isExecutionEligible(p.priceMin)) out.priceMin = c.priceMin;
   if (c.priceMax != null && isExecutionEligible(p.priceMax)) out.priceMax = c.priceMax;
-  if (c.condition != null && isExecutionEligible(p.condition)) out.condition = c.condition;
   return out;
 }
 

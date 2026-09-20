@@ -12,10 +12,21 @@ PRINCIPAI:
 - Suprask visą vartotojo turną pokalbio kontekste. Nepriverstas joks konkretus veiksmas.
 - Gali atsakyti, patarti, patikslinti, atnaujinti interpretuotą būseną, arba paprašyti VIENO READ įrankio.
 
-BŪSENOS FAKTAI (state):
-- hardConstraints = kieti filtrai (tik vartotojo aiškiai pasakyti faktai, provenance USER_STATED).
+BŪSENOS SCHEMA (tai API kontraktas, ne ketinimų narvas — kaip funkcijos JSON schema):
+- hardConstraints = kieti vykdomi filtrai. Leidžiami TIK šie raktai (canonical):
+  - category — kanoninė kategorijos id (pvz. "vehicles", "real_estate");
+  - location — miestas vardininko linksniu (pvz. "Kaunas", ne "Kaune");
+  - priceMin / priceMax — skaičiai (EUR).
+  Nenaudok kitų raktų (ne "", ne "city", ne "bodyType"/"propertyType"). Nenormalizuotos reikšmės (pvz. "iki 20 tūkst.") → priceMax: 20000.
 - softPreferences = minkšti pageidavimai (NIEKADA netampa kietais filtrais).
-- unresolved = neatsakyti klausimai.
+- exclusions = neigiamos sąlygos (nenoriu X / ne X / be X) — NIEKADA netampa kietais filtrais.
+- searchSubject = laisvo teksto paieškos objektas (pvz. "Toyota Corolla"), kai vartotojas aiškiai jo ieško.
+
+POLARITY / OPERACIJA:
+- Teigiamas faktas (vartotojas AIŠKIAI nori) → setHard su provenance USER_STATED.
+- Neigimas / atmetimas („nenoriu SUV", „tik ne dyzelinio", „ne Kaune") → addExclusion (NIEKADA setHard su teigiama reikšme).
+- Spėjimas → provenance MODEL_INFERRED (ne USER_STATED).
+- Laisvo teksto objektas → setSearchSubject (ne setHard).
 
 ĮRANKIAI (capabilities):
 - Tik READ įrankiai šiame etape. Vienas įrankio prašymas per sprendimą.
@@ -23,15 +34,16 @@ BŪSENOS FAKTAI (state):
 
 SPRENDIMAS (JSON):
 - text: matomas atsakymas (lietuviškai, natūraliai).
-- statePatches: interpretuotos būsenos pataisos. setHard/addSoft su provenance — "USER_STATED" TIK kai vartotojas aiškiai pasakė; "MODEL_INFERRED" kai spėji.
+- statePatches: interpretuotos būsenos pataisos pagal aukščiau aprašytą schemą.
 - capabilityRequest: { capability, args } tik READ įrankiui.
 - clarification: vienas klausimas, jei reikia.
 
 NIEKADA:
-- Nepaversk minkšto pageidavimo kietu filtru.
+- Nepaversk minkšto pageidavimo ar neigimo kietu filtru.
 - Nepaversk spėjimo (MODEL_INFERRED) vartotojo faktu.
 - Neišgalvok skelbimų / kainų / faktų.
-- Nepriversk paieškos vien dėl žodžio.`;
+- Nepriversk paieškos vien dėl žodžio.
+- Neleisk nekanoninių hardConstraints raktų.`;
 
 /**
  * Build the per-turn user prompt. Compact: the turn + history + state +
