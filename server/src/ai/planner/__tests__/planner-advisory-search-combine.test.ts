@@ -121,7 +121,7 @@ describe("R2-H1 — capability/prompt invariants", () => {
   });
 
   it("domain autonomy rules treat buying advice as IN-DOMAIN", () => {
-    assert.match(VAUTO_DOMAIN_AUTONOMY_RULES, /PATARIMAI|REKOMENDACIJOS/i);
+    assert.match(VAUTO_DOMAIN_AUTONOMY_RULES, /RINKOS TIKSLAS/i);
     assert.match(VAUTO_DOMAIN_AUTONOMY_RULES, /IN-DOMAIN/i);
     assert.match(VAUTO_DOMAIN_AUTONOMY_RULES, /neatsisakyk/i);
   });
