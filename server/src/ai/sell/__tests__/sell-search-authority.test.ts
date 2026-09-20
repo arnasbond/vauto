@@ -186,6 +186,9 @@ describe("sell→search authority — adversarial planner matrix", () => {
   const CATALOG_SEARCH = { intent: "catalog_search", goal: "search", continuationOf: "none", action: "catalog_search", tool: "searchListings", toolArgs: { query: "x" }, needsClarification: false, confidence: 0.95, reasons: ["model_guess"] };
   const CONTEXT_Q = { intent: "context_question", goal: "answer a question", continuationOf: "none", action: "dialog_reply", tool: null, toolArgs: {}, needsClarification: false, confidence: 0.8, reasons: ["question"] };
   const CLARIFY = { intent: "clarify_ambiguous", goal: "disambiguate", continuationOf: "none", action: "clarify_buy_or_sell", tool: null, toolArgs: {}, needsClarification: true, clarificationQuestion: "?", confidence: 0.8, reasons: ["ambiguous"] };
+  // R2-H1.1 — a conversational `dialog` planner decision is a NON-search goal
+  // and must NOT be overridden by a facets-based fast-path.
+  const DIALOG = { intent: "dialog", goal: "converse", continuationOf: "none", action: "dialog_reply", tool: null, toolArgs: {}, needsClarification: false, confidence: 0.6, reasons: ["conversational"] };
 
   async function runWithPlanner(text: string, decision: Record<string, unknown>): Promise<string[]> {
     setPlannerAdapterForTests(adapter(decision));
@@ -219,9 +222,22 @@ describe("sell→search authority — adversarial planner matrix", () => {
   });
 
   it("compact browse defers to a non-search semantic goal", async () => {
-    for (const decision of [CONTEXT_Q, CLARIFY]) {
+    for (const decision of [CONTEXT_Q, CLARIFY, DIALOG]) {
       const tools = await runWithPlanner("Kia Sportage iki 20000", decision);
       assert.ok(!tools.includes("searchListings"), `browse must defer: ${decision.intent}`);
+    }
+  });
+
+  it("R2-H1.1 — product + budget + advisory goal is NOT forced into catalog execution", async () => {
+    // No explicit search verb; a recommendation request. A dialog/context_question
+    // planner decision must own the turn — facets (product + budget) are NOT
+    // search authority by themselves.
+    for (const decision of [DIALOG, CONTEXT_Q]) {
+      const tools = await runWithPlanner(
+        "reikia mobiliako mano sunui kurima 14 metu iki 400 euru, ka pasiulytum",
+        decision
+      );
+      assert.ok(!tools.includes("searchListings"), `advisory must not search: ${decision.intent}`);
     }
   });
 

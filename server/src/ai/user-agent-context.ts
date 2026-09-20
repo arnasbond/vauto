@@ -119,9 +119,13 @@ export function summarizeMyListings(
 
   if (!listings.length) {
     if (isBusiness) {
-      return `Neturi aktyvių skelbimų. Kaip verslo partneris proaktyviai padėk: pasiūlyk paruošti pirmą profesionalų skelbimą (create_listing_draft / navigateToScreen add_listing), priminti apie kokybiškas nuotraukas, konkurencingą kainą (analyzeMarketPrice) ir matomumą (Smart Boost). Taip pat pasiūlyk peržiūrėti verslo skydelį ir leadus (getBusinessInsights / listServiceLeads).`;
+      // R2-H1.1 — a listings summary is a FACT, not an instruction channel.
+      // Seller/business proactive coaching (Smart Boost, leadai, derybininkas)
+      // belongs to the topic-scoped business rules, never the always-injected
+      // profile block — otherwise it leaks into unrelated buyer turns.
+      return `Neturi aktyvių skelbimų.`;
     }
-    return `Neturi skelbimų — Spinta tuščia. Proaktyviai paskatink: nufotografuoti drabužius/techniką ir paruošti skelbimą per kelias sekundes (create_listing_draft / navigateToScreen add_listing).`;
+    return `Neturi skelbimų — Spinta tuščia.`;
   }
   const titleOf = (l: MyListingForAgent) => sanitizeProfileField(l.title, 120);
   const locationOf = (l: MyListingForAgent) => sanitizeProfileField(l.location, 40);
