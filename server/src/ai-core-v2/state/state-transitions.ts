@@ -13,6 +13,7 @@
  *   H. pending action       → explicit, cleared only explicitly
  */
 import type {
+  CanonicalHardConstraintKey,
   HardConstraints,
   MarketplaceState,
   PendingAction,
@@ -21,7 +22,7 @@ import type {
 } from "./marketplace-state.js";
 import type { StatePatch } from "./state-patch.js";
 
-export type HardConstraintKey = keyof HardConstraints;
+export type HardConstraintKey = CanonicalHardConstraintKey;
 
 /** Typed error for a malformed/unknown state patch — classified by the shadow harness. */
 export class StateTransitionError extends Error {
@@ -88,6 +89,30 @@ export function removeSoftPreference(
     ...state,
     softPreferences: state.softPreferences.filter((s) => s.label !== label),
   };
+}
+
+export function addExclusion(
+  state: MarketplaceState,
+  label: string,
+  p: Provenance
+): MarketplaceState {
+  const existing = state.exclusions.some((e) => e.label === label);
+  if (existing) {
+    return {
+      ...state,
+      exclusions: state.exclusions.map((e) =>
+        e.label === label ? { label, provenance: p } : e
+      ),
+    };
+  }
+  return { ...state, exclusions: [...state.exclusions, { label, provenance: p }] };
+}
+
+export function removeExclusion(
+  state: MarketplaceState,
+  label: string
+): MarketplaceState {
+  return { ...state, exclusions: state.exclusions.filter((e) => e.label !== label) };
 }
 
 export function setGoal(state: MarketplaceState, goal: string): MarketplaceState {
@@ -165,6 +190,12 @@ export function applyStatePatches(
         break;
       case "removeSoft":
         s = removeSoftPreference(s, patch.label);
+        break;
+      case "addExclusion":
+        s = addExclusion(s, patch.label, patch.provenance);
+        break;
+      case "removeExclusion":
+        s = removeExclusion(s, patch.label);
         break;
       case "setGoal":
         s = setGoal(s, patch.goal);

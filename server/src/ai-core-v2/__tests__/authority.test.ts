@@ -38,12 +38,12 @@ describe("Core v2 — hard-constraint authority", () => {
     let s = emptyMarketplaceState();
     s = setHardConstraint(s, "priceMax", 20000, provenance("USER_STATED"));
     s = setHardConstraint(s, "category", "vehicles", provenance("MODEL_INFERRED", 0.7));
-    s = setHardConstraint(s, "condition", "used", provenance("TOOL_DERIVED"));
+    s = setHardConstraint(s, "location", "Kaunas", provenance("TOOL_DERIVED"));
 
     const eligible = executionEligibleHardConstraints(s);
     assert.equal(eligible.priceMax, 20000, "explicit user budget is executable");
     assert.equal(eligible.category, undefined, "inferred category is NOT a hard filter");
-    assert.equal(eligible.condition, undefined, "tool fact is NOT user intent");
+    assert.equal(eligible.location, undefined, "tool fact is NOT user intent");
   });
 
   it("soft preferences never enter hard constraints", () => {
