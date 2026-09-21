@@ -94,6 +94,18 @@ export function createBuyerRegistry(resultContext: ResultContext): CapabilityReg
   return registry;
 }
 
+/**
+ * READ-only registry for the owner test entry: searchListings + guarded
+ * listingDetails only. Mutations / publish / transactions are absent, so any
+ * request for them resolves to an unknown capability and fails closed.
+ */
+export function createReadOnlyBuyerRegistry(resultContext: ResultContext): CapabilityRegistry {
+  const registry = new CapabilityRegistry();
+  registry.register(searchListingsCapability);
+  registry.register(createGuardedListingDetails(resultContext));
+  return registry;
+}
+
 export async function runBuyerTurn(
   session: BuyerSession,
   userTurn: string,
