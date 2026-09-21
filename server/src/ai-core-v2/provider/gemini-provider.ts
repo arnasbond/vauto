@@ -41,12 +41,17 @@ export class ProviderFailureError extends Error {
   }
 }
 
-/** A transient failure worth a bounded retry (timeout / 5xx / rate-limit). */
-function isRetryableFailure(err: unknown): boolean {
+/** A transient failure worth a bounded retry (timeout / 5xx / rate-limit / network). */
+export function isRetryableFailure(err: unknown): boolean {
   if (!(err instanceof ProviderFailureError)) return false;
   if (err.code === "timeout") return true;
   if (err.code === "http_error") {
-    return err.status === 429 || (err.status != null && err.status >= 500);
+    if (err.status === 429) return true;
+    if (err.status != null && err.status >= 500) return true;
+    // No HTTP status: the fetch threw before a response (network/DNS/reset) —
+    // transient, bounded retry has value and is still capped by the turn budget.
+    if (err.status == null) return true;
+    return false;
   }
   return false;
 }
@@ -86,6 +91,18 @@ export function buildReasoningRequest(input: ReasoningInput): {
   };
 }
 
+export interface ReasoningAttemptTelemetry {
+  attempt: number;
+  elapsedMs: number;
+  timedOut: boolean;
+  status?: number;
+  candidateCount?: number;
+  finishReason?: string;
+  blockReason?: string;
+  parseOutcome?: "ok" | "empty" | "malformed_json" | "schema_invalid";
+  capabilityRequested?: string;
+}
+
 export interface GeminiReasoningProviderOptions {
   model?: string;
   /** Overridable fetch for tests. */
@@ -94,6 +111,8 @@ export interface GeminiReasoningProviderOptions {
   timeoutMs?: number;
   /** Bounded retry count for safe, idempotent READ reasoning. */
   maxAttempts?: number;
+  /** Sanitized per-attempt observability (never the credential or raw body). */
+  onAttempt?: (t: ReasoningAttemptTelemetry) => void;
 }
 
 export function createGeminiReasoningProvider(
@@ -103,9 +122,18 @@ export function createGeminiReasoningProvider(
   const doFetch = opts.fetchImpl ?? fetch;
   const timeoutMs = opts.timeoutMs ?? CORE_V2_REASONING_TIMEOUT_MS;
   const maxAttempts = opts.maxAttempts ?? CORE_V2_MAX_REASONING_ATTEMPTS;
+  const onAttempt = opts.onAttempt;
 
-  async function attempt(input: ReasoningInput, key: string): Promise<ReasoningDecision> {
+  async function attempt(input: ReasoningInput, key: string, attemptNumber: number): Promise<ReasoningDecision> {
     const { systemInstruction, userPrompt } = buildReasoningRequest(input);
+    const t0 = Date.now();
+    const emit = (partial: Omit<ReasoningAttemptTelemetry, "attempt" | "elapsedMs" | "timedOut">) =>
+      onAttempt?.({
+        attempt: attemptNumber,
+        elapsedMs: Date.now() - t0,
+        timedOut: false,
+        ...partial,
+      });
 
     let res: Response;
     try {
@@ -128,19 +156,31 @@ export function createGeminiReasoningProvider(
       );
     } catch (err) {
       if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
+        onAttempt?.({ attempt: attemptNumber, elapsedMs: Date.now() - t0, timedOut: true });
         throw new ProviderFailureError("timeout", "provider timed out");
       }
+      onAttempt?.({ attempt: attemptNumber, elapsedMs: Date.now() - t0, timedOut: false });
       throw new ProviderFailureError("http_error", err instanceof Error ? err.message : "fetch failed");
     }
     if (!res.ok) {
+      emit({ status: res.status });
       throw new ProviderFailureError("http_error", `Gemini HTTP ${res.status}`, res.status);
     }
     const data = (await res.json()) as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      candidates?: Array<{
+        content?: { parts?: Array<{ text?: string }> };
+        finishReason?: string;
+      }>;
+      promptFeedback?: { blockReason?: string };
     };
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    const candidate = data.candidates?.[0];
+    const text = candidate?.content?.parts?.[0]?.text ?? "";
+    const finishReason = candidate?.finishReason;
+    const blockReason = data.promptFeedback?.blockReason;
+    const candidateCount = data.candidates?.length ?? 0;
     const trimmed = text.trim();
     if (!trimmed) {
+      emit({ parseOutcome: "empty", candidateCount, finishReason, blockReason });
       // Empty structured output → a deliberate empty decision (no-tool turn).
       return {};
     }
@@ -148,11 +188,21 @@ export function createGeminiReasoningProvider(
     try {
       json = JSON.parse(trimmed);
     } catch {
+      emit({ parseOutcome: "malformed_json", candidateCount, finishReason, blockReason });
       throw new ProviderFailureError("malformed_json", "model output was not valid JSON");
     }
     try {
-      return parseReasoningDecision(json);
+      const decision = parseReasoningDecision(json);
+      emit({
+        parseOutcome: "ok",
+        candidateCount,
+        finishReason,
+        blockReason,
+        capabilityRequested: decision.capabilityRequest?.capability,
+      });
+      return decision;
     } catch (err) {
+      emit({ parseOutcome: "schema_invalid", candidateCount, finishReason, blockReason });
       throw new ProviderFailureError(
         "schema_invalid",
         err instanceof Error ? err.message : "model output failed schema"
@@ -168,7 +218,7 @@ export function createGeminiReasoningProvider(
     let lastErr: unknown;
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        return await attempt(input, key);
+        return await attempt(input, key, i + 1);
       } catch (err) {
         lastErr = err;
         if (!isRetryableFailure(err) || i === maxAttempts - 1) throw err;

@@ -27,14 +27,31 @@ import {
   type MarketplaceState,
 } from "../state/marketplace-state.js";
 import type { StatePatch } from "../state/state-patch.js";
+import { CORE_V2_TURN_BUDGET_MS } from "../provider/model-config.js";
 
 export const DEFAULT_MAX_ITERATIONS = 3;
+
+/**
+ * Raised when the TOTAL per-turn wall-clock budget is exhausted. A per-attempt
+ * provider timeout is NOT sufficient: this aborts further provider attempts,
+ * verifier calls, and loop iterations, and classifies the turn truthfully
+ * (never a fabricated semantic response).
+ */
+export class TurnBudgetExceededError extends Error {
+  readonly code = "turn_budget_exceeded";
+  constructor(message: string) {
+    super(message);
+    this.name = "TurnBudgetExceededError";
+  }
+}
 
 export interface MultiStepLoopOptions {
   provider: ReasoningProvider;
   registry: CapabilityRegistry;
   input: ReasoningInput;
   maxIterations?: number;
+  /** Total per-turn wall-clock budget (ms). Defaults to CORE_V2_TURN_BUDGET_MS. */
+  turnBudgetMs?: number;
   onEvent?: (e: LoopEvent) => void;
   /** Narrow authority verifier for USER_STATED grounding (default: continuity-only). */
   authorityVerifier?: AuthorityVerifier;
@@ -103,8 +120,46 @@ function summarizeResult(capability: string, result: CapabilityResult<unknown>):
   return { capability, ok: true, summary: "ok" };
 }
 
+/**
+ * Bound an awaited sub-step by the REMAINING turn budget. If the budget is
+ * already exhausted, or the sub-step outlives it, raise TurnBudgetExceededError
+ * (truthful budget exhaustion, never a fabricated success).
+ */
+export function withinBudget<T>(p: Promise<T>, remainingMs: number): Promise<T> {
+  if (remainingMs <= 0) {
+    return Promise.reject(new TurnBudgetExceededError("turn budget exhausted"));
+  }
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        reject(new TurnBudgetExceededError("turn budget exhausted"));
+      }
+    }, remainingMs);
+    p.then(
+      (v) => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          resolve(v);
+        }
+      },
+      (e) => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timer);
+          reject(e);
+        }
+      }
+    );
+  });
+}
+
 export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<MultiStepLoopResult> {
   const max = opts.maxIterations ?? DEFAULT_MAX_ITERATIONS;
+  const turnBudgetMs = opts.turnBudgetMs ?? CORE_V2_TURN_BUDGET_MS;
+  const deadline = Date.now() + turnBudgetMs;
   let state = opts.input.state;
   const groundedResults: GroundedCapabilityResult[] = [];
   const capabilityCalls: CapabilityCallRecord[] = [];
@@ -114,7 +169,8 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
 
   for (let i = 0; i < max; i++) {
     opts.onEvent?.({ type: "reasoning", iteration: i + 1 });
-    decision = (await opts.provider({ ...opts.input, state, groundedResults })) ?? {};
+    decision =
+      (await withinBudget(opts.provider({ ...opts.input, state, groundedResults }), deadline - Date.now())) ?? {};
     try {
       validateReasoningDecision(decision);
     } catch (e) {
@@ -125,11 +181,14 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
     if (decision.statePatches?.length) {
       allProposedPatches.push(...decision.statePatches);
       // Ground before applying: the model cannot self-grant USER_STATED authority.
-      const grounded = await groundStatePatches(
-        state,
-        decision.statePatches,
-        opts.input.userTurn,
-        opts.authorityVerifier ?? continuityVerifier
+      const grounded = await withinBudget(
+        groundStatePatches(
+          state,
+          decision.statePatches,
+          opts.input.userTurn,
+          opts.authorityVerifier ?? continuityVerifier
+        ),
+        deadline - Date.now()
       );
       state = applyStatePatches(state, grounded.accepted);
       rejectedAuthority.push(...grounded.rejectedAuthority);
@@ -160,8 +219,12 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
 
     let result: CapabilityResult<unknown>;
     try {
-      result = await contract.execute(execArgs as never, {} as CapabilityContext);
+      result = await withinBudget(
+        contract.execute(execArgs as never, {} as CapabilityContext),
+        deadline - Date.now()
+      );
     } catch (err) {
+      if (err instanceof TurnBudgetExceededError) throw err;
       result = { ok: false, error: err instanceof Error ? err.message : "capability error" };
     }
     capabilityCalls.push({ name: req.capability, ok: result.ok, error: result.error });

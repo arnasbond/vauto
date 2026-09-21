@@ -11,7 +11,7 @@
  * semantic entailment. No substring authority, no linguistic parser.
  */
 import type { MarketplaceState } from "../state/marketplace-state.js";
-import { provenance } from "../state/marketplace-state.js";
+import { provenance, isExecutionEligible } from "../state/marketplace-state.js";
 import type { StatePatch } from "../state/state-patch.js";
 import {
   claimFromPatch,
@@ -24,6 +24,31 @@ function isUserStated(p: StatePatch): boolean {
     (p.op === "setHard" || p.op === "setSearchSubject" || p.op === "addExclusion") &&
     p.provenance?.source === "USER_STATED"
   );
+}
+
+/** Removal/retraction ops that can target authoritative (execution-relevant) state. */
+function isRemoval(p: StatePatch): boolean {
+  return p.op === "removeHard" || p.op === "removeSearchSubject" || p.op === "removeExclusion";
+}
+
+/**
+ * Does this removal target previously VERIFIED (USER_STATED) authoritative
+ * state? Removing/weakening authoritative user state requires the SAME
+ * verified authority as the mutation that created it.
+ */
+function removesAuthoritativeState(state: MarketplaceState, patch: StatePatch): boolean {
+  if (patch.op === "removeHard") {
+    return isExecutionEligible(state.hardConstraintProvenance[patch.key]);
+  }
+  if (patch.op === "removeSearchSubject") {
+    return isExecutionEligible(state.searchSubjectProvenance);
+  }
+  if (patch.op === "removeExclusion") {
+    return state.exclusions.some(
+      (e) => e.label === patch.label && isExecutionEligible(e.provenance)
+    );
+  }
+  return false;
 }
 
 function demote(patch: StatePatch): StatePatch {
@@ -47,6 +72,26 @@ export async function groundStatePatches(
   const accepted: StatePatch[] = [];
   const rejectedAuthority: GroundedPatches["rejectedAuthority"] = [];
   for (const patch of patches) {
+    // Removal/retraction of AUTHORITATIVE state must be authority-verified.
+    if (isRemoval(patch)) {
+      if (removesAuthoritativeState(state, patch)) {
+        const claim = claimFromPatch(patch);
+        const verdict = claim ? await verifier(claim, { userTurn, priorState: state }) : "UNSUPPORTED";
+        if (verdict === "VERIFIED_USER_INTENT") {
+          accepted.push(patch);
+        } else {
+          // Fail closed: unsupported/ambiguous/contradicted removal does NOT erase
+          // verified user intent.
+          rejectedAuthority.push({ patch, reason: `authority verdict: ${verdict}` });
+        }
+      } else {
+        // Removing non-authoritative (model-inferred / grounded-fact / absent)
+        // state does not weaken user intent → no authority required.
+        accepted.push(patch);
+      }
+      continue;
+    }
+
     if (!isUserStated(patch)) {
       accepted.push(patch);
       continue;

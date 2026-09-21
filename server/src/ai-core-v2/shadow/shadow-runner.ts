@@ -16,6 +16,7 @@ import type { ReasoningDecision, ReasoningInput, ReasoningProvider } from "../re
 import { applyStatePatches, StateTransitionError } from "../state/state-transitions.js";
 import type { MarketplaceState } from "../state/marketplace-state.js";
 import { ProviderFailureError } from "../provider/gemini-provider.js";
+import { TurnBudgetExceededError } from "../loop/multi-step-loop.js";
 
 export type ShadowFailureCode =
   | "provider_error"
@@ -59,6 +60,7 @@ function classifyShadowFailure(err: unknown): ShadowFailureCode {
   if (err instanceof MalformedReasoningDecisionError) return "malformed_result";
   if (err instanceof StateTransitionError) return "state_transition_error";
   if (err instanceof CapabilityPolicyRejectionError) return "capability_policy_rejection";
+  if (err instanceof TurnBudgetExceededError) return "timeout";
   if (err instanceof ProviderFailureError) {
     switch (err.code) {
       case "timeout":

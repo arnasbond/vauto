@@ -37,7 +37,13 @@ export type AuthorityVerdict =
   | "UNSUPPORTED";
 
 export interface AuthorityClaim {
-  op: "setHard" | "setSearchSubject" | "addExclusion";
+  op:
+    | "setHard"
+    | "setSearchSubject"
+    | "addExclusion"
+    | "removeHard"
+    | "removeSearchSubject"
+    | "removeExclusion";
   key?: string;
   value?: string | number;
   subject?: string;
@@ -64,6 +70,15 @@ export function claimFromPatch(patch: StatePatch): AuthorityClaim | null {
   }
   if (patch.op === "addExclusion") {
     return { op: "addExclusion", label: patch.label, evidence: patch.evidence };
+  }
+  if (patch.op === "removeHard") {
+    return { op: "removeHard", key: patch.key };
+  }
+  if (patch.op === "removeSearchSubject") {
+    return { op: "removeSearchSubject" };
+  }
+  if (patch.op === "removeExclusion") {
+    return { op: "removeExclusion", label: patch.label };
   }
   return null;
 }
@@ -107,9 +122,10 @@ Teiginys: modelis siūlo teiginį <CLAIM> su įrodymu <EVIDENCE>.
 OPERACIJOS SEMANTIKA (polarity):
 - op "setHard" / "setSearchSubject" = TEIGIAMAS įtraukimas: modelis teigia, kad vartotojas NORI šios reikšmės.
 - op "addExclusion" = NEIGIAMAS atmetimas: modelis teigia, kad vartotojas NENORI šios reikšmės.
+- op "removeHard" / "removeSearchSubject" / "removeExclusion" = PAŠALINIMAS: modelis teigia, kad vartotojas ATSISAKO / ATŠAUKIA anksčiau nustatytą reikšmę.
 
 Nustatyk, ar teiginys su jo polarity/operation yra:
-- VERIFIED_USER_INTENT — įrodymas aiškiai patvirtina šią reikšmę su nurodyta polarity;
+- VERIFIED_USER_INTENT — įrodymas aiškiai patvirtina šią reikšmę su nurodyta polarity (pašalinimui: vartotojas aiškiai atšaukia);
 - CONTRADICTED — įrodymas reiškia PRIEŠINGĄ polarity (pvz. teigiamas setHard apie "SUV", kai vartotojas sako "nenoriu SUV");
 - AMBIGUOUS — neaišku;
 - UNSUPPORTED — įrodymas nepatvirtina šios reikšmės.
@@ -123,14 +139,25 @@ const AUTHORITY_VERDICTS = new Set([
   "UNSUPPORTED",
 ]);
 
+export interface VerifierAttemptTelemetry {
+  elapsedMs: number;
+  timedOut: boolean;
+  status?: number;
+  verdict: AuthorityVerdict;
+  /** Provider-reported usage metadata (observability only; never credentials). */
+  usage?: Record<string, unknown>;
+}
+
 export function createGeminiAuthorityVerifier(opts: {
   model?: string;
   fetchImpl?: typeof fetch;
   timeoutMs?: number;
+  onAttempt?: (t: VerifierAttemptTelemetry) => void;
 } = {}): AuthorityVerifier {
   const model = opts.model ?? CORE_V2_MODEL;
   const doFetch = opts.fetchImpl ?? fetch;
   const timeoutMs = opts.timeoutMs ?? CORE_V2_VERIFIER_TIMEOUT_MS;
+  const onAttempt = opts.onAttempt;
   return async (claim, ctx) => {
     const key = resolveGeminiApiKey();
     if (!key) return "UNSUPPORTED";
@@ -138,6 +165,7 @@ export function createGeminiAuthorityVerifier(opts: {
     const prompt = AUTHORITY_VERIFY_PROMPT.replace("<USER_TURN>", ctx.userTurn)
       .replace("<CLAIM>", claimText)
       .replace("<EVIDENCE>", claim.evidence ?? "");
+    const t0 = Date.now();
     try {
       const res = await doFetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
@@ -152,14 +180,22 @@ export function createGeminiAuthorityVerifier(opts: {
           signal: AbortSignal.timeout(timeoutMs),
         }
       );
-      if (!res.ok) return "UNSUPPORTED";
+      if (!res.ok) {
+        onAttempt?.({ elapsedMs: Date.now() - t0, timedOut: false, status: res.status, verdict: "UNSUPPORTED" });
+        return "UNSUPPORTED";
+      }
       const data = (await res.json()) as {
         candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        usageMetadata?: Record<string, unknown>;
       };
       const text = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim().toUpperCase();
       const word = text.match(/VERIFIED_USER_INTENT|CONTRADICTED|AMBIGUOUS|UNSUPPORTED/)?.[0];
-      return AUTHORITY_VERDICTS.has(word ?? "") ? (word as AuthorityVerdict) : "UNSUPPORTED";
-    } catch {
+      const verdict = AUTHORITY_VERDICTS.has(word ?? "") ? (word as AuthorityVerdict) : "UNSUPPORTED";
+      onAttempt?.({ elapsedMs: Date.now() - t0, timedOut: false, status: res.status, verdict, usage: data.usageMetadata });
+      return verdict;
+    } catch (err) {
+      const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+      onAttempt?.({ elapsedMs: Date.now() - t0, timedOut, verdict: "UNSUPPORTED" });
       // Fail CLOSED: a provider failure can never grant execution authority.
       return "UNSUPPORTED";
     }
