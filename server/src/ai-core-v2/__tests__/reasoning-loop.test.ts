@@ -22,7 +22,7 @@ function input(userTurn: string): ReasoningInput {
     userTurn,
     history: [],
     state: emptyMarketplaceState(),
-    capabilities: [{ name: "searchListings", description: "ieškoti", consequence: "READ" }],
+    capabilities: [{ name: "searchListings", description: "ieškoti", operation: "READ" }],
   };
 }
 

@@ -83,7 +83,7 @@ export async function runArenaCase(opts: {
     userTurn: opts.fixture.userTurn,
     history: [],
     state: opts.fixture.priorState,
-    capabilities: opts.registry.describe().map((c) => ({ name: c.name, description: c.description, consequence: c.consequence as "READ" })),
+    capabilities: opts.registry.describe().map((c) => ({ name: c.name, description: c.description, operation: c.operation as "READ" })),
   };
 
   let pr: ProviderResult;
@@ -143,7 +143,7 @@ export async function runArenaCase(opts: {
 
   const capName = decision.capabilityRequest?.capability;
   const contract = capName ? opts.registry.get(capName) : undefined;
-  const capabilityAuthorized = capName != null && contract?.consequence === "READ";
+  const capabilityAuthorized = capName != null && contract?.operation === "READ";
 
   const checks = opts.fixture.checks.map((c) => ({ label: c.label, pass: c.pass(finalState, execArgs, decision), detail: c.detail(finalState, execArgs, decision) }));
   const outcome = classifyOutcome("valid", checks.every((c) => c.pass));

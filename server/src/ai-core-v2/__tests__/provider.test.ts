@@ -77,7 +77,7 @@ describe("Core v2 — Gemini provider", () => {
       userTurn: "surask butus",
       history: [],
       state: emptyMarketplaceState(),
-      capabilities: [{ name: "searchListings", description: "x", consequence: "READ" }],
+      capabilities: [{ name: "searchListings", description: "x", operation: "READ" }],
     });
     assert.equal(d?.text, "Štai variantai");
     delete process.env.GEMINI_API_KEY;

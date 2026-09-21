@@ -83,7 +83,7 @@ export function buildReasoningRequest(input: ReasoningInput): {
       userTurn: input.userTurn,
       history: input.history,
       stateSummary: summarizeState(input),
-      capabilities: input.capabilities.map((c) => `${c.name}(${c.consequence})`),
+      capabilities: input.capabilities.map((c) => `${c.name}(${c.operation})`),
       groundedResults: input.groundedResults?.map((g) =>
         g.ok ? `${g.capability}: ${g.summary ?? ""}` : `${g.capability}: KLAIDA ${g.error ?? ""}`
       ),

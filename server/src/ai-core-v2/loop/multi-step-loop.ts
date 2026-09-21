@@ -55,6 +55,8 @@ export interface MultiStepLoopOptions {
   onEvent?: (e: LoopEvent) => void;
   /** Narrow authority verifier for USER_STATED grounding (default: continuity-only). */
   authorityVerifier?: AuthorityVerifier;
+  /** Capability execution context (authenticated user + HITL confirmation flag). */
+  capabilityContext?: CapabilityContext;
 }
 
 export type LoopEvent =
@@ -103,7 +105,12 @@ export function deriveSearchListingsArgs(
 
 function summarizeResult(capability: string, result: CapabilityResult<unknown>): GroundedCapabilityResult {
   if (!result.ok) {
-    return { capability, ok: false, error: result.error ?? "capability failed" };
+    return {
+      capability,
+      ok: false,
+      error: result.error ?? "capability failed",
+      failureKind: result.failureKind,
+    };
   }
   const d = result.data as { count?: number; listings?: Array<{ title: string }>; title?: string; price?: number } | undefined;
   if (capability === "searchListings" && d) {
@@ -112,12 +119,23 @@ function summarizeResult(capability: string, result: CapabilityResult<unknown>):
       capability,
       ok: true,
       summary: `rasta ${d.count ?? 0} skelbimų${titles ? `: ${titles}` : ""}`,
+      provenance: result.provenance ?? "TOOL_DERIVED",
     };
   }
   if (capability === "listingDetails" && d) {
-    return { capability, ok: true, summary: `${d.title ?? ""} (${d.price ?? "?"} €)` };
+    return {
+      capability,
+      ok: true,
+      summary: `${d.title ?? ""} (${d.price ?? "?"} €)`,
+      provenance: result.provenance ?? "TOOL_DERIVED",
+    };
   }
-  return { capability, ok: true, summary: "ok" };
+  return {
+    capability,
+    ok: true,
+    summary: "ok",
+    provenance: result.provenance ?? "TOOL_DERIVED",
+  };
 }
 
 /**
@@ -205,9 +223,32 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
       opts.onEvent?.({ type: "capability", name: req.capability, ok: false, error: "unknown_capability" });
       return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
     }
-    if (contract.consequence !== "READ") {
-      capabilityCalls.push({ name: req.capability, ok: false, error: "not_read_only" });
-      opts.onEvent?.({ type: "capability", name: req.capability, ok: false, error: "not_read_only" });
+
+    const ctx: CapabilityContext = opts.capabilityContext ?? {};
+
+    // Deterministic authority gate. READ + PREPARE execute in the loop; MUTATE
+    // requires an authenticated actor; CONSEQUENTIAL is never auto-executed —
+    // it surfaces the Human-in-the-Loop confirmation boundary instead.
+    if (contract.operation === "CONSEQUENTIAL") {
+      capabilityCalls.push({ name: req.capability, ok: false, error: "confirmation_required" });
+      opts.onEvent?.({ type: "capability", name: req.capability, ok: false, error: "confirmation_required" });
+      groundedResults.push({
+        capability: req.capability,
+        ok: false,
+        error: "confirmation_required",
+        failureKind: "confirmation_required",
+      });
+      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
+    }
+    if (contract.operation === "MUTATE" && !ctx.authUserId) {
+      capabilityCalls.push({ name: req.capability, ok: false, error: "authorization" });
+      opts.onEvent?.({ type: "capability", name: req.capability, ok: false, error: "authorization" });
+      groundedResults.push({
+        capability: req.capability,
+        ok: false,
+        error: "authorization",
+        failureKind: "authorization",
+      });
       return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
     }
 
@@ -220,7 +261,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
     let result: CapabilityResult<unknown>;
     try {
       result = await withinBudget(
-        contract.execute(execArgs as never, {} as CapabilityContext),
+        contract.execute(execArgs as never, ctx),
         deadline - Date.now()
       );
     } catch (err) {

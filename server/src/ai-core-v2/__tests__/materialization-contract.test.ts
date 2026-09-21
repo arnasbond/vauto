@@ -36,7 +36,7 @@ function readCapability(name: string, data: unknown): CapabilityContract<unknown
   return {
     name,
     description: name,
-    consequence: "READ",
+    operation: "READ",
     validate: (a) => a,
     execute: async () => ({ ok: true, data }),
   };
@@ -47,7 +47,7 @@ function input(over: Partial<ReasoningInput> = {}): ReasoningInput {
     userTurn: "surask butus",
     history: [],
     state: emptyMarketplaceState(),
-    capabilities: [{ name: "searchListings", description: "ieškoti", consequence: "READ" }],
+    capabilities: [{ name: "searchListings", description: "ieškoti", operation: "READ" }],
     ...over,
   };
 }

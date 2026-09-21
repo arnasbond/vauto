@@ -88,15 +88,15 @@ export class CapabilityPolicyRejectionError extends Error {
 
 /**
  * Safety guard: a shadow capability set must be READ-only. Any capability
- * that is PREPARE / EXECUTE / CONFIRMATION_REQUIRED is rejected.
+ * that is PREPARE / MUTATE / CONSEQUENTIAL is rejected.
  */
 export function assertShadowCapabilitiesReadOnly(
   capabilities: ReadonlyArray<CapabilityContract<unknown, unknown>>
 ): void {
   for (const c of capabilities) {
-    if (c.consequence !== "READ") {
+    if (c.operation !== "READ") {
       throw new CapabilityPolicyRejectionError(
-        `shadow capability must be READ-only, got ${c.consequence} for ${c.name}`
+        `shadow capability must be READ-only, got ${c.operation} for ${c.name}`
       );
     }
   }

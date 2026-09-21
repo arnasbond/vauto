@@ -7,7 +7,7 @@
  * a human naturally expresses a mixed marketplace goal. There is NO intent
  * enum and NO workflow DSL; an empty decision is a valid no-tool turn.
  */
-import type { CapabilityDescription } from "../capability/capability.js";
+import type { CapabilityDescription, CapabilityFailureKind, ToolFactSource } from "../capability/capability.js";
 import type { MarketplaceState } from "../state/marketplace-state.js";
 import type { StatePatch } from "../state/state-patch.js";
 
@@ -33,6 +33,10 @@ export interface GroundedCapabilityResult {
   ok: boolean;
   summary?: string;
   error?: string;
+  /** Failure classification (authorization / confirmation / unavailable / not_found). */
+  failureKind?: CapabilityFailureKind;
+  /** Provenance of returned facts — tool facts are TOOL_DERIVED, never USER_STATED. */
+  provenance?: ToolFactSource;
 }
 
 export interface CapabilityRequestShape {

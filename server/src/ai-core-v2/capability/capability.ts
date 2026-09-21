@@ -1,38 +1,61 @@
 /**
- * VAUTO AI Core v2 — capability contract.
+ * VAUTO AI Core v2.4 — capability contract (universal capability boundary).
  *
  * A capability is a BOUNDED marketplace operation. It never decides user
  * intent — the reasoning layer decides whether to request a capability.
- * The capability layer owns: input schema, validation, permission
- * requirements, consequential classification, execution, and normalized
- * result.
+ * The capability layer owns: input schema, validation, authorization,
+ * confirmation requirements, provenance/grounding behavior, execution, and a
+ * normalized grounded result envelope.
  *
- * Consequence classes:
- *   READ                 — safe, no mutation.
- *   PREPARE              — stages a draft/proposal, no persistence of record.
- *   EXECUTE              — authorized, non-destructive state change.
- *   CONFIRMATION_REQUIRED— consequential/irreversible: needs HITL confirmation.
+ * Operation class (declared per capability):
+ *   READ          — safe, no mutation; execution-safe args only.
+ *   PREPARE       — stages a draft/proposal/preview; no final consequential mutation.
+ *   MUTATE        — authenticated, policy-authorized state change.
+ *   CONSEQUENTIAL — irreversible / user-visible; requires explicit HITL confirmation.
+ *
+ * The model may REQUEST a capability. It must NEVER bypass this boundary to
+ * invoke domain/database/payment operations directly.
  */
 
-export type CapabilityConsequence = "READ" | "PREPARE" | "EXECUTE" | "CONFIRMATION_REQUIRED";
+export type CapabilityOperation = "READ" | "PREPARE" | "MUTATE" | "CONSEQUENTIAL";
+
+/** Normalized failure classification — part of the grounded result envelope. */
+export type CapabilityFailureKind =
+  | "not_found"
+  | "authorization"
+  | "confirmation_required"
+  | "unavailable"
+  | "recoverable";
+
+/** Provenance of tool-derived facts — never USER_STATED intent. */
+export type ToolFactSource = "TOOL_DERIVED" | "MODEL_INFERRED";
 
 export interface CapabilityContext {
   /** Authenticated user id, when present. */
   authUserId?: string | null;
+  /** Explicit Human-in-the-Loop confirmation for CONSEQUENTIAL operations. */
+  confirmed?: boolean;
 }
 
 export interface CapabilityResult<TData = unknown> {
   ok: boolean;
   data?: TData;
   error?: string;
+  failureKind?: CapabilityFailureKind;
+  /** Provenance of returned facts. Tool facts are TOOL_DERIVED, never USER_STATED. */
+  provenance?: ToolFactSource;
 }
 
 export interface CapabilityContract<TArgs, TData> {
+  /** Stable capability id surfaced to the reasoning layer. */
   readonly name: string;
   readonly description: string;
-  readonly consequence: CapabilityConsequence;
+  /** Operation class (READ | PREPARE | MUTATE | CONSEQUENTIAL). */
+  readonly operation: CapabilityOperation;
   /** Permission keys required to execute (empty/undefined = public READ). */
   readonly requiredPermissions?: readonly string[];
+  /** True when this operation requires an explicit Human-in-the-Loop confirmation. */
+  readonly requiresConfirmation?: boolean;
   /** Validate + coerce untrusted args into a typed, safe TArgs. Throws on invalid. */
   validate(args: unknown): TArgs;
   execute(args: TArgs, ctx: CapabilityContext): Promise<CapabilityResult<TData>>;
@@ -42,5 +65,6 @@ export interface CapabilityContract<TArgs, TData> {
 export interface CapabilityDescription {
   name: string;
   description: string;
-  consequence: CapabilityConsequence;
+  operation: CapabilityOperation;
+  requiresConfirmation?: boolean;
 }

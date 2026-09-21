@@ -56,7 +56,7 @@ export const searchListingsCapability: CapabilityContract<
 > = {
   name: "searchListings",
   description: "Ieškoti aktyvių skelbimų kataloge pagal kietus filtrus (query, category, city, price).",
-  consequence: "READ",
+  operation: "READ",
   validate(raw: unknown): SearchListingsArgs {
     if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
       throw new Error("searchListings args must be an object");
