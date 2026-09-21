@@ -87,6 +87,7 @@ export function buildReasoningRequest(input: ReasoningInput): {
       groundedResults: input.groundedResults?.map((g) =>
         g.ok ? `${g.capability}: ${g.summary ?? ""}` : `${g.capability}: KLAIDA ${g.error ?? ""}`
       ),
+      priorResults: input.priorResults,
     }),
   };
 }

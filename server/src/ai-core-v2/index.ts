@@ -25,3 +25,5 @@ export * from "./provider/model-config.js";
 export * from "./provider/gemini-provider.js";
 export * from "./shadow/shadow-runner.js";
 export * from "./harness/semantic-harness.js";
+export * from "./journey/result-context.js";
+export * from "./journey/conversation.js";

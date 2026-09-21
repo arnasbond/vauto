@@ -25,6 +25,8 @@ export interface ReasoningInput {
   capabilities: CapabilityDescription[];
   /** Grounded capability results fed back to the model for interpretation. */
   groundedResults?: GroundedCapabilityResult[];
+  /** Grounded listings from the prior search turn (id + title), for reference continuity. */
+  priorResults?: Array<{ id: string; title: string }>;
 }
 
 /** A capability result surfaced to the model for interpretation (never the final answer). */
