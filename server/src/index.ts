@@ -10,6 +10,7 @@ import { apiRouter } from "./routes/api.js";
 import { aiRouter } from "./routes/ai.js";
 import { vautoServerRouter } from "./routes/vauto-server.js";
 import { vautoAgentRouter } from "./routes/vauto-agent.js";
+import { coreV2OwnerRouter } from "./routes/core-v2-owner.js";
 import { consequentialActionsRouter } from "./routes/consequential-actions.js";
 import { bulkListingsRouter } from "./routes/bulk-listings.js";
 import bulkImportRouter from "./routes/bulk-import.js";
@@ -185,6 +186,7 @@ app.use("/api/stage10", aiRateLimiter, stage10Router);
 app.use("/api/vauto-server", aiRateLimiter, requireAuth, vautoServerRouter);
 /** E1 / P0.1 — gateway allows capability-governed guest access (text/search allowed; vision/actions gated). */
 app.use("/api/vauto-agent", aiRateLimiter, optionalAuth, vautoAgentRouter);
+app.use("/api/ops/core-v2", aiRateLimiter, coreV2OwnerRouter);
 /** AI Maturity Phase 1 — deterministic confirmation boundary for
  *  markListingSold / blockListing. Never reachable from LLM tool-call text;
  *  requires the exact opaque pendingActionId minted by the proposal. */
