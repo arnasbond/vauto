@@ -33,7 +33,7 @@ function src(p: unknown): string {
 }
 
 function readCapability(name: string): CapabilityContract<unknown, unknown> {
-  return { name, description: name, consequence: "READ", validate: () => ({}), execute: async () => ({ ok: true, data: { count: 0, listings: [] } }) };
+  return { name, description: name, operation: "READ", validate: () => ({}), execute: async () => ({ ok: true, data: { count: 0, listings: [] } }) };
 }
 function registry(): CapabilityRegistry {
   const r = new CapabilityRegistry();
@@ -41,7 +41,7 @@ function registry(): CapabilityRegistry {
   return r;
 }
 function input(over: Partial<ReasoningInput> = {}): ReasoningInput {
-  return { userTurn: "labas", history: [], state: emptyMarketplaceState(), capabilities: [{ name: "searchListings", description: "x", consequence: "READ" }], ...over };
+  return { userTurn: "labas", history: [], state: emptyMarketplaceState(), capabilities: [{ name: "searchListings", description: "x", operation: "READ" }], ...over };
 }
 function r3Provider(d: SemanticDecision): ReasoningProvider {
   return async () => semanticDecisionToReasoningDecision(d);

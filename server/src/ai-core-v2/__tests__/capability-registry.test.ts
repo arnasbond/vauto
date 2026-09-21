@@ -34,8 +34,8 @@ describe("Core v2 — capability registry", () => {
   });
 
   it("both initial capabilities are READ-only (no mutation)", () => {
-    assert.equal(searchListingsCapability.consequence, "READ");
-    assert.equal(listingDetailsCapability.consequence, "READ");
+    assert.equal(searchListingsCapability.operation, "READ");
+    assert.equal(listingDetailsCapability.operation, "READ");
     assertShadowCapabilitiesReadOnly([searchListingsCapability, listingDetailsCapability]);
   });
 
@@ -43,7 +43,7 @@ describe("Core v2 — capability registry", () => {
     const publish: CapabilityContract<unknown, unknown> = {
       name: "publishListing",
       description: "publikuoti",
-      consequence: "CONFIRMATION_REQUIRED",
+      operation: "CONSEQUENTIAL",
       validate: () => ({}),
       execute: async () => ({ ok: true }),
     };

@@ -38,7 +38,7 @@ function readCapability(name: string, description: string): CapabilityContract<u
   return {
     name,
     description,
-    consequence: "READ",
+    operation: "READ",
     validate: () => ({}),
     execute: async () =>
       name === "searchListings"
@@ -416,7 +416,7 @@ async function main(): Promise<void> {
       capabilities: registry.describe().map((c) => ({
         name: c.name,
         description: c.description,
-        consequence: c.consequence as "READ",
+        operation: c.operation as "READ",
       })),
     });
 

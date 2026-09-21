@@ -24,7 +24,7 @@ function fixedVerifier(verdict: AuthorityVerdict): AuthorityVerifier {
   return async () => verdict;
 }
 function readCapability(name: string): CapabilityContract<unknown, unknown> {
-  return { name, description: name, consequence: "READ", validate: () => ({}), execute: async () => ({ ok: true, data: { count: 0, listings: [] } }) };
+  return { name, description: name, operation: "READ", validate: () => ({}), execute: async () => ({ ok: true, data: { count: 0, listings: [] } }) };
 }
 function registry(): CapabilityRegistry {
   const r = new CapabilityRegistry();
@@ -71,7 +71,7 @@ describe("Core v2.3R.1 — Arena provider neutrality", () => {
 
   it("provider cannot directly execute capability (non-READ not authorized)", async () => {
     const reg = new CapabilityRegistry();
-    reg.register({ name: "publishListing", description: "x", consequence: "CONFIRMATION_REQUIRED", validate: () => ({}), execute: async () => ({ ok: true }) });
+    reg.register({ name: "publishListing", description: "x", operation: "CONSEQUENTIAL", validate: () => ({}), execute: async () => ({ ok: true }) });
     const provider = arenaProvider({ capabilityRequest: { capability: "publishListing", args: {} } });
     const rec = await runArenaCase({ provider, fixture: FIXTURE_G, verifier: fixedVerifier("UNSUPPORTED"), registry: reg });
     assert.equal(rec.capabilityAuthorized, false);

@@ -29,7 +29,7 @@ export const listingDetailsCapability: CapabilityContract<
 > = {
   name: "listingDetails",
   description: "Perskaityti vieno skelbimo detales pagal id/slug.",
-  consequence: "READ",
+  operation: "READ",
   validate(raw: unknown): ListingDetailsArgs {
     if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
       throw new Error("listingDetails args must be an object");

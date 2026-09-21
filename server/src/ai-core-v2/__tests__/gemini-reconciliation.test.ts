@@ -18,7 +18,7 @@ const inp: ReasoningInput = {
   userTurn: "Ieškau Toyota Corolla.",
   history: [],
   state: emptyMarketplaceState(),
-  capabilities: [{ name: "searchListings", description: "x", consequence: "READ" }],
+  capabilities: [{ name: "searchListings", description: "x", operation: "READ" }],
 };
 
 function jsonResp(body: unknown): typeof fetch {

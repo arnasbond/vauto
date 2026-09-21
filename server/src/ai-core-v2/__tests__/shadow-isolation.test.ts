@@ -17,7 +17,7 @@ import type { CapabilityContract } from "../capability/capability.js";
 const READ_CAP: CapabilityContract<unknown, unknown> = {
   name: "searchListings",
   description: "x",
-  consequence: "READ",
+  operation: "READ",
   validate: () => ({}),
   execute: async () => ({ ok: true }),
 };
@@ -90,7 +90,7 @@ describe("Core v2 — shadow harness", () => {
     const consequential: CapabilityContract<unknown, unknown> = {
       name: "publish",
       description: "x",
-      consequence: "CONFIRMATION_REQUIRED",
+      operation: "CONSEQUENTIAL",
       validate: () => ({}),
       execute: async () => ({ ok: true }),
     };
@@ -117,7 +117,7 @@ describe("Core v2 — shadow harness", () => {
     assert.throws(
       () =>
         assertShadowCapabilitiesReadOnly([
-          { name: "publish", description: "x", consequence: "CONFIRMATION_REQUIRED", validate: () => ({}), execute: async () => ({ ok: true }) },
+          { name: "publish", description: "x", operation: "CONSEQUENTIAL", validate: () => ({}), execute: async () => ({ ok: true }) },
         ]),
       /READ-only/
     );

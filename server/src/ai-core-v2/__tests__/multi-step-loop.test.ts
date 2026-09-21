@@ -28,7 +28,7 @@ function readCapability(
   return {
     name,
     description: name,
-    consequence: "READ",
+    operation: "READ",
     validate: (a) => a,
     execute: async () => ({ ok: true, data }),
   };
@@ -39,7 +39,7 @@ function input(over: Partial<ReasoningInput> = {}): ReasoningInput {
     userTurn: "surask butus Kaune",
     history: [],
     state: emptyMarketplaceState(),
-    capabilities: [{ name: "searchListings", description: "ieškoti", consequence: "READ" }],
+    capabilities: [{ name: "searchListings", description: "ieškoti", operation: "READ" }],
     ...over,
   };
 }
@@ -73,7 +73,7 @@ describe("Core v2 — multi-step loop", () => {
     assert.match(res.decision.text ?? "", /Butas A/);
   });
 
-  it("a non-READ capability request is rejected without execution", async () => {
+  it("a CONSEQUENTIAL capability request surfaces confirmation without execution", async () => {
     const provider = scriptedProvider([
       { capabilityRequest: { capability: "publishListing", args: {} } },
     ]);
@@ -81,14 +81,14 @@ describe("Core v2 — multi-step loop", () => {
     registry.register({
       name: "publishListing",
       description: "x",
-      consequence: "CONFIRMATION_REQUIRED",
+      operation: "CONSEQUENTIAL",
       validate: (a) => a,
       execute: async () => ({ ok: true }),
     });
     const res = await runMultiStepLoop({ provider, registry, input: input() });
     assert.equal(res.capabilityCalls.length, 1);
     assert.equal(res.capabilityCalls[0]!.ok, false);
-    assert.equal(res.capabilityCalls[0]!.error, "not_read_only");
+    assert.equal(res.capabilityCalls[0]!.error, "confirmation_required");
   });
 
   it("an unknown capability is rejected", async () => {

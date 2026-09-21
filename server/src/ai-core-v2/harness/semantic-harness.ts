@@ -45,7 +45,7 @@ export interface SemanticScenarioOptions {
   provider: ReasoningProvider;
   registry: CapabilityRegistry;
   authorityVerifier?: AuthorityVerifier;
-  capabilities: Array<{ name: string; description: string; consequence: "READ" }>;
+  capabilities: Array<{ name: string; description: string; operation: "READ" }>;
 }
 
 export async function runSemanticScenario(
