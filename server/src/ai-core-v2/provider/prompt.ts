@@ -58,6 +58,7 @@ export function buildReasoningUserPrompt(input: {
   stateSummary: string;
   capabilities: string[];
   groundedResults?: string[];
+  priorResults?: Array<{ id: string; title: string }>;
 }): string {
   const lines: string[] = [];
   if (input.history.length) {
@@ -68,6 +69,12 @@ export function buildReasoningUserPrompt(input: {
   }
   lines.push(`INTERPRETUOTA BŪSENA:\n${input.stateSummary || "(tuščia)"}`);
   lines.push(`GALIMI ĮRANKIAI: ${input.capabilities.length ? input.capabilities.join(", ") : "(nėra)"}`);
+  if (input.priorResults?.length) {
+    lines.push(
+      "ANKSTESNĖS PAIEŠKOS REZULTATAI (galima nurodyti pagal numerį arba id):\n" +
+        input.priorResults.map((r, i) => `- ${i + 1}. [${r.id}] ${r.title}`).join("\n")
+    );
+  }
   if (input.groundedResults?.length) {
     lines.push(
       "ĮRANKIŲ REZULTATAI (pagrįsti faktai):\n" + input.groundedResults.map((r) => `- ${r}`).join("\n")

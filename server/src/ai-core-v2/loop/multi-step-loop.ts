@@ -68,6 +68,8 @@ export interface CapabilityCallRecord {
   name: string;
   ok: boolean;
   error?: string;
+  /** Raw grounded capability result data (for cross-turn result continuity). */
+  data?: unknown;
 }
 
 export interface MultiStepLoopResult {
@@ -268,7 +270,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
       if (err instanceof TurnBudgetExceededError) throw err;
       result = { ok: false, error: err instanceof Error ? err.message : "capability error" };
     }
-    capabilityCalls.push({ name: req.capability, ok: result.ok, error: result.error });
+    capabilityCalls.push({ name: req.capability, ok: result.ok, error: result.error, data: result.data });
     opts.onEvent?.({
       type: "capability",
       name: req.capability,
