@@ -4,12 +4,15 @@
  * Publishes a confirmed listing draft. This is the Human-in-the-Loop
  * confirmation boundary: without an authenticated seller AND explicit
  * confirmation, execution is refused (authorization / confirmation_required).
- * On confirmation it bridges to the existing `insertListing` service (thin
- * adapter) — it never re-implements marketplace persistence.
+ *
+ * IMPORTANT — real publishing is DISABLED. Until Core v2 can pass the complete,
+ * user-reviewed authoritative listing draft into the existing trusted
+ * publishing boundary (`repository.insertListing`), even a confirmed request
+ * fails closed as `unavailable` and NEVER persists a listing. Confirmation is
+ * authorization to publish the REVIEWED state; it is not permission to
+ * reconstruct or approximate that state. The capability declaration, operation
+ * class, and confirmation boundary are kept so the contract is stable.
  */
-import { randomUUID } from "node:crypto";
-import { insertListing } from "../../../repository.js";
-import type { ApiListing } from "../../../types.js";
 import type {
   CapabilityContext,
   CapabilityContract,
@@ -24,9 +27,6 @@ export interface PublishListingArgs {
   city?: string;
   attributes?: Record<string, string>;
 }
-
-/** Injectable persistence boundary — defaults to the existing repository service. */
-export type PublishPersistFn = (listing: ApiListing) => Promise<void>;
 
 function reqString(value: unknown, field: string): string {
   if (typeof value !== "string" || !value.trim()) {
@@ -63,77 +63,53 @@ function optAttributes(value: unknown): Record<string, string> {
   return out;
 }
 
-export function createPublishListingCapability(
-  persist: PublishPersistFn = insertListing
-): CapabilityContract<PublishListingArgs, { id: string }> {
-  return {
-    name: "publishListing",
-    description:
-      "Paskelbti patvirtintą skelbimą (CONSEQUENTIAL — reikalauja žmogaus patvirtinimo).",
-    operation: "CONSEQUENTIAL",
-    requiresConfirmation: true,
-    validate(raw: unknown): PublishListingArgs {
-      if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
-        throw new Error("publishListing args must be an object");
-      }
-      const r = raw as Record<string, unknown>;
+export const publishListingCapability: CapabilityContract<
+  PublishListingArgs,
+  { id: string }
+> = {
+  name: "publishListing",
+  description:
+    "Paskelbti patvirtintą skelbimą (CONSEQUENTIAL — reikalauja žmogaus patvirtinimo).",
+  operation: "CONSEQUENTIAL",
+  requiresConfirmation: true,
+  validate(raw: unknown): PublishListingArgs {
+    if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
+      throw new Error("publishListing args must be an object");
+    }
+    const r = raw as Record<string, unknown>;
+    return {
+      title: reqString(r.title, "title"),
+      category: reqString(r.category, "category"),
+      description: optString(r.description),
+      price: optPrice(r.price),
+      city: optString(r.city),
+      attributes: optAttributes(r.attributes),
+    };
+  },
+  async execute(
+    _args: PublishListingArgs,
+    ctx: CapabilityContext
+  ): Promise<CapabilityResult<{ id: string }>> {
+    if (!ctx.authUserId) {
       return {
-        title: reqString(r.title, "title"),
-        category: reqString(r.category, "category"),
-        description: optString(r.description),
-        price: optPrice(r.price),
-        city: optString(r.city),
-        attributes: optAttributes(r.attributes),
+        ok: false,
+        failureKind: "authorization",
+        error: "publish requires an authenticated seller",
       };
-    },
-    async execute(
-      args: PublishListingArgs,
-      ctx: CapabilityContext
-    ): Promise<CapabilityResult<{ id: string }>> {
-      if (!ctx.authUserId) {
-        return {
-          ok: false,
-          failureKind: "authorization",
-          error: "publish requires an authenticated seller",
-        };
-      }
-      if (!ctx.confirmed) {
-        return {
-          ok: false,
-          failureKind: "confirmation_required",
-          error: "publish requires explicit user confirmation",
-        };
-      }
-      const id = randomUUID();
-      const listing: ApiListing = {
-        id,
-        sellerId: ctx.authUserId,
-        title: args.title,
-        price: args.price ?? 0,
-        location: args.city ?? "",
-        distanceKm: 0,
-        image: "",
-        images: [],
-        category: args.category,
-        tags: [],
-        createdAt: new Date().toISOString(),
-        description: args.description,
-        attributes: args.attributes,
-        status: "active",
-        banned: false,
+    }
+    if (!ctx.confirmed) {
+      return {
+        ok: false,
+        failureKind: "confirmation_required",
+        error: "publish requires explicit user confirmation",
       };
-      try {
-        await persist(listing);
-        return { ok: true, provenance: "TOOL_DERIVED", data: { id } };
-      } catch (err) {
-        return {
-          ok: false,
-          failureKind: "recoverable",
-          error: err instanceof Error ? err.message : "publish failed",
-        };
-      }
-    },
-  };
-}
-
-export const publishListingCapability = createPublishListingCapability();
+    }
+    // Fail closed: real publishing is disabled until the authoritative,
+    // user-reviewed listing draft can be passed to the trusted publish boundary.
+    return {
+      ok: false,
+      failureKind: "unavailable",
+      error: "publishing disabled until authoritative listing draft is integrated",
+    };
+  },
+};

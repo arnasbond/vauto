@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { createMarketplaceRegistry } from "../capability/registry.js";
 import { prepareListingDraftCapability } from "../capability/capabilities/prepare-listing-draft.js";
-import { createPublishListingCapability } from "../capability/capabilities/publish-listing.js";
+import { publishListingCapability } from "../capability/capabilities/publish-listing.js";
 import { CapabilityRegistry } from "../capability/registry.js";
 import type { CapabilityContract, CapabilityOperation } from "../capability/capability.js";
 import { runMultiStepLoop } from "../loop/multi-step-loop.js";
@@ -62,36 +62,28 @@ describe("v2.4 — capability bridge: contract + classification", () => {
     assert.equal(res.data?.location, "Vilnius");
   });
 
-  it("publishListing refuses without confirmation (persist NOT invoked)", async () => {
-    let called = false;
-    const cap = createPublishListingCapability(async () => { called = true; });
-    const res = await cap.execute({ title: "BMW", category: "vehicles", price: 15000 }, { authUserId: "u1", confirmed: false });
+  it("publishListing refuses without confirmation", async () => {
+    const res = await publishListingCapability.execute(
+      { title: "BMW", category: "vehicles", price: 15000 },
+      { authUserId: "u1", confirmed: false }
+    );
     assert.equal(res.ok, false);
     assert.equal(res.failureKind, "confirmation_required");
-    assert.equal(called, false, "consequential action must not run before confirmation");
   });
 
   it("publishListing refuses without authenticated seller", async () => {
-    const cap = createPublishListingCapability(async () => {});
-    const res = await cap.execute({ title: "BMW", category: "vehicles" }, { confirmed: true });
+    const res = await publishListingCapability.execute({ title: "BMW", category: "vehicles" }, { confirmed: true });
     assert.equal(res.ok, false);
     assert.equal(res.failureKind, "authorization");
   });
 
-  it("publishListing bridges to persistence only with auth + confirmation (TOOL_DERIVED)", async () => {
-    const persisted: Array<{ title: string; sellerId: string; category: string }> = [];
-    const cap = createPublishListingCapability(async (l) => {
-      persisted.push({ title: l.title, sellerId: l.sellerId, category: l.category });
-    });
-    const res = await cap.execute(
-      { title: "BMW 320d", category: "vehicles", price: 15000 },
+  it("publishListing fails closed even when confirmed (no persistence)", async () => {
+    const res = await publishListingCapability.execute(
+      { title: "BMW 320d", category: "vehicles", price: 15000, city: "Vilnius" },
       { authUserId: "u1", confirmed: true }
     );
-    assert.equal(res.ok, true);
-    assert.equal(res.provenance, "TOOL_DERIVED");
-    assert.equal(persisted.length, 1);
-    assert.equal(persisted[0]!.sellerId, "u1");
-    assert.equal(persisted[0]!.title, "BMW 320d");
+    assert.equal(res.ok, false);
+    assert.equal(res.failureKind, "unavailable", "confirmed publish still cannot persist");
   });
 });
 
