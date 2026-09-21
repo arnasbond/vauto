@@ -88,8 +88,8 @@ coreV2OwnerRouter.post("/chat", requireOpsSecret, async (req, res) => {
   }
 });
 
-/** Minimal owner test chat page (ops-gated). Dev-only convenience; not a product UI. */
-coreV2OwnerRouter.get("/", requireOpsSecret, (_req, res) => {
+/** Minimal owner test chat page — static form only (no data). The chat endpoint below is the protected boundary. */
+coreV2OwnerRouter.get("/", (_req, res) => {
   res.type("html").send(OWNER_TEST_PAGE);
 });
 
@@ -112,8 +112,10 @@ function add(role, text){ const d=document.createElement('div'); d.className=rol
 async function send(){
   const msg = document.getElementById('msg').value.trim(); if(!msg) return;
   document.getElementById('msg').value=''; add('u', msg);
+  const token = localStorage.getItem('vauto_access_token_v1');
+  if(!token){ add('a','Prisijunkite kaip administratorius, tada bandykite dar kartą.'); return; }
   try {
-    const r = await fetch('/api/ops/core-v2/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message: msg, sessionId }) });
+    const r = await fetch('/api/ops/core-v2/chat', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({ message: msg, sessionId }) });
     const j = await r.json();
     if(j.ok){ sessionId = j.sessionId; add('a', j.reply || '(tuščia)'); } else { add('a', 'KLAIDA: ' + (j.error||j.code)); }
   } catch(e){ add('a', 'TINKLO KLAIDA'); }
