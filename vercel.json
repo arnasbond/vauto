@@ -172,8 +172,12 @@
       "destination": "https://vauto-api.onrender.com/api/requirements"
     },
     {
-      "source": "/api/ops/core-v2/:path*",
-      "destination": "https://vauto-api.onrender.com/api/ops/core-v2/:path*"
+      "source": "/api/ops/core-v2/",
+      "destination": "https://vauto-api.onrender.com/api/ops/core-v2/"
+    },
+    {
+      "source": "/api/ops/core-v2/chat",
+      "destination": "https://vauto-api.onrender.com/api/ops/core-v2/chat"
     },
     {
       "source": "/listing/:slug",
