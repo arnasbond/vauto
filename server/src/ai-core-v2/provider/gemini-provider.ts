@@ -33,7 +33,6 @@ export interface ReasoningAttemptTelemetry {
   elapsedMs: number;
   timedOut: boolean;
   status?: number;
-  candidateCount?: number;
   parseOutcome?: "ok" | "empty" | "malformed_json" | "schema_invalid";
   capabilityRequested?: string;
 }
@@ -61,7 +60,6 @@ export function createGeminiReasoningProvider(
           elapsedMs: attempt.elapsedMs,
           timedOut: attempt.timedOut,
           status: attempt.status,
-          candidateCount: attempt.claimCount == null ? undefined : 1,
           parseOutcome: attempt.claimCount == null ? undefined : "ok",
         }),
     })(input);
