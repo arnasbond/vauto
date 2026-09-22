@@ -20,7 +20,7 @@ import {
   CORE_V2_MODEL,
   CORE_V2_REASONING_TIMEOUT_MS,
 } from "./model-config.js";
-import { ProviderFailureError, isRetryableFailure } from "./gemini-provider.js";
+import { ProviderFailureError, isRetryableFailure } from "./provider-errors.js";
 import { buildReasoningUserPrompt } from "./prompt.js";
 
 export type ClaimRole = "constraint" | "subject" | "preference" | "exclusion" | "goal" | "unresolved" | "retraction";
@@ -144,6 +144,12 @@ export function parseSemanticDecision(raw: unknown): SemanticDecision {
     throw new ProviderFailureError("malformed_json", "decision must be an object");
   }
   const r = raw as Record<string, unknown>;
+  if (Object.prototype.hasOwnProperty.call(r, "statePatches")) {
+    throw new ProviderFailureError(
+      "schema_invalid",
+      "production semantic decisions must not contain statePatches"
+    );
+  }
   const d: SemanticDecision = {};
   const text = optStr(r.text);
   if (text) d.text = text;
@@ -197,7 +203,7 @@ export function claimsToPatches(claims: SemanticClaim[] | undefined): StatePatch
         if (c.strength !== "hard") break; // ambiguous/missing → non-executable
         if (c.concept === "price") {
           const key = c.boundary === "min" ? "priceMin" : c.boundary === "max" ? "priceMax" : undefined;
-          if (key && (typeof c.value === "number" || (typeof c.value === "string" && c.value.trim() !== ""))) {
+          if (key && typeof c.value === "number" && Number.isFinite(c.value)) {
             patches.push({ op: "setHard", key, value: c.value, provenance: provenance("USER_STATED") });
           }
         } else if (c.concept === "location" && optStr(c.value)) {
@@ -381,6 +387,7 @@ export async function callGeminiSemanticTransport(
       return { decision, rawUsage: data.usageMetadata, rawText: text };
     } catch (err) {
       onAttempt?.({ attempt: n, elapsedMs: Date.now() - t0, timedOut: false });
+      if (err instanceof ProviderFailureError) throw err;
       throw new ProviderFailureError("malformed_json", err instanceof Error ? err.message : "output failed claim parsing");
     }
   }
