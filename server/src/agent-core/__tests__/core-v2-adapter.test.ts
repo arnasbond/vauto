@@ -114,6 +114,32 @@ describe("E1 — Core v2 adapter", () => {
     assert.ok(response.coreV2State); // Core v2 state should be attached
   });
 
+  it("uses a model clarification as the visible response", () => {
+    const response = buyerTurnRecordToVautoResponse({
+      userTurn: "Padėkite pasirinkti",
+      decision: { clarification: "Koks jūsų biudžetas?" },
+      stateBefore: emptyMarketplaceState(),
+      stateAfter: emptyMarketplaceState(),
+      capabilityCalls: [],
+      assistantText: "",
+      resultContext: { listings: [] },
+    }, {});
+
+    assert.equal(response.reply, "Koks jūsų biudžetas?");
+  });
+
+  it("rejects a Core v2 record with no visible response", () => {
+    assert.throws(() => buyerTurnRecordToVautoResponse({
+      userTurn: "Padėkite pasirinkti",
+      decision: {},
+      stateBefore: emptyMarketplaceState(),
+      stateAfter: emptyMarketplaceState(),
+      capabilityCalls: [],
+      assistantText: "",
+      resultContext: { listings: [] },
+    }, {}), /core_v2_empty_visible_response/);
+  });
+
   it("surfaces unsupported consequential capabilities as error text", () => {
     const record = {
       userTurn: "Parduodu",

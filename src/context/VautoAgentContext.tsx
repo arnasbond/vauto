@@ -31,7 +31,7 @@ import {
   selectAgentVisionUrls,
 } from "@/lib/prepare-chat-images-for-agent";
 import { buddyMessageForAgentFailure } from "@/lib/voice-graceful";
-import { VAUTO_IN_DOMAIN_RECOVERY } from "@vauto/shared/vauto-domain-autonomy";
+import { VAUTO_INTERNAL_ERROR_REPLY } from "@vauto/shared/vauto-domain-autonomy";
 import {
   VISION_WIRE_MAX_IMAGES,
   capListingGalleryUrls,
@@ -3067,7 +3067,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
 
         if (!res.reply && !hasExecutableAction) {
-          const fallback = VAUTO_IN_DOMAIN_RECOVERY;
+          const fallback = VAUTO_INTERNAL_ERROR_REPLY;
           appendSupervisorAssistant(fallback);
           speakReply(fallback);
           if (open && !options?.fromSearchBar) showToast(fallback, "info");
