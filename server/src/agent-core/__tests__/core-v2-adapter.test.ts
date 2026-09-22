@@ -114,6 +114,49 @@ describe("E1 — Core v2 adapter", () => {
     assert.ok(response.coreV2State); // Core v2 state should be attached
   });
 
+  it("preserves a semantic advisory decision without legacy recovery routing", () => {
+    const state = {
+      ...emptyMarketplaceState(),
+      goal: "pasirinkti tinkamą šeimos automobilį",
+      vertical: "vehicles",
+      searchSubjectProvenance: {
+        source: "USER_STATED" as const,
+        at: "2024-01-01T00:00:00Z",
+      },
+      searchSubject: "šeimos automobilis",
+      softPreferences: [
+        {
+          label: "tinka ilgesnėms kelionėms",
+          provenance: {
+            source: "MODEL_INFERRED" as const,
+            at: "2024-01-01T00:00:00Z",
+          },
+        },
+      ],
+    };
+    const record = {
+      userTurn: "Padėkite išsirinkti pagal šeimos poreikius",
+      decision: {
+        text: "Palyginkime svarbiausius pasirinkimo kriterijus.",
+      },
+      stateBefore: emptyMarketplaceState(),
+      stateAfter: state,
+      capabilityCalls: [],
+      assistantText: "Palyginkime svarbiausius pasirinkimo kriterijus.",
+      resultContext: { listings: [] },
+    };
+
+    const response = buyerTurnRecordToVautoResponse(record, {});
+
+    assert.strictEqual(response.reply, record.assistantText);
+    assert.strictEqual(response.actions.type, "none");
+    assert.deepStrictEqual(
+      (response.coreV2State as { searchSubject?: string }).searchSubject,
+      "šeimos automobilis"
+    );
+    assert.strictEqual(response.toolCalls.length, 0);
+  });
+
   it("surfaces unsupported consequential capabilities as error text", () => {
     const record = {
       userTurn: "Parduodu",

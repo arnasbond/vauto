@@ -22,9 +22,7 @@ import {
 import {
   buildPageContextInjectionBlock,
   buildSessionExpiredInjectionBlock,
-  isTooShortSecretaryQuery,
   normalizeSecretaryQuery,
-  resolveSecretaryNoiseReply,
 } from "./secretary-guards.js";
 import {
   sanitizePromptUserInput,
@@ -2166,19 +2164,6 @@ async function runVautoAgentInner(
       // Photos already on draft/session — never re-ask to attach; let Gemini enrich.
       // fall through
     }
-  }
-
-  if (
-    !listingSmActive &&
-    isTooShortSecretaryQuery(lastUserText) &&
-    !detectServerSellIntent(lastUserText)
-  ) {
-    return {
-      ok: true,
-      reply: resolveSecretaryNoiseReply(lastUserText),
-      toolCalls: [],
-      actions: { type: "none" },
-    };
   }
 
   // Active jobs draft continuation or explicit create intent —
