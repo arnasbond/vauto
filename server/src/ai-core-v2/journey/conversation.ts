@@ -140,7 +140,11 @@ export async function runBuyerTurn(
     ? resultContextFromSearch(searchData)
     : session.resultContext;
 
-  const assistantText = result.decision.text ?? "";
+  const assistantText =
+    result.decision.text?.trim() || result.decision.clarification?.trim() || "";
+  if (!assistantText) {
+    throw new Error("core_v2_empty_visible_response");
+  }
 
   session.state = result.finalState;
   session.history.push({ role: "user", text: userTurn });

@@ -114,47 +114,30 @@ describe("E1 — Core v2 adapter", () => {
     assert.ok(response.coreV2State); // Core v2 state should be attached
   });
 
-  it("preserves a semantic advisory decision without legacy recovery routing", () => {
-    const state = {
-      ...emptyMarketplaceState(),
-      goal: "pasirinkti tinkamą šeimos automobilį",
-      vertical: "vehicles",
-      searchSubjectProvenance: {
-        source: "USER_STATED" as const,
-        at: "2024-01-01T00:00:00Z",
-      },
-      searchSubject: "šeimos automobilis",
-      softPreferences: [
-        {
-          label: "tinka ilgesnėms kelionėms",
-          provenance: {
-            source: "MODEL_INFERRED" as const,
-            at: "2024-01-01T00:00:00Z",
-          },
-        },
-      ],
-    };
-    const record = {
-      userTurn: "Padėkite išsirinkti pagal šeimos poreikius",
-      decision: {
-        text: "Palyginkime svarbiausius pasirinkimo kriterijus.",
-      },
+  it("uses a model clarification as the visible response", () => {
+    const response = buyerTurnRecordToVautoResponse({
+      userTurn: "Padėkite pasirinkti",
+      decision: { clarification: "Koks jūsų biudžetas?" },
       stateBefore: emptyMarketplaceState(),
-      stateAfter: state,
+      stateAfter: emptyMarketplaceState(),
       capabilityCalls: [],
-      assistantText: "Palyginkime svarbiausius pasirinkimo kriterijus.",
+      assistantText: "",
       resultContext: { listings: [] },
-    };
+    }, {});
 
-    const response = buyerTurnRecordToVautoResponse(record, {});
+    assert.equal(response.reply, "Koks jūsų biudžetas?");
+  });
 
-    assert.strictEqual(response.reply, record.assistantText);
-    assert.strictEqual(response.actions.type, "none");
-    assert.deepStrictEqual(
-      (response.coreV2State as { searchSubject?: string }).searchSubject,
-      "šeimos automobilis"
-    );
-    assert.strictEqual(response.toolCalls.length, 0);
+  it("rejects a Core v2 record with no visible response", () => {
+    assert.throws(() => buyerTurnRecordToVautoResponse({
+      userTurn: "Padėkite pasirinkti",
+      decision: {},
+      stateBefore: emptyMarketplaceState(),
+      stateAfter: emptyMarketplaceState(),
+      capabilityCalls: [],
+      assistantText: "",
+      resultContext: { listings: [] },
+    }, {}), /core_v2_empty_visible_response/);
   });
 
   it("surfaces unsupported consequential capabilities as error text", () => {

@@ -282,7 +282,13 @@ export function buyerTurnRecordToVautoResponse(
   record: BuyerTurnRecord,
   legacyContext: VautoAgentRequest["context"]
 ): VautoAgentResponse {
-  const text = record.assistantText || "Negaliu atsakyti šiuo metu.";
+  const text =
+    record.assistantText.trim() ||
+    record.decision.text?.trim() ||
+    record.decision.clarification?.trim();
+  if (!text) {
+    throw new Error("core_v2_empty_visible_response");
+  }
 
   // Map capability calls to legacy toolCalls format with real data.
   const toolCalls = record.capabilityCalls.map((c) => ({
@@ -395,15 +401,7 @@ export async function runCoreV2Turn(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn(`[core-v2-adapter] turn failed: ${message}`);
-
-    // Surface Core v2 failure clearly for production observability.
-    // Rollback path is via CORE_V2_ENABLED flag, not per-turn fallback.
-    return {
-      ok: true,
-      reply: `AI klaida: ${message}`,
-      toolCalls: [],
-      actions: { type: "none" },
-    };
+    throw err;
   }
 }
 
