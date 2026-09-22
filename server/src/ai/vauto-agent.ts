@@ -335,6 +335,10 @@ export interface VautoAgentResponse {
   actions: AgentSideEffect | { type: "none" };
   /** R4.2 — current conversational subject (model-resolved) for server persistence. */
   subject?: string;
+  /** E1 — Core v2 state for provenance continuity (when Core v2 is enabled). */
+  coreV2State?: Record<string, unknown>;
+  /** E1 — Core v2 grounded result context for reference continuity (listing IDs). */
+  coreV2ResultContext?: Record<string, unknown>;
 }
 
 export type VautoAgentStreamEvent =

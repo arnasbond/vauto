@@ -47,6 +47,10 @@ export interface ThreadRecord {
   currentIntent: string | null;
   createdAt: string;
   updatedAt: string;
+  /** E1 — Core v2 state serialization (provenance-aware marketplace state). */
+  coreV2State?: Record<string, unknown> | null;
+  /** E1 — Core v2 grounded result context (listing IDs for reference continuity). */
+  coreV2ResultContext?: Record<string, unknown> | null;
 }
 
 export type TurnStatus =
@@ -365,8 +369,9 @@ export class PostgresThreadStore implements ThreadStore {
       `INSERT INTO agent_threads
          (id, owner_user_id, anon_session_token_hash, version, last_turn_id,
           messages, listing_draft, listing_flow_state, search_context,
-          pending_confirmations, current_intent, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9::jsonb,$10::jsonb,$11,$12,$13)`,
+          pending_confirmations, current_intent, core_v2_state, core_v2_result_context,
+          created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9::jsonb,$10::jsonb,$11,$12,$13::jsonb,$14::jsonb,$15,$16)`,
       [
         record.threadId,
         record.ownerUserId,
@@ -379,6 +384,8 @@ export class PostgresThreadStore implements ThreadStore {
         record.searchContext ? JSON.stringify(record.searchContext) : null,
         JSON.stringify(record.pendingConfirmations),
         record.currentIntent,
+        record.coreV2State ? JSON.stringify(record.coreV2State) : null,
+        record.coreV2ResultContext ? JSON.stringify(record.coreV2ResultContext) : null,
         record.createdAt,
         record.updatedAt,
       ]
@@ -407,8 +414,9 @@ export class PostgresThreadStore implements ThreadStore {
           SET owner_user_id = $2, anon_session_token_hash = $3, version = version + 1,
               last_turn_id = $4, messages = $5::jsonb, listing_draft = $6::jsonb,
               listing_flow_state = $7, search_context = $8::jsonb,
-              pending_confirmations = $9::jsonb, current_intent = $10, updated_at = $11
-        WHERE id = $1 AND version = $12
+              pending_confirmations = $9::jsonb, current_intent = $10,
+              core_v2_state = $11::jsonb, core_v2_result_context = $12::jsonb, updated_at = $13
+        WHERE id = $1 AND version = $14
         RETURNING *`,
       [
         threadId,
@@ -421,6 +429,8 @@ export class PostgresThreadStore implements ThreadStore {
         bumped.searchContext ? JSON.stringify(bumped.searchContext) : null,
         JSON.stringify(bumped.pendingConfirmations),
         bumped.currentIntent,
+        bumped.coreV2State ? JSON.stringify(bumped.coreV2State) : null,
+        bumped.coreV2ResultContext ? JSON.stringify(bumped.coreV2ResultContext) : null,
         bumped.updatedAt,
         current.version,
       ]
@@ -570,6 +580,8 @@ function rowToThread(row: Record<string, unknown>): ThreadRecord {
     currentIntent: (row.current_intent as string | null) ?? null,
     createdAt: String(row.created_at ?? new Date().toISOString()),
     updatedAt: String(row.updated_at ?? new Date().toISOString()),
+    coreV2State: (row.core_v2_state as Record<string, unknown> | null) ?? null,
+    coreV2ResultContext: (row.core_v2_result_context as Record<string, unknown> | null) ?? null,
   };
 }
 

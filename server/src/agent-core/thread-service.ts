@@ -28,6 +28,11 @@ import { runVautoAgent } from "../ai/vauto-agent.js";
 import type { VautoAgentRequest, VautoAgentResponse } from "../ai/vauto-agent.js";
 import { executorAiDownReply } from "../ai/planner/planner-executor.js";
 import { createHash } from "node:crypto";
+import {
+  runCoreV2Turn,
+  CORE_V2_ENABLED,
+  type CoreV2AdapterContext,
+} from "./core-v2-adapter.js";
 
 export interface ThreadTurnInput {
   threadId?: string | null;
@@ -338,12 +343,20 @@ export async function runThreadTurn(
 
   let response: VautoAgentResponse;
   try {
-    response = await agentRunner(
-      agentRequest,
-      {
-        onEvent: input.onEvent as import("../ai/vauto-agent.js").RunVautoAgentOptions["onEvent"],
-      }
-    );
+    // E1 — Core v2 cutover: use Core v2 adapter when enabled, else legacy Core.
+    if (CORE_V2_ENABLED) {
+      const adapterContext: CoreV2AdapterContext = {
+        authUserId: input.authUserId ?? undefined,
+      };
+      response = await runCoreV2Turn(current, agentRequest, adapterContext);
+    } else {
+      response = await agentRunner(
+        agentRequest,
+        {
+          onEvent: input.onEvent as import("../ai/vauto-agent.js").RunVautoAgentOptions["onEvent"],
+        }
+      );
+    }
   } catch (agentErr) {
     // Execution STARTED (status was `running`) and the outcome is unknown —
     // INDETERMINATE, never automatically re-run.
@@ -432,6 +445,14 @@ export async function runThreadTurn(
         actionsType: String(actions.type ?? "none"),
       },
     ],
+    // E1 — Persist Core v2 state and result context for provenance continuity.
+    // The adapter attaches coreV2State and coreV2ResultContext to the response.
+    ...(CORE_V2_ENABLED && (response as { coreV2State?: Record<string, unknown> }).coreV2State
+      ? { coreV2State: (response as { coreV2State: Record<string, unknown> }).coreV2State }
+      : {}),
+    ...(CORE_V2_ENABLED && (response as { coreV2ResultContext?: Record<string, unknown> }).coreV2ResultContext
+      ? { coreV2ResultContext: (response as { coreV2ResultContext: Record<string, unknown> }).coreV2ResultContext }
+      : {}),
   };
 
   const persisted = await store.update(thread.threadId, () => next, {
