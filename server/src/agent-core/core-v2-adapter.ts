@@ -32,6 +32,7 @@ import type { ThreadRecord } from "./thread-store.js";
  */
 export interface CoreV2AdapterContext {
   authUserId?: string;
+  diagnosticTurnId?: string;
   /** Optional HITL confirmation flag for consequential actions. */
   confirmationMode?: "test" | "production";
 }
@@ -381,8 +382,36 @@ export async function runCoreV2Turn(
 
   const session = threadRecordToBuyerSession(thread, request.context);
 
-  const provider = createGeminiReasoningProvider({ model: CORE_V2_MODEL });
-  const verifier = createGeminiAuthorityVerifier({ model: CORE_V2_MODEL });
+  const turnStartedAt = Date.now();
+  const provider = createGeminiReasoningProvider({
+    model: CORE_V2_MODEL,
+    onAttempt: (attempt) =>
+      console.warn("[core-v2-latency] reasoning_attempt", {
+        threadId: thread.threadId,
+        attempt: attempt.attempt,
+        elapsedMs: attempt.elapsedMs,
+        outcome: attempt.timedOut
+          ? "timeout"
+          : attempt.status && attempt.status >= 400
+            ? "http_error"
+            : attempt.parseOutcome === "ok"
+              ? "success"
+              : "empty_or_parse_failure",
+      }),
+  });
+  const verifier = createGeminiAuthorityVerifier({
+    model: CORE_V2_MODEL,
+    onAttempt: (attempt) =>
+      console.warn("[core-v2-latency] authority_attempt", {
+        threadId: thread.threadId,
+        elapsedMs: attempt.elapsedMs,
+        outcome: attempt.timedOut
+          ? "timeout"
+          : attempt.status && attempt.status >= 400
+            ? "http_error"
+            : attempt.verdict,
+      }),
+  });
 
   const capabilityContext = {
     authUserId: adapterContext.authUserId,
@@ -395,11 +424,28 @@ export async function runCoreV2Turn(
       verifier,
       capabilityContext,
       buildRegistry: createBuyerRegistry,
+      diagnosticContext: {
+        threadId: thread.threadId,
+        turnId: adapterContext.diagnosticTurnId,
+      },
     });
 
-    return buyerTurnRecordToVautoResponse(record, request.context);
+    const response = buyerTurnRecordToVautoResponse(record, request.context);
+    console.warn("[core-v2-latency] turn", {
+      threadId: thread.threadId,
+      turnId: adapterContext.diagnosticTurnId,
+      elapsedMs: Date.now() - turnStartedAt,
+      outcome: "success",
+    });
+    return response;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    console.warn("[core-v2-latency] turn", {
+      threadId: thread.threadId,
+      turnId: adapterContext.diagnosticTurnId,
+      elapsedMs: Date.now() - turnStartedAt,
+      outcome: "failure",
+    });
     console.warn(`[core-v2-adapter] turn failed: ${message}`);
     throw err;
   }

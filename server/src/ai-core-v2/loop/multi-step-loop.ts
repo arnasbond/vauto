@@ -57,6 +57,7 @@ export interface MultiStepLoopOptions {
   authorityVerifier?: AuthorityVerifier;
   /** Capability execution context (authenticated user + HITL confirmation flag). */
   capabilityContext?: CapabilityContext;
+  diagnosticContext?: { threadId?: string; turnId?: string };
 }
 
 export type LoopEvent =
@@ -189,8 +190,25 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
 
   for (let i = 0; i < max; i++) {
     opts.onEvent?.({ type: "reasoning", iteration: i + 1 });
-    decision =
-      (await withinBudget(opts.provider({ ...opts.input, state, groundedResults }), deadline - Date.now())) ?? {};
+    const reasoningStartedAt = Date.now();
+    try {
+      decision =
+        (await withinBudget(opts.provider({ ...opts.input, state, groundedResults }), deadline - Date.now())) ?? {};
+      console.warn("[core-v2-latency] reasoning_iteration", {
+        ...opts.diagnosticContext,
+        iteration: i + 1,
+        elapsedMs: Date.now() - reasoningStartedAt,
+        outcome: "success",
+      });
+    } catch (error) {
+      console.warn("[core-v2-latency] reasoning_iteration", {
+        ...opts.diagnosticContext,
+        iteration: i + 1,
+        elapsedMs: Date.now() - reasoningStartedAt,
+        outcome: error instanceof TurnBudgetExceededError ? "turn_budget_exceeded" : "error",
+      });
+      throw error;
+    }
     try {
       validateReasoningDecision(decision);
     } catch (e) {
@@ -261,6 +279,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
         : contract.validate(req.args);
 
     let result: CapabilityResult<unknown>;
+    const capabilityStartedAt = Date.now();
     try {
       result = await withinBudget(
         contract.execute(execArgs as never, ctx),
@@ -270,6 +289,12 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
       if (err instanceof TurnBudgetExceededError) throw err;
       result = { ok: false, error: err instanceof Error ? err.message : "capability error" };
     }
+    console.warn("[core-v2-latency] capability", {
+      ...opts.diagnosticContext,
+      name: req.capability,
+      elapsedMs: Date.now() - capabilityStartedAt,
+      outcome: result.ok ? "success" : "failure",
+    });
     capabilityCalls.push({ name: req.capability, ok: result.ok, error: result.error, data: result.data });
     opts.onEvent?.({
       type: "capability",
