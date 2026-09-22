@@ -388,6 +388,7 @@ export async function runCoreV2Turn(
     onAttempt: (attempt) =>
       console.warn("[core-v2-latency] reasoning_attempt", {
         threadId: thread.threadId,
+        turnId: adapterContext.diagnosticTurnId,
         attempt: attempt.attempt,
         elapsedMs: attempt.elapsedMs,
         outcome: attempt.timedOut
@@ -404,6 +405,7 @@ export async function runCoreV2Turn(
     onAttempt: (attempt) =>
       console.warn("[core-v2-latency] authority_attempt", {
         threadId: thread.threadId,
+        turnId: adapterContext.diagnosticTurnId,
         elapsedMs: attempt.elapsedMs,
         outcome: attempt.timedOut
           ? "timeout"
