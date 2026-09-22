@@ -47,6 +47,8 @@ export interface ThreadRecord {
   currentIntent: string | null;
   createdAt: string;
   updatedAt: string;
+  /** E1 — Core v2 state serialization (provenance-aware marketplace state). */
+  coreV2State?: Record<string, unknown> | null;
 }
 
 export type TurnStatus =
