@@ -19,6 +19,7 @@ import {
   emptyMarketplaceState,
   type MarketplaceState,
 } from "../ai-core-v2/state/marketplace-state.js";
+import type { ResultContext } from "../ai-core-v2/journey/result-context.js";
 import type { VautoAgentRequest, VautoAgentResponse } from "../ai/vauto-agent.js";
 import type { ThreadRecord } from "./thread-store.js";
 
@@ -83,12 +84,42 @@ function deserializeCoreV2State(data: unknown): MarketplaceState {
 }
 
 /**
+ * Deserialize ResultContext from thread persistence (fail-closed).
+ * Validates the minimum structural shape: listings must be an array of objects
+ * with at minimum a string `id` field. Falls back to empty ResultContext on
+ * any malformed data — never blindly casts arbitrary JSON into trusted state.
+ */
+function deserializeResultContext(data: unknown): ResultContext {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return { listings: [] };
+  }
+  const obj = data as Record<string, unknown>;
+  if (!Array.isArray(obj.listings)) {
+    return { listings: [] };
+  }
+  const validatedListings: ResultContext["listings"] = [];
+  for (const entry of obj.listings) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const item = entry as Record<string, unknown>;
+    if (typeof item.id !== "string" || !item.id) continue;
+    validatedListings.push({
+      id: item.id,
+      title: typeof item.title === "string" ? item.title : "",
+      price: typeof item.price === "number" ? item.price : 0,
+      location: typeof item.location === "string" ? item.location : "",
+    });
+  }
+  return { listings: validatedListings };
+}
+
+/**
  * Translate ThreadRecord → BuyerSession.
  *
  * ONLY carries the canonical conversation history (user + assistant turns)
- * and user context. Legacy structured state (listingDraft, searchContext)
- * is NOT translated as USER_STATED authority — Core v2 starts from
- * emptyMarketplaceState and builds authority from the current user turn.
+ * and restores server-owned Core v2 state from persistence.
+ * Legacy structured state (listingDraft, searchContext) is NOT translated
+ * as USER_STATED authority — Core v2 builds authority from the current
+ * user turn. Profile/user context is NOT promoted to USER_STATED authority.
  */
 export function threadRecordToBuyerSession(
   thread: ThreadRecord,
@@ -104,19 +135,20 @@ export function threadRecordToBuyerSession(
     ? deserializeCoreV2State(thread.coreV2State)
     : emptyMarketplaceState();
 
-  // Extract basic user context (non-authoritative, for display only).
-  if (userContext?.userCity) {
-    state.hardConstraints.location = userContext.userCity;
-    state.hardConstraintProvenance.location = {
-      source: "USER_STATED",
-      at: new Date().toISOString(),
-    };
-  }
+  // Restore grounded result context from thread persistence if available.
+  // Deserialization is fail-closed: malformed data yields empty context.
+  const resultContext = deserializeResultContext(thread.coreV2ResultContext);
+
+  // Profile/user context is NOT promoted to USER_STATED authority.
+  // Only semantically verified user intent (from the model) may become
+  // execution-authoritative. Profile data may be available to reasoning
+  // as context if Core v2 supports non-authoritative context, but it
+  // MUST NOT silently become a hard constraint.
 
   return {
     state,
     history,
-    resultContext: { listings: [] },
+    resultContext,
   };
 }
 
@@ -125,6 +157,7 @@ export function threadRecordToBuyerSession(
  *
  * Maps Core v2's decision/response to the legacy contract expected by
  * the frontend. Unsupported capabilities surface as error text.
+ * Preserves grounded search result data for UI rendering.
  */
 export function buyerTurnRecordToVautoResponse(
   record: BuyerTurnRecord,
@@ -132,17 +165,28 @@ export function buyerTurnRecordToVautoResponse(
 ): VautoAgentResponse {
   const text = record.assistantText || "Negaliu atsakyti šiuo metu.";
 
-  // Map capability calls to legacy toolCalls format.
+  // Map capability calls to legacy toolCalls format with real data.
   const toolCalls = record.capabilityCalls.map((c) => ({
     name: c.name,
-    result: c.ok ? { success: true } : { error: c.error },
+    result: c.ok ? c.data : { error: c.error },
   }));
 
   // Determine legacy action type from Core v2 decision.
   let actionType: "none" | "search" | "listing_draft" = "none";
-  if (record.capabilityCalls.some((c) => c.name === "searchListings" && c.ok)) {
+  let searchSideEffect: { type: "search"; searchQuery: string; listingIds: string[]; filters?: Record<string, unknown> } | null = null;
+
+  const searchCall = record.capabilityCalls.find((c) => c.name === "searchListings" && c.ok);
+  if (searchCall && searchCall.data) {
     actionType = "search";
+    const searchData = searchCall.data as { count: number; listings: Array<{ id: string }> };
+    searchSideEffect = {
+      type: "search",
+      searchQuery: record.decision.text?.slice(0, 200) || "",
+      listingIds: searchData.listings.map((l) => l.id),
+      filters: record.stateAfter.hardConstraints as Record<string, unknown>,
+    };
   }
+
   if (record.capabilityCalls.some((c) => c.name === "prepareListingDraft" && c.ok)) {
     actionType = "listing_draft";
   }
@@ -160,6 +204,7 @@ export function buyerTurnRecordToVautoResponse(
       actions: { type: "none" } as VautoAgentResponse["actions"],
       subject: record.decision.text?.slice(0, 200),
       coreV2State: serializeCoreV2State(record.stateAfter),
+      coreV2ResultContext: record.resultContext as unknown as Record<string, unknown>,
     };
   }
 
@@ -167,11 +212,13 @@ export function buyerTurnRecordToVautoResponse(
     ok: true,
     reply: text,
     toolCalls,
-    actions: { type: actionType } as VautoAgentResponse["actions"],
+    actions: (searchSideEffect ?? { type: actionType }) as VautoAgentResponse["actions"],
     // Preserve subject for thread persistence.
     subject: record.decision.text?.slice(0, 200),
     // Attach Core v2 state for persistence.
     coreV2State: serializeCoreV2State(record.stateAfter),
+    // Attach grounded result context for reference continuity.
+    coreV2ResultContext: record.resultContext as unknown as Record<string, unknown>,
   };
 }
 

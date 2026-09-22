@@ -56,9 +56,9 @@ describe("E1 — Core v2 adapter", () => {
     assert.deepStrictEqual(session.state.version, "2.1");
     assert.strictEqual(session.state.goal, undefined);
 
-    // User city should be preserved as USER_STATED authority.
-    assert.strictEqual(session.state.hardConstraints.location, "Vilnius");
-    assert.strictEqual(session.state.hardConstraintProvenance.location?.source, "USER_STATED");
+    // BLOCKER 1: userCity should NOT be promoted to USER_STATED authority.
+    assert.strictEqual(session.state.hardConstraints.location, undefined);
+    assert.strictEqual(session.state.hardConstraintProvenance.location, undefined);
 
     // Result context should be empty (no prior search).
     assert.strictEqual(session.resultContext.listings.length, 0);

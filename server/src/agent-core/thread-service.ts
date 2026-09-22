@@ -445,10 +445,13 @@ export async function runThreadTurn(
         actionsType: String(actions.type ?? "none"),
       },
     ],
-    // E1 — Persist Core v2 state for provenance continuity across turns.
-    // The adapter attaches coreV2State to the response when Core v2 is enabled.
+    // E1 — Persist Core v2 state and result context for provenance continuity.
+    // The adapter attaches coreV2State and coreV2ResultContext to the response.
     ...(CORE_V2_ENABLED && (response as { coreV2State?: Record<string, unknown> }).coreV2State
       ? { coreV2State: (response as { coreV2State: Record<string, unknown> }).coreV2State }
+      : {}),
+    ...(CORE_V2_ENABLED && (response as { coreV2ResultContext?: Record<string, unknown> }).coreV2ResultContext
+      ? { coreV2ResultContext: (response as { coreV2ResultContext: Record<string, unknown> }).coreV2ResultContext }
       : {}),
   };
 

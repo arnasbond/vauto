@@ -337,6 +337,8 @@ export interface VautoAgentResponse {
   subject?: string;
   /** E1 — Core v2 state for provenance continuity (when Core v2 is enabled). */
   coreV2State?: Record<string, unknown>;
+  /** E1 — Core v2 grounded result context for reference continuity (listing IDs). */
+  coreV2ResultContext?: Record<string, unknown>;
 }
 
 export type VautoAgentStreamEvent =
