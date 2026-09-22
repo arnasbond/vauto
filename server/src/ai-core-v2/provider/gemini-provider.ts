@@ -56,13 +56,6 @@ export function createGeminiReasoningProvider(
       maxAttempts: opts.maxAttempts ?? CORE_V2_MAX_REASONING_ATTEMPTS,
       onAttempt: (attempt) =>
         (() => {
-          const outcome = attempt.timedOut
-            ? "timeout"
-            : attempt.status && attempt.status >= 400
-              ? "http_error"
-              : attempt.claimCount == null
-                ? "empty_or_parse_failure"
-                : "success";
           opts.onAttempt?.({
             attempt: attempt.attempt,
             elapsedMs: attempt.elapsedMs,
