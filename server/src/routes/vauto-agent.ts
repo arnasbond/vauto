@@ -448,11 +448,25 @@ vautoAgentRouter.post("/stream", async (req: AuthedRequest, res) => {
               : /turn_ledger_conflict/.test(message)
                 ? "turn_ledger_conflict"
                 : "thread_update_contention";
+      const error = threadErr instanceof Error ? threadErr : new Error(String(threadErr));
+      console.warn("[core-v2-diag] stream_error", {
+        threadId: String(req.body?.threadId ?? "").trim() || null,
+        turnId: String(req.body?.turnId ?? "").trim() || null,
+        errorClass: error.name || "Error",
+        errorCode: (error as Error & { code?: unknown }).code ?? null,
+        mappedCode: code,
+      });
       writeEvent({ type: "error", code, message });
       res.end();
       return;
     }
 
+    console.warn("[core-v2-diag] stream_final", {
+      threadId: threadTurn.thread.threadId,
+      visibleText: Boolean(String(threadTurn.response.reply ?? "").trim()),
+      executableAction: threadTurn.response.actions.type !== "none",
+      capabilityResult: threadTurn.response.toolCalls.length > 0,
+    });
     writeEvent({
       type: "final",
       result: { ...threadTurn.response, thread: threadTurn.thread },
@@ -460,6 +474,14 @@ vautoAgentRouter.post("/stream", async (req: AuthedRequest, res) => {
     res.end();
   } catch (e) {
     const err = normalizeAgentRouteError(e);
+    const error = e instanceof Error ? e : new Error(String(e));
+    console.warn("[core-v2-diag] stream_outer_error", {
+      threadId: String(req.body?.threadId ?? "").trim() || null,
+      turnId: String(req.body?.turnId ?? "").trim() || null,
+      errorClass: error.name || "Error",
+      errorCode: (error as Error & { code?: unknown }).code ?? null,
+      normalizedCode: err.code,
+    });
     try {
       if (!streamOpened) openSse();
       writeEvent({
