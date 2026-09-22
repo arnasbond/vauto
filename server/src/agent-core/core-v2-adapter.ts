@@ -18,6 +18,9 @@ import { CORE_V2_MODEL } from "../ai-core-v2/provider/model-config.js";
 import {
   emptyMarketplaceState,
   type MarketplaceState,
+  type ProvenanceSource,
+  type Provenance,
+  type HardConstraints,
 } from "../ai-core-v2/state/marketplace-state.js";
 import type { ResultContext } from "../ai-core-v2/journey/result-context.js";
 import type { VautoAgentRequest, VautoAgentResponse } from "../ai/vauto-agent.js";
@@ -54,32 +57,148 @@ function serializeCoreV2State(state: MarketplaceState): Record<string, unknown> 
 }
 
 /**
- * Deserialize Core v2 MarketplaceState from thread persistence.
- * Falls back to empty state if data is missing or malformed.
+ * Allowed Core v2 provenance sources — the ONLY values that may appear in
+ * persisted provenance entries. Arbitrary strings cannot become authority.
+ */
+const VALID_PROVENANCE_SOURCES: ReadonlySet<string> = new Set([
+  "USER_STATED",
+  "MODEL_INFERRED",
+  "TOOL_DERIVED",
+  "VISION_DERIVED",
+  "DOCUMENT_DERIVED",
+]);
+
+/**
+ * Runtime-validate a single Provenance entry from persisted JSON.
+ * Returns null if the entry is structurally invalid — fail closed.
+ */
+function validateProvenance(raw: unknown): Provenance | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const p = raw as Record<string, unknown>;
+  if (typeof p.source !== "string" || !VALID_PROVENANCE_SOURCES.has(p.source)) return null;
+  if (typeof p.at !== "string" || !p.at) return null;
+  return {
+    source: p.source as ProvenanceSource,
+    ...(typeof p.confidence === "number" ? { confidence: p.confidence } : {}),
+    at: p.at,
+  };
+}
+
+/**
+ * Deserialize Core v2 MarketplaceState from thread persistence (fail-closed).
+ *
+ * Every authority-bearing field is runtime-validated — TypeScript casts alone
+ * are NOT sufficient for persisted JSON. In particular:
+ * - Hard constraint values must match canonical keys and expected types.
+ * - Hard constraint provenance must use an allowed ProvenanceSource.
+ * - A hard constraint WITHOUT valid provenance is dropped (no orphan authority).
+ * - pendingAction must have string type + description.
+ * - Soft preferences / exclusions must have valid provenance.
+ * Malformed/arbitrary persisted JSON cannot manufacture execution authority.
  */
 function deserializeCoreV2State(data: unknown): MarketplaceState {
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     return emptyMarketplaceState();
   }
   const obj = data as Record<string, unknown>;
+
+  // --- Hard constraints: validate canonical keys and value types ---
+  const rawConstraints = typeof obj.hardConstraints === "object" && obj.hardConstraints !== null
+    ? obj.hardConstraints as Record<string, unknown>
+    : {};
+  const rawProvenance = typeof obj.hardConstraintProvenance === "object" && obj.hardConstraintProvenance !== null
+    ? obj.hardConstraintProvenance as Record<string, unknown>
+    : {};
+
+  const hardConstraints: HardConstraints = {};
+  const hardConstraintProvenance: MarketplaceState["hardConstraintProvenance"] = {};
+
+  // Validate each canonical key: value type + valid provenance.
+  // A constraint without valid provenance is dropped — no orphan authority.
+  if (typeof rawConstraints.category === "string" && rawConstraints.category) {
+    const prov = validateProvenance(rawProvenance.category);
+    if (prov) {
+      hardConstraints.category = rawConstraints.category;
+      hardConstraintProvenance.category = prov;
+    }
+  }
+  if (typeof rawConstraints.location === "string" && rawConstraints.location) {
+    const prov = validateProvenance(rawProvenance.location);
+    if (prov) {
+      hardConstraints.location = rawConstraints.location;
+      hardConstraintProvenance.location = prov;
+    }
+  }
+  if (typeof rawConstraints.priceMin === "number" && Number.isFinite(rawConstraints.priceMin)) {
+    const prov = validateProvenance(rawProvenance.priceMin);
+    if (prov) {
+      hardConstraints.priceMin = rawConstraints.priceMin;
+      hardConstraintProvenance.priceMin = prov;
+    }
+  }
+  if (typeof rawConstraints.priceMax === "number" && Number.isFinite(rawConstraints.priceMax)) {
+    const prov = validateProvenance(rawProvenance.priceMax);
+    if (prov) {
+      hardConstraints.priceMax = rawConstraints.priceMax;
+      hardConstraintProvenance.priceMax = prov;
+    }
+  }
+
+  // --- Soft preferences: validate label + provenance ---
+  const softPreferences: MarketplaceState["softPreferences"] = [];
+  if (Array.isArray(obj.softPreferences)) {
+    for (const entry of obj.softPreferences) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+      const sp = entry as Record<string, unknown>;
+      if (typeof sp.label !== "string" || !sp.label) continue;
+      const prov = validateProvenance(sp.provenance);
+      if (!prov) continue;
+      softPreferences.push({ label: sp.label, provenance: prov });
+    }
+  }
+
+  // --- Exclusions: validate label + provenance ---
+  const exclusions: MarketplaceState["exclusions"] = [];
+  if (Array.isArray(obj.exclusions)) {
+    for (const entry of obj.exclusions) {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+      const ex = entry as Record<string, unknown>;
+      if (typeof ex.label !== "string" || !ex.label) continue;
+      const prov = validateProvenance(ex.provenance);
+      if (!prov) continue;
+      exclusions.push({ label: ex.label, provenance: prov });
+    }
+  }
+
+  // --- pendingAction: validate structural shape (string type + description) ---
+  let pendingAction: MarketplaceState["pendingAction"] = undefined;
+  if (typeof obj.pendingAction === "object" && obj.pendingAction !== null && !Array.isArray(obj.pendingAction)) {
+    const pa = obj.pendingAction as Record<string, unknown>;
+    if (typeof pa.type === "string" && pa.type && typeof pa.description === "string") {
+      pendingAction = { type: pa.type, description: pa.description };
+    }
+  }
+
+  // --- searchSubject provenance ---
+  const searchSubjectProvenance = validateProvenance(obj.searchSubjectProvenance) ?? undefined;
+
   return {
-    version: (typeof obj.version === "string" && obj.version === "2.1") ? "2.1" : "2.1",
+    version: "2.1",
     goal: typeof obj.goal === "string" ? obj.goal : undefined,
     vertical: typeof obj.vertical === "string" ? obj.vertical : undefined,
     searchSubject: typeof obj.searchSubject === "string" ? obj.searchSubject : undefined,
-    hardConstraints: typeof obj.hardConstraints === "object" && obj.hardConstraints !== null
-      ? obj.hardConstraints as MarketplaceState["hardConstraints"]
-      : {},
-    hardConstraintProvenance: typeof obj.hardConstraintProvenance === "object" && obj.hardConstraintProvenance !== null
-      ? obj.hardConstraintProvenance as MarketplaceState["hardConstraintProvenance"]
-      : {},
-    softPreferences: Array.isArray(obj.softPreferences) ? obj.softPreferences as MarketplaceState["softPreferences"] : [],
-    exclusions: Array.isArray(obj.exclusions) ? obj.exclusions as MarketplaceState["exclusions"] : [],
-    unresolved: Array.isArray(obj.unresolved) ? obj.unresolved as string[] : [],
-    selectedListingIds: Array.isArray(obj.selectedListingIds) ? obj.selectedListingIds as string[] : [],
-    pendingAction: typeof obj.pendingAction === "object" && obj.pendingAction !== null
-      ? obj.pendingAction as MarketplaceState["pendingAction"]
-      : undefined,
+    searchSubjectProvenance,
+    hardConstraints,
+    hardConstraintProvenance,
+    softPreferences,
+    exclusions,
+    unresolved: Array.isArray(obj.unresolved)
+      ? (obj.unresolved as unknown[]).filter((s): s is string => typeof s === "string")
+      : [],
+    selectedListingIds: Array.isArray(obj.selectedListingIds)
+      ? (obj.selectedListingIds as unknown[]).filter((s): s is string => typeof s === "string")
+      : [],
+    pendingAction,
   };
 }
 
