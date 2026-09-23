@@ -118,7 +118,7 @@ export function deriveSearchListingsArgs(
 
   let minPrice: number | undefined;
   if (eligible.priceMin !== undefined && validated.minPrice !== undefined) {
-    minPrice = Math.max(eligible.priceMin, validated.priceMin);
+    minPrice = Math.max(eligible.priceMin, validated.minPrice);
   } else {
     minPrice = validated.minPrice ?? eligible.priceMin;
   }
