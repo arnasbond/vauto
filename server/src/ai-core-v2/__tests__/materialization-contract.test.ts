@@ -149,7 +149,7 @@ describe("Core v2.3C — total turn budget", () => {
     const registry = new CapabilityRegistry();
     registry.register(readCapability("searchListings", { count: 0, listings: [] }));
     await assert.rejects(
-      () => runMultiStepLoop({ provider, registry, input: input(), turnBudgetMs: 60, maxIterations: 20 }),
+      () => runMultiStepLoop({ provider, registry, input: input(), turnBudgetMs: 60, maxIterations: 20, authorityVerifier: verifyAll }),
       (e: unknown) => e instanceof TurnBudgetExceededError
     );
     assert.ok(calls < 20, "iterations stopped before the iteration bound");

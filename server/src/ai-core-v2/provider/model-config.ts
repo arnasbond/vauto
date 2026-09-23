@@ -16,12 +16,11 @@ export const CORE_V2_MODEL =
 /**
  * Reasoning provider per-attempt timeout.
  *
- * V2.3B live evidence: successful calls 1.9–3.6s; hung calls consumed the full
- * timeout; NO successful 30–60s response was observed. A per-attempt ceiling of
- * 30s preserves every observed slow-but-successful response while halving the
- * worst-case single-call latency (30s × 2 attempts = 60s, was 120s).
+ * Production evidence: normal successful calls complete in ~1–3.6s. A hung call
+ * timeout must not be retried in interactive turns. Capping the attempt ceiling
+ * at 8s bounds interactive latency without impacting normal successful turns.
  */
-export const CORE_V2_REASONING_TIMEOUT_MS = 30_000;
+export const CORE_V2_REASONING_TIMEOUT_MS = 8_000;
 
 /** Bounded retry count for safe, idempotent READ/shadow reasoning requests. */
 export const CORE_V2_MAX_REASONING_ATTEMPTS = 2;
