@@ -23,7 +23,7 @@ import type {
 import { applyStatePatches } from "../state/state-transitions.js";
 import { groundStatePatches } from "./grounding.js";
 import type { AuthorityVerifier } from "./authority-verifier.js";
-import { continuityVerifier } from "./authority-verifier.js";
+import { deterministicAuthorityVerifier } from "./authority-verifier.js";
 import {
   executionEligibleHardConstraints,
   executionEligibleSearchSubject,
@@ -109,12 +109,30 @@ export function deriveSearchListingsArgs(
     }
   }
 
+  let maxPrice: number | undefined;
+  if (eligible.priceMax !== undefined && validated.maxPrice !== undefined) {
+    maxPrice = Math.min(eligible.priceMax, validated.maxPrice);
+  } else {
+    maxPrice = validated.maxPrice ?? eligible.priceMax;
+  }
+
+  let minPrice: number | undefined;
+  if (eligible.priceMin !== undefined && validated.minPrice !== undefined) {
+    minPrice = Math.max(eligible.priceMin, validated.priceMin);
+  } else {
+    minPrice = validated.minPrice ?? eligible.priceMin;
+  }
+
+  const category = eligible.category ?? validated.category;
+  const city = eligible.location ?? validated.city;
+  const query = eligibleSubject ?? validated.query;
+
   return {
-    query: validated.query ?? eligibleSubject,
-    category: validated.category ?? eligible.category,
-    city: validated.city ?? eligible.location,
-    minPrice: validated.minPrice ?? eligible.priceMin,
-    maxPrice: validated.maxPrice ?? eligible.priceMax,
+    query,
+    category,
+    city,
+    minPrice,
+    maxPrice,
     limit: validated.limit,
   };
 }
@@ -237,7 +255,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
           state,
           decision.statePatches,
           opts.input.userTurn,
-          opts.authorityVerifier ?? continuityVerifier
+          opts.authorityVerifier ?? deterministicAuthorityVerifier
         ),
         deadline - Date.now()
       );

@@ -14,7 +14,7 @@ import {
 } from "../ai-core-v2/journey/conversation.js";
 import { createGeminiReasoningProvider } from "../ai-core-v2/provider/gemini-provider.js";
 import { createDeepSeekReasoningProvider } from "../ai-core-v2/provider/deepseek-provider.js";
-import { continuityVerifier } from "../ai-core-v2/loop/authority-verifier.js";
+import { deterministicAuthorityVerifier } from "../ai-core-v2/loop/authority-verifier.js";
 import {
   CORE_V2_MODEL,
   DEEPSEEK_V4_1_FLASH_MODEL,
@@ -430,7 +430,7 @@ export async function runCoreV2Turn(
             }),
         });
 
-  const verifier = continuityVerifier;
+  const verifier = deterministicAuthorityVerifier;
 
   const capabilityContext = {
     authUserId: adapterContext.authUserId,

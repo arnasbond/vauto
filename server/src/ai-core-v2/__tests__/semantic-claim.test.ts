@@ -158,16 +158,12 @@ describe("Core v2.3P — authority flow via existing loop", () => {
     assert.equal(res.finalState.hardConstraints.priceMax, 15000);
   });
 
-  it("L: explicit capability args pass directly while omitted fields inherit state defaults", async () => {
+  it("L: capability args cannot override authoritative state", async () => {
     let s = emptyMarketplaceState();
     s = setHardConstraint(s, "priceMax", 15000, provenance("USER_STATED"));
-    const explicitArgs = deriveSearchListingsArgs(s, { query: "invented", maxPrice: 999999 });
-    assert.equal(explicitArgs.query, "invented");
-    assert.equal(explicitArgs.maxPrice, 999999);
-
-    const inheritedArgs = deriveSearchListingsArgs(s, { query: "invented" });
-    assert.equal(inheritedArgs.query, "invented");
-    assert.equal(inheritedArgs.maxPrice, 15000);
+    const args = deriveSearchListingsArgs(s, { query: "invented", maxPrice: 999999 });
+    assert.equal(args.query, "invented");
+    assert.equal(args.maxPrice, 15000);
   });
 
   it("subject claim is execution-eligible only after verification", async () => {

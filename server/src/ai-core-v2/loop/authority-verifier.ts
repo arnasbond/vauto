@@ -104,6 +104,33 @@ function valueMatchesPrior(state: MarketplaceState, claim: AuthorityClaim): bool
   return false;
 }
 
+export function currentTurnEvidenceVerified(userTurn: string, claim: AuthorityClaim): boolean {
+  const ev =
+    claim.evidence && typeof claim.evidence === "string" && claim.evidence.trim() !== ""
+      ? claim.evidence.trim()
+      : claim.value != null
+        ? String(claim.value).trim()
+        : claim.subject && claim.subject.trim() !== ""
+          ? claim.subject.trim()
+          : claim.label && claim.label.trim() !== ""
+            ? claim.label.trim()
+            : undefined;
+
+  if (!ev) return false;
+  return userTurn.toLowerCase().includes(ev.toLowerCase());
+}
+
+/**
+ * Deterministic authority verifier composing two deterministic sources:
+ * 1. Prior verified USER_STATED continuity (valueMatchesPrior)
+ * 2. Current-turn verbatim evidence provenance (currentTurnEvidenceVerified)
+ */
+export const deterministicAuthorityVerifier: AuthorityVerifier = async (claim, ctx) => {
+  if (valueMatchesPrior(ctx.priorState, claim)) return "VERIFIED_USER_INTENT";
+  if (currentTurnEvidenceVerified(ctx.userTurn, claim)) return "VERIFIED_USER_INTENT";
+  return "UNSUPPORTED";
+};
+
 /**
  * Deterministic conservative verifier: ONLY prior verified USER_INTENT state
  * re-statement is VERIFIED. It performs no semantic entailment (no negation,
