@@ -352,6 +352,7 @@ export async function runThreadTurn(
     if (CORE_V2_ENABLED) {
       const adapterContext: CoreV2AdapterContext = {
         authUserId: input.authUserId ?? undefined,
+        diagnosticTurnId: turnKey,
       };
       console.warn("[core-v2-diag] core_v2_before", {
         threadId: thread.threadId,

@@ -59,6 +59,7 @@ export interface BuyerTurnDeps {
   capabilityContext?: CapabilityContext;
   /** Registry factory (defaults to the real marketplace registry). Injectable for tests. */
   buildRegistry?: (resultContext: ResultContext) => CapabilityRegistry;
+  diagnosticContext?: { threadId?: string; turnId?: string };
 }
 
 /**
@@ -129,6 +130,7 @@ export async function runBuyerTurn(
     input,
     authorityVerifier: deps.verifier,
     capabilityContext: deps.capabilityContext,
+    diagnosticContext: deps.diagnosticContext,
   });
 
   const searchData = result.capabilityCalls

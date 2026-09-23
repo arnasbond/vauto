@@ -181,7 +181,8 @@ export function createGeminiAuthorityVerifier(opts: {
         }
       );
       if (!res.ok) {
-        onAttempt?.({ elapsedMs: Date.now() - t0, timedOut: false, status: res.status, verdict: "UNSUPPORTED" });
+        const elapsedMs = Date.now() - t0;
+        onAttempt?.({ elapsedMs, timedOut: false, status: res.status, verdict: "UNSUPPORTED" });
         return "UNSUPPORTED";
       }
       const data = (await res.json()) as {
@@ -191,11 +192,13 @@ export function createGeminiAuthorityVerifier(opts: {
       const text = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim().toUpperCase();
       const word = text.match(/VERIFIED_USER_INTENT|CONTRADICTED|AMBIGUOUS|UNSUPPORTED/)?.[0];
       const verdict = AUTHORITY_VERDICTS.has(word ?? "") ? (word as AuthorityVerdict) : "UNSUPPORTED";
-      onAttempt?.({ elapsedMs: Date.now() - t0, timedOut: false, status: res.status, verdict, usage: data.usageMetadata });
+      const elapsedMs = Date.now() - t0;
+      onAttempt?.({ elapsedMs, timedOut: false, status: res.status, verdict, usage: data.usageMetadata });
       return verdict;
     } catch (err) {
       const timedOut = err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
-      onAttempt?.({ elapsedMs: Date.now() - t0, timedOut, verdict: "UNSUPPORTED" });
+      const elapsedMs = Date.now() - t0;
+      onAttempt?.({ elapsedMs, timedOut, verdict: "UNSUPPORTED" });
       // Fail CLOSED: a provider failure can never grant execution authority.
       return "UNSUPPORTED";
     }

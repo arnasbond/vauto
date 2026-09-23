@@ -55,13 +55,15 @@ export function createGeminiReasoningProvider(
       timeoutMs: opts.timeoutMs ?? CORE_V2_REASONING_TIMEOUT_MS,
       maxAttempts: opts.maxAttempts ?? CORE_V2_MAX_REASONING_ATTEMPTS,
       onAttempt: (attempt) =>
-        opts.onAttempt?.({
-          attempt: attempt.attempt,
-          elapsedMs: attempt.elapsedMs,
-          timedOut: attempt.timedOut,
-          status: attempt.status,
-          parseOutcome: attempt.claimCount == null ? undefined : "ok",
-        }),
+        (() => {
+          opts.onAttempt?.({
+            attempt: attempt.attempt,
+            elapsedMs: attempt.elapsedMs,
+            timedOut: attempt.timedOut,
+            status: attempt.status,
+            parseOutcome: attempt.claimCount == null ? undefined : "ok",
+          });
+        })(),
     })(input);
     return semanticDecisionToReasoningDecision(decision);
   };
