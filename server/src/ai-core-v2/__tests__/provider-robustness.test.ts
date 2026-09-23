@@ -45,7 +45,7 @@ function jsonFetch(status: number, body: unknown = {}): typeof fetch {
 }
 
 describe("Core v2.3B — timeout/retry budget composition", () => {
-  it("a timed-out reasoning call is retried exactly maxAttempts times (latency multiplies)", async () => {
+  it("a timed-out reasoning call is NOT retried (fails fast without attempt #2)", async () => {
     let calls = 0;
     const fetchImpl = (async (u: unknown, i: unknown) => {
       calls++;
@@ -57,7 +57,7 @@ describe("Core v2.3B — timeout/retry budget composition", () => {
       () => provider(inp),
       (e: unknown) => e instanceof ProviderFailureError && e.code === "timeout"
     );
-    assert.equal(calls, 2, "two 25ms aborts = ~50ms wall clock (bounded retry multiplies)");
+    assert.equal(calls, 1, "timeout must NOT trigger attempt #2 (fails fast on first timeout)");
   });
 
   it("a non-retryable 4xx is NOT retried (fails fast)", async () => {
@@ -107,14 +107,12 @@ describe("Core v2.3B — timeout/retry budget composition", () => {
 
   it("the configured budget is bounded and finite", () => {
     assert.equal(CORE_V2_MAX_REASONING_ATTEMPTS, 2);
-    assert.equal(CORE_V2_REASONING_TIMEOUT_MS, 30_000);
-    // Per reasoning call worst case = maxAttempts * timeoutMs = 60s.
-    assert.equal(CORE_V2_MAX_REASONING_ATTEMPTS * CORE_V2_REASONING_TIMEOUT_MS, 60_000);
-    // Verifier ceiling is shorter than the reasoning ceiling (fast fail-closed tail).
+    assert.equal(CORE_V2_REASONING_TIMEOUT_MS, 8_000);
+    // Verifier ceiling is shorter than total turn ceiling (fast fail-closed tail).
     assert.equal(CORE_V2_VERIFIER_TIMEOUT_MS, 15_000);
-    // Total turn budget is a hard ceiling, at least one full worst-case reasoning call.
+    // Total turn budget is a hard ceiling that exceeds any single reasoning call + verifier call.
     assert.equal(CORE_V2_TURN_BUDGET_MS, 90_000);
-    assert.ok(CORE_V2_TURN_BUDGET_MS >= CORE_V2_MAX_REASONING_ATTEMPTS * CORE_V2_REASONING_TIMEOUT_MS + CORE_V2_VERIFIER_TIMEOUT_MS);
+    assert.ok(CORE_V2_TURN_BUDGET_MS >= CORE_V2_REASONING_TIMEOUT_MS + CORE_V2_VERIFIER_TIMEOUT_MS);
   });
 
   it("authority verifier fails CLOSED on timeout (never grants authority)", async () => {
@@ -181,7 +179,7 @@ describe("Core v2.3B — sanitized per-attempt observability", () => {
     });
   });
 
-  it("emits timedOut=true telemetry once per retried attempt", async () => {
+  it("emits timedOut=true telemetry on timed out attempt", async () => {
     await withSentinelKey(async () => {
       const attempts: Array<Record<string, unknown>> = [];
       const provider = createGeminiReasoningProvider({
@@ -196,12 +194,9 @@ describe("Core v2.3B — sanitized per-attempt observability", () => {
         (e: unknown) => e instanceof ProviderFailureError && e.code === "timeout"
       );
 
-      assert.equal(attempts.length, 2, "telemetry emitted per attempt (bounded)");
-      assert.deepEqual(
-        attempts.map((t) => t.attempt),
-        [1, 2]
-      );
-      assert.ok(attempts.every((t) => t.timedOut === true), "every attempt timed out");
+      assert.equal(attempts.length, 1, "telemetry emitted for timed out attempt");
+      assert.equal(attempts[0]?.attempt, 1);
+      assert.equal(attempts[0]?.timedOut, true);
     });
   });
 });

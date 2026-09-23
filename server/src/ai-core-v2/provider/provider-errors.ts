@@ -18,7 +18,7 @@ export class ProviderFailureError extends Error {
 
 export function isRetryableFailure(err: unknown): boolean {
   if (!(err instanceof ProviderFailureError)) return false;
-  if (err.code === "timeout") return true;
+  if (err.code === "timeout") return false;
   if (err.code === "http_error") {
     if (err.status === 429) return true;
     if (err.status != null && err.status >= 500) return true;
