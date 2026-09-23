@@ -24,6 +24,11 @@ export function resolveGeminiApiKey(): string | undefined {
   return key || undefined;
 }
 
+export function resolveDeepSeekApiKey(): string | undefined {
+  const key = process.env.DEEPSEEK_API_KEY?.trim();
+  return key || undefined;
+}
+
 export function hasAgentAiKey(): boolean {
   return Boolean(resolveGeminiApiKey());
 }
@@ -31,3 +36,4 @@ export function hasAgentAiKey(): boolean {
 export function hasAiKey(): boolean {
   return hasAgentAiKey();
 }
+

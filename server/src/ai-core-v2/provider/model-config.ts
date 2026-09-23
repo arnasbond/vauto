@@ -13,6 +13,17 @@ export const CORE_V2_DEFAULT_MODEL = "gemini-2.5-flash";
 export const CORE_V2_MODEL =
   process.env.VAUTO_CORE_V2_MODEL?.trim() || CORE_V2_DEFAULT_MODEL;
 
+export type CoreV2ProviderKind = "gemini" | "deepseek";
+export const CORE_V2_DEFAULT_PROVIDER: CoreV2ProviderKind = "gemini";
+export const DEEPSEEK_V4_1_FLASH_MODEL = "deepseek-flash";
+
+export function getCoreV2Provider(): CoreV2ProviderKind {
+  const p = process.env.VAUTO_AI_PROVIDER?.trim().toLowerCase();
+  if (p === "deepseek") return "deepseek";
+  return CORE_V2_DEFAULT_PROVIDER;
+}
+
+
 /**
  * Reasoning provider per-attempt timeout.
  *
