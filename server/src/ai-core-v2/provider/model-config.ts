@@ -19,8 +19,12 @@ export const DEEPSEEK_V4_1_FLASH_MODEL = "deepseek-flash";
 
 export function getCoreV2Provider(): CoreV2ProviderKind {
   const p = process.env.VAUTO_AI_PROVIDER?.trim().toLowerCase();
+  if (!p) return CORE_V2_DEFAULT_PROVIDER;
+  if (p === "gemini") return "gemini";
   if (p === "deepseek") return "deepseek";
-  return CORE_V2_DEFAULT_PROVIDER;
+  throw new Error(
+    `Invalid VAUTO_AI_PROVIDER configuration: "${process.env.VAUTO_AI_PROVIDER}". Allowed values: 'gemini' | 'deepseek'`
+  );
 }
 
 

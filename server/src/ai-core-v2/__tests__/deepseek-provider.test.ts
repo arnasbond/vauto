@@ -47,13 +47,32 @@ describe("Core v2 — DeepSeek Reasoning Provider (Mocked HTTP)", () => {
     }
   });
 
-  it("1: provider selection defaults to Gemini when VAUTO_AI_PROVIDER is unset", () => {
+  it("1: provider selection defaults to Gemini when VAUTO_AI_PROVIDER is unset or empty", () => {
+    assert.equal(getCoreV2Provider(), "gemini");
+    process.env.VAUTO_AI_PROVIDER = "  ";
     assert.equal(getCoreV2Provider(), "gemini");
   });
 
-  it("2: explicit VAUTO_AI_PROVIDER=deepseek selects DeepSeek reasoning provider", () => {
+  it("2: explicit VAUTO_AI_PROVIDER=gemini returns gemini", () => {
+    process.env.VAUTO_AI_PROVIDER = "gemini";
+    assert.equal(getCoreV2Provider(), "gemini");
+    process.env.VAUTO_AI_PROVIDER = "GEMINI";
+    assert.equal(getCoreV2Provider(), "gemini");
+  });
+
+  it("3: explicit VAUTO_AI_PROVIDER=deepseek selects DeepSeek reasoning provider", () => {
     process.env.VAUTO_AI_PROVIDER = "deepseek";
     assert.equal(getCoreV2Provider(), "deepseek");
+    process.env.VAUTO_AI_PROVIDER = "DEEPSEEK";
+    assert.equal(getCoreV2Provider(), "deepseek");
+  });
+
+  it("4: invalid explicit VAUTO_AI_PROVIDER fails closed with error", () => {
+    process.env.VAUTO_AI_PROVIDER = "openai_typo";
+    assert.throws(
+      () => getCoreV2Provider(),
+      (err: unknown) => err instanceof Error && err.message.includes("Invalid VAUTO_AI_PROVIDER configuration")
+    );
   });
 
   it("3: request uses model: deepseek-flash, correct endpoint, headers, and json_object response_format", async () => {
