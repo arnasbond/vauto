@@ -316,21 +316,40 @@ describe("Core v2 — PR #91 provider-neutral raw payload parsing boundary", () 
     assert.equal(d.text, undefined);
   });
 
-  it("4. capability + visible text → rejected with schema_invalid", () => {
+  it("4. capability + visible text or clarification → rejected with schema_invalid", () => {
     assert.throws(
       () => parseSemanticDecision({ actionKind: "capability", capabilityRequest: { capability: "searchListings", args: {} }, text: "Paieškosiu..." }),
       (err: unknown) => err instanceof Error && err.message.includes("must not contain visible text")
     );
+    assert.throws(
+      () => parseSemanticDecision({ actionKind: "capability", capabilityRequest: { capability: "searchListings", args: {} }, clarification: "Patikslinimas..." }),
+      (err: unknown) => err instanceof Error && err.message.includes("must not contain clarification")
+    );
   });
 
-  it("5. direct + capability → rejected with schema_invalid", () => {
+  it("5. direct + capability or clarification → rejected with schema_invalid", () => {
     assert.throws(
       () => parseSemanticDecision({ actionKind: "direct", text: "Atsakymas", capabilityRequest: { capability: "searchListings", args: {} } }),
       (err: unknown) => err instanceof Error && err.message.includes("must not contain capabilityRequest")
     );
+    assert.throws(
+      () => parseSemanticDecision({ actionKind: "direct", text: "Atsakymas", clarification: "Patikslinti?" }),
+      (err: unknown) => err instanceof Error && err.message.includes("must not contain clarification")
+    );
   });
 
-  it("6. missing or invalid actionKind → rejected with schema_invalid", () => {
+  it("6. clarify + text or capability → rejected with schema_invalid", () => {
+    assert.throws(
+      () => parseSemanticDecision({ actionKind: "clarify", clarification: "Koks biudžetas?", text: "Papildomas tekstas" }),
+      (err: unknown) => err instanceof Error && err.message.includes("must not contain text")
+    );
+    assert.throws(
+      () => parseSemanticDecision({ actionKind: "clarify", clarification: "Koks biudžetas?", capabilityRequest: { capability: "searchListings", args: {} } }),
+      (err: unknown) => err instanceof Error && err.message.includes("must not contain capabilityRequest")
+    );
+  });
+
+  it("7. missing or invalid actionKind → rejected with schema_invalid", () => {
     assert.throws(
       () => parseSemanticDecision({ text: "Tekstas be actionKind" }),
       (err: unknown) => err instanceof Error && err.message.includes("actionKind is required")
@@ -339,6 +358,14 @@ describe("Core v2 — PR #91 provider-neutral raw payload parsing boundary", () 
       () => parseSemanticDecision({ actionKind: "invalid_kind", text: "invalid" }),
       (err: unknown) => err instanceof Error && err.message.includes("actionKind is required")
     );
+  });
+
+  it("8. R3_SYSTEM_INSTRUCTION contract accuracy — forbids text in clarify and enforces mutual exclusivity", async () => {
+    const { R3_SYSTEM_INSTRUCTION } = await import("../provider/semantic-claim.js");
+    assert.ok(!R3_SYSTEM_INSTRUCTION.includes("(arba text)"), "R3_SYSTEM_INSTRUCTION must not suggest text is valid for clarify");
+    assert.ok(R3_SYSTEM_INSTRUCTION.includes("NETEIK text ir NETEIK capabilityRequest"), "R3_SYSTEM_INSTRUCTION must forbid text and capabilityRequest for clarify");
+    assert.ok(R3_SYSTEM_INSTRUCTION.includes("NETEIK capabilityRequest ir NETEIK clarification"), "R3_SYSTEM_INSTRUCTION must forbid capabilityRequest and clarification for direct");
+    assert.ok(R3_SYSTEM_INSTRUCTION.includes("NETEIK text ir NETEIK clarification"), "R3_SYSTEM_INSTRUCTION must forbid text and clarification for capability");
   });
 });
 
