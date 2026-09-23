@@ -59,7 +59,6 @@ export const SEMANTIC_CLAIM_SCHEMA = {
     capabilityRequest: {
       type: "object" as const,
       properties: { capability: { type: "string" as const }, args: { type: "object" as const } },
-      required: ["capability"],
     },
     claims: {
       type: "array" as const,
@@ -78,7 +77,6 @@ export const SEMANTIC_CLAIM_SCHEMA = {
       },
     },
   },
-  required: ["actionKind"],
 };
 
 export const R3_SYSTEM_INSTRUCTION = `Tu esi VAUTO rinkos asistento samprotavimo sluoksnis (Core v2).
