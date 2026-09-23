@@ -294,4 +294,53 @@ describe("Core v2 — phase-aware contract invariants", () => {
   });
 });
 
+describe("Core v2 — PR #91 provider-neutral raw payload parsing boundary", () => {
+  it("1. valid direct raw provider payload → canonical direct decision", () => {
+    const d = parseSemanticDecision({ actionKind: "direct", text: "Labas" });
+    assert.equal(d.actionKind, "direct");
+    assert.equal(d.text, "Labas");
+    assert.equal(d.capabilityRequest, undefined);
+  });
+
+  it("2. valid clarify raw provider payload → canonical clarify decision", () => {
+    const d = parseSemanticDecision({ actionKind: "clarify", clarification: "Koks biudžetas?" });
+    assert.equal(d.actionKind, "clarify");
+    assert.equal(d.clarification, "Koks biudžetas?");
+    assert.equal(d.capabilityRequest, undefined);
+  });
+
+  it("3. valid capability raw provider payload → canonical capability decision", () => {
+    const d = parseSemanticDecision({ actionKind: "capability", capabilityRequest: { capability: "searchListings", args: { query: "Audi" } } });
+    assert.equal(d.actionKind, "capability");
+    assert.equal(d.capabilityRequest?.capability, "searchListings");
+    assert.equal(d.text, undefined);
+  });
+
+  it("4. capability + visible text → rejected with schema_invalid", () => {
+    assert.throws(
+      () => parseSemanticDecision({ actionKind: "capability", capabilityRequest: { capability: "searchListings", args: {} }, text: "Paieškosiu..." }),
+      (err: unknown) => err instanceof Error && err.message.includes("must not contain visible text")
+    );
+  });
+
+  it("5. direct + capability → rejected with schema_invalid", () => {
+    assert.throws(
+      () => parseSemanticDecision({ actionKind: "direct", text: "Atsakymas", capabilityRequest: { capability: "searchListings", args: {} } }),
+      (err: unknown) => err instanceof Error && err.message.includes("must not contain capabilityRequest")
+    );
+  });
+
+  it("6. missing or invalid actionKind → rejected with schema_invalid", () => {
+    assert.throws(
+      () => parseSemanticDecision({ text: "Tekstas be actionKind" }),
+      (err: unknown) => err instanceof Error && err.message.includes("actionKind is required")
+    );
+    assert.throws(
+      () => parseSemanticDecision({ actionKind: "invalid_kind", text: "invalid" }),
+      (err: unknown) => err instanceof Error && err.message.includes("actionKind is required")
+    );
+  });
+});
+
+
 
