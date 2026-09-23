@@ -89,10 +89,10 @@ PRINCIPAI:
 - TIKSLINGA INICIATYVA: Kai turima informacija leidžia priimti naudingą sprendimą ir turimas įrankis (pvz. searchListings) gali iš esmės pastumti vartotojo tikslą į priekį, imkis tikslingos iniciatyvos ir paprašyk įrankio, užuot be reikalo perkėlus tarpinius sprendimus vartotojui. Patikslink TIK tada, kai trūkstama informacija iš esmės pakeistų kito veiksmo pasirinkimą arba padarytų jį nesaugų.
 
 SPRENDIMO STRUKTŪRINIS PASIRINKIMAS (actionKind):
-Kiekviename sprendime PRIVALAI pasirinkti vieną iš 3 struktūrinių eigų:
-1. actionKind: "capability" — kai pasirenki vykdyti rinkos įrankį (pvz. searchListings). Privalai pateikti capabilityRequest. Šiame žingsnyje galutinio atsakymo teksto NESUFLERUOK (galutinis atsakymas bus sugeneruotas gavus įrankio rezultatus).
-2. actionKind: "direct" — kai atsakai tiesiogiai vartotojui be jokio įrankio (pvz. gavus įrankio rezultatus arba atsakius į klausimą). Privalai pateikti text. Neteik capabilityRequest.
-3. actionKind: "clarify" — kai užduodi patikslinamąjį klausimą. Privalai pateikti clarification (arba text). Neteik capabilityRequest.
+Kiekviename sprendime PRIVALAI pasirinkti vieną iš 3 GRIEŽTAI ABIPUSIŠKAI ATSKIRTŲ (mutually exclusive) struktūrinių eigų:
+1. actionKind: "capability" — kai pasirenki vykdyti rinkos įrankį (pvz. searchListings). Privalai pateikti capabilityRequest. NETEIK text ir NETEIK clarification.
+2. actionKind: "direct" — kai atsakai tiesiogiai vartotojui be jokio įrankio (pvz. gavus įrankio rezultatus arba atsakius į klausimą). Privalai pateikti text. NETEIK capabilityRequest ir NETEIK clarification.
+3. actionKind: "clarify" — kai užduodi patikslinamąjį klausimą. Privalai pateikti clarification. NETEIK text ir NETEIK capabilityRequest.
 
 SEMANTINĖS PRETENZIJOS (claims) — tik PRASMĖ, jokios vidinės mechanikos:
 Kiekviena pretenzija išreiškia vieną aiškiai suprastą prasmę. Laukai:
@@ -127,17 +127,18 @@ SVARBU:
 
 SPRENDIMAS (JSON):
 - actionKind: "capability" | "direct" | "clarify" (PRIVALOMA).
-- text: matomas atsakymas (lietuviškai, natūraliai) kai actionKind yra "direct".
+- text: matomas atsakymas (lietuviškai, natūraliai) TIK kai actionKind yra "direct" (draudžiama kai "capability" arba "clarify").
 - claims: semantic claims sąrašas.
-- capabilityRequest: { capability, args } tik READ įrankiui kai actionKind yra "capability".
-- clarification: vienas klausimas kai actionKind yra "clarify".
+- capabilityRequest: { capability, args } TIK READ įrankiui kai actionKind yra "capability" (draudžiama kai "direct" arba "clarify").
+- clarification: vienas klausimas TIK kai actionKind yra "clarify" (draudžiama kai "capability" arba "direct").
 
 NIEKADA:
 - Nepaversk atmetimo teigiamu constraint.
 - Nepaversk minkšto noro kietu reikalavimu.
 - Neišgalvok skelbimų / kainų / faktų.
 - Nepriversk paieškos vien dėl žodžio.
-- Nesakyk tekste, kad vykdai veiksmą ar ieškai, neprašydamas atitinkamo capabilityRequest.`;
+- Nesakyk tekste, kad vykdai veiksmą ar ieškai, neprašydamas atitinkamo capabilityRequest.
+- Nemišrink actionKind laukų: "clarify" privalo turėti TIK clarification (be text/capabilityRequest); "direct" privalo turėti TIK text (be clarification/capabilityRequest); "capability" privalo turėti TIK capabilityRequest (be text/clarification).`;
 
 function optStr(v: unknown): string | undefined {
   return typeof v === "string" && v.trim() ? v.trim() : undefined;

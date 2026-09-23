@@ -14,7 +14,7 @@ import {
 } from "../ai-core-v2/journey/conversation.js";
 import { createGeminiReasoningProvider } from "../ai-core-v2/provider/gemini-provider.js";
 import { createDeepSeekReasoningProvider } from "../ai-core-v2/provider/deepseek-provider.js";
-import { createGeminiAuthorityVerifier } from "../ai-core-v2/loop/authority-verifier.js";
+import { deterministicAuthorityVerifier } from "../ai-core-v2/loop/authority-verifier.js";
 import {
   CORE_V2_MODEL,
   DEEPSEEK_V4_1_FLASH_MODEL,
@@ -430,22 +430,7 @@ export async function runCoreV2Turn(
             }),
         });
 
-  const verifier = createGeminiAuthorityVerifier({
-    model: CORE_V2_MODEL,
-    onAttempt: (attempt) =>
-      console.warn("[core-v2-latency] authority_attempt", {
-        threadId: thread.threadId,
-        turnId: adapterContext.diagnosticTurnId,
-        provider: "gemini",
-        model: CORE_V2_MODEL,
-        elapsedMs: attempt.elapsedMs,
-        outcome: attempt.timedOut
-          ? "timeout"
-          : attempt.status && attempt.status >= 400
-            ? "http_error"
-            : attempt.verdict,
-      }),
-  });
+  const verifier = deterministicAuthorityVerifier;
 
   const capabilityContext = {
     authUserId: adapterContext.authUserId,

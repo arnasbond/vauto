@@ -9,7 +9,10 @@
  */
 import type { CapabilityRegistry } from "../capability/registry.js";
 import type { CapabilityContext, CapabilityResult } from "../capability/capability.js";
-import type { SearchListingsArgs } from "../capability/capabilities/search-listings.js";
+import {
+  searchListingsCapability,
+  type SearchListingsArgs,
+} from "../capability/capabilities/search-listings.js";
 import { validateReasoningDecision, MalformedReasoningDecisionError } from "../reasoning/reasoning-loop.js";
 import type {
   GroundedCapabilityResult,
@@ -20,7 +23,7 @@ import type {
 import { applyStatePatches } from "../state/state-transitions.js";
 import { groundStatePatches } from "./grounding.js";
 import type { AuthorityVerifier } from "./authority-verifier.js";
-import { continuityVerifier } from "./authority-verifier.js";
+import { deterministicAuthorityVerifier } from "./authority-verifier.js";
 import {
   executionEligibleHardConstraints,
   executionEligibleSearchSubject,
@@ -86,23 +89,51 @@ export interface MultiStepLoopResult {
 }
 
 /**
- * Derive execution-safe search arguments. Hard DB filters come ONLY from
- * execution-eligible (USER_STATED) state; the free-text query comes ONLY from
- * a USER_STATED search subject. The model's capability-request args (including
- * any invented `query`) are IGNORED as retrieval authority — reasoning is
- * free, execution authority is not.
+ * Derive execution-safe search arguments.
+ * Model capabilityRequest.args are validated and canonicalized via searchListingsCapability.validate().
+ * Explicit capability arguments take precedence; omitted fields inherit from authoritative state.
  */
 export function deriveSearchListingsArgs(
   state: MarketplaceState,
-  _modelArgs: unknown
+  modelArgs: unknown
 ): SearchListingsArgs {
   const eligible = executionEligibleHardConstraints(state);
+  const eligibleSubject = executionEligibleSearchSubject(state);
+
+  let validated: Partial<SearchListingsArgs> = {};
+  if (modelArgs && typeof modelArgs === "object" && !Array.isArray(modelArgs)) {
+    try {
+      validated = searchListingsCapability.validate(modelArgs);
+    } catch {
+      validated = {};
+    }
+  }
+
+  let maxPrice: number | undefined;
+  if (eligible.priceMax !== undefined && validated.maxPrice !== undefined) {
+    maxPrice = Math.min(eligible.priceMax, validated.maxPrice);
+  } else {
+    maxPrice = validated.maxPrice ?? eligible.priceMax;
+  }
+
+  let minPrice: number | undefined;
+  if (eligible.priceMin !== undefined && validated.minPrice !== undefined) {
+    minPrice = Math.max(eligible.priceMin, validated.minPrice);
+  } else {
+    minPrice = validated.minPrice ?? eligible.priceMin;
+  }
+
+  const category = eligible.category ?? validated.category;
+  const city = eligible.location ?? validated.city;
+  const query = eligibleSubject ?? validated.query;
+
   return {
-    query: executionEligibleSearchSubject(state),
-    category: eligible.category,
-    city: eligible.location,
-    minPrice: eligible.priceMin,
-    maxPrice: eligible.priceMax,
+    query,
+    category,
+    city,
+    minPrice,
+    maxPrice,
+    limit: validated.limit,
   };
 }
 
@@ -224,7 +255,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
           state,
           decision.statePatches,
           opts.input.userTurn,
-          opts.authorityVerifier ?? continuityVerifier
+          opts.authorityVerifier ?? deterministicAuthorityVerifier
         ),
         deadline - Date.now()
       );
