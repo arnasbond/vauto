@@ -1,5 +1,7 @@
 import type { ApiListing } from "./types.js";
 import { DEMO_LISTINGS, type DemoListingRow } from "./demo-listings.js";
+import { isListingCategoryMatch } from "./shared/category-registry.js";
+import type { ListingSearchParams } from "./repository.js";
 import {
   sanitizeListingCategory,
   sanitizeListingDescription,
@@ -53,10 +55,45 @@ function demoRowToApiListing(row: DemoListingRow, index: number): ApiListing {
 
 const DEMO_API_LISTINGS: ApiListing[] = DEMO_LISTINGS.map(demoRowToApiListing);
 
-/** DB rows override demo fields; demo catalog always fills missing IDs. */
-export function mergeDbListingsWithDemoCatalog(fromDb: ApiListing[]): ApiListing[] {
+/** Filter an array of ApiListings by search parameters. */
+export function filterApiListingsByParams(
+  listings: ApiListing[],
+  params?: ListingSearchParams
+): ApiListing[] {
+  if (!params) return listings;
+  const softCategoryOnly = Boolean(
+    params.softCategory && params.category && params.query
+  );
+  const cityNorm = params.city?.trim().toLowerCase() ?? "";
+
+  return listings.filter((l) => {
+    if (l.status === "sold" || l.banned || l.requiresReview) return false;
+    if (l.price <= 0 && l.category !== "jobs" && l.category !== "services") return false;
+
+    if (params.category && !softCategoryOnly) {
+      if (!isListingCategoryMatch(l.category, params.category)) return false;
+    }
+    if (params.minPrice != null && !Number.isNaN(params.minPrice)) {
+      if (l.price < params.minPrice) return false;
+    }
+    if (params.maxPrice != null && !Number.isNaN(params.maxPrice)) {
+      if (l.price > params.maxPrice) return false;
+    }
+    if (cityNorm) {
+      if (!l.location.toLowerCase().includes(cityNorm)) return false;
+    }
+    return true;
+  });
+}
+
+/** DB rows override demo fields; demo catalog fills missing IDs when parameters match. */
+export function mergeDbListingsWithDemoCatalog(
+  fromDb: ApiListing[],
+  params?: ListingSearchParams
+): ApiListing[] {
   const demoById = new Map(DEMO_LISTINGS.map((row) => [row.id, row]));
-  const byId = new Map(DEMO_API_LISTINGS.map((listing) => [listing.id, listing]));
+  const filteredDemos = filterApiListingsByParams(DEMO_API_LISTINGS, params);
+  const byId = new Map(filteredDemos.map((listing) => [listing.id, listing]));
   for (const item of fromDb) {
     const existing = byId.get(item.id);
     const demoRow = demoById.get(item.id);

@@ -4,6 +4,10 @@ import {
   mergeDbListingsWithDemoCatalog,
 } from "./demo-catalog-api.js";
 import { isServerDemoCatalogEnabled } from "./demo-catalog-env.js";
+import {
+  getCategoryFamilySlugs,
+  isListingCategoryMatch,
+} from "./shared/category-registry.js";
 import { stripExpiredVisibilityAttributes } from "./shared/promote-catalog.js";
 import { buildListingBoundChatId } from "./shared/chat-thread-id.js";
 import {
@@ -873,8 +877,15 @@ export async function searchListingsFiltered(
   const softCategoryOnly = Boolean(params.softCategory && params.category && primary.length > 0);
 
   if (params.category && !softCategoryOnly) {
-    conditions.push(`category = $${idx++}`);
-    values.push(params.category);
+    const categorySlugs = getCategoryFamilySlugs(params.category);
+    if (categorySlugs.length > 0) {
+      const placeholders = categorySlugs.map(() => `$${idx++}`).join(", ");
+      conditions.push(`category IN (${placeholders})`);
+      values.push(...categorySlugs);
+    } else {
+      conditions.push(`category = $${idx++}`);
+      values.push(params.category);
+    }
   }
   if (params.minPrice != null && !Number.isNaN(params.minPrice)) {
     conditions.push(`price >= $${idx++}`);
@@ -907,7 +918,7 @@ export async function searchListingsFiltered(
     const dbRows = await query<ListingRow>(sql, values);
     const fromDb = dbRows.map(mapListingRow);
     rows = isServerDemoCatalogEnabled()
-      ? mergeDbListingsWithDemoCatalog(fromDb)
+      ? mergeDbListingsWithDemoCatalog(fromDb, params)
       : fromDb;
   } catch (err) {
     console.warn("[searchListingsFiltered] SQL failed:", err);
@@ -923,7 +934,7 @@ export async function searchListingsFiltered(
         (l.price > 0 || l.category === "jobs" || l.category === "services")
     );
     if (params.category && !softCategoryOnly) {
-      rows = rows.filter((l) => l.category === params.category);
+      rows = rows.filter((l) => isListingCategoryMatch(l.category, params.category));
     }
     if (params.minPrice != null && !Number.isNaN(params.minPrice)) {
       rows = rows.filter((l) => l.price >= params.minPrice!);
