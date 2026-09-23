@@ -19,7 +19,7 @@ import {
 } from "../thread-store.js";
 import { setThreadStoreForTests, getThreadStore } from "../thread-store-instance.js";
 import { runThreadTurn, setThreadAgentForTests } from "../thread-service.js";
-import type { VautoAgentResponse } from "../../ai/vauto-agent.js";
+import type { VautoAgentResponse, VautoAgentRequest } from "../agent-types.js";
 
 afterEach(() => {
   setThreadStoreForTests(null);
@@ -151,7 +151,7 @@ describe("E1.2 — turn concurrency: exactly-once agent execution, no lost turns
   function installSpyAgent(delayMs: (turnText: string) => number) {
     let executions = 0;
     const texts: string[] = [];
-    const spy = (async (req: import("../../ai/vauto-agent.js").VautoAgentRequest) => {
+    const spy = (async (req: VautoAgentRequest) => {
       executions += 1;
       const last = [...req.messages].reverse().find((m) => m.role === "user");
       texts.push(String(last?.text ?? "").slice(0, 40));

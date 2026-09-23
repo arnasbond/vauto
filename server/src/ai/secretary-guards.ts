@@ -1,4 +1,4 @@
-import type { AgentMessage } from "./vauto-agent.js";
+import type { AgentMessage } from "../agent-core/agent-types.js";
 import { detectServerSellIntent } from "./sell-intent-fallback.js";
 import {
   SECRETARY_MIN_QUERY_CHARS,

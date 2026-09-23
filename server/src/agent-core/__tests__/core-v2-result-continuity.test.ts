@@ -14,7 +14,7 @@ import {
 import { emptyMarketplaceState } from "../../ai-core-v2/state/marketplace-state.js";
 import type { ResultContext } from "../../ai-core-v2/journey/result-context.js";
 import type { ThreadRecord } from "../thread-store.js";
-import type { VautoAgentRequest } from "../../ai/vauto-agent.js";
+import type { VautoAgentRequest } from "../agent-types.js";
 
 describe("E1 — Core v2 grounded result continuity (BLOCKER 2)", () => {
   it("result context persists across turns for reference continuity", () => {

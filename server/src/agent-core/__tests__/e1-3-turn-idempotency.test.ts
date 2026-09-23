@@ -11,7 +11,7 @@ import { afterEach, describe, it } from "node:test";
 import { InMemoryThreadStore } from "../thread-store.js";
 import { setThreadStoreForTests, getThreadStore } from "../thread-store-instance.js";
 import { runThreadTurn, setThreadAgentForTests } from "../thread-service.js";
-import type { VautoAgentResponse } from "../../ai/vauto-agent.js";
+import type { VautoAgentResponse, VautoAgentRequest } from "../agent-types.js";
 
 afterEach(() => {
   setThreadStoreForTests(null);
@@ -30,7 +30,7 @@ function responseFor(text: string): VautoAgentResponse {
 function installSpyAgent(delayMs: number) {
   let executions = 0;
   const texts: string[] = [];
-  setThreadAgentForTests((async (req: import("../../ai/vauto-agent.js").VautoAgentRequest) => {
+  setThreadAgentForTests((async (req: VautoAgentRequest) => {
     executions += 1;
     const last = [...req.messages].reverse().find((m) => m.role === "user");
     texts.push(String(last?.text ?? "").slice(0, 40));
@@ -212,7 +212,7 @@ describe("E1.3 — turn idempotency (exactly-once)", () => {
   it("E1.4 — agent failure after execution started → INDETERMINATE, replay never re-runs", async () => {
     setThreadStoreForTests(new InMemoryThreadStore());
     let executions = 0;
-    setThreadAgentForTests((async (req: import("../../ai/vauto-agent.js").VautoAgentRequest) => {
+    setThreadAgentForTests((async (req: VautoAgentRequest) => {
       const last = [...req.messages].reverse().find((m) => m.role === "user");
       if (String(last?.text ?? "").includes("sprogstanti žinutė")) {
         executions += 1;

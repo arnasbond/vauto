@@ -24,9 +24,8 @@ import {
   type PendingConfirmationRef,
   type ThreadRecord,
 } from "./thread-store.js";
-import { runVautoAgent } from "../ai/vauto-agent.js";
-import type { VautoAgentRequest, VautoAgentResponse } from "../ai/vauto-agent.js";
-import { executorAiDownReply } from "../ai/planner/planner-executor.js";
+import type { VautoAgentRequest, VautoAgentResponse } from "./agent-types.js";
+import { executorAiDownReply } from "./executor-replies.js";
 import { createHash } from "node:crypto";
 import {
   runCoreV2Turn,
@@ -124,15 +123,16 @@ function turnKeyFor(
     .slice(0, 32);
 }
 
-/**
- * E1.2 — test seam: the agent runner is swappable so concurrency tests can
- * count executions and inject delays WITHOUT changing the agent pipeline.
- */
-let agentRunner: typeof runVautoAgent = runVautoAgent;
+export type ThreadAgentRunner = (
+  req: VautoAgentRequest,
+  opts?: { onEvent?: unknown }
+) => Promise<VautoAgentResponse>;
+
+let customAgentRunner: ThreadAgentRunner | null = null;
 export function setThreadAgentForTests(
-  fn: typeof runVautoAgent | null
+  fn: ThreadAgentRunner | null
 ): void {
-  agentRunner = fn ?? runVautoAgent;
+  customAgentRunner = fn;
 }
 
 /** E1.4 — a `running` turn older than this is treated as INDETERMINATE
@@ -348,8 +348,9 @@ export async function runThreadTurn(
 
   let response: VautoAgentResponse;
   try {
-    // E1 — Core v2 cutover: use Core v2 adapter when enabled, else legacy Core.
-    if (CORE_V2_ENABLED) {
+    if (customAgentRunner) {
+      response = await customAgentRunner(agentRequest, { onEvent: input.onEvent });
+    } else {
       const adapterContext: CoreV2AdapterContext = {
         authUserId: input.authUserId ?? undefined,
         diagnosticTurnId: turnKey,
@@ -366,13 +367,6 @@ export async function runThreadTurn(
         executableAction: response.actions.type !== "none",
         capabilityResult: response.toolCalls.length > 0,
       });
-    } else {
-      response = await agentRunner(
-        agentRequest,
-        {
-          onEvent: input.onEvent as import("../ai/vauto-agent.js").RunVautoAgentOptions["onEvent"],
-        }
-      );
     }
   } catch (agentErr) {
     const error = agentErr instanceof Error ? agentErr : new Error(String(agentErr));

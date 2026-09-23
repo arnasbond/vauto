@@ -20,29 +20,7 @@ import {
   claimThreadForUser,
   runThreadTurn,
 } from "../thread-service.js";
-import { createScriptedModelProvider } from "../../golden/harness/scripted-model-provider.js";
 import { sanitizeAgentMessages } from "../../ai/agent-request-trim.js";
-
-afterEach(() => {
-  setThreadStoreForTests(null);
-});
-
-function installProviderWithCapture() {
-  const recorder = createScriptedModelProvider({
-    turns: [[{ parts: [] }], [{ parts: [] }], [{ parts: [] }], [{ parts: [] }]],
-    exhausted: { parts: [] },
-  });
-  const prev = recorder.install();
-  process.env.GEMINI_API_KEY = "e1-test-key";
-  return {
-    recorder,
-    restore: () => {
-      recorder.restore();
-      if (prev) globalThis.fetch = prev;
-      delete process.env.GEMINI_API_KEY;
-    },
-  };
-}
 
 describe("E1 — sanitizer: assistant history spoofing rejection", () => {
   it("client assistant messages are dropped on the raw path", () => {
@@ -122,44 +100,6 @@ describe("E1 — thread store: ownership, anonymous binding, version safety", ()
 });
 
 describe("E1 — thread service: server-authoritative continuity through the REAL pipeline", () => {
-  it("two turns: the model's SECOND turn context contains the server-written assistant history", async () => {
-    setThreadStoreForTests(new InMemoryThreadStore());
-    const { recorder, restore } = installProviderWithCapture();
-
-    // Capture the Gemini request CONTENTS per call (the model context).
-    const contentsSeen: Array<Array<{ role?: string; text?: string }>> = [];
-    const originalFetch = globalThis.fetch;
-    try {
-      // Re-wrap: intercept and record the request body contents.
-      globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-        const url = String(input);
-        if (url.includes("generativelanguage.googleapis.com")) {
-          const body = JSON.parse(String(init?.body ?? "{}")) as {
-            contents?: Array<{ role?: string; parts?: Array<{ text?: string }> }>;
-          };
-          contentsSeen.push(
-            (body.contents ?? []).map((c) => ({
-              role: c.role,
-              text: c.parts?.map((p) => p.text ?? "").join(" ").slice(0, 200),
-            }))
-          );
-        }
-        // Fall through to the scripted provider (installed fetch).
-        const current = globalThis.fetch;
-        void current;
-        return originalFetch(input, init);
-      }) as typeof fetch;
-      // Restore the scripted provider behavior by re-installing recorder fetch
-      // AFTER our capture wrapper would double-wrap... instead: capture inside
-      // the recorder itself is simpler — re-create a capturing recorder.
-    } finally {
-      globalThis.fetch = originalFetch;
-      restore();
-    }
-    // NOTE: the double-wrap above is fragile; the authoritative capture is done
-    // by a dedicated recorder below. Re-run cleanly:
-    contentsSeen.length = 0;
-  });
 
   it("server-written assistant turn is persisted and served on the next turn (continuity)", async () => {
     setThreadStoreForTests(new InMemoryThreadStore());

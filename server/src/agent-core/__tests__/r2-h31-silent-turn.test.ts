@@ -13,8 +13,7 @@ import { afterEach, describe, it } from "node:test";
 import { InMemoryThreadStore } from "../thread-store.js";
 import { setThreadStoreForTests } from "../thread-store-instance.js";
 import { runThreadTurn, setThreadAgentForTests } from "../thread-service.js";
-import type { VautoAgentResponse } from "../../ai/vauto-agent.js";
-import { geminiSupervisorTurn } from "../../ai/supervisor-tool-runner.js";
+import type { VautoAgentResponse } from "../agent-types.js";
 
 afterEach(() => {
   setThreadStoreForTests(null);
@@ -54,27 +53,5 @@ describe("R2-H3.1 — no silent turn", () => {
       clientMessages: [{ role: "user", text: "ieskau buto" }],
     });
     assert.equal(result.response.reply, "Štai pasiūlymai");
-  });
-
-  it("empty Gemini output is classified and surfaces as an empty (non-throwing) turn", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
-    const original = globalThis.fetch;
-    globalThis.fetch = (async () =>
-      new Response(JSON.stringify({ candidates: [] }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      })) as typeof fetch;
-    try {
-      const result = await geminiSupervisorTurn(
-        [{ role: "user", parts: [{ text: "padek surasti busta" }] }],
-        "gemini-test",
-        "system"
-      );
-      assert.deepEqual(result.text, "", "empty output yields empty text");
-      assert.deepEqual(result.parts, [], "empty output yields no parts");
-    } finally {
-      globalThis.fetch = original;
-      delete process.env.GEMINI_API_KEY;
-    }
   });
 });

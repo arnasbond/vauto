@@ -1,4 +1,4 @@
-import type { AgentMessage, VautoAgentRequest } from "./vauto-agent.js";
+import type { AgentMessage, VautoAgentRequest } from "../agent-core/agent-types.js";
 import {
   sanitizePromptUserInput,
   scrubPromptInjection,

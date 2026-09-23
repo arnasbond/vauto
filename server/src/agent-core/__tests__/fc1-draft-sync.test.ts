@@ -18,7 +18,7 @@ import { setThreadStoreForTests } from "../thread-store-instance.js";
 import type {
   VautoAgentRequest,
   VautoAgentResponse,
-} from "../../ai/vauto-agent.js";
+} from "../agent-types.js";
 
 function listingAgent(draft: Record<string, unknown>) {
   return async (_req: VautoAgentRequest): Promise<VautoAgentResponse> => ({

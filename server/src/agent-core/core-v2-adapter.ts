@@ -28,7 +28,7 @@ import {
   type HardConstraints,
 } from "../ai-core-v2/state/marketplace-state.js";
 import type { ResultContext } from "../ai-core-v2/journey/result-context.js";
-import type { VautoAgentRequest, VautoAgentResponse } from "../ai/vauto-agent.js";
+import type { VautoAgentRequest, VautoAgentResponse } from "./agent-types.js";
 import type { ThreadRecord } from "./thread-store.js";
 
 /**
