@@ -218,3 +218,79 @@ describe("Core v2 — initiative & action coherence behavioral contract", () => 
   });
 });
 
+describe("Core v2 — phase-aware contract invariants", () => {
+  it("1. explicit direct-response decision returns direct text without capability", async () => {
+    const reg = registry();
+    const res = await runMultiStepLoop({
+      provider: r3Provider({ actionKind: "direct", text: "Labas, kuo galiu padėti?" }),
+      registry: reg,
+      input: input(),
+    });
+    assert.equal(res.decision.text, "Labas, kuo galiu padėti?");
+    assert.equal(res.capabilityCalls.length, 0);
+  });
+
+  it("2. explicit clarification decision returns clarification without capability", async () => {
+    const reg = registry();
+    const res = await runMultiStepLoop({
+      provider: r3Provider({ actionKind: "clarify", clarification: "Kokia biudžeto riba?" }),
+      registry: reg,
+      input: input(),
+    });
+    assert.equal(res.decision.clarification, "Kokia biudžeto riba?");
+    assert.equal(res.capabilityCalls.length, 0);
+  });
+
+  it("3. capability decision cannot become final visible result before execution", () => {
+    assert.throws(
+      () => parseSemanticDecision({ actionKind: "capability" }),
+      (err: unknown) => err instanceof Error && err.message.includes("requires a valid capabilityRequest")
+    );
+    assert.throws(
+      () => parseSemanticDecision({ actionKind: "direct", capabilityRequest: { capability: "searchListings", args: {} } }),
+      (err: unknown) => err instanceof Error && err.message.includes("cannot include capabilityRequest")
+    );
+  });
+
+  it("4. successful capability result is supplied to response reasoning before visible final answer", async () => {
+    let step = 0;
+    let receivedGrounded: string | undefined;
+    const reg = registry();
+    const res = await runMultiStepLoop({
+      provider: async (inp) => {
+        if (step++ === 0) {
+          return { actionKind: "capability", capabilityRequest: { capability: "searchListings", args: {} } };
+        }
+        receivedGrounded = inp.groundedResults?.[0]?.summary;
+        return { actionKind: "direct", text: `Gautas atsakymas: ${receivedGrounded}` };
+      },
+      registry: reg,
+      input: input(),
+    });
+    assert.equal(res.iterations, 2);
+    assert.ok(receivedGrounded && receivedGrounded.includes("rasta"));
+    assert.equal(res.decision.text, `Gautas atsakymas: ${receivedGrounded}`);
+  });
+
+  it("5. capability failure cannot be narrated as successful execution", async () => {
+    let step = 0;
+    let receivedError: string | undefined;
+    const reg = registry();
+    const res = await runMultiStepLoop({
+      provider: async (inp) => {
+        if (step++ === 0) {
+          return { actionKind: "capability", capabilityRequest: { capability: "unknownCap", args: {} } };
+        }
+        receivedError = inp.groundedResults?.[0]?.error;
+        return { actionKind: "direct", text: `Įvyko klaida: ${receivedError}` };
+      },
+      registry: reg,
+      input: input(),
+    });
+    assert.equal(res.capabilityCalls[0]?.ok, false);
+    assert.equal(receivedError, "unknown_capability");
+    assert.equal(res.decision.text, "Įvyko klaida: unknown_capability");
+  });
+});
+
+

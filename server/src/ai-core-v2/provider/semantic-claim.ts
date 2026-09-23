@@ -26,6 +26,7 @@ import { buildReasoningUserPrompt } from "./prompt.js";
 export type ClaimRole = "constraint" | "subject" | "preference" | "exclusion" | "goal" | "unresolved" | "retraction";
 export type ClaimConcept = "price" | "location" | "category";
 export type ClaimStrength = "hard" | "soft" | "ambiguous";
+export type ActionKind = "capability" | "direct" | "clarify";
 
 export interface SemanticClaim {
   role: ClaimRole;
@@ -38,6 +39,7 @@ export interface SemanticClaim {
 }
 
 export interface SemanticDecision {
+  actionKind?: ActionKind;
   text?: string;
   clarification?: string;
   capabilityRequest?: { capability: string; args: unknown };
@@ -47,11 +49,17 @@ export interface SemanticDecision {
 export const SEMANTIC_CLAIM_SCHEMA = {
   type: "object" as const,
   properties: {
+    actionKind: {
+      type: "string" as const,
+      enum: ["capability", "direct", "clarify"],
+      description: "Structural choice: 'capability' if requesting an external tool; 'direct' if responding directly to the user; 'clarify' if asking a question.",
+    },
     text: { type: "string" as const },
     clarification: { type: "string" as const },
     capabilityRequest: {
       type: "object" as const,
       properties: { capability: { type: "string" as const }, args: { type: "object" as const } },
+      required: ["capability"],
     },
     claims: {
       type: "array" as const,
@@ -70,6 +78,7 @@ export const SEMANTIC_CLAIM_SCHEMA = {
       },
     },
   },
+  required: ["actionKind"],
 };
 
 export const R3_SYSTEM_INSTRUCTION = `Tu esi VAUTO rinkos asistento samprotavimo sluoksnis (Core v2).
@@ -80,6 +89,12 @@ PRINCIPAI:
 - Vienas sprendimas gali VIENU METU: atsakyti, perteikti suprastą PRASMĘ (claims), paprašyti patikslinimo IR paprašyti VIENO READ įrankio.
 - TIKRI VEIKSMAI IR INTEGRALUMAS: Nesakyk tekste ir neteik, kad atlieki, pradedi, vykdai paiešką ar gausi rezultatus („paieškosiu", „ieškau", „štai rezultatai"), jei šiame sprendime NEPATEIKI atitinkamo capabilityRequest. VAUTO neturi foninės paieškos ar atidėto vykdymo.
 - TIKSLINGA INICIATYVA: Kai turima informacija leidžia priimti naudingą sprendimą ir turimas įrankis (pvz. searchListings) gali iš esmės pastumti vartotojo tikslą į priekį, imkis tikslingos iniciatyvos ir paprašyk įrankio, užuot be reikalo perkėlus tarpinius sprendimus vartotojui. Patikslink TIK tada, kai trūkstama informacija iš esmės pakeistų kito veiksmo pasirinkimą arba padarytų jį nesaugų.
+
+SPRENDIMO STRUKTŪRINIS PASIRINKIMAS (actionKind):
+Kiekviename sprendime PRIVALAI pasirinkti vieną iš 3 struktūrinių eigų:
+1. actionKind: "capability" — kai pasirenki vykdyti rinkos įrankį (pvz. searchListings). Privalai pateikti capabilityRequest. Šiame žingsnyje galutinio atsakymo teksto NESUFLERUOK (galutinis atsakymas bus sugeneruotas gavus įrankio rezultatus).
+2. actionKind: "direct" — kai atsakai tiesiogiai vartotojui be jokio įrankio (pvz. gavus įrankio rezultatus arba atsakius į klausimą). Privalai pateikti text. Neteik capabilityRequest.
+3. actionKind: "clarify" — kai užduodi patikslinamąjį klausimą. Privalai pateikti clarification (arba text). Neteik capabilityRequest.
 
 SEMANTINĖS PRETENZIJOS (claims) — tik PRASMĖ, jokios vidinės mechanikos:
 Kiekviena pretenzija išreiškia vieną aiškiai suprastą prasmę. Laukai:
@@ -113,10 +128,11 @@ SVARBU:
 - Autoritetą nustatys atskira sistema. Tu tik perteik prasmę.
 
 SPRENDIMAS (JSON):
-- text: matomas atsakymas (lietuviškai, natūraliai).
+- actionKind: "capability" | "direct" | "clarify" (PRIVALOMA).
+- text: matomas atsakymas (lietuviškai, natūraliai) kai actionKind yra "direct".
 - claims: semantic claims sąrašas.
-- capabilityRequest: { capability, args } tik READ įrankiui.
-- clarification: vienas klausimas, jei reikia.
+- capabilityRequest: { capability, args } tik READ įrankiui kai actionKind yra "capability".
+- clarification: vienas klausimas kai actionKind yra "clarify".
 
 NIEKADA:
 - Nepaversk atmetimo teigiamu constraint.
@@ -142,7 +158,7 @@ function asStrength(v: unknown): ClaimStrength | undefined {
   return s && ["hard", "soft", "ambiguous"].includes(s) ? (s as ClaimStrength) : undefined;
 }
 
-const ALLOWED_DECISION_KEYS = new Set(["text", "clarification", "capabilityRequest", "claims"]);
+const ALLOWED_DECISION_KEYS = new Set(["actionKind", "text", "clarification", "capabilityRequest", "claims"]);
 
 export function parseSemanticDecision(raw: unknown): SemanticDecision {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -161,6 +177,18 @@ export function parseSemanticDecision(raw: unknown): SemanticDecision {
     );
   }
   const d: SemanticDecision = {};
+  const ak = optStr(r.actionKind);
+  if (ak && ["capability", "direct", "clarify"].includes(ak)) {
+    d.actionKind = ak as ActionKind;
+  }
+  if (r.capabilityRequest !== undefined) {
+    if (!r.capabilityRequest || typeof r.capabilityRequest !== "object" || Array.isArray(r.capabilityRequest)) {
+      throw new ProviderFailureError("schema_invalid", "capabilityRequest must be an object");
+    }
+    const cr = r.capabilityRequest as Record<string, unknown>;
+    const cap = optStr(cr.capability);
+    if (cap) d.capabilityRequest = { capability: cap, args: cr.args ?? {} };
+  }
   if (r.text !== undefined) {
     if (typeof r.text !== "string") throw new ProviderFailureError("schema_invalid", "text must be a string");
     const t = r.text.trim();
@@ -171,14 +199,25 @@ export function parseSemanticDecision(raw: unknown): SemanticDecision {
     const c = r.clarification.trim();
     if (c) d.clarification = c;
   }
-  if (r.capabilityRequest !== undefined) {
-    if (!r.capabilityRequest || typeof r.capabilityRequest !== "object" || Array.isArray(r.capabilityRequest)) {
-      throw new ProviderFailureError("schema_invalid", "capabilityRequest must be an object");
-    }
-    const cr = r.capabilityRequest as Record<string, unknown>;
-    const cap = optStr(cr.capability);
-    if (cap) d.capabilityRequest = { capability: cap, args: cr.args ?? {} };
+
+  // Derive actionKind if omitted (for backward compatibility with untyped mock inputs)
+  if (!d.actionKind) {
+    if (d.capabilityRequest) d.actionKind = "capability";
+    else if (d.clarification) d.actionKind = "clarify";
+    else d.actionKind = "direct";
   }
+
+  // Enforce actionKind structural consistency
+  if (d.actionKind === "capability" && !d.capabilityRequest) {
+    throw new ProviderFailureError("schema_invalid", "actionKind 'capability' requires a valid capabilityRequest");
+  }
+  if (d.actionKind === "direct" && d.capabilityRequest) {
+    throw new ProviderFailureError("schema_invalid", "actionKind 'direct' cannot include capabilityRequest");
+  }
+  if (d.actionKind === "clarify" && d.capabilityRequest) {
+    throw new ProviderFailureError("schema_invalid", "actionKind 'clarify' cannot include capabilityRequest");
+  }
+
   if (r.claims !== undefined) {
     if (!Array.isArray(r.claims)) throw new ProviderFailureError("schema_invalid", "claims must be an array");
     const claims: SemanticClaim[] = [];

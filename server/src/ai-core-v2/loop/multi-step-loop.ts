@@ -241,6 +241,13 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
     if (!contract) {
       capabilityCalls.push({ name: req.capability, ok: false, error: "unknown_capability" });
       opts.onEvent?.({ type: "capability", name: req.capability, ok: false, error: "unknown_capability" });
+      groundedResults.push({
+        capability: req.capability,
+        ok: false,
+        error: "unknown_capability",
+        failureKind: "unavailable",
+      });
+      if (i + 1 < max) continue;
       return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
     }
 
