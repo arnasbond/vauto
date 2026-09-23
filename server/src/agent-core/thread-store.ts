@@ -371,7 +371,7 @@ export class PostgresThreadStore implements ThreadStore {
           messages, listing_draft, listing_flow_state, search_context,
           pending_confirmations, current_intent, core_v2_state, core_v2_result_context,
           created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9::jsonb,$10::jsonb,$11,$12,$13::jsonb,$14::jsonb,$15,$16)`,
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8,$9::jsonb,$10::jsonb,$11,$12::jsonb,$13::jsonb,$14,$15)`,
       [
         record.threadId,
         record.ownerUserId,

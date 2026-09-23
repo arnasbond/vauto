@@ -32,6 +32,7 @@ import type { ThreadRecord } from "./thread-store.js";
  */
 export interface CoreV2AdapterContext {
   authUserId?: string;
+  diagnosticTurnId?: string;
   /** Optional HITL confirmation flag for consequential actions. */
   confirmationMode?: "test" | "production";
 }
@@ -282,7 +283,13 @@ export function buyerTurnRecordToVautoResponse(
   record: BuyerTurnRecord,
   legacyContext: VautoAgentRequest["context"]
 ): VautoAgentResponse {
-  const text = record.assistantText || "Negaliu atsakyti šiuo metu.";
+  const text =
+    record.assistantText.trim() ||
+    record.decision.text?.trim() ||
+    record.decision.clarification?.trim();
+  if (!text) {
+    throw new Error("core_v2_empty_visible_response");
+  }
 
   // Map capability calls to legacy toolCalls format with real data.
   const toolCalls = record.capabilityCalls.map((c) => ({
@@ -375,8 +382,38 @@ export async function runCoreV2Turn(
 
   const session = threadRecordToBuyerSession(thread, request.context);
 
-  const provider = createGeminiReasoningProvider({ model: CORE_V2_MODEL });
-  const verifier = createGeminiAuthorityVerifier({ model: CORE_V2_MODEL });
+  const turnStartedAt = Date.now();
+  const provider = createGeminiReasoningProvider({
+    model: CORE_V2_MODEL,
+    onAttempt: (attempt) =>
+      console.warn("[core-v2-latency] reasoning_attempt", {
+        threadId: thread.threadId,
+        turnId: adapterContext.diagnosticTurnId,
+        attempt: attempt.attempt,
+        elapsedMs: attempt.elapsedMs,
+        outcome: attempt.timedOut
+          ? "timeout"
+          : attempt.status && attempt.status >= 400
+            ? "http_error"
+            : attempt.parseOutcome === "ok"
+              ? "success"
+              : "empty_or_parse_failure",
+      }),
+  });
+  const verifier = createGeminiAuthorityVerifier({
+    model: CORE_V2_MODEL,
+    onAttempt: (attempt) =>
+      console.warn("[core-v2-latency] authority_attempt", {
+        threadId: thread.threadId,
+        turnId: adapterContext.diagnosticTurnId,
+        elapsedMs: attempt.elapsedMs,
+        outcome: attempt.timedOut
+          ? "timeout"
+          : attempt.status && attempt.status >= 400
+            ? "http_error"
+            : attempt.verdict,
+      }),
+  });
 
   const capabilityContext = {
     authUserId: adapterContext.authUserId,
@@ -389,21 +426,30 @@ export async function runCoreV2Turn(
       verifier,
       capabilityContext,
       buildRegistry: createBuyerRegistry,
+      diagnosticContext: {
+        threadId: thread.threadId,
+        turnId: adapterContext.diagnosticTurnId,
+      },
     });
 
-    return buyerTurnRecordToVautoResponse(record, request.context);
+    const response = buyerTurnRecordToVautoResponse(record, request.context);
+    console.warn("[core-v2-latency] turn", {
+      threadId: thread.threadId,
+      turnId: adapterContext.diagnosticTurnId,
+      elapsedMs: Date.now() - turnStartedAt,
+      outcome: "success",
+    });
+    return response;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    console.warn("[core-v2-latency] turn", {
+      threadId: thread.threadId,
+      turnId: adapterContext.diagnosticTurnId,
+      elapsedMs: Date.now() - turnStartedAt,
+      outcome: "failure",
+    });
     console.warn(`[core-v2-adapter] turn failed: ${message}`);
-
-    // Surface Core v2 failure clearly for production observability.
-    // Rollback path is via CORE_V2_ENABLED flag, not per-turn fallback.
-    return {
-      ok: true,
-      reply: `AI klaida: ${message}`,
-      toolCalls: [],
-      actions: { type: "none" },
-    };
+    throw err;
   }
 }
 

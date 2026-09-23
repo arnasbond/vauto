@@ -59,6 +59,7 @@ export interface BuyerTurnDeps {
   capabilityContext?: CapabilityContext;
   /** Registry factory (defaults to the real marketplace registry). Injectable for tests. */
   buildRegistry?: (resultContext: ResultContext) => CapabilityRegistry;
+  diagnosticContext?: { threadId?: string; turnId?: string };
 }
 
 /**
@@ -129,6 +130,7 @@ export async function runBuyerTurn(
     input,
     authorityVerifier: deps.verifier,
     capabilityContext: deps.capabilityContext,
+    diagnosticContext: deps.diagnosticContext,
   });
 
   const searchData = result.capabilityCalls
@@ -140,7 +142,11 @@ export async function runBuyerTurn(
     ? resultContextFromSearch(searchData)
     : session.resultContext;
 
-  const assistantText = result.decision.text ?? "";
+  const assistantText =
+    result.decision.text?.trim() || result.decision.clarification?.trim() || "";
+  if (!assistantText) {
+    throw new Error("core_v2_empty_visible_response");
+  }
 
   session.state = result.finalState;
   session.history.push({ role: "user", text: userTurn });

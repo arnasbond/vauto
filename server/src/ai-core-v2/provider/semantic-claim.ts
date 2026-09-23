@@ -20,7 +20,7 @@ import {
   CORE_V2_MODEL,
   CORE_V2_REASONING_TIMEOUT_MS,
 } from "./model-config.js";
-import { ProviderFailureError, isRetryableFailure } from "./gemini-provider.js";
+import { ProviderFailureError, isRetryableFailure } from "./provider-errors.js";
 import { buildReasoningUserPrompt } from "./prompt.js";
 
 export type ClaimRole = "constraint" | "subject" | "preference" | "exclusion" | "goal" | "unresolved" | "retraction";
@@ -150,6 +150,12 @@ export function parseSemanticDecision(raw: unknown): SemanticDecision {
     if (!ALLOWED_DECISION_KEYS.has(k)) {
       throw new ProviderFailureError("schema_invalid", `unexpected decision field: ${JSON.stringify(k)}`);
     }
+  }
+  if (Object.prototype.hasOwnProperty.call(r, "statePatches")) {
+    throw new ProviderFailureError(
+      "schema_invalid",
+      "production semantic decisions must not contain statePatches"
+    );
   }
   const d: SemanticDecision = {};
   if (r.text !== undefined) {

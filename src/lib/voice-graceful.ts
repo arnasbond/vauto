@@ -1,5 +1,8 @@
 import type { VoiceIntentAnalysis } from "@/lib/voice-intent";
-import { VAUTO_IN_DOMAIN_RECOVERY } from "@vauto/shared/vauto-domain-autonomy";
+import {
+  VAUTO_IN_DOMAIN_RECOVERY,
+  VAUTO_INTERNAL_ERROR_REPLY,
+} from "@vauto/shared/vauto-domain-autonomy";
 
 /** Detect garbled STT noise or unusable transcript before AI. */
 export function isUnclearTranscript(text: string | null | undefined): boolean {
@@ -92,5 +95,5 @@ export function buddyMessageForAgentFailure(error?: string, code?: string): stri
     return "AI asistentas šiuo metu nepasiekiamas — serveris trumpam atsistato. Tuo metu viskas veikia įprastai: galite ieškoti skelbimų klasikine paieška arba sukurti skelbimą rankiniu būdu. Pabandykite AI šiek tiek vėliau.";
   }
 
-  return VAUTO_IN_DOMAIN_RECOVERY;
+  return VAUTO_INTERNAL_ERROR_REPLY;
 }

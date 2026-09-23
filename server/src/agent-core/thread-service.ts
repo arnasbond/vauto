@@ -205,6 +205,11 @@ export async function runThreadTurn(
 
   const { record: thread, anonSessionToken } = await loadOrCreate(input);
   const turnKey = turnKeyFor(input, userText, thread);
+  console.warn("[core-v2-diag] turn_entry", {
+    threadId: thread.threadId,
+    turnId: turnKey,
+    coreV2Selected: CORE_V2_ENABLED,
+  });
 
   // ── E1.3/E1.4 — ATOMIC turn reservation + running transition.
   const now = new Date().toISOString();
@@ -347,8 +352,20 @@ export async function runThreadTurn(
     if (CORE_V2_ENABLED) {
       const adapterContext: CoreV2AdapterContext = {
         authUserId: input.authUserId ?? undefined,
+        diagnosticTurnId: turnKey,
       };
+      console.warn("[core-v2-diag] core_v2_before", {
+        threadId: thread.threadId,
+        turnId: turnKey,
+      });
       response = await runCoreV2Turn(current, agentRequest, adapterContext);
+      console.warn("[core-v2-diag] core_v2_after", {
+        threadId: thread.threadId,
+        turnId: turnKey,
+        visibleText: Boolean(String(response.reply ?? "").trim()),
+        executableAction: response.actions.type !== "none",
+        capabilityResult: response.toolCalls.length > 0,
+      });
     } else {
       response = await agentRunner(
         agentRequest,
@@ -358,12 +375,25 @@ export async function runThreadTurn(
       );
     }
   } catch (agentErr) {
+    const error = agentErr instanceof Error ? agentErr : new Error(String(agentErr));
+    console.warn("[core-v2-diag] core_v2_failure", {
+      threadId: thread.threadId,
+      turnId: turnKey,
+      errorClass: error.name || "Error",
+      errorCode: (error as Error & { code?: unknown }).code ?? null,
+    });
     // Execution STARTED (status was `running`) and the outcome is unknown —
     // INDETERMINATE, never automatically re-run.
-    await store.completeTurn(thread.threadId, turnKey, {
+    const indeterminate = await store.completeTurn(thread.threadId, turnKey, {
       status: "indeterminate",
       assistantReply: null,
       responseJson: null,
+    });
+    console.warn("[core-v2-diag] persistence_complete_after_core_failure", {
+      threadId: thread.threadId,
+      turnId: turnKey,
+      operation: "completeTurn",
+      outcome: indeterminate.ok ? "success" : "failure",
     });
     throw agentErr;
   }
@@ -459,6 +489,12 @@ export async function runThreadTurn(
     expectedVersion: current.version,
   });
   if (!persisted.ok) {
+    console.warn("[core-v2-diag] persistence_update_failure", {
+      threadId: thread.threadId,
+      turnId: turnKey,
+      operation: "store.update",
+      outcome: "failure",
+    });
     // Agent/tools ALREADY executed but the thread persist lost the race —
     // INDETERMINATE, never retryable as a silent re-run.
     await store.completeTurn(thread.threadId, turnKey, {
@@ -468,6 +504,12 @@ export async function runThreadTurn(
     });
     throw new Error("thread_update_contention");
   }
+  console.warn("[core-v2-diag] persistence_update_success", {
+    threadId: thread.threadId,
+    turnId: turnKey,
+    operation: "store.update",
+    outcome: "success",
+  });
 
   // ── E1.4 — completed ledger commit MUST be verified. A client-visible
   // success is returned ONLY when the ledger commit succeeded (or was already
@@ -478,6 +520,12 @@ export async function runThreadTurn(
     responseJson: response,
   });
   if (!committed.ok) {
+    console.warn("[core-v2-diag] persistence_complete_failure", {
+      threadId: thread.threadId,
+      turnId: turnKey,
+      operation: "completeTurn",
+      outcome: "failure",
+    });
     const currentTurn = await store.getTurn(thread.threadId, turnKey);
     if (currentTurn?.status === "completed") {
       // Already committed (concurrent completion) — idempotent success.
@@ -490,6 +538,12 @@ export async function runThreadTurn(
       throw new Error("turn_ledger_conflict");
     }
   }
+  console.warn("[core-v2-diag] persistence_complete_success", {
+    threadId: thread.threadId,
+    turnId: turnKey,
+    operation: "completeTurn",
+    outcome: "success",
+  });
 
   return {
     response,
