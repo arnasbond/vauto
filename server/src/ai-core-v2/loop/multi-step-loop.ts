@@ -9,7 +9,10 @@
  */
 import type { CapabilityRegistry } from "../capability/registry.js";
 import type { CapabilityContext, CapabilityResult } from "../capability/capability.js";
-import type { SearchListingsArgs } from "../capability/capabilities/search-listings.js";
+import {
+  searchListingsCapability,
+  type SearchListingsArgs,
+} from "../capability/capabilities/search-listings.js";
 import { validateReasoningDecision, MalformedReasoningDecisionError } from "../reasoning/reasoning-loop.js";
 import type {
   GroundedCapabilityResult,
@@ -86,23 +89,33 @@ export interface MultiStepLoopResult {
 }
 
 /**
- * Derive execution-safe search arguments. Hard DB filters come ONLY from
- * execution-eligible (USER_STATED) state; the free-text query comes ONLY from
- * a USER_STATED search subject. The model's capability-request args (including
- * any invented `query`) are IGNORED as retrieval authority — reasoning is
- * free, execution authority is not.
+ * Derive execution-safe search arguments.
+ * Model capabilityRequest.args are validated and canonicalized via searchListingsCapability.validate().
+ * Explicit capability arguments take precedence; omitted fields inherit from authoritative state.
  */
 export function deriveSearchListingsArgs(
   state: MarketplaceState,
-  _modelArgs: unknown
+  modelArgs: unknown
 ): SearchListingsArgs {
   const eligible = executionEligibleHardConstraints(state);
+  const eligibleSubject = executionEligibleSearchSubject(state);
+
+  let validated: Partial<SearchListingsArgs> = {};
+  if (modelArgs && typeof modelArgs === "object" && !Array.isArray(modelArgs)) {
+    try {
+      validated = searchListingsCapability.validate(modelArgs);
+    } catch {
+      validated = {};
+    }
+  }
+
   return {
-    query: executionEligibleSearchSubject(state),
-    category: eligible.category,
-    city: eligible.location,
-    minPrice: eligible.priceMin,
-    maxPrice: eligible.priceMax,
+    query: validated.query ?? eligibleSubject,
+    category: validated.category ?? eligible.category,
+    city: validated.city ?? eligible.location,
+    minPrice: validated.minPrice ?? eligible.priceMin,
+    maxPrice: validated.maxPrice ?? eligible.priceMax,
+    limit: validated.limit,
   };
 }
 
