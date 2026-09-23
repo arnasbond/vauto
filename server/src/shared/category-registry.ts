@@ -250,6 +250,47 @@ export function tryResolveListingCategoryId(
   return null;
 }
 
+/**
+ * Get all canonical category slugs belonging to the same visible category family as the target category input.
+ */
+export function getCategoryFamilySlugs(
+  categoryInput: unknown
+): RegistryListingCategory[] {
+  const resolved = tryResolveListingCategoryId(categoryInput);
+  if (!resolved) return [];
+  const visibleId = VISIBLE_CATEGORY_BY_SLUG[resolved];
+  if (!visibleId) return [resolved];
+  return (LISTING_CATEGORY_IDS as readonly RegistryListingCategory[]).filter(
+    (id) => VISIBLE_CATEGORY_BY_SLUG[id] === visibleId
+  );
+}
+
+/**
+ * Check if a listing category matches a search category using canonical category resolution
+ * and visible family grouping.
+ */
+export function isListingCategoryMatch(
+  listingCategory: unknown,
+  searchCategory: unknown
+): boolean {
+  if (searchCategory == null || String(searchCategory).trim() === "") return true;
+  const familySlugs = getCategoryFamilySlugs(searchCategory);
+  const resolvedListing = tryResolveListingCategoryId(listingCategory);
+
+  if (familySlugs.length > 0) {
+    if (resolvedListing) {
+      return familySlugs.includes(resolvedListing);
+    }
+    const rawSearch = String(searchCategory).trim().toLowerCase();
+    const rawListing = String(listingCategory ?? "").trim().toLowerCase();
+    return rawListing === rawSearch;
+  }
+
+  const rawSearch = String(searchCategory).trim().toLowerCase();
+  const rawListing = String(listingCategory ?? "").trim().toLowerCase();
+  return rawListing === rawSearch;
+}
+
 export function normalizeListingCategoryId(
   value: unknown,
   fallback: RegistryListingCategory = "other"
