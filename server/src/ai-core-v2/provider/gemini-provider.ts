@@ -13,26 +13,37 @@ import type {
 import {
   createGeminiSemanticClaimProvider,
   semanticDecisionToReasoningDecision,
+  buildR3UserPrompt,
+  R3_SYSTEM_INSTRUCTION,
 } from "./semantic-claim.js";
+import { CORE_V2_MODEL } from "./model-config.js";
 import {
   ProviderFailureError,
   isRetryableFailure,
   type ProviderFailureCode,
 } from "./provider-errors.js";
-import {
-  CORE_V2_MAX_REASONING_ATTEMPTS,
-  CORE_V2_MODEL,
-  CORE_V2_REASONING_TIMEOUT_MS,
-} from "./model-config.js";
 
 export { CORE_V2_MODEL, ProviderFailureError, isRetryableFailure };
 export type { ProviderFailureCode };
+
+export function buildReasoningRequest(input: ReasoningInput): {
+  systemInstruction: string;
+  userPrompt: string;
+} {
+  return {
+    systemInstruction: R3_SYSTEM_INSTRUCTION,
+    userPrompt: buildR3UserPrompt(input),
+  };
+}
 
 export interface ReasoningAttemptTelemetry {
   attempt: number;
   elapsedMs: number;
   timedOut: boolean;
   status?: number;
+  candidateCount?: number;
+  finishReason?: string;
+  blockReason?: string;
   parseOutcome?: "ok" | "empty" | "malformed_json" | "schema_invalid";
   capabilityRequested?: string;
 }
@@ -45,26 +56,39 @@ export interface GeminiReasoningProviderOptions {
   onAttempt?: (t: ReasoningAttemptTelemetry) => void;
 }
 
+/**
+ * Production Gemini Reasoning Provider.
+ *
+ * Promoted to single authoritative SemanticClaim transport.
+ * Model emits semantic claims; deterministic semanticDecisionToReasoningDecision
+ * / claimsToPatches remains responsible for internal canonical state representation.
+ */
 export function createGeminiReasoningProvider(
   opts: GeminiReasoningProviderOptions = {}
 ): ReasoningProvider {
-  return async (input: ReasoningInput): Promise<ReasoningDecision> => {
-    const decision = await createGeminiSemanticClaimProvider({
-      model: opts.model ?? CORE_V2_MODEL,
-      fetchImpl: opts.fetchImpl,
-      timeoutMs: opts.timeoutMs ?? CORE_V2_REASONING_TIMEOUT_MS,
-      maxAttempts: opts.maxAttempts ?? CORE_V2_MAX_REASONING_ATTEMPTS,
-      onAttempt: (attempt) =>
-        (() => {
+  const semanticProvider = createGeminiSemanticClaimProvider({
+    model: opts.model,
+    fetchImpl: opts.fetchImpl,
+    timeoutMs: opts.timeoutMs,
+    maxAttempts: opts.maxAttempts,
+    onAttempt: opts.onAttempt
+      ? (t) =>
           opts.onAttempt?.({
-            attempt: attempt.attempt,
-            elapsedMs: attempt.elapsedMs,
-            timedOut: attempt.timedOut,
-            status: attempt.status,
-            parseOutcome: attempt.claimCount == null ? undefined : "ok",
-          });
-        })(),
-    })(input);
-    return semanticDecisionToReasoningDecision(decision);
+            attempt: t.attempt,
+            elapsedMs: t.elapsedMs,
+            timedOut: t.timedOut,
+            status: t.status,
+            finishReason: t.finishReason,
+            blockReason: t.blockReason,
+            candidateCount: t.candidateCount,
+            parseOutcome: t.parseOutcome ?? (t.timedOut ? undefined : "ok"),
+            capabilityRequested: t.capabilityRequested,
+          })
+      : undefined,
+  });
+
+  return async (input: ReasoningInput): Promise<ReasoningDecision> => {
+    const semanticDecision = await semanticProvider(input);
+    return semanticDecisionToReasoningDecision(semanticDecision);
   };
 }

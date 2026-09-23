@@ -139,11 +139,18 @@ function asStrength(v: unknown): ClaimStrength | undefined {
   return s && ["hard", "soft", "ambiguous"].includes(s) ? (s as ClaimStrength) : undefined;
 }
 
+const ALLOWED_DECISION_KEYS = new Set(["text", "clarification", "capabilityRequest", "claims"]);
+
 export function parseSemanticDecision(raw: unknown): SemanticDecision {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new ProviderFailureError("malformed_json", "decision must be an object");
+    throw new ProviderFailureError("schema_invalid", "decision must be an object");
   }
   const r = raw as Record<string, unknown>;
+  for (const k of Object.keys(r)) {
+    if (!ALLOWED_DECISION_KEYS.has(k)) {
+      throw new ProviderFailureError("schema_invalid", `unexpected decision field: ${JSON.stringify(k)}`);
+    }
+  }
   if (Object.prototype.hasOwnProperty.call(r, "statePatches")) {
     throw new ProviderFailureError(
       "schema_invalid",
@@ -151,16 +158,26 @@ export function parseSemanticDecision(raw: unknown): SemanticDecision {
     );
   }
   const d: SemanticDecision = {};
-  const text = optStr(r.text);
-  if (text) d.text = text;
-  const clarification = optStr(r.clarification);
-  if (clarification) d.clarification = clarification;
-  if (r.capabilityRequest && typeof r.capabilityRequest === "object") {
+  if (r.text !== undefined) {
+    if (typeof r.text !== "string") throw new ProviderFailureError("schema_invalid", "text must be a string");
+    const t = r.text.trim();
+    if (t) d.text = t;
+  }
+  if (r.clarification !== undefined) {
+    if (typeof r.clarification !== "string") throw new ProviderFailureError("schema_invalid", "clarification must be a string");
+    const c = r.clarification.trim();
+    if (c) d.clarification = c;
+  }
+  if (r.capabilityRequest !== undefined) {
+    if (!r.capabilityRequest || typeof r.capabilityRequest !== "object" || Array.isArray(r.capabilityRequest)) {
+      throw new ProviderFailureError("schema_invalid", "capabilityRequest must be an object");
+    }
     const cr = r.capabilityRequest as Record<string, unknown>;
     const cap = optStr(cr.capability);
     if (cap) d.capabilityRequest = { capability: cap, args: cr.args ?? {} };
   }
-  if (Array.isArray(r.claims)) {
+  if (r.claims !== undefined) {
+    if (!Array.isArray(r.claims)) throw new ProviderFailureError("schema_invalid", "claims must be an array");
     const claims: SemanticClaim[] = [];
     for (const item of r.claims) {
       const it = (item ?? {}) as Record<string, unknown>;
@@ -203,7 +220,7 @@ export function claimsToPatches(claims: SemanticClaim[] | undefined): StatePatch
         if (c.strength !== "hard") break; // ambiguous/missing → non-executable
         if (c.concept === "price") {
           const key = c.boundary === "min" ? "priceMin" : c.boundary === "max" ? "priceMax" : undefined;
-          if (key && typeof c.value === "number" && Number.isFinite(c.value)) {
+          if (key && (typeof c.value === "number" || (typeof c.value === "string" && c.value.trim() !== ""))) {
             patches.push({ op: "setHard", key, value: c.value, provenance: provenance("USER_STATED") });
           }
         } else if (c.concept === "location" && optStr(c.value)) {
@@ -298,6 +315,11 @@ export interface SemanticClaimAttemptTelemetry {
   timedOut: boolean;
   status?: number;
   claimCount?: number;
+  finishReason?: string;
+  blockReason?: string;
+  candidateCount?: number;
+  parseOutcome?: "ok" | "empty" | "malformed_json" | "schema_invalid";
+  capabilityRequested?: string;
 }
 
 export interface GeminiSemanticTransportOptions {
@@ -366,29 +388,47 @@ export async function callGeminiSemanticTransport(
       throw new ProviderFailureError("http_error", `Gemini HTTP ${res.status}`, res.status);
     }
     const data = (await res.json()) as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      candidates?: Array<{
+        content?: { parts?: Array<{ text?: string }> };
+        finishReason?: string;
+      }>;
+      promptFeedback?: { blockReason?: string };
       usageMetadata?: Record<string, unknown>;
     };
-    const text = (data.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim();
+    const candidate = data.candidates?.[0];
+    const text = (candidate?.content?.parts?.[0]?.text ?? "").trim();
+    const finishReason = candidate?.finishReason;
+    const blockReason = data.promptFeedback?.blockReason;
+    const candidateCount = data.candidates?.length ?? 0;
     if (!text) {
-      onAttempt?.({ attempt: n, elapsedMs: Date.now() - t0, timedOut: false, claimCount: 0 });
+      onAttempt?.({ attempt: n, elapsedMs: Date.now() - t0, timedOut: false, claimCount: 0, finishReason, blockReason, candidateCount, parseOutcome: "empty" });
       return { decision: {}, rawUsage: data.usageMetadata, rawText: text };
     }
     let json: unknown;
     try {
       json = JSON.parse(text);
     } catch {
-      onAttempt?.({ attempt: n, elapsedMs: Date.now() - t0, timedOut: false });
+      onAttempt?.({ attempt: n, elapsedMs: Date.now() - t0, timedOut: false, finishReason, blockReason, candidateCount, parseOutcome: "malformed_json" });
       throw new ProviderFailureError("malformed_json", "model output was not valid JSON");
     }
     try {
       const decision = parseSemanticDecision(json);
-      onAttempt?.({ attempt: n, elapsedMs: Date.now() - t0, timedOut: false, claimCount: decision.claims?.length ?? 0 });
+      onAttempt?.({
+        attempt: n,
+        elapsedMs: Date.now() - t0,
+        timedOut: false,
+        claimCount: decision.claims?.length ?? 0,
+        finishReason,
+        blockReason,
+        candidateCount,
+        parseOutcome: "ok",
+        capabilityRequested: decision.capabilityRequest?.capability,
+      });
       return { decision, rawUsage: data.usageMetadata, rawText: text };
     } catch (err) {
-      onAttempt?.({ attempt: n, elapsedMs: Date.now() - t0, timedOut: false });
+      onAttempt?.({ attempt: n, elapsedMs: Date.now() - t0, timedOut: false, finishReason, blockReason, candidateCount, parseOutcome: "schema_invalid" });
       if (err instanceof ProviderFailureError) throw err;
-      throw new ProviderFailureError("malformed_json", err instanceof Error ? err.message : "output failed claim parsing");
+      throw new ProviderFailureError("schema_invalid", err instanceof Error ? err.message : "output failed claim parsing");
     }
   }
 
