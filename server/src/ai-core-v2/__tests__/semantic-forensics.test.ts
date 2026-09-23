@@ -23,7 +23,9 @@ function prior(): MarketplaceState {
 }
 
 function patchesFor(raw: unknown) {
-  return claimsToPatches(parseSemanticDecision(raw).claims);
+  const obj = typeof raw === "object" && raw ? (raw as Record<string, unknown>) : {};
+  const full = { actionKind: "direct", text: "ok", ...obj };
+  return claimsToPatches(parseSemanticDecision(full).claims);
 }
 
 const VERIFY_YES: AuthorityVerifier = async () => "VERIFIED_USER_INTENT";
@@ -73,18 +75,18 @@ describe("R7B forensics — SemanticClaim expressiveness", () => {
 
 describe("R7B forensics — validation matrix (SAME validateStrict path)", () => {
   const cases: Array<{ name: string; json: unknown; expected: "ACCEPTED" | "REJECTED"; reason?: string }> = [
-    { name: "missing optional strength", json: { claims: [{ role: "constraint", concept: "price", boundary: "max", value: 20000 }] }, expected: "ACCEPTED" },
-    { name: "unexpected null role", json: { claims: [{ role: null }] }, expected: "ACCEPTED" },
-    { name: "additional property", json: { claims: [{ role: "constraint", concept: "price", boundary: "max", value: 20000, foo: "bar" }] }, expected: "ACCEPTED" },
-    { name: "well-formed replacement", json: { claims: [{ role: "constraint", concept: "price", boundary: "max", value: 20000, strength: "hard" }] }, expected: "ACCEPTED" },
-    { name: "well-formed retraction", json: { claims: [{ role: "retraction", target: "constraint", concept: "price", boundary: "max" }] }, expected: "ACCEPTED" },
-    { name: "wrong role enum", json: { claims: [{ role: "bogus" }] }, expected: "REJECTED", reason: "invalid role: bogus" },
-    { name: "wrong target enum (retraction)", json: { claims: [{ role: "retraction", target: "budget" }] }, expected: "REJECTED", reason: "invalid target: budget" },
-    { name: "wrong concept enum", json: { claims: [{ role: "constraint", concept: "budget" }] }, expected: "REJECTED", reason: "invalid concept: budget" },
-    { name: "claims not array", json: { claims: "x" }, expected: "REJECTED", reason: "claims must be an array" },
-    { name: "value not scalar (array)", json: { claims: [{ role: "constraint", value: [] }] }, expected: "REJECTED", reason: "value must be a scalar" },
+    { name: "missing optional strength", json: { actionKind: "direct", text: "ok", claims: [{ role: "constraint", concept: "price", boundary: "max", value: 20000 }] }, expected: "ACCEPTED" },
+    { name: "unexpected null role", json: { actionKind: "direct", text: "ok", claims: [{ role: null }] }, expected: "ACCEPTED" },
+    { name: "additional property", json: { actionKind: "direct", text: "ok", claims: [{ role: "constraint", concept: "price", boundary: "max", value: 20000, foo: "bar" }] }, expected: "ACCEPTED" },
+    { name: "well-formed replacement", json: { actionKind: "direct", text: "ok", claims: [{ role: "constraint", concept: "price", boundary: "max", value: 20000, strength: "hard" }] }, expected: "ACCEPTED" },
+    { name: "well-formed retraction", json: { actionKind: "direct", text: "ok", claims: [{ role: "retraction", target: "constraint", concept: "price", boundary: "max" }] }, expected: "ACCEPTED" },
+    { name: "wrong role enum", json: { actionKind: "direct", text: "ok", claims: [{ role: "bogus" }] }, expected: "REJECTED", reason: "invalid role: bogus" },
+    { name: "wrong target enum (retraction)", json: { actionKind: "direct", text: "ok", claims: [{ role: "retraction", target: "budget" }] }, expected: "REJECTED", reason: "invalid target: budget" },
+    { name: "wrong concept enum", json: { actionKind: "direct", text: "ok", claims: [{ role: "constraint", concept: "budget" }] }, expected: "REJECTED", reason: "invalid concept: budget" },
+    { name: "claims not array", json: { actionKind: "direct", text: "ok", claims: "x" }, expected: "REJECTED", reason: "claims must be an array" },
+    { name: "value not scalar (array)", json: { actionKind: "direct", text: "ok", claims: [{ role: "constraint", value: [] }] }, expected: "REJECTED", reason: "value must be a scalar" },
     { name: "top-level not object", json: [{ role: "constraint" }], expected: "REJECTED", reason: "decision must be an object" },
-    { name: "claim not object", json: { claims: [42] }, expected: "REJECTED", reason: "claim must be an object" },
+    { name: "claim not object", json: { actionKind: "direct", text: "ok", claims: [42] }, expected: "REJECTED", reason: "claim must be an object" },
   ];
 
   for (const c of cases) {
@@ -108,7 +110,7 @@ describe("R7B forensics — validation matrix (SAME validateStrict path)", () =>
 
 describe("R7B forensics — authority invariant (retraction fail-closed)", () => {
   it("malformed retraction (invalid target) is rejected by validateStrict, never reaches mapping", () => {
-    const parsed = parseDecisionText(JSON.stringify({ claims: [{ role: "retraction", target: "budget", concept: "price", boundary: "max" }] }));
+    const parsed = parseDecisionText(JSON.stringify({ actionKind: "direct", text: "ok", claims: [{ role: "retraction", target: "budget", concept: "price", boundary: "max" }] }));
     assert.equal(parsed.error?.code, "schema_invalid");
     assert.equal(parsed.error?.reason, "invalid target: budget");
     assert.equal(parsed.decision, null);

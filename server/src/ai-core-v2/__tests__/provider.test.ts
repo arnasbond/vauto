@@ -34,6 +34,7 @@ describe("Core v2 — production semantic provider", () => {
       fetchImpl: jsonFetch({
         candidates: [{
           content: { parts: [{ text: JSON.stringify({
+            actionKind: "direct",
             text: "Padėsiu pasirinkti.",
             claims: [{ role: "constraint", concept: "price", boundary: "max", value: 20000, strength: "hard" }],
           }) }] },
@@ -49,26 +50,40 @@ describe("Core v2 — production semantic provider", () => {
     delete process.env.GEMINI_API_KEY;
   });
 
-  it("preserves text, clarification, and model capability requests", async () => {
+  it("preserves clarification and capability requests", async () => {
     process.env.GEMINI_API_KEY = "test-key";
-    const provider = createGeminiReasoningProvider({
+    const providerCap = createGeminiReasoningProvider({
       fetchImpl: jsonFetch({
         candidates: [{
           content: { parts: [{ text: JSON.stringify({
-            text: "Galiu patarti.",
-            clarification: "Kuriame mieste ieškote?",
+            actionKind: "capability",
             capabilityRequest: { capability: "searchListings", args: { query: "ignored" } },
             claims: [{ role: "preference", label: "šeimai" }],
           }) }] },
         }],
       }),
     });
-    const decision = await provider(input);
-    assert.ok(decision);
-    assert.equal(decision.text, "Galiu patarti.");
-    assert.equal(decision.clarification, "Kuriame mieste ieškote?");
-    assert.equal(decision.capabilityRequest?.capability, "searchListings");
-    assert.equal(decision.statePatches?.[0]?.op, "addSoft");
+    const decisionCap = await providerCap(input);
+    assert.ok(decisionCap);
+    assert.equal(decisionCap.capabilityRequest?.capability, "searchListings");
+    assert.equal(decisionCap.statePatches?.[0]?.op, "addSoft");
+
+    const providerClarify = createGeminiReasoningProvider({
+      fetchImpl: jsonFetch({
+        candidates: [{
+          content: { parts: [{ text: JSON.stringify({
+            actionKind: "clarify",
+            clarification: "Kuriame mieste ieškote?",
+            claims: [{ role: "preference", label: "šeimai" }],
+          }) }] },
+        }],
+      }),
+    });
+    const decisionClarify = await providerClarify(input);
+    assert.ok(decisionClarify);
+    assert.equal(decisionClarify.clarification, "Kuriame mieste ieškote?");
+    assert.equal(decisionClarify.statePatches?.[0]?.op, "addSoft");
+
     delete process.env.GEMINI_API_KEY;
   });
 
@@ -78,6 +93,7 @@ describe("Core v2 — production semantic provider", () => {
       fetchImpl: jsonFetch({
         candidates: [{
           content: { parts: [{ text: JSON.stringify({
+            actionKind: "direct",
             text: "netinkama",
             statePatches: [{ op: "setHard", key: "priceMax", value: 20000 }],
           }) }] },

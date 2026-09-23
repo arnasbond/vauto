@@ -21,7 +21,7 @@ function jsonResponse(body: unknown, status = 200): typeof fetch {
 describe("Core v2.3R.2 — transport adapters (mocked HTTP)", () => {
   it("Gemini adapter parses decision + normalizes usage", async () => {
     const fetchImpl = jsonResponse({
-      candidates: [{ content: { parts: [{ text: JSON.stringify({ claims: [{ role: "subject", value: "Toyota Corolla" }] }) }] } }],
+      candidates: [{ content: { parts: [{ text: JSON.stringify({ actionKind: "direct", text: "ok", claims: [{ role: "subject", value: "Toyota Corolla" }] }) }] } }],
       usageMetadata: { promptTokenCount: 100, candidatesTokenCount: 50, totalTokenCount: 150 },
     });
     const res = await createGeminiTransport({ fetchImpl, apiKey: "test" }).call(inp);
@@ -32,7 +32,7 @@ describe("Core v2.3R.2 — transport adapters (mocked HTTP)", () => {
   });
 
   it("DeepSeek parses valid JSON object", async () => {
-    const fetchImpl = jsonResponse({ choices: [{ message: { content: JSON.stringify({ claims: [{ role: "exclusion", label: "diesel" }] }) } }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } });
+    const fetchImpl = jsonResponse({ choices: [{ message: { content: JSON.stringify({ actionKind: "direct", text: "ok", claims: [{ role: "exclusion", label: "diesel" }] }) } }], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } });
     const res = await createDeepSeekTransport({ fetchImpl, apiKey: "test" }).call(inp);
     assert.equal(res.decision?.claims?.[0]?.role, "exclusion");
     assert.equal(res.usage.inputTokens, 10);
@@ -46,14 +46,14 @@ describe("Core v2.3R.2 — transport adapters (mocked HTTP)", () => {
   });
 
   it("DeepSeek schema-invalid JSON => schema_invalid (CONTRACT_FAIL)", async () => {
-    const fetchImpl = jsonResponse({ choices: [{ message: { content: JSON.stringify({ claims: [{ role: "bogus" }] }) } }] });
+    const fetchImpl = jsonResponse({ choices: [{ message: { content: JSON.stringify({ actionKind: "direct", text: "ok", claims: [{ role: "bogus" }] }) } }] });
     const res = await createDeepSeekTransport({ fetchImpl, apiKey: "test" }).call(inp);
     assert.equal(res.decision, null);
     assert.equal(res.error?.code, "schema_invalid");
   });
 
   it("Mistral parses structured response", async () => {
-    const fetchImpl = jsonResponse({ choices: [{ message: { content: JSON.stringify({ claims: [{ role: "constraint", concept: "price", boundary: "max", value: 15000, strength: "hard" }] }) } }] });
+    const fetchImpl = jsonResponse({ choices: [{ message: { content: JSON.stringify({ actionKind: "direct", text: "ok", claims: [{ role: "constraint", concept: "price", boundary: "max", value: 15000, strength: "hard" }] }) } }] });
     const res = await createMistralTransport({ fetchImpl, apiKey: "test" }).call(inp);
     assert.equal(res.decision?.claims?.[0]?.concept, "price");
     assert.equal(res.decision?.claims?.[0]?.boundary, "max");
@@ -61,7 +61,7 @@ describe("Core v2.3R.2 — transport adapters (mocked HTTP)", () => {
 
   it("OpenAI parses structured response with cached + reasoning tokens", async () => {
     const fetchImpl = jsonResponse({
-      choices: [{ message: { content: JSON.stringify({ claims: [{ role: "subject", value: "x" }] }) } }],
+      choices: [{ message: { content: JSON.stringify({ actionKind: "direct", text: "ok", claims: [{ role: "subject", value: "x" }] }) } }],
       usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150, prompt_tokens_details: { cached_tokens: 20 }, completion_tokens_details: { reasoning_tokens: 30 } },
     });
     const res = await createOpenAITransport({ fetchImpl, apiKey: "test" }).call(inp);
@@ -74,7 +74,7 @@ describe("Core v2.3R.2 — transport adapters (mocked HTTP)", () => {
     let captured: Record<string, unknown> = {};
     const fetchImpl = (async (_url: unknown, init: unknown) => {
       captured = JSON.parse((init as { body: string }).body);
-      return new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ actionKind: "direct", text: "ok" }) } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
     }) as typeof fetch;
     await createOpenAITransport({ fetchImpl, apiKey: "test", reasoningEffort: "low" }).call(inp);
     assert.equal((captured.reasoning as { effort: string }).effort, "low");
