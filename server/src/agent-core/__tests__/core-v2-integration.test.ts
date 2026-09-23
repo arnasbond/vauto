@@ -10,7 +10,7 @@ import { setThreadStoreForTests } from "../thread-store-instance.js";
 import { InMemoryThreadStore } from "../thread-store.js";
 import { runThreadTurn, setThreadAgentForTests } from "../thread-service.js";
 import { CORE_V2_ENABLED } from "../core-v2-adapter.js";
-import type { VautoAgentRequest, VautoAgentResponse } from "../../ai/vauto-agent.js";
+import type { VautoAgentRequest, VautoAgentResponse } from "../agent-types.js";
 
 describe("E1 — Core v2 integration (adapter routing)", () => {
   let testStore: InMemoryThreadStore;

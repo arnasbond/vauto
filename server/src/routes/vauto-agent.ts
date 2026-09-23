@@ -1,6 +1,5 @@
 import { Router } from "express";
-import { runVautoAgent } from "../ai/vauto-agent.js";
-import type { VautoAgentResponse } from "../ai/vauto-agent.js";
+import type { VautoAgentResponse } from "../agent-core/agent-types.js";
 import { normalizeAgentRouteError } from "../ai/agent-errors.js";
 import { MAX_ADMIN_PROJECT_CONTEXT_CHARS } from "../ai/agent-system-instruction.js";
 import type { AuthedRequest } from "../middleware/auth.js";

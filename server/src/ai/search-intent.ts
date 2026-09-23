@@ -1,6 +1,5 @@
 import { unifiedLlmJson, visionExtractJson } from "./llm-provider.js";
 import { normalizeImageInputList } from "./image-input.js";
-import { isAdvisoryInterrogative } from "./planner/planner-signals.js";
 import {
   VISION_ANTI_HALLUCINATION_RULE,
   WARDROBE_ANTI_HALLUCINATION_RULE,
@@ -242,6 +241,14 @@ function buildQualityFallbackHint(
     default:
       return "";
   }
+}
+
+function isAdvisoryInterrogative(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  return (
+    /\b(patark|rekomenduok|patarkit|kaip išsirinkti|koks geriausias|kas geriau|patarimas|patarimo|rekomendacija)\b/i.test(t) ||
+    /^(kuris|kuri|koks|kokie|kokia)\b.*\b(geriau|geriausias|patikimesnis|verta)\b/i.test(t)
+  );
 }
 
 /** Gemini structured buyer search intent (server-side; may 403 from Render IP). */

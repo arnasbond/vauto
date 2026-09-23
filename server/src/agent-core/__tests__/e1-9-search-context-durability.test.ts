@@ -25,7 +25,7 @@ import { setThreadStoreForTests } from "../thread-store-instance.js";
 import type {
   VautoAgentRequest,
   VautoAgentResponse,
-} from "../../ai/vauto-agent.js";
+} from "../agent-types.js";
 
 const TEST_URL = process.env.TEST_DATABASE_URL?.trim() || "";
 const USE_REAL_PG = Boolean(TEST_URL);
@@ -132,7 +132,7 @@ describe("E1.9 — R4.2 search state is server-durable across an instance replac
         },
         subject: "BMW 320",
       };
-    }) as typeof import("../../ai/vauto-agent.js").runVautoAgent;
+    }) as Parameters<typeof setThreadAgentForTests>[0];
 
     setThreadAgentForTests(stubAgent);
 
@@ -203,7 +203,7 @@ describe("E1.9 — R4.2 search state is server-durable across an instance replac
       toolCalls: [],
       actions: { type: "search", searchQuery: "BMW", listingIds: [], filters: { query: "BMW" } },
       subject: "BMW",
-    })) as typeof import("../../ai/vauto-agent.js").runVautoAgent;
+    })) as Parameters<typeof setThreadAgentForTests>[0];
     setThreadAgentForTests(stub);
 
     const r1 = await runThreadTurn({
@@ -257,7 +257,7 @@ describe("E1.9 — R4.2 search state is server-durable across an instance replac
             },
             subject: "iPhone",
           };
-    }) as typeof import("../../ai/vauto-agent.js").runVautoAgent;
+    }) as Parameters<typeof setThreadAgentForTests>[0];
     setThreadAgentForTests(stub);
 
     const first = await runThreadTurn({

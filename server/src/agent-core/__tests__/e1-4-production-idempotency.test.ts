@@ -20,7 +20,7 @@ import {
 } from "../thread-service.js";
 import { optionalAuth } from "../../middleware/auth.js";
 import { vautoAgentRouter } from "../../routes/vauto-agent.js";
-import type { VautoAgentResponse } from "../../ai/vauto-agent.js";
+import type { VautoAgentResponse, VautoAgentRequest } from "../agent-types.js";
 
 afterEach(() => {
   setThreadStoreForTests(null);
@@ -35,7 +35,7 @@ function responseFor(text: string): VautoAgentResponse {
 function installSpyAgent() {
   let executions = 0;
   const texts: string[] = [];
-  setThreadAgentForTests((async (req: import("../../ai/vauto-agent.js").VautoAgentRequest) => {
+  setThreadAgentForTests((async (req: VautoAgentRequest) => {
     executions += 1;
     const last = [...req.messages].reverse().find((m) => m.role === "user");
     texts.push(String(last?.text ?? "").slice(0, 40));
@@ -328,7 +328,7 @@ describe("E1.4 — failure semantics (indeterminate vs safe retry)", () => {
   it("tool side effect + later exception → side-effect spy exactly 1, turn INDETERMINATE", async () => {
     setThreadStoreForTests(new InMemoryThreadStore());
     let sideEffects = 0;
-    setThreadAgentForTests((async (req: import("../../ai/vauto-agent.js").VautoAgentRequest) => {
+    setThreadAgentForTests((async (req: VautoAgentRequest) => {
       const last = [...req.messages].reverse().find((m) => m.role === "user");
       if (String(last?.text ?? "").includes("side žinutė")) {
         sideEffects += 1;

@@ -12,7 +12,7 @@ import { afterEach, describe, it } from "node:test";
 import { InMemoryThreadStore } from "../thread-store.js";
 import { setThreadStoreForTests, getThreadStore } from "../thread-store-instance.js";
 import { runThreadTurn, setThreadAgentForTests } from "../thread-service.js";
-import type { VautoAgentResponse } from "../../ai/vauto-agent.js";
+import type { VautoAgentResponse, VautoAgentRequest } from "../agent-types.js";
 
 afterEach(() => {
   setThreadStoreForTests(null);
@@ -26,7 +26,7 @@ function responseFor(text: string): VautoAgentResponse {
 function installSpyAgent(delayMs = 0) {
   let executions = 0;
   let sideEffects = 0;
-  setThreadAgentForTests((async (req: import("../../ai/vauto-agent.js").VautoAgentRequest) => {
+  setThreadAgentForTests((async (req: VautoAgentRequest) => {
     executions += 1;
     sideEffects += 1; // every pipeline run performs at least one tool side effect
     if (delayMs > 0) await new Promise((r) => setTimeout(r, delayMs));

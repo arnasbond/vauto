@@ -1,4 +1,4 @@
-import type { AgentListingSummary } from "./agent-tools.js";
+import type { AgentListingSummary } from "../agent-core/agent-types.js";
 import { runMarketPriceAnalysis } from "./market-price-analysis.js";
 import {
   findMarketPriceHistory,
