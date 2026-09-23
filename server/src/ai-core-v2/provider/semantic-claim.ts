@@ -73,6 +73,7 @@ export const SEMANTIC_CLAIM_SCHEMA = {
           strength: { type: "string" as const, enum: ["hard", "soft", "ambiguous"] },
           target: { type: "string" as const, enum: ["constraint", "subject", "preference", "exclusion"] },
         },
+        required: ["role"],
       },
     },
   },
