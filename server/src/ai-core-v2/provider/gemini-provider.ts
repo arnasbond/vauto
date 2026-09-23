@@ -1,24 +1,22 @@
 /**
- * VAUTO AI Core v2 — real Gemini reasoning provider.
+ * VAUTO AI Core v2 — production Gemini reasoning provider.
  *
- * Implements ReasoningProvider behind a compact, principle-based system
- * instruction and Gemini structured output. It does NOT import the legacy
- * orchestrator/planner and contains no intent routing, regex, or fast-path.
+ * Delegates to single authoritative SemanticClaim transport and deterministic
+ * claimsToPatches mapper. Model emits typed semantic claims, not internal state
+ * patch mechanics.
  */
-import { resolveGeminiApiKey } from "../../load-env.js";
 import type {
   ReasoningInput,
   ReasoningDecision,
   ReasoningProvider,
 } from "../reasoning/reasoning-contract.js";
-import { executionEligibleHardConstraints } from "../state/marketplace-state.js";
-import { CORE_V2_SYSTEM_INSTRUCTION, buildReasoningUserPrompt } from "./prompt.js";
-import { REASONING_DECISION_SCHEMA, parseReasoningDecision } from "./schema.js";
 import {
-  CORE_V2_MAX_REASONING_ATTEMPTS,
-  CORE_V2_MODEL,
-  CORE_V2_REASONING_TIMEOUT_MS,
-} from "./model-config.js";
+  createGeminiSemanticClaimProvider,
+  semanticDecisionToReasoningDecision,
+  buildR3UserPrompt,
+  R3_SYSTEM_INSTRUCTION,
+} from "./semantic-claim.js";
+import { CORE_V2_MODEL } from "./model-config.js";
 
 export { CORE_V2_MODEL };
 
@@ -56,39 +54,13 @@ export function isRetryableFailure(err: unknown): boolean {
   return false;
 }
 
-function summarizeState(input: ReasoningInput): string {
-  const s = input.state;
-  const hard = executionEligibleHardConstraints(s);
-  const hardParts = Object.entries(hard).map(([k, v]) => `${k}=${String(v)}`);
-  const soft = s.softPreferences.map((p) => p.label);
-  const exclusions = s.exclusions.map((e) => e.label);
-  const lines: string[] = [];
-  if (s.goal) lines.push(`goal=${s.goal}`);
-  if (s.vertical) lines.push(`vertical=${s.vertical}`);
-  if (hardParts.length) lines.push(`hard(user)=${hardParts.join(", ")}`);
-  if (soft.length) lines.push(`soft=${soft.join(", ")}`);
-  if (exclusions.length) lines.push(`exclusions=${exclusions.join(", ")}`);
-  if (s.unresolved.length) lines.push(`unresolved=${s.unresolved.join(" | ")}`);
-  if (s.selectedListingIds.length) lines.push(`selected=${s.selectedListingIds.join(", ")}`);
-  return lines.join("; ") || "(tuščia)";
-}
-
 export function buildReasoningRequest(input: ReasoningInput): {
   systemInstruction: string;
   userPrompt: string;
 } {
   return {
-    systemInstruction: CORE_V2_SYSTEM_INSTRUCTION,
-    userPrompt: buildReasoningUserPrompt({
-      userTurn: input.userTurn,
-      history: input.history,
-      stateSummary: summarizeState(input),
-      capabilities: input.capabilities.map((c) => `${c.name}(${c.operation})`),
-      groundedResults: input.groundedResults?.map((g) =>
-        g.ok ? `${g.capability}: ${g.summary ?? ""}` : `${g.capability}: KLAIDA ${g.error ?? ""}`
-      ),
-      priorResults: input.priorResults,
-    }),
+    systemInstruction: R3_SYSTEM_INSTRUCTION,
+    userPrompt: buildR3UserPrompt(input),
   };
 }
 
@@ -116,116 +88,39 @@ export interface GeminiReasoningProviderOptions {
   onAttempt?: (t: ReasoningAttemptTelemetry) => void;
 }
 
+/**
+ * Production Gemini Reasoning Provider.
+ *
+ * Promoted to single authoritative SemanticClaim transport.
+ * Model emits semantic claims; deterministic semanticDecisionToReasoningDecision
+ * / claimsToPatches remains responsible for internal canonical state representation.
+ */
 export function createGeminiReasoningProvider(
   opts: GeminiReasoningProviderOptions = {}
 ): ReasoningProvider {
-  const model = opts.model ?? CORE_V2_MODEL;
-  const doFetch = opts.fetchImpl ?? fetch;
-  const timeoutMs = opts.timeoutMs ?? CORE_V2_REASONING_TIMEOUT_MS;
-  const maxAttempts = opts.maxAttempts ?? CORE_V2_MAX_REASONING_ATTEMPTS;
-  const onAttempt = opts.onAttempt;
-
-  async function attempt(input: ReasoningInput, key: string, attemptNumber: number): Promise<ReasoningDecision> {
-    const { systemInstruction, userPrompt } = buildReasoningRequest(input);
-    const t0 = Date.now();
-    const emit = (partial: Omit<ReasoningAttemptTelemetry, "attempt" | "elapsedMs" | "timedOut">) =>
-      onAttempt?.({
-        attempt: attemptNumber,
-        elapsedMs: Date.now() - t0,
-        timedOut: false,
-        ...partial,
-      });
-
-    let res: Response;
-    try {
-      res = await doFetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-            generationConfig: {
-              temperature: 0.2,
-              responseMimeType: "application/json",
-              responseSchema: REASONING_DECISION_SCHEMA,
-            },
-          }),
-          signal: AbortSignal.timeout(timeoutMs),
-        }
-      );
-    } catch (err) {
-      if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
-        onAttempt?.({ attempt: attemptNumber, elapsedMs: Date.now() - t0, timedOut: true });
-        throw new ProviderFailureError("timeout", "provider timed out");
-      }
-      onAttempt?.({ attempt: attemptNumber, elapsedMs: Date.now() - t0, timedOut: false });
-      throw new ProviderFailureError("http_error", err instanceof Error ? err.message : "fetch failed");
-    }
-    if (!res.ok) {
-      emit({ status: res.status });
-      throw new ProviderFailureError("http_error", `Gemini HTTP ${res.status}`, res.status);
-    }
-    const data = (await res.json()) as {
-      candidates?: Array<{
-        content?: { parts?: Array<{ text?: string }> };
-        finishReason?: string;
-      }>;
-      promptFeedback?: { blockReason?: string };
-    };
-    const candidate = data.candidates?.[0];
-    const text = candidate?.content?.parts?.[0]?.text ?? "";
-    const finishReason = candidate?.finishReason;
-    const blockReason = data.promptFeedback?.blockReason;
-    const candidateCount = data.candidates?.length ?? 0;
-    const trimmed = text.trim();
-    if (!trimmed) {
-      emit({ parseOutcome: "empty", candidateCount, finishReason, blockReason });
-      // Empty structured output → a deliberate empty decision (no-tool turn).
-      return {};
-    }
-    let json: unknown;
-    try {
-      json = JSON.parse(trimmed);
-    } catch {
-      emit({ parseOutcome: "malformed_json", candidateCount, finishReason, blockReason });
-      throw new ProviderFailureError("malformed_json", "model output was not valid JSON");
-    }
-    try {
-      const decision = parseReasoningDecision(json);
-      emit({
-        parseOutcome: "ok",
-        candidateCount,
-        finishReason,
-        blockReason,
-        capabilityRequested: decision.capabilityRequest?.capability,
-      });
-      return decision;
-    } catch (err) {
-      emit({ parseOutcome: "schema_invalid", candidateCount, finishReason, blockReason });
-      throw new ProviderFailureError(
-        "schema_invalid",
-        err instanceof Error ? err.message : "model output failed schema"
-      );
-    }
-  }
+  const semanticProvider = createGeminiSemanticClaimProvider({
+    model: opts.model,
+    fetchImpl: opts.fetchImpl,
+    timeoutMs: opts.timeoutMs,
+    maxAttempts: opts.maxAttempts,
+    onAttempt: opts.onAttempt
+      ? (t) =>
+          opts.onAttempt?.({
+            attempt: t.attempt,
+            elapsedMs: t.elapsedMs,
+            timedOut: t.timedOut,
+            status: t.status,
+            finishReason: t.finishReason,
+            blockReason: t.blockReason,
+            candidateCount: t.candidateCount,
+            parseOutcome: t.parseOutcome ?? (t.timedOut ? undefined : "ok"),
+            capabilityRequested: t.capabilityRequested,
+          })
+      : undefined,
+  });
 
   return async (input: ReasoningInput): Promise<ReasoningDecision> => {
-    const key = resolveGeminiApiKey();
-    if (!key) {
-      throw new ProviderFailureError("provider_unavailable", "GEMINI_API_KEY not configured");
-    }
-    let lastErr: unknown;
-    for (let i = 0; i < maxAttempts; i++) {
-      try {
-        return await attempt(input, key, i + 1);
-      } catch (err) {
-        lastErr = err;
-        if (!isRetryableFailure(err) || i === maxAttempts - 1) throw err;
-        await new Promise((r) => setTimeout(r, 300));
-      }
-    }
-    throw lastErr;
+    const semanticDecision = await semanticProvider(input);
+    return semanticDecisionToReasoningDecision(semanticDecision);
   };
 }
