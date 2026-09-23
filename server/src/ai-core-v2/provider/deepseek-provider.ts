@@ -112,7 +112,7 @@ export async function callDeepSeekSemanticTransport(
           timedOut: false,
           parseOutcome: "empty",
         });
-        throw new ProviderFailureError("empty_response", "DeepSeek returned empty content");
+        throw new ProviderFailureError("schema_invalid", "DeepSeek returned empty content");
       }
 
       let json: unknown;
@@ -180,7 +180,9 @@ export async function callDeepSeekSemanticTransport(
     }
   }
 
-  throw lastError instanceof Error ? lastError : new ProviderFailureError("unknown", String(lastError));
+  throw lastError instanceof ProviderFailureError
+    ? lastError
+    : new ProviderFailureError("http_error", lastError instanceof Error ? lastError.message : String(lastError));
 }
 
 export function createDeepSeekReasoningProvider(

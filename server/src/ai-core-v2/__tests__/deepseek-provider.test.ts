@@ -139,6 +139,7 @@ describe("Core v2 — DeepSeek Reasoning Provider (Mocked HTTP)", () => {
     });
 
     const decision = await provider(input);
+    assert.ok(decision, "decision must be non-null");
     assert.equal(decision.text, "Rasti variantai pagal jūsų paiešką.");
     assert.ok(decision.statePatches && decision.statePatches.length === 1);
     assert.equal((decision.statePatches[0] as { op: string; key?: string }).key, "priceMax");
@@ -161,7 +162,7 @@ describe("Core v2 — DeepSeek Reasoning Provider (Mocked HTTP)", () => {
     );
   });
 
-  it("6: empty DeepSeek content fails closed with empty_response error", async () => {
+  it("6: empty DeepSeek content fails closed with schema_invalid error", async () => {
     const fetchImpl = mockedFetch({
       choices: [{ message: { content: "   " } }],
     });
@@ -174,7 +175,7 @@ describe("Core v2 — DeepSeek Reasoning Provider (Mocked HTTP)", () => {
 
     await assert.rejects(
       () => provider(input),
-      (err: unknown) => err instanceof ProviderFailureError && err.code === "empty_response"
+      (err: unknown) => err instanceof ProviderFailureError && err.code === "schema_invalid"
     );
   });
 
