@@ -111,7 +111,12 @@ describe("Core v2.3P — semantic-claim mapper (structure-only)", () => {
 
   it("K: mapper is a pure function of claims only (deterministic)", () => {
     const c: SemanticClaim[] = [{ role: "exclusion", label: "diesel" }];
-    assert.deepEqual(claimsToPatches(c), claimsToPatches(c));
+    const stripAt = (patches: ReturnType<typeof claimsToPatches>) =>
+      patches.map(({ provenance, ...rest }) => ({
+        ...rest,
+        provenance: { source: provenance.source },
+      }));
+    assert.deepEqual(stripAt(claimsToPatches(c)), stripAt(claimsToPatches(c)));
   });
 });
 
@@ -169,3 +174,44 @@ describe("Core v2.3P — authority flow via existing loop", () => {
     assert.equal(executionEligibleSearchSubject(res.finalState), "Toyota Corolla");
   });
 });
+
+describe("Core v2 — initiative & action coherence behavioral contract", () => {
+  it("system instructions enforce truthful action and goal-directed initiative principles", async () => {
+    const { CORE_V2_SYSTEM_INSTRUCTION } = await import("../provider/prompt.js");
+    const { R3_SYSTEM_INSTRUCTION } = await import("../provider/semantic-claim.js");
+
+    for (const prompt of [CORE_V2_SYSTEM_INSTRUCTION, R3_SYSTEM_INSTRUCTION]) {
+      assert.ok(prompt.includes("TIKRI VEIKSMAI IR INTEGRALUMAS"), "prompt must mandate truthful action coherence");
+      assert.ok(prompt.includes("TIKSLINGA INICIATYVA"), "prompt must mandate goal-directed initiative");
+      assert.ok(prompt.includes("Nesakyk tekste ir neteik, kad atlieki, pradedi, vykdai paiešką"), "prompt must forbid false future/action claims");
+    }
+  });
+
+  it("decision contract allows simultaneous text, claims, clarification, and capabilityRequest", () => {
+    const semDec: SemanticDecision = {
+      text: "Paieškosiu šeimai patikimų automobilių iki 20 000 €.",
+      claims: [
+        { role: "goal", value: "šeimos automobilis" },
+        { role: "preference", label: "patikimumas" },
+        { role: "constraint", concept: "price", boundary: "max", value: 20000, strength: "hard" },
+      ],
+      capabilityRequest: { capability: "searchListings", args: {} },
+    };
+    const mapped = semanticDecisionToReasoningDecision(semDec);
+    assert.equal(mapped.text, semDec.text);
+    assert.ok(mapped.statePatches && mapped.statePatches.length === 3);
+    assert.deepEqual(mapped.capabilityRequest, semDec.capabilityRequest);
+  });
+
+  it("material clarification remains possible when required info is missing", () => {
+    const semDec: SemanticDecision = {
+      text: "Koks jūsų biudžetas?",
+      clarification: "Kokia būtų maksimali suma, kurią planuojate skirti?",
+    };
+    const mapped = semanticDecisionToReasoningDecision(semDec);
+    assert.equal(mapped.text, "Koks jūsų biudžetas?");
+    assert.equal(mapped.clarification, "Kokia būtų maksimali suma, kurią planuojate skirti?");
+    assert.equal(mapped.capabilityRequest, undefined);
+  });
+});
+

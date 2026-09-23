@@ -35,7 +35,7 @@ describe("v2.5 — owner entry READ-only composition", () => {
     const s = session();
     const rec = await runBuyerTurn(s, "Paskelbk mano skelbimą", {
       provider: scripted([
-        { capabilityRequest: { capability: "publishListing", args: {} } },
+        { text: "Paskelbsiu jūsų skelbimą.", capabilityRequest: { capability: "publishListing", args: {} } },
         { text: "Negaliu — skaitymo režimas." },
       ]),
       verifier: verifyAll,
