@@ -112,10 +112,13 @@ describe("Core v2.3P — semantic-claim mapper (structure-only)", () => {
   it("K: mapper is a pure function of claims only (deterministic)", () => {
     const c: SemanticClaim[] = [{ role: "exclusion", label: "diesel" }];
     const stripAt = (patches: ReturnType<typeof claimsToPatches>) =>
-      patches.map(({ provenance, ...rest }) => ({
-        ...rest,
-        provenance: { source: provenance.source },
-      }));
+      patches.map((p) => {
+        if ("provenance" in p && p.provenance) {
+          const { provenance, ...rest } = p;
+          return { ...rest, provenance: { source: provenance.source } };
+        }
+        return p;
+      });
     assert.deepEqual(stripAt(claimsToPatches(c)), stripAt(claimsToPatches(c)));
   });
 });
