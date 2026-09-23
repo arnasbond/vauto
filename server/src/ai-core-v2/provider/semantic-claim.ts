@@ -176,18 +176,20 @@ export function parseSemanticDecision(raw: unknown): SemanticDecision {
       "production semantic decisions must not contain statePatches"
     );
   }
-  const d: SemanticDecision = {};
   const ak = optStr(r.actionKind);
-  if (ak && ["capability", "direct", "clarify"].includes(ak)) {
-    d.actionKind = ak as ActionKind;
+  if (!ak || !["capability", "direct", "clarify"].includes(ak)) {
+    throw new ProviderFailureError("schema_invalid", "actionKind is required and must be 'capability', 'direct', or 'clarify'");
   }
+  const d: SemanticDecision = { actionKind: ak as ActionKind };
+
   if (r.capabilityRequest !== undefined) {
     if (!r.capabilityRequest || typeof r.capabilityRequest !== "object" || Array.isArray(r.capabilityRequest)) {
       throw new ProviderFailureError("schema_invalid", "capabilityRequest must be an object");
     }
     const cr = r.capabilityRequest as Record<string, unknown>;
     const cap = optStr(cr.capability);
-    if (cap) d.capabilityRequest = { capability: cap, args: cr.args ?? {} };
+    if (!cap) throw new ProviderFailureError("schema_invalid", "capabilityRequest requires a non-empty capability string");
+    d.capabilityRequest = { capability: cap, args: cr.args ?? {} };
   }
   if (r.text !== undefined) {
     if (typeof r.text !== "string") throw new ProviderFailureError("schema_invalid", "text must be a string");
@@ -200,22 +202,37 @@ export function parseSemanticDecision(raw: unknown): SemanticDecision {
     if (c) d.clarification = c;
   }
 
-  // Derive actionKind if omitted (for backward compatibility with untyped mock inputs)
-  if (!d.actionKind) {
-    if (d.capabilityRequest) d.actionKind = "capability";
-    else if (d.clarification) d.actionKind = "clarify";
-    else d.actionKind = "direct";
-  }
-
-  // Enforce actionKind structural consistency
-  if (d.actionKind === "capability" && !d.capabilityRequest) {
-    throw new ProviderFailureError("schema_invalid", "actionKind 'capability' requires a valid capabilityRequest");
-  }
-  if (d.actionKind === "direct" && d.capabilityRequest) {
-    throw new ProviderFailureError("schema_invalid", "actionKind 'direct' cannot include capabilityRequest");
-  }
-  if (d.actionKind === "clarify" && d.capabilityRequest) {
-    throw new ProviderFailureError("schema_invalid", "actionKind 'clarify' cannot include capabilityRequest");
+  // Strict phase payload invariants per actionKind
+  if (d.actionKind === "capability") {
+    if (!d.capabilityRequest) {
+      throw new ProviderFailureError("schema_invalid", "actionKind 'capability' requires a valid capabilityRequest");
+    }
+    if (d.text !== undefined) {
+      throw new ProviderFailureError("schema_invalid", "actionKind 'capability' must not contain visible text");
+    }
+    if (d.clarification !== undefined) {
+      throw new ProviderFailureError("schema_invalid", "actionKind 'capability' must not contain clarification");
+    }
+  } else if (d.actionKind === "direct") {
+    if (!d.text) {
+      throw new ProviderFailureError("schema_invalid", "actionKind 'direct' requires non-empty text");
+    }
+    if (d.capabilityRequest !== undefined) {
+      throw new ProviderFailureError("schema_invalid", "actionKind 'direct' must not contain capabilityRequest");
+    }
+    if (d.clarification !== undefined) {
+      throw new ProviderFailureError("schema_invalid", "actionKind 'direct' must not contain clarification");
+    }
+  } else if (d.actionKind === "clarify") {
+    if (!d.clarification) {
+      throw new ProviderFailureError("schema_invalid", "actionKind 'clarify' requires non-empty clarification");
+    }
+    if (d.capabilityRequest !== undefined) {
+      throw new ProviderFailureError("schema_invalid", "actionKind 'clarify' must not contain capabilityRequest");
+    }
+    if (d.text !== undefined) {
+      throw new ProviderFailureError("schema_invalid", "actionKind 'clarify' must not contain text");
+    }
   }
 
   if (r.claims !== undefined) {

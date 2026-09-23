@@ -29,8 +29,8 @@ describe("Core v2.3R.3 — Gemini baseline reconciliation", () => {
   it("1: baseline provider and Arena transport emit identical Gemini request", async () => {
     const bodies: unknown[] = [];
     const capture = (init: unknown) => bodies.push(JSON.parse((init as { body: string }).body));
-    const baselineFetch = (async (_u: unknown, i: unknown) => { capture(i); return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "{}" }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } }); }) as typeof fetch;
-    const arenaFetch = (async (_u: unknown, i: unknown) => { capture(i); return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "{}" }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } }); }) as typeof fetch;
+    const baselineFetch = (async (_u: unknown, i: unknown) => { capture(i); return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ actionKind: "direct", text: "ok" }) }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } }); }) as typeof fetch;
+    const arenaFetch = (async (_u: unknown, i: unknown) => { capture(i); return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ actionKind: "direct", text: "ok" }) }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } }); }) as typeof fetch;
 
     process.env.GEMINI_API_KEY = "test";
     await createGeminiSemanticClaimProvider({ fetchImpl: baselineFetch, maxAttempts: 1 })(inp);
@@ -45,7 +45,7 @@ describe("Core v2.3R.3 — Gemini baseline reconciliation", () => {
     let body: Record<string, unknown> = {};
     const fetchImpl = (async (_u: unknown, i: unknown) => {
       body = JSON.parse((i as { body: string }).body);
-      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "{}" }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ actionKind: "direct", text: "ok" }) }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
     }) as typeof fetch;
     await createGeminiTransport({ fetchImpl, apiKey: "test" }).call(inp);
     const si = (body.systemInstruction as { parts: Array<{ text: string }> }).parts[0].text;
@@ -56,7 +56,7 @@ describe("Core v2.3R.3 — Gemini baseline reconciliation", () => {
     let body: Record<string, unknown> = {};
     const fetchImpl = (async (_u: unknown, i: unknown) => {
       body = JSON.parse((i as { body: string }).body);
-      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: "{}" }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify({ actionKind: "direct", text: "ok" }) }] } }] }), { status: 200, headers: { "Content-Type": "application/json" } });
     }) as typeof fetch;
     await createGeminiTransport({ fetchImpl, apiKey: "test" }).call(inp);
     const gc = body.generationConfig as { responseSchema: unknown };
@@ -64,7 +64,7 @@ describe("Core v2.3R.3 — Gemini baseline reconciliation", () => {
   });
 
   it("4: identical mocked response → identical decision (same parser)", async () => {
-    const response = { candidates: [{ content: { parts: [{ text: JSON.stringify({ claims: [{ role: "subject", value: "Toyota Corolla" }] }) }] } }], usageMetadata: { totalTokenCount: 10 } };
+    const response = { candidates: [{ content: { parts: [{ text: JSON.stringify({ actionKind: "direct", text: "ok", claims: [{ role: "subject", value: "Toyota Corolla" }] }) }] } }], usageMetadata: { totalTokenCount: 10 } };
     process.env.GEMINI_API_KEY = "test";
     const baselineDecision = await createGeminiSemanticClaimProvider({ fetchImpl: jsonResp(response), maxAttempts: 1 })(inp);
     delete process.env.GEMINI_API_KEY;
@@ -73,7 +73,7 @@ describe("Core v2.3R.3 — Gemini baseline reconciliation", () => {
   });
 
   it("5: usage instrumentation does not alter decision", async () => {
-    const response = { candidates: [{ content: { parts: [{ text: JSON.stringify({ claims: [{ role: "constraint", concept: "price", boundary: "max", value: 15000, strength: "hard" }] }) }] } }], usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 2 } };
+    const response = { candidates: [{ content: { parts: [{ text: JSON.stringify({ actionKind: "direct", text: "ok", claims: [{ role: "constraint", concept: "price", boundary: "max", value: 15000, strength: "hard" }] }) }] } }], usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 2 } };
     process.env.GEMINI_API_KEY = "test";
     const baselineDecision = await createGeminiSemanticClaimProvider({ fetchImpl: jsonResp(response), maxAttempts: 1 })(inp);
     delete process.env.GEMINI_API_KEY;

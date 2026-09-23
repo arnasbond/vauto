@@ -150,7 +150,7 @@ describe("Core v2.3B — sanitized per-attempt observability", () => {
             candidates: [
               {
                 content: {
-                  parts: [{ text: JSON.stringify({ text: "ok", capabilityRequest: { capability: "searchListings", args: {} } }) }],
+                  parts: [{ text: JSON.stringify({ actionKind: "capability", capabilityRequest: { capability: "searchListings", args: {} } }) }],
                 },
                 finishReason: "STOP",
               },

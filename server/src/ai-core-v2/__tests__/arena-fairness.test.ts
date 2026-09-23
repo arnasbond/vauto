@@ -29,7 +29,7 @@ describe("Core v2.3R.4 — OpenRouter routing lock", () => {
     let body: Record<string, unknown> = {};
     const fetchImpl = (async (_u: unknown, init: unknown) => {
       body = JSON.parse((init as { body: string }).body);
-      return new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }], model: "deepseek/deepseek-flash", provider: "deepseek" }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ actionKind: "direct", text: "ok" }) } }], model: "deepseek/deepseek-flash", provider: "deepseek" }), { status: 200, headers: { "Content-Type": "application/json" } });
     }) as typeof fetch;
     await createOpenRouterTransport({ model: "deepseek/deepseek-flash", upstreamProvider: "deepseek", apiKey: "test", fetchImpl }).call(inp);
     assert.equal(body.model, "deepseek/deepseek-flash");
@@ -44,7 +44,7 @@ describe("Core v2.3R.4 — OpenRouter routing lock", () => {
   });
 
   it("returned model mismatch => transport_invalid", async () => {
-    const fetchImpl = jsonResponse({ choices: [{ message: { content: "{}" } }], model: "other/model", provider: "deepseek" });
+    const fetchImpl = jsonResponse({ choices: [{ message: { content: JSON.stringify({ actionKind: "direct", text: "ok" }) } }], model: "other/model", provider: "deepseek" });
     const res = await createOpenRouterTransport({ model: "deepseek/deepseek-flash", upstreamProvider: "deepseek", apiKey: "test", fetchImpl }).call(inp);
     assert.equal(res.error?.code, "transport_invalid");
     assert.equal(res.transportIdentity?.requestedModel, "deepseek/deepseek-flash");
@@ -52,7 +52,7 @@ describe("Core v2.3R.4 — OpenRouter routing lock", () => {
   });
 
   it("returned provider mismatch => transport_invalid", async () => {
-    const fetchImpl = jsonResponse({ choices: [{ message: { content: "{}" } }], model: "deepseek/deepseek-flash", provider: "mistralai" });
+    const fetchImpl = jsonResponse({ choices: [{ message: { content: JSON.stringify({ actionKind: "direct", text: "ok" }) } }], model: "deepseek/deepseek-flash", provider: "mistralai" });
     const res = await createOpenRouterTransport({ model: "deepseek/deepseek-flash", upstreamProvider: "deepseek", apiKey: "test", fetchImpl }).call(inp);
     assert.equal(res.error?.code, "transport_invalid");
   });
@@ -61,7 +61,7 @@ describe("Core v2.3R.4 — OpenRouter routing lock", () => {
     let body: Record<string, unknown> = {};
     const fetchImpl = (async (_u: unknown, init: unknown) => {
       body = JSON.parse((init as { body: string }).body);
-      return new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }], model: "mistralai/mistral-small-2603", provider: "Mistral" }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ actionKind: "direct", text: "ok" }) } }], model: "mistralai/mistral-small-2603", provider: "Mistral" }), { status: 200, headers: { "Content-Type": "application/json" } });
     }) as typeof fetch;
     await createOpenRouterTransport({ model: "mistralai/mistral-small-2603", upstreamProvider: "mistral", apiKey: "test", fetchImpl }).call(inp);
     const p = body.provider as Record<string, unknown>;
@@ -78,7 +78,7 @@ describe("Core v2.3R.4 — OpenRouter routing lock", () => {
     let body: Record<string, unknown> = {};
     const fetchImpl = (async (_u: unknown, init: unknown) => {
       body = JSON.parse((init as { body: string }).body);
-      return new Response(JSON.stringify({ choices: [{ message: { content: "{}" } }], model: "mistralai/mistral-small-2603", provider: "Mistral" }), { status: 200, headers: { "Content-Type": "application/json" } });
+      return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ actionKind: "direct", text: "ok" }) } }], model: "mistralai/mistral-small-2603", provider: "Mistral" }), { status: 200, headers: { "Content-Type": "application/json" } });
     }) as typeof fetch;
     await createOpenRouterTransport({ model: "mistralai/mistral-small-2603", upstreamProvider: "mistral", apiKey: "test", fetchImpl, zdr: true }).call(inp);
     const p = body.provider as Record<string, unknown>;
@@ -89,8 +89,8 @@ describe("Core v2.3R.4 — OpenRouter routing lock", () => {
 
 describe("Core v2.3R.4 — fairness + validation", () => {
   it("canonical validation is identical across providers (single validator)", () => {
-    assert.equal(canonicalContractValid(JSON.stringify({ claims: [{ role: "subject", value: "x" }] })), true);
-    assert.equal(canonicalContractValid(JSON.stringify({ claims: [{ role: "bogus" }] })), false);
+    assert.equal(canonicalContractValid(JSON.stringify({ actionKind: "direct", text: "ok", claims: [{ role: "subject", value: "x" }] })), true);
+    assert.equal(canonicalContractValid(JSON.stringify({ actionKind: "direct", text: "ok", claims: [{ role: "bogus" }] })), false);
     assert.equal(canonicalContractValid("not json"), false);
     assert.equal(canonicalContractValid(undefined), false);
     assert.equal(canonicalContractValid(""), false);
@@ -106,7 +106,7 @@ describe("Core v2.3R.4 — fairness + validation", () => {
   });
 
   it("OpenRouter captures charged cost metadata if present", async () => {
-    const fetchImpl = jsonResponse({ choices: [{ message: { content: JSON.stringify({ claims: [{ role: "subject", value: "x" }] }) } }], model: "deepseek/deepseek-flash", provider: "deepseek", usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15, cost: 0.00123 } });
+    const fetchImpl = jsonResponse({ choices: [{ message: { content: JSON.stringify({ actionKind: "direct", text: "ok", claims: [{ role: "subject", value: "x" }] }) } }], model: "deepseek/deepseek-flash", provider: "deepseek", usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15, cost: 0.00123 } });
     const res = await createOpenRouterTransport({ model: "deepseek/deepseek-flash", upstreamProvider: "deepseek", apiKey: "test", fetchImpl }).call(inp);
     assert.equal(res.usage.cost, 0.00123);
   });

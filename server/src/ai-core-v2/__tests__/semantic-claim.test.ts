@@ -190,9 +190,9 @@ describe("Core v2 — initiative & action coherence behavioral contract", () => 
     }
   });
 
-  it("decision contract allows simultaneous text, claims, clarification, and capabilityRequest", () => {
+  it("decision contract allows claims with capabilityRequest without visible text in capability phase", () => {
     const semDec: SemanticDecision = {
-      text: "Paieškosiu šeimai patikimų automobilių iki 20 000 €.",
+      actionKind: "capability",
       claims: [
         { role: "goal", value: "šeimos automobilis" },
         { role: "preference", label: "patikimumas" },
@@ -200,19 +200,20 @@ describe("Core v2 — initiative & action coherence behavioral contract", () => 
       ],
       capabilityRequest: { capability: "searchListings", args: {} },
     };
-    const mapped = semanticDecisionToReasoningDecision(semDec);
-    assert.equal(mapped.text, semDec.text);
+    const parsed = parseSemanticDecision(semDec);
+    const mapped = semanticDecisionToReasoningDecision(parsed);
+    assert.equal(mapped.text, undefined);
     assert.ok(mapped.statePatches && mapped.statePatches.length === 3);
     assert.deepEqual(mapped.capabilityRequest, semDec.capabilityRequest);
   });
 
-  it("material clarification remains possible when required info is missing", () => {
+  it("material clarification decision requires clarification and omits capabilityRequest", () => {
     const semDec: SemanticDecision = {
-      text: "Koks jūsų biudžetas?",
+      actionKind: "clarify",
       clarification: "Kokia būtų maksimali suma, kurią planuojate skirti?",
     };
-    const mapped = semanticDecisionToReasoningDecision(semDec);
-    assert.equal(mapped.text, "Koks jūsų biudžetas?");
+    const parsed = parseSemanticDecision(semDec);
+    const mapped = semanticDecisionToReasoningDecision(parsed);
     assert.equal(mapped.clarification, "Kokia būtų maksimali suma, kurią planuojate skirti?");
     assert.equal(mapped.capabilityRequest, undefined);
   });
@@ -247,8 +248,8 @@ describe("Core v2 — phase-aware contract invariants", () => {
       (err: unknown) => err instanceof Error && err.message.includes("requires a valid capabilityRequest")
     );
     assert.throws(
-      () => parseSemanticDecision({ actionKind: "direct", capabilityRequest: { capability: "searchListings", args: {} } }),
-      (err: unknown) => err instanceof Error && err.message.includes("cannot include capabilityRequest")
+      () => parseSemanticDecision({ actionKind: "direct", text: "ok", capabilityRequest: { capability: "searchListings", args: {} } }),
+      (err: unknown) => err instanceof Error && err.message.includes("must not contain capabilityRequest")
     );
   });
 
