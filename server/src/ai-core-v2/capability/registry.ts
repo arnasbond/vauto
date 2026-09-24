@@ -11,6 +11,7 @@ import type {
 } from "./capability.js";
 import { searchListingsCapability } from "./capabilities/search-listings.js";
 import { listingDetailsCapability } from "./capabilities/listing-details.js";
+import { webResearchCapability } from "./capabilities/web-research.js";
 import { prepareListingDraftCapability } from "./capabilities/prepare-listing-draft.js";
 import { publishListingCapability } from "./capabilities/publish-listing.js";
 
@@ -54,6 +55,7 @@ export function createMarketplaceRegistry(): CapabilityRegistry {
   const registry = new CapabilityRegistry();
   registry.register(searchListingsCapability);
   registry.register(listingDetailsCapability);
+  registry.register(webResearchCapability);
   registry.register(prepareListingDraftCapability);
   registry.register(publishListingCapability);
   return registry;

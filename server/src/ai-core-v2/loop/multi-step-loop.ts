@@ -173,6 +173,35 @@ function summarizeResult(capability: string, result: CapabilityResult<unknown>):
       provenance: result.provenance ?? "TOOL_DERIVED",
     };
   }
+  if (capability === "webResearch" && d) {
+    const res = d as {
+      count?: number;
+      sources?: Array<{
+        title?: string;
+        source?: string;
+        snippet?: string;
+        url?: string;
+        provenanceTag?: "WEB_RESEARCH";
+      }>;
+    };
+    const sources = (res.sources ?? []).slice(0, 3).map((s) => ({
+      title: s.title ?? "Untitled",
+      url: s.url ?? "",
+      source: s.source ?? "web",
+      snippet: s.snippet ?? "",
+      provenanceTag: "WEB_RESEARCH" as const,
+    }));
+    const items = sources
+      .map((s) => `[WEB_RESEARCH] [${s.source}] ${s.title}${s.url ? ` (${s.url})` : ""}: ${s.snippet}`)
+      .join(" | ");
+    return {
+      capability,
+      ok: true,
+      summary: `rasta ${res.count ?? sources.length} šaltiniai (WEB_RESEARCH)${items ? `: ${items}` : ""}`,
+      provenance: result.provenance ?? "TOOL_DERIVED",
+      sources,
+    };
+  }
   return {
     capability,
     ok: true,

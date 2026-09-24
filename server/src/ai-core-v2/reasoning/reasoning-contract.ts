@@ -39,6 +39,14 @@ export interface GroundedCapabilityResult {
   failureKind?: CapabilityFailureKind;
   /** Provenance of returned facts — tool facts are TOOL_DERIVED, never USER_STATED. */
   provenance?: ToolFactSource;
+  /** Structured grounded web research evidence sources (preserves title, URL, domain, snippet, WEB_RESEARCH provenance). */
+  sources?: Array<{
+    title: string;
+    url: string;
+    source: string;
+    snippet: string;
+    provenanceTag: "WEB_RESEARCH";
+  }>;
 }
 
 export interface CapabilityRequestShape {
