@@ -8,6 +8,7 @@
  */
 import { searchListingsFiltered } from "../../../repository.js";
 import type { ListingSearchParams } from "../../../repository.js";
+import { visibleCategoryOptions } from "../../../shared/category-registry.js";
 import type {
   CapabilityContext,
   CapabilityContract,
@@ -26,13 +27,31 @@ export interface SearchListingsArgs {
 export interface SearchListingsListing {
   id: string;
   title: string;
+  category: string;
   price: number;
   location: string;
+  attributes?: Record<string, string | string[] | undefined>;
+  snippet?: string;
 }
 
 export interface SearchListingsData {
   count: number;
   listings: SearchListingsListing[];
+}
+
+function buildSearchListingsDescription(): string {
+  const catSummary = visibleCategoryOptions()
+    .map((c) => `${c.id} (${c.label})`)
+    .join(", ");
+  return `Ieškoti aktyvių skelbimų kataloge pagal kietus filtrus (query, category, city, minPrice, maxPrice). VAUTO kategorijos (category ID): ${catSummary}.`;
+}
+
+function truncateSnippet(text: string | undefined, maxLen: number = 160): string | undefined {
+  if (!text) return undefined;
+  const t = text.trim().replace(/\s+/g, " ");
+  if (!t) return undefined;
+  if (t.length <= maxLen) return t;
+  return t.slice(0, maxLen - 1) + "…";
 }
 
 function toFiniteNumber(value: unknown, field: string): number | undefined {
@@ -55,7 +74,7 @@ export const searchListingsCapability: CapabilityContract<
   SearchListingsData
 > = {
   name: "searchListings",
-  description: "Ieškoti aktyvių skelbimų kataloge pagal kietus filtrus (query, category, city, price).",
+  description: buildSearchListingsDescription(),
   operation: "READ",
   validate(raw: unknown): SearchListingsArgs {
     if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
@@ -85,12 +104,23 @@ export const searchListingsCapability: CapabilityContract<
         limit: args.limit,
       };
       const rows = await searchListingsFiltered(params);
-      const listings = rows.map((l) => ({
-        id: l.id,
-        title: l.title,
-        price: l.price,
-        location: l.location,
-      }));
+      const listings: SearchListingsListing[] = rows.map((l) => {
+        const item: SearchListingsListing = {
+          id: l.id,
+          title: l.title,
+          category: l.category,
+          price: l.price,
+          location: l.location,
+        };
+        if (l.attributes && Object.keys(l.attributes).length > 0) {
+          item.attributes = l.attributes;
+        }
+        const snippet = truncateSnippet(l.description);
+        if (snippet) {
+          item.snippet = snippet;
+        }
+        return item;
+      });
       return { ok: true, data: { count: listings.length, listings } };
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : "search failed" };

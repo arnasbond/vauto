@@ -21,9 +21,9 @@ import type { ResultContext } from "../journey/result-context.js";
 const verifyAll: AuthorityVerifier = async () => "VERIFIED_USER_INTENT";
 
 const DEMO: SearchListingsListing[] = [
-  { id: "l1", title: "Toyota Corolla 2018", price: 12000, location: "Vilnius" },
-  { id: "l2", title: "Toyota Corolla 2020", price: 15000, location: "Kaunas" },
-  { id: "l3", title: "Toyota Corolla Hybrid", price: 18000, location: "Klaipėda" },
+  { id: "l1", title: "Toyota Corolla 2018", category: "vehicles", price: 12000, location: "Vilnius" },
+  { id: "l2", title: "Toyota Corolla 2020", category: "vehicles", price: 15000, location: "Kaunas" },
+  { id: "l3", title: "Toyota Corolla Hybrid", category: "vehicles", price: 18000, location: "Klaipėda" },
 ];
 
 function mockSearch(): CapabilityContract<unknown, SearchListingsData> {

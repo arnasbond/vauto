@@ -31,6 +31,7 @@ import {
 } from "../state/marketplace-state.js";
 import type { StatePatch } from "../state/state-patch.js";
 import { CORE_V2_TURN_BUDGET_MS } from "../provider/model-config.js";
+import { tryResolveListingCategoryId } from "../../shared/category-registry.js";
 
 export const DEFAULT_MAX_ITERATIONS = 3;
 export const DEFAULT_MAX_CAPABILITY_CALLS = 3;
@@ -130,7 +131,8 @@ export function deriveSearchListingsArgs(
     minPrice = validated.minPrice ?? eligible.priceMin;
   }
 
-  const category = eligible.category ?? validated.category;
+  const rawCategory = eligible.category ?? validated.category;
+  const category = rawCategory ? (tryResolveListingCategoryId(rawCategory) ?? undefined) : undefined;
   const city = eligible.location ?? validated.city;
   const query = eligibleSubject ?? validated.query;
 
