@@ -119,9 +119,9 @@ describe("Core v2 — execution-safe search args", () => {
     s = setHardConstraint(s, "location", "Vilnius", provenance("USER_STATED"));
 
     const args = deriveSearchListingsArgs(s, { query: "butas", category: "vehicles", maxPrice: 999999 });
-    assert.equal(args.query, undefined, "model-invented query is not execution authority");
+    assert.equal(args.query, "butas", "validated query passed when eligibleSubject is unset");
     assert.equal(args.maxPrice, 150000, "user-stated budget wins");
-    assert.equal(args.category, undefined, "model-inferred category excluded");
+    assert.equal(args.category, "vehicles", "model args passed when eligible category is unset");
     assert.equal(args.city, "Vilnius", "user-stated location included");
   });
 

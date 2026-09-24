@@ -33,6 +33,8 @@ import type { StatePatch } from "../state/state-patch.js";
 import { CORE_V2_TURN_BUDGET_MS } from "../provider/model-config.js";
 
 export const DEFAULT_MAX_ITERATIONS = 3;
+export const DEFAULT_MAX_CAPABILITY_CALLS = 3;
+export const DEFAULT_MAX_REASONING_CALLS = 6;
 
 /**
  * Raised when the TOTAL per-turn wall-clock budget is exhausted. A per-attempt
@@ -52,6 +54,11 @@ export interface MultiStepLoopOptions {
   provider: ReasoningProvider;
   registry: CapabilityRegistry;
   input: ReasoningInput;
+  /** Maximum executed capability calls per turn (default: 3). */
+  maxCapabilityCalls?: number;
+  /** Maximum total reasoning calls per turn (circuit breaker, default: 6). */
+  maxReasoningCalls?: number;
+  /** Legacy alias for backward compatibility / tests (maps to maxCapabilityCalls if set). */
   maxIterations?: number;
   /** Total per-turn wall-clock budget (ms). Defaults to CORE_V2_TURN_BUDGET_MS. */
   turnBudgetMs?: number;
@@ -209,7 +216,8 @@ export function withinBudget<T>(p: Promise<T>, remainingMs: number): Promise<T> 
 }
 
 export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<MultiStepLoopResult> {
-  const max = opts.maxIterations ?? DEFAULT_MAX_ITERATIONS;
+  const maxCaps = opts.maxCapabilityCalls ?? opts.maxIterations ?? DEFAULT_MAX_CAPABILITY_CALLS;
+  const maxReasoning = opts.maxReasoningCalls ?? (opts.maxIterations != null ? opts.maxIterations : maxCaps * 2);
   const turnBudgetMs = opts.turnBudgetMs ?? CORE_V2_TURN_BUDGET_MS;
   const deadline = Date.now() + turnBudgetMs;
   let state = opts.input.state;
@@ -217,24 +225,31 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
   const capabilityCalls: CapabilityCallRecord[] = [];
   const rejectedAuthority: MultiStepLoopResult["rejectedAuthority"] = [];
   const allProposedPatches: StatePatch[] = [];
+  const executedCallKeys = new Set<string>();
   let decision: ReasoningDecision = {};
+  let reasoningCalls = 0;
+  let executedCapCount = 0;
 
-  for (let i = 0; i < max; i++) {
-    opts.onEvent?.({ type: "reasoning", iteration: i + 1 });
+  while (reasoningCalls < maxReasoning) {
+    if (deadline - Date.now() <= 0) {
+      throw new TurnBudgetExceededError("turn budget exhausted");
+    }
+    reasoningCalls++;
+    opts.onEvent?.({ type: "reasoning", iteration: reasoningCalls });
     const reasoningStartedAt = Date.now();
     try {
       decision =
         (await withinBudget(opts.provider({ ...opts.input, state, groundedResults }), deadline - Date.now())) ?? {};
       console.warn("[core-v2-latency] reasoning_iteration", {
         ...opts.diagnosticContext,
-        iteration: i + 1,
+        iteration: reasoningCalls,
         elapsedMs: Date.now() - reasoningStartedAt,
         outcome: "success",
       });
     } catch (error) {
       console.warn("[core-v2-latency] reasoning_iteration", {
         ...opts.diagnosticContext,
-        iteration: i + 1,
+        iteration: reasoningCalls,
         elapsedMs: Date.now() - reasoningStartedAt,
         outcome: error instanceof TurnBudgetExceededError ? "turn_budget_exceeded" : "error",
       });
@@ -264,7 +279,14 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
     }
 
     if (!decision.capabilityRequest) {
-      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
+      return {
+        decision,
+        finalState: state,
+        iterations: reasoningCalls,
+        capabilityCalls,
+        rejectedAuthority,
+        allProposedPatches,
+      };
     }
 
     const req = decision.capabilityRequest;
@@ -278,8 +300,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
         error: "unknown_capability",
         failureKind: "unavailable",
       });
-      if (i + 1 < max) continue;
-      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
+      continue;
     }
 
     const ctx: CapabilityContext = opts.capabilityContext ?? {};
@@ -296,7 +317,14 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
         error: "confirmation_required",
         failureKind: "confirmation_required",
       });
-      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
+      return {
+        decision,
+        finalState: state,
+        iterations: reasoningCalls,
+        capabilityCalls,
+        rejectedAuthority,
+        allProposedPatches,
+      };
     }
     if (contract.operation === "MUTATE" && !ctx.authUserId) {
       capabilityCalls.push({ name: req.capability, ok: false, error: "authorization" });
@@ -307,7 +335,14 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
         error: "authorization",
         failureKind: "authorization",
       });
-      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
+      return {
+        decision,
+        finalState: state,
+        iterations: reasoningCalls,
+        capabilityCalls,
+        rejectedAuthority,
+        allProposedPatches,
+      };
     }
 
     // Execution-safe args: search filters derive from USER_INTENT state only.
@@ -315,6 +350,26 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
       req.capability === "searchListings"
         ? deriveSearchListingsArgs(state, req.args)
         : contract.validate(req.args);
+
+    const execKey = `${req.capability}:${JSON.stringify(execArgs)}`;
+    if (executedCallKeys.has(execKey)) {
+      console.warn("[core-v2-loop] duplicate capability request detected — reusing prior grounded result", {
+        capability: req.capability,
+        execKey,
+      });
+      continue;
+    }
+
+    if (executedCapCount >= maxCaps) {
+      console.warn("[core-v2-loop] capability execution budget reached", {
+        executedCapCount,
+        maxCaps,
+      });
+      continue;
+    }
+
+    executedCallKeys.add(execKey);
+    executedCapCount++;
 
     let result: CapabilityResult<unknown>;
     const capabilityStartedAt = Date.now();
@@ -343,6 +398,13 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
     groundedResults.push(summarizeResult(req.capability, result));
   }
 
-  opts.onEvent?.({ type: "bound_reached", iterations: max });
-  return { decision, finalState: state, iterations: max, capabilityCalls, rejectedAuthority, allProposedPatches };
+  opts.onEvent?.({ type: "bound_reached", iterations: reasoningCalls });
+  return {
+    decision,
+    finalState: state,
+    iterations: reasoningCalls,
+    capabilityCalls,
+    rejectedAuthority,
+    allProposedPatches,
+  };
 }
