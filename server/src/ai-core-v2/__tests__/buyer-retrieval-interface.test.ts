@@ -24,6 +24,8 @@ import {
 import { setHardConstraint, setSearchSubject, addSoftPreference } from "../state/state-transitions.js";
 import { visibleCategoryOptions } from "../../shared/category-registry.js";
 import { CapabilityRegistry } from "../capability/registry.js";
+import { buildR3UserPrompt } from "../provider/semantic-claim.js";
+import type { ReasoningInput } from "../reasoning/reasoning-contract.js";
 
 describe("Buyer Retrieval Tool Interface — Mechanics Tests", () => {
   it("A: taxonomy exposed in tool description comes dynamically from canonical category registry", () => {
@@ -111,5 +113,20 @@ describe("Buyer Retrieval Tool Interface — Mechanics Tests", () => {
     for (const desc of descriptions) {
       assert.equal(desc.operation, "READ");
     }
+  });
+
+  it("I: buildR3UserPrompt includes capability name, operation, and existing description (canonical taxonomy)", () => {
+    const reg = new CapabilityRegistry();
+    reg.register(searchListingsCapability);
+    const input: ReasoningInput = {
+      userTurn: "Reikia automobilio iki 20 tūkst.",
+      history: [],
+      state: emptyMarketplaceState(),
+      capabilities: reg.describe(),
+    };
+    const prompt = buildR3UserPrompt(input);
+    assert.ok(prompt.includes("searchListings(READ):"), "must include capability name and operation");
+    assert.ok(prompt.includes("VAUTO kategorijos"), "must include existing capability description");
+    assert.ok(prompt.includes("vehicles (Transportas)"), "must expose PR98 canonical category taxonomy to the reasoning provider");
   });
 });
