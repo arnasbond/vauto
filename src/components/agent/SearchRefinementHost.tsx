@@ -25,8 +25,12 @@ function toAgentFilters(state: MarketplaceFilterState, query: string): AgentSear
 }
 
 /**
- * P7c foundation — proactive search refinement when results are empty or overwhelming.
- * Complements LiveInterventionHost; uses same agent greeting pipeline.
+ * P7c foundation — proactive search refinement wrapper.
+ *
+ * Single-authority invariant (Core v2):
+ * An authoritative Core v2 turn is complete and final until the human user
+ * explicitly submits the next turn. This host MUST NOT autonomously issue
+ * secondary sendAgentMessage requests when search results are zero (resultCount === 0).
  */
 export function SearchRefinementHost() {
   const pathname = usePathname();
@@ -51,13 +55,16 @@ export function SearchRefinementHost() {
     if (!q || q.length < 4) return;
 
     const count = rankedListings.length;
+    // Core v2 Single Authority: Never autonomously trigger refinement when result count is 0.
+    if (count === 0) return;
+
     const plan = evaluateSearchRefinement({
       query: q,
       resultCount: count,
       wardrobeMode,
     });
 
-    if (plan.kind === "none" || !plan.proactiveMessage) return;
+    if (plan.kind === "none" || plan.kind === "no_results" || !plan.proactiveMessage) return;
 
     const key = `${plan.kind}:${q}:${count}`;
     if (!shouldFireIntervention(key)) return;
@@ -76,7 +83,7 @@ export function SearchRefinementHost() {
       skipBusyCheck: true,
       proactiveTriggerOnly: true,
       proactiveOffer: {
-        kind: plan.kind === "too_many" ? "search_refine" : "no_match",
+        kind: "search_refine",
         query: q,
         wardrobeMode,
         resultCount: count,

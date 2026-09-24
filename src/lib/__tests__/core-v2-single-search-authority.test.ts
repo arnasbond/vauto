@@ -11,6 +11,7 @@ import { buildDisplayListings } from "@/lib/display-listings-pipeline";
 import { DEFAULT_MARKETPLACE_FILTERS, type MarketplaceFilterState } from "@/lib/marketplace-view";
 import { canonicalFiltersToChips } from "@/components/marketplace/AiInterpretationChips";
 import { shouldApplyAgentTurnAction } from "@/lib/agent-action-guard";
+import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import type { Listing } from "@/lib/types";
 
 const now = new Date().toISOString();
@@ -159,5 +160,45 @@ describe("CORE v2 Single Search Authority Invariants", () => {
 
     const shouldApply = shouldApplyAgentTurnAction(action, originContext);
     assert.equal(shouldApply, true, "Executable search action must be applied regardless of fromSearchBar origin");
+  });
+
+  it("7. Core v2-owned query/result path (agentPinnedListingIds !== null or isAiTurn) suppresses smart-broker reinterpretation", () => {
+    const query = "Telefonas Vilnius";
+    // Core v2 turn with 0 results (agentPinnedListingIds = [])
+    const aiSignalZeroResults = buildSmartBrokerSignal(query, [], {
+      agentPinnedListingIds: [],
+    });
+    assert.equal(
+      aiSignalZeroResults,
+      null,
+      "Core v2 zero-result state must suppress smart-broker reinterpretation"
+    );
+
+    // Core v2 turn with explicit flag (isAiTurn = true)
+    const aiSignalFlag = buildSmartBrokerSignal(query, [], {
+      isAiTurn: true,
+    });
+    assert.equal(
+      aiSignalFlag,
+      null,
+      "Core v2 turn with isAiTurn flag must suppress smart-broker reinterpretation"
+    );
+  });
+
+  it("8. Explicit classic/manual search path (agentPinnedListingIds === null) retains classic smart-broker signal when results are empty", () => {
+    const query = "Telefonas Vilnius";
+    const signal = buildSmartBrokerSignal(query, [], {
+      agentPinnedListingIds: null,
+    });
+    assert.notEqual(
+      signal,
+      null,
+      "Classic manual search should retain classic smart-broker signal"
+    );
+    assert.equal(signal?.mode, "empty");
+    assert.ok(
+      signal && signal.suggestedQueries.length > 0,
+      "Classic query retains suggested queries"
+    );
   });
 });
