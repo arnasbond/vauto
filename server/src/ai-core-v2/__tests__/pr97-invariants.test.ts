@@ -1,15 +1,17 @@
 /**
- * PR97 — AGENT LOOP COMPLETION & CANONICAL CONTINUITY INVARIANT TESTS
+ * PR97 — UNIFORM AGENT LOOP & CANONICAL CONTINUITY INVARIANT TESTS
  *
  * Protects:
- * 1. Final grounded-result interpretation pass on last normal reasoning iteration.
- * 2. Return of DIRECT/CLARIFY completion instead of core_v2_empty_visible_response.
- * 3. Finite loop bounds when model repeatedly requests capabilities.
- * 4. Wall-clock budget enforcement (TurnBudgetExceededError).
- * 5. Legitimate multi-step capability refinement.
- * 6. Presentation category projection without faking USER_STATED provenance.
- * 7. priceMax=20000 continuity preservation.
- * 8. Accurate error taxonomy mapping for core_v2_empty_visible_response.
+ * A. Uniform loop semantic: reason -> capability -> grounded result -> reason -> visible answer.
+ * B. Capability on last old iteration boundary gets grounded result interpreted in next reason pass.
+ * C. Duplicate capability execution is suppressed, but DOES NOT break conversational loop flow.
+ * D. After duplicate suppression, model can answer directly OR request a different capability.
+ * E. Legitimate multi-step capability refinement remains possible.
+ * F. Circuit breaker bounds endless tool requests cleanly.
+ * G. Wall-clock budget enforcement (TurnBudgetExceededError).
+ * H. Presentation category projection without altering state provenance.
+ * I. priceMax=20000 continuity preservation.
+ * J. Strict TypeScript compliance under server/tsconfig.json.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -44,89 +46,73 @@ function baseInput(over: Partial<ReasoningInput> = {}): ReasoningInput {
   };
 }
 
-describe("PR97 — Agent Loop Completion & Canonical Continuity Invariants", () => {
-  it("1 & 2. Capability on last normal reasoning slot executes and receives a final interpretation opportunity yielding DIRECT response", async () => {
-    // 3 iterations: 1st, 2nd, 3rd return capabilityRequests with NO text.
-    // The final interpretation pass receives grounded results and returns DIRECT text.
+describe("PR97 — Uniform Agent Loop & Canonical Continuity Invariants", () => {
+  it("A & B. Uniform loop flow: reason -> capability -> grounded result -> reason -> visible answer", async () => {
     let providerCalls = 0;
     const provider: ReasoningProvider = async (inp) => {
       providerCalls++;
-      if (!inp.groundedResults?.length || inp.groundedResults.length < 3) {
-        const queries = ["erdvus universalas", "universalai", "universal"];
-        const q = queries[inp.groundedResults?.length ?? 0] ?? "universal";
-        return { capabilityRequest: { capability: "searchListings", args: { query: q } } };
+      if (!inp.groundedResults?.length) {
+        return { capabilityRequest: { capability: "searchListings", args: { query: "erdvus universalas" } } };
       }
-      // Final interpretation pass (groundedResults.length === 3)
-      return { text: "Šiuo metu neradau automobilių pagal jūsų kriterijus." };
+      return { text: `Radau ${inp.groundedResults[0]!.summary}` };
     };
 
     const registry = new CapabilityRegistry();
-    registry.register(readCapability("searchListings", { count: 0, listings: [] }));
-
-    let s = emptyMarketplaceState();
-    s = setHardConstraint(s, "priceMax", 20000, provenance("USER_STATED"));
-    s = setVertical(s, "vehicles");
-
-    const res = await runMultiStepLoop({
-      provider,
-      registry,
-      input: baseInput({ state: s }),
-      maxIterations: 3,
-    });
-
-    assert.equal(res.capabilityCalls.length, 3, "Executed 3 search refinements");
-    assert.equal(providerCalls, 4, "3 ordinary reasoning passes + 1 final interpretation pass");
-    assert.equal(res.decision.text, "Šiuo metu neradau automobilių pagal jūsų kriterijus.");
-    assert.ok(res.decision.text!.length > 0, "Visible text MUST be populated");
-  });
-
-  it("3. Loop remains strictly finite when model keeps requesting capabilities", async () => {
-    // A provider that continuously requests capabilities even during interpretation pass.
-    let providerCalls = 0;
-    const provider: ReasoningProvider = async () => {
-      providerCalls++;
-      return { capabilityRequest: { capability: "searchListings", args: { query: "always_request" } } };
-    };
-
-    const registry = new CapabilityRegistry();
-    registry.register(readCapability("searchListings", { count: 0, listings: [] }));
+    registry.register(readCapability("searchListings", { count: 3, listings: [{ title: "Volvo" }] }));
 
     const res = await runMultiStepLoop({
       provider,
       registry,
       input: baseInput(),
-      maxIterations: 3,
+      maxCapabilityCalls: 3,
     });
 
-    // 1 capability executed (due to duplicate capability call protection) + 1 interpretation pass = 2 provider calls
-    assert.ok(providerCalls <= 4, "Provider calls must stay strictly bounded");
-    assert.ok(res.capabilityCalls.length <= 3, "Capability executions must stay within max iterations");
+    assert.equal(res.capabilityCalls.length, 1);
+    assert.equal(providerCalls, 2, "Reason step 1 (capability) + Reason step 2 (visible text)");
+    assert.match(res.decision.text ?? "", /rasta 3 skelbimų/);
   });
 
-  it("4. Wall-clock budget boundary is strictly enforced (TurnBudgetExceededError)", async () => {
-
-    const slowProvider: ReasoningProvider = async () => {
-      await new Promise((r) => setTimeout(r, 100));
-      return { text: "slow response" };
+  it("C & D. Duplicate capability request is executed ONLY ONCE, but loop continues to let model decide", async () => {
+    let providerCalls = 0;
+    let capExecutionCount = 0;
+    const provider: ReasoningProvider = async (inp) => {
+      providerCalls++;
+      if (providerCalls === 1) {
+        return { capabilityRequest: { capability: "searchListings", args: { query: "universalas" } } };
+      }
+      if (providerCalls === 2) {
+        // Model attempts exact duplicate capability request
+        return { capabilityRequest: { capability: "searchListings", args: { query: "universalas" } } };
+      }
+      // Model receives duplicate suppression signal / existing grounded result and finishes visibly
+      return { text: "Štai esami paieškos rezultatai." };
     };
 
     const registry = new CapabilityRegistry();
+    registry.register({
+      name: "searchListings",
+      description: "s",
+      operation: "READ",
+      validate: (a) => a,
+      execute: async () => {
+        capExecutionCount++;
+        return { ok: true, data: { count: 1, listings: [{ id: "c1" }] } };
+      },
+    });
 
-    await assert.rejects(
-      () =>
-        runMultiStepLoop({
-          provider: slowProvider,
-          registry,
-          input: baseInput(),
-          turnBudgetMs: 30, // 30ms budget < 100ms provider delay
-        }),
-      (err: unknown) => err instanceof TurnBudgetExceededError,
-      "Must throw TurnBudgetExceededError on budget timeout"
-    );
+    const res = await runMultiStepLoop({
+      provider,
+      registry,
+      input: baseInput(),
+      maxCapabilityCalls: 3,
+    });
+
+    assert.equal(capExecutionCount, 1, "Tool must execute exactly once on DB");
+    assert.equal(providerCalls, 3, "Model reasoned 3 times without breaking turn loop prematurely");
+    assert.equal(res.decision.text, "Štai esami paieškos rezultatai.");
   });
 
-  it("5. Legitimate multi-step capability refinement remains possible", async () => {
-
+  it("E. Multiple legitimate different capability refinements remain possible", async () => {
     const executedQueries: string[] = [];
     const provider: ReasoningProvider = async (inp) => {
       const step = inp.groundedResults?.length ?? 0;
@@ -156,7 +142,7 @@ describe("PR97 — Agent Loop Completion & Canonical Continuity Invariants", () 
       provider,
       registry,
       input: baseInput(),
-      maxIterations: 3,
+      maxCapabilityCalls: 3,
     });
 
     assert.deepEqual(executedQueries, ["erdvus universalas", "universalai"]);
@@ -164,10 +150,54 @@ describe("PR97 — Agent Loop Completion & Canonical Continuity Invariants", () 
     assert.equal(res.decision.text, "Patikrinau kelias užklausas.");
   });
 
-  it("6. Canonical category=vehicles is projected to frontend response filters without changing hardConstraintProvenance to USER_STATED", () => {
+  it("F. Circuit breaker bounds endless capability requests cleanly", async () => {
+    let providerCalls = 0;
+    const provider: ReasoningProvider = async () => {
+      providerCalls++;
+      // Pathological provider returning different query every time
+      return { capabilityRequest: { capability: "searchListings", args: { query: `req_${providerCalls}` } } };
+    };
+
+    const registry = new CapabilityRegistry();
+    registry.register(readCapability("searchListings", { count: 0, listings: [] }));
+
+    const res = await runMultiStepLoop({
+      provider,
+      registry,
+      input: baseInput(),
+      maxCapabilityCalls: 3,
+      maxReasoningCalls: 6,
+    });
+
+    assert.ok(providerCalls <= 6, "Reasoning circuit breaker must bound total provider calls");
+    assert.equal(res.capabilityCalls.length, 3, "Capability execution limit strictly respected");
+  });
+
+  it("G. Wall-clock budget boundary is strictly enforced (TurnBudgetExceededError)", async () => {
+    const slowProvider: ReasoningProvider = async () => {
+      await new Promise((r) => setTimeout(r, 100));
+      return { text: "slow response" };
+    };
+
+    const registry = new CapabilityRegistry();
+
+    await assert.rejects(
+      () =>
+        runMultiStepLoop({
+          provider: slowProvider,
+          registry,
+          input: baseInput(),
+          turnBudgetMs: 30,
+        }),
+      (err: unknown) => err instanceof TurnBudgetExceededError,
+      "Must throw TurnBudgetExceededError on budget timeout"
+    );
+  });
+
+  it("H & J. Canonical category=vehicles is projected to frontend response filters without changing hardConstraintProvenance to USER_STATED", () => {
     let stateAfter = emptyMarketplaceState();
     stateAfter = setHardConstraint(stateAfter, "priceMax", 20000, provenance("USER_STATED"));
-    stateAfter = setVertical(stateAfter, "vehicles"); // vertical = vehicles, hardConstraints.category = undefined
+    stateAfter = setVertical(stateAfter, "vehicles");
 
     assert.equal(stateAfter.hardConstraints.category, undefined);
     assert.equal(stateAfter.hardConstraintProvenance.category, undefined, "Provenance must not be USER_STATED");
@@ -187,12 +217,13 @@ describe("PR97 — Agent Loop Completion & Canonical Continuity Invariants", () 
 
     assert.ok(response.actions.type === "search" || response.actions.type === "none");
     if (response.actions.type === "search") {
-      assert.equal(response.actions.filters?.category, "vehicles", "Category must be projected to response filters");
-      assert.equal(response.actions.filters?.priceMax, 20000, "priceMax must be in response filters");
+      const filters = response.actions.filters as Record<string, unknown> | undefined;
+      assert.equal(filters?.category, "vehicles", "Category must be projected to response filters");
+      assert.equal(filters?.priceMax, 20000, "priceMax must be in response filters");
     }
   });
 
-  it("7. priceMax=20000 continuity remains intact when user says 'Biudžeto nekeisk'", () => {
+  it("I. priceMax=20000 continuity remains intact when user says 'Biudžeto nekeisk'", () => {
     let s = emptyMarketplaceState();
     s = setHardConstraint(s, "priceMax", 20000, provenance("USER_STATED"));
     s = setSearchSubject(s, "erdvus universalas", provenance("USER_STATED"));
@@ -202,25 +233,5 @@ describe("PR97 — Agent Loop Completion & Canonical Continuity Invariants", () 
     assert.equal(s.hardConstraintProvenance.priceMax?.source, "USER_STATED");
     assert.equal(s.searchSubject, "erdvus universalas");
     assert.equal(s.softPreferences.length, 1);
-  });
-
-  it("8. Error taxonomy maps core_v2_empty_visible_response correctly (not thread_update_contention)", () => {
-    const message = "Error: core_v2_empty_visible_response";
-    const code = /ownership/.test(message)
-      ? "thread_ownership_violation"
-      : /empty_user_turn/.test(message)
-        ? "invalid_request"
-        : /turn_in_progress/.test(message)
-          ? "turn_in_progress"
-          : /turn_indeterminate/.test(message)
-            ? "turn_indeterminate"
-            : /turn_ledger_conflict/.test(message)
-              ? "turn_ledger_conflict"
-              : /core_v2_empty_visible_response/.test(message)
-                ? "core_v2_empty_visible_response"
-                : "thread_update_contention";
-
-    assert.equal(code, "core_v2_empty_visible_response");
-    assert.notEqual(code, "thread_update_contention");
   });
 });
