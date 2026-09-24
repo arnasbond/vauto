@@ -64,6 +64,7 @@ export function ListingGrid({ hideEmptyAssistant = false, hideInterpretation = f
     marketplaceFilters,
     setMarketplaceFilters,
     searchLoading,
+    agentPinnedListingIds,
   } = useVautoSearch();
   const nativeLimited = shouldLimitNativeFeed();
   const [nativeVisible, setNativeVisible] = useState(NATIVE_GRID_INITIAL);
@@ -143,7 +144,9 @@ export function ListingGrid({ hideEmptyAssistant = false, hideInterpretation = f
   const activeVertical =
     interpretedVertical !== "all" ? interpretedVertical : marketplaceFilters.category ?? "all";
 
-  const brokerSignal = buildSmartBrokerSignal(searchQuery, displayListings);
+  const brokerSignal = buildSmartBrokerSignal(searchQuery, displayListings, {
+    agentPinnedListingIds,
+  });
   const experience = verticalExperienceForQuery(searchQuery);
   const vertical = experience.vertical;
   const ui = getVerticalUi(vertical);

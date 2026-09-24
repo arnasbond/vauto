@@ -162,17 +162,43 @@ describe("CORE v2 Single Search Authority Invariants", () => {
     assert.equal(shouldApply, true, "Executable search action must be applied regardless of fromSearchBar origin");
   });
 
-  it("7. AI natural-language query is NOT token-interpreted into refinement suggestions by smart-broker", () => {
-    const aiQuery = "Nežinau tiksliai kokio automobilio noriu. Reikia šeimai patikimo automobilio iki 20 tūkst. eurų. Ką pasiūlytum?";
-    const signal = buildSmartBrokerSignal(aiQuery, []);
-    assert.equal(signal, null, "AI advisory query must return null broker signal (no token extraction fallback)");
+  it("7. Core v2-owned query/result path (agentPinnedListingIds !== null or isAiTurn) suppresses smart-broker reinterpretation", () => {
+    const query = "Telefonas Vilnius";
+    // Core v2 turn with 0 results (agentPinnedListingIds = [])
+    const aiSignalZeroResults = buildSmartBrokerSignal(query, [], {
+      agentPinnedListingIds: [],
+    });
+    assert.equal(
+      aiSignalZeroResults,
+      null,
+      "Core v2 zero-result state must suppress smart-broker reinterpretation"
+    );
+
+    // Core v2 turn with explicit flag (isAiTurn = true)
+    const aiSignalFlag = buildSmartBrokerSignal(query, [], {
+      isAiTurn: true,
+    });
+    assert.equal(
+      aiSignalFlag,
+      null,
+      "Core v2 turn with isAiTurn flag must suppress smart-broker reinterpretation"
+    );
   });
 
-  it("8. Classic keyword search query still generates valid smart-broker signal when results are empty", () => {
-    const keywordQuery = "Telefonas Vilnius";
-    const signal = buildSmartBrokerSignal(keywordQuery, []);
-    assert.notEqual(signal, null, "Classic keyword query should retain classic broker signal");
+  it("8. Explicit classic/manual search path (agentPinnedListingIds === null) retains classic smart-broker signal when results are empty", () => {
+    const query = "Telefonas Vilnius";
+    const signal = buildSmartBrokerSignal(query, [], {
+      agentPinnedListingIds: null,
+    });
+    assert.notEqual(
+      signal,
+      null,
+      "Classic manual search should retain classic smart-broker signal"
+    );
     assert.equal(signal?.mode, "empty");
-    assert.ok(signal && signal.suggestedQueries.length > 0, "Classic query retains suggested queries");
+    assert.ok(
+      signal && signal.suggestedQueries.length > 0,
+      "Classic query retains suggested queries"
+    );
   });
 });

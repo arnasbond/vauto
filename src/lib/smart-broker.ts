@@ -1,6 +1,5 @@
 import type { ScoredListing } from "@/lib/types";
 import { sanitizeSearchQuery } from "@/lib/vertical-listing-filter";
-import { isClientAdvisoryQuery } from "@/lib/gemini-search-intent";
 
 export type BrokerMode = "empty" | "weak-match";
 
@@ -14,6 +13,13 @@ export interface SmartBrokerSignal {
   sellerPitch: string;
   suggestedQueries: string[];
   relatedListings: ScoredListing[];
+}
+
+export interface BuildSmartBrokerSignalOptions {
+  /** Structural indicator: when true, the query/result originates from an authoritative Core v2 turn. */
+  isAiTurn?: boolean;
+  /** Trustworthy structural state: non-null array indicates Core v2 pinned search results. */
+  agentPinnedListingIds?: string[] | null;
 }
 
 const CITY_PATTERNS: Array<[RegExp, string]> = [
@@ -168,17 +174,20 @@ function buildSuggestedQueries(
 
 export function buildSmartBrokerSignal(
   query: string,
-  listings: ScoredListing[]
+  listings: ScoredListing[],
+  options?: BuildSmartBrokerSignalOptions
 ): SmartBrokerSignal | null {
-  if (isClientAdvisoryQuery(query)) return null;
-  const q = sanitizeSearchQuery(query, "final");
-  if (q.length < 3) return null;
-  if (isClientAdvisoryQuery(q)) return null;
-  // Natural-language AI queries (4+ words or advisory phrases) are owned by Core v2;
-  // classic smart-broker token extraction must not generate fallback suggestions from AI queries.
-  if (/\b(nežinau|siūlytum|siulytum|patark|rekomenduok)\b/i.test(query) || q.split(/\s+/).length >= 5) {
+  // Structural boundary: An authoritative Core v2 AI turn owns the query/result state.
+  // Smart-broker must not semantically reinterpret Core v2 AI turns.
+  if (
+    options?.isAiTurn ||
+    (options?.agentPinnedListingIds !== undefined && options?.agentPinnedListingIds !== null)
+  ) {
     return null;
   }
+
+  const q = sanitizeSearchQuery(query, "final");
+  if (q.length < 3) return null;
 
   const top = listings[0];
   const hasStrongMatch = Boolean(top && top.semanticRelevance >= 0.28);
