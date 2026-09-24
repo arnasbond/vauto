@@ -9,6 +9,26 @@ export type SanitizeAgentActionResult =
   | { ok: true; action: VautoAgentAction }
   | { ok: false; message: string };
 
+export type TurnOriginContext = {
+  fromSearchBar?: boolean;
+  view?: string;
+};
+
+/**
+ * Entry-point ownership decision helper.
+ * Enforces single-authority rule: an executable Core v2 turn action (e.g. search, empty_search, listing_draft)
+ * MUST be applied to canonical frontend state regardless of whether the user initiated the turn
+ * from the global search bar (`fromSearchBar: true`) or another entry point.
+ */
+export function shouldApplyAgentTurnAction(
+  action: VautoAgentAction | null | undefined,
+  _originContext?: TurnOriginContext
+): boolean {
+  if (!action) return false;
+  if (action.type === "none") return false;
+  return true;
+}
+
 function asString(value: unknown, fallback = ""): string {
   if (typeof value === "string") return value;
   if (value == null) return fallback;

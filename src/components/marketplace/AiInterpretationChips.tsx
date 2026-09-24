@@ -12,6 +12,7 @@ import {
   chipToFacetTarget,
   removeAiFacet,
 } from "@/lib/apply-ai-facet";
+import { listingCategoryLabel } from "@vauto/shared/category-registry";
 import { categoryFilterFieldsFor } from "@/lib/category-attribute-filters";
 import type { MarketplaceFilterState } from "@/lib/marketplace-view";
 import { syncMarketplaceFiltersToUrl } from "@/lib/marketplace-filter-url";
@@ -36,43 +37,13 @@ export interface AiInterpretationChipsProps {
   onQueryChange?: (next: string) => void;
 }
 
-/** Map a chip's canonical field back to an edit target (shared production helper). */
-
-const PUBLIC_CATEGORY_LABELS: Record<string, string> = {
-  vehicles: "Transportas",
-  auto: "Transportas",
-  transport: "Transportas",
-  electronics: "Elektronika",
-  clothing: "Mada",
-  home: "Namai ir buitis",
-  services: "Paslaugos",
-  real_estate: "Nekilnojamas turtas",
-  jobs: "Darbas",
-  tools: "Namai ir buitis",
-  rental: "Kita",
-  other: "Kita",
-};
-
 export function canonicalFiltersToChips(
-  filters: MarketplaceFilterState,
-  searchQuery = ""
+  filters: MarketplaceFilterState
 ): FacetChip[] {
   const chips: FacetChip[] = [];
-  const q = searchQuery.trim();
-
-  if (q) {
-    chips.push({
-      id: `ai:keyword:query:${q.toLowerCase()}`,
-      kind: "keyword",
-      field: "query",
-      label: q,
-      value: q,
-      fromAi: true,
-    });
-  }
 
   if (filters.category && filters.category !== "all") {
-    const label = PUBLIC_CATEGORY_LABELS[filters.category] || filters.category;
+    const label = listingCategoryLabel(filters.category);
     chips.push({
       id: `ai:vertical:category:${filters.category}`,
       kind: "vertical",
@@ -169,8 +140,8 @@ export function AiInterpretationChips({
 }: AiInterpretationChipsProps) {
   const query = searchQuery.trim();
   const rawChips = useMemo(
-    () => canonicalFiltersToChips(filters, searchQuery),
-    [filters, searchQuery]
+    () => canonicalFiltersToChips(filters),
+    [filters]
   );
 
   const [editingId, setEditingId] = useState<string | null>(null);

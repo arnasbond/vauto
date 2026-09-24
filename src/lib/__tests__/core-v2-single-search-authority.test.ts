@@ -10,6 +10,7 @@ import { isBlockedFallbackBubble } from "@/lib/agent-chat-layout";
 import { buildDisplayListings } from "@/lib/display-listings-pipeline";
 import { DEFAULT_MARKETPLACE_FILTERS, type MarketplaceFilterState } from "@/lib/marketplace-view";
 import { canonicalFiltersToChips } from "@/components/marketplace/AiInterpretationChips";
+import { shouldApplyAgentTurnAction } from "@/lib/agent-action-guard";
 import type { Listing } from "@/lib/types";
 
 const now = new Date().toISOString();
@@ -137,7 +138,7 @@ describe("CORE v2 Single Search Authority Invariants", () => {
     };
 
     // Derived chips MUST match Core v2 filters exactly — no independent natural-language re-interpretation
-    const chips = canonicalFiltersToChips(coreV2Filters, "");
+    const chips = canonicalFiltersToChips(coreV2Filters);
     const chipFields = chips.map((c) => ({ field: c.field, value: c.value, label: c.label }));
 
     assert.deepEqual(chipFields, [
@@ -145,5 +146,18 @@ describe("CORE v2 Single Search Authority Invariants", () => {
       { field: "location", value: "Vilnius", label: "Vilnius" },
       { field: "priceMax", value: "20000", label: "Kaina iki 20000 €" },
     ]);
+  });
+
+  it("6. Core v2 turn originating from fromSearchBar with executable search action DOES apply canonical action to state", () => {
+    const action = {
+      type: "search" as const,
+      searchQuery: "Volvo XC90",
+      listingIds: ["car-1"],
+      filters: { category: "vehicles" as const, priceMax: 20000 },
+    };
+    const originContext = { fromSearchBar: true };
+
+    const shouldApply = shouldApplyAgentTurnAction(action, originContext);
+    assert.equal(shouldApply, true, "Executable search action must be applied regardless of fromSearchBar origin");
   });
 });
