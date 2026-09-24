@@ -8,7 +8,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { isBlockedFallbackBubble } from "@/lib/agent-chat-layout";
 import { buildDisplayListings } from "@/lib/display-listings-pipeline";
-import { DEFAULT_MARKETPLACE_FILTERS } from "@/lib/marketplace-view";
+import { DEFAULT_MARKETPLACE_FILTERS, type MarketplaceFilterState } from "@/lib/marketplace-view";
+import { canonicalFiltersToChips } from "@/components/marketplace/AiInterpretationChips";
 import type { Listing } from "@/lib/types";
 
 const now = new Date().toISOString();
@@ -125,5 +126,24 @@ describe("CORE v2 Single Search Authority Invariants", () => {
 
     const resultIds = res.listings.map((l) => l.id);
     assert.deepEqual(resultIds, ["car-1"]);
+  });
+
+  it("5. AI-originated visible chips derive 100% from canonical Core v2 MarketplaceFilterState", () => {
+    const coreV2Filters: MarketplaceFilterState = {
+      ...DEFAULT_MARKETPLACE_FILTERS,
+      category: "vehicles",
+      priceMax: 20000,
+      location: "Vilnius",
+    };
+
+    // Derived chips MUST match Core v2 filters exactly — no independent natural-language re-interpretation
+    const chips = canonicalFiltersToChips(coreV2Filters, "");
+    const chipFields = chips.map((c) => ({ field: c.field, value: c.value, label: c.label }));
+
+    assert.deepEqual(chipFields, [
+      { field: "category", value: "vehicles", label: "Transportas" },
+      { field: "location", value: "Vilnius", label: "Vilnius" },
+      { field: "priceMax", value: "20000", label: "Kaina iki 20000 €" },
+    ]);
   });
 });

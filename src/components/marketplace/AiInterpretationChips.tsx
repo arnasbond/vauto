@@ -38,6 +38,129 @@ export interface AiInterpretationChipsProps {
 
 /** Map a chip's canonical field back to an edit target (shared production helper). */
 
+const PUBLIC_CATEGORY_LABELS: Record<string, string> = {
+  vehicles: "Transportas",
+  auto: "Transportas",
+  transport: "Transportas",
+  electronics: "Elektronika",
+  clothing: "Mada",
+  home: "Namai ir buitis",
+  services: "Paslaugos",
+  real_estate: "Nekilnojamas turtas",
+  jobs: "Darbas",
+  tools: "Namai ir buitis",
+  rental: "Kita",
+  other: "Kita",
+};
+
+export function canonicalFiltersToChips(
+  filters: MarketplaceFilterState,
+  searchQuery = ""
+): FacetChip[] {
+  const chips: FacetChip[] = [];
+  const q = searchQuery.trim();
+
+  if (q) {
+    chips.push({
+      id: `ai:keyword:query:${q.toLowerCase()}`,
+      kind: "keyword",
+      field: "query",
+      label: q,
+      value: q,
+      fromAi: true,
+    });
+  }
+
+  if (filters.category && filters.category !== "all") {
+    const label = PUBLIC_CATEGORY_LABELS[filters.category] || filters.category;
+    chips.push({
+      id: `ai:vertical:category:${filters.category}`,
+      kind: "vertical",
+      field: "category",
+      label,
+      value: filters.category,
+      fromAi: true,
+      baseField: "category",
+    });
+  }
+
+  if (filters.location?.trim()) {
+    chips.push({
+      id: `ai:location:location:${filters.location.trim().toLowerCase()}`,
+      kind: "location",
+      field: "location",
+      label: filters.location.trim(),
+      value: filters.location.trim(),
+      fromAi: true,
+      baseField: "location",
+    });
+  }
+
+  if (filters.priceMin != null || filters.priceMax != null) {
+    let label = "";
+    if (filters.priceMin != null && filters.priceMax != null) {
+      label = `Kaina ${filters.priceMin} - ${filters.priceMax} €`;
+    } else if (filters.priceMax != null) {
+      label = `Kaina iki ${filters.priceMax} €`;
+    } else {
+      label = `Kaina nuo ${filters.priceMin} €`;
+    }
+    chips.push({
+      id: `ai:price:${filters.priceMax != null ? "priceMax" : "priceMin"}:${filters.priceMax ?? filters.priceMin}`,
+      kind: "price",
+      field: filters.priceMax != null ? "priceMax" : "priceMin",
+      label,
+      value: String(filters.priceMax ?? filters.priceMin),
+      fromAi: true,
+      baseField: filters.priceMax != null ? "priceMax" : "priceMin",
+    });
+  }
+
+  if (filters.condition && filters.condition !== "all") {
+    const label = filters.condition === "new" ? "Naujas" : "Naudotas";
+    chips.push({
+      id: `ai:condition:condition:${filters.condition}`,
+      kind: "condition",
+      field: "condition",
+      label,
+      value: filters.condition,
+      fromAi: true,
+      baseField: "condition",
+    });
+  }
+
+  if (filters.radiusKm != null) {
+    chips.push({
+      id: `ai:radius:radiusKm:${filters.radiusKm}`,
+      kind: "radius",
+      field: "radiusKm",
+      label: `+${filters.radiusKm} km`,
+      value: String(filters.radiusKm),
+      fromAi: true,
+      baseField: "radiusKm",
+    });
+  }
+
+  if (filters.categoryAttributes) {
+    for (const [key, val] of Object.entries(filters.categoryAttributes)) {
+      if (val && String(val).trim()) {
+        const strVal = String(val).trim();
+        chips.push({
+          id: `ai:attribute:${key}:${strVal.toLowerCase()}`,
+          kind: "attribute",
+          field: key,
+          label: `${key}: ${strVal}`,
+          value: strVal,
+          fromAi: true,
+          baseField: "categoryAttributes",
+        });
+      }
+    }
+  }
+
+  return chips;
+}
+
 export function AiInterpretationChips({
   searchQuery,
   filters,
@@ -45,28 +168,22 @@ export function AiInterpretationChips({
   onQueryChange,
 }: AiInterpretationChipsProps) {
   const query = searchQuery.trim();
-  const interpretation = useMemo(() => interpretAiFacets(query), [query]);
-  const rawChips = interpretation.chips;
+  const rawChips = useMemo(
+    () => canonicalFiltersToChips(filters, searchQuery),
+    [filters, searchQuery]
+  );
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  // Facet ids the user explicitly removed this submission. Decoupled from the
-  // applied filter state so the AI readout stays stable (18A): it reflects what
-  // VAUTO understood, and a facet disappears only when the user removes it (or
-  // the query changes). Agent-driven result overrides therefore cannot make
-  // interpreted criteria silently vanish.
   const [removedChipIds, setRemovedChipIds] = useState<string[]>([]);
   const addMenuRef = useRef<HTMLDivElement>(null);
 
-  // Reset the removed-set whenever a new query is submitted/edited so a fresh
-  // interpretation starts with the full, visible readout again.
   useEffect(() => {
     setRemovedChipIds([]);
     setEditingId(null);
     setAddOpen(false);
   }, [query]);
 
-  // Chips reflect what AI understood, minus facets the user removed.
   const chips = useMemo(
     () => rawChips.filter((chip) => !removedChipIds.includes(chip.id)),
     [rawChips, removedChipIds]
@@ -99,9 +216,9 @@ export function AiInterpretationChips({
     query,
   ]);
 
-  if (!query) return null;
+  if (!query && filters.category === "all") return null;
 
-  const vertical = interpretation.vertical;
+  const vertical = filters.category !== "all" ? filters.category : "all";
 
   const chipHasEditingSurface = (chip: FacetChip) =>
     chip.kind === "attribute" &&
