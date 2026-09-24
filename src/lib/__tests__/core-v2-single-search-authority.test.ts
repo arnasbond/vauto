@@ -11,6 +11,7 @@ import { buildDisplayListings } from "@/lib/display-listings-pipeline";
 import { DEFAULT_MARKETPLACE_FILTERS, type MarketplaceFilterState } from "@/lib/marketplace-view";
 import { canonicalFiltersToChips } from "@/components/marketplace/AiInterpretationChips";
 import { shouldApplyAgentTurnAction } from "@/lib/agent-action-guard";
+import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import type { Listing } from "@/lib/types";
 
 const now = new Date().toISOString();
@@ -159,5 +160,19 @@ describe("CORE v2 Single Search Authority Invariants", () => {
 
     const shouldApply = shouldApplyAgentTurnAction(action, originContext);
     assert.equal(shouldApply, true, "Executable search action must be applied regardless of fromSearchBar origin");
+  });
+
+  it("7. AI natural-language query is NOT token-interpreted into refinement suggestions by smart-broker", () => {
+    const aiQuery = "Nežinau tiksliai kokio automobilio noriu. Reikia šeimai patikimo automobilio iki 20 tūkst. eurų. Ką pasiūlytum?";
+    const signal = buildSmartBrokerSignal(aiQuery, []);
+    assert.equal(signal, null, "AI advisory query must return null broker signal (no token extraction fallback)");
+  });
+
+  it("8. Classic keyword search query still generates valid smart-broker signal when results are empty", () => {
+    const keywordQuery = "Telefonas Vilnius";
+    const signal = buildSmartBrokerSignal(keywordQuery, []);
+    assert.notEqual(signal, null, "Classic keyword query should retain classic broker signal");
+    assert.equal(signal?.mode, "empty");
+    assert.ok(signal?.suggestedQueries.length! > 0, "Classic query retains suggested queries");
   });
 });

@@ -1,5 +1,6 @@
 import type { ScoredListing } from "@/lib/types";
 import { sanitizeSearchQuery } from "@/lib/vertical-listing-filter";
+import { isClientAdvisoryQuery } from "@/lib/gemini-search-intent";
 
 export type BrokerMode = "empty" | "weak-match";
 
@@ -169,8 +170,15 @@ export function buildSmartBrokerSignal(
   query: string,
   listings: ScoredListing[]
 ): SmartBrokerSignal | null {
+  if (isClientAdvisoryQuery(query)) return null;
   const q = sanitizeSearchQuery(query, "final");
   if (q.length < 3) return null;
+  if (isClientAdvisoryQuery(q)) return null;
+  // Natural-language AI queries (4+ words or advisory phrases) are owned by Core v2;
+  // classic smart-broker token extraction must not generate fallback suggestions from AI queries.
+  if (/\b(nežinau|siūlytum|siulytum|patark|rekomenduok)\b/i.test(query) || q.split(/\s+/).length >= 5) {
+    return null;
+  }
 
   const top = listings[0];
   const hasStrongMatch = Boolean(top && top.semanticRelevance >= 0.28);
