@@ -12,8 +12,6 @@ import type { VautoAgentContext } from "@/lib/vauto-agent-client";
 import {
   extractSearchRefinement,
   mergeSearchFilters,
-  shouldResetSearchSession,
-  parseSearchFiltersFromUserText,
   type AgentSearchFilters,
 } from "@/lib/agent-session-memory";
 import {
@@ -49,9 +47,8 @@ export function ZeroUiMemoryProvider({ children }: { children: ReactNode }) {
 
   const noteUserMessage = useCallback((text: string) => {
     setActiveSearchFilters((prev) => {
-      if (shouldResetSearchSession(text, prev)) {
-        return parseSearchFiltersFromUserText(text);
-      }
+      // PR103 — Core v2 AI conversation thread & memory continuity.
+      // Bypass semantic keyword/pivot resets in AI memory path.
       const refinement = extractSearchRefinement(text);
       if (!refinement) return prev;
       return mergeSearchFilters(prev, { refinements: [refinement] });
