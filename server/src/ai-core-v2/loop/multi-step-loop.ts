@@ -173,6 +173,19 @@ function summarizeResult(capability: string, result: CapabilityResult<unknown>):
       provenance: result.provenance ?? "TOOL_DERIVED",
     };
   }
+  if (capability === "webResearch" && d) {
+    const res = d as { count?: number; sources?: Array<{ title?: string; source?: string; snippet?: string; url?: string }> };
+    const items = (res.sources ?? [])
+      .slice(0, 3)
+      .map((s) => `[${s.source ?? "web"}] ${s.title ?? ""}: ${s.snippet ?? ""}`)
+      .join(" | ");
+    return {
+      capability,
+      ok: true,
+      summary: `rasta ${res.count ?? 0} šaltiniai (WEB_RESEARCH)${items ? `: ${items}` : ""}`,
+      provenance: result.provenance ?? "TOOL_DERIVED",
+    };
+  }
   return {
     capability,
     ok: true,
