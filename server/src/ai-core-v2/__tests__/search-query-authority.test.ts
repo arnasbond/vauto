@@ -49,7 +49,7 @@ describe("Core v2.2A — search query authority", () => {
     let s = emptyMarketplaceState();
     const args = deriveSearchListingsArgs(s, { query: "anything at all" });
     assert.equal(args.query, undefined);
-    assert.deepEqual(args, { query: undefined, category: undefined, city: undefined, minPrice: undefined, maxPrice: undefined });
+    assert.deepEqual(args, { query: undefined, category: undefined, city: undefined, minPrice: undefined, maxPrice: undefined, limit: undefined });
   });
 
   it("removeSearchSubject clears the subject", () => {

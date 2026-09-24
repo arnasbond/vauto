@@ -32,8 +32,8 @@ function scripted(decisions: ReasoningDecision[]): ReasoningProvider {
   return async () => decisions[Math.min(i++, decisions.length - 1)] ?? {};
 }
 
-const L1: SearchListingsListing = { id: "a1", title: "Toyota Corolla 2018", price: 12000, location: "Vilnius" };
-const L2: SearchListingsListing = { id: "b2", title: "Toyota Corolla 2020", price: 15000, location: "Kaunas" };
+const L1: SearchListingsListing = { id: "a1", title: "Toyota Corolla 2018", category: "vehicles", price: 12000, location: "Vilnius" };
+const L2: SearchListingsListing = { id: "b2", title: "Toyota Corolla 2020", category: "vehicles", price: 15000, location: "Kaunas" };
 
 function mockSearch(listings: SearchListingsListing[]): CapabilityContract<unknown, SearchListingsData> {
   return {
