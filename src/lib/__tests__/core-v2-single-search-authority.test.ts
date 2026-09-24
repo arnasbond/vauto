@@ -10,7 +10,7 @@ import { isBlockedFallbackBubble } from "@/lib/agent-chat-layout";
 import { buildDisplayListings } from "@/lib/display-listings-pipeline";
 import { DEFAULT_MARKETPLACE_FILTERS, type MarketplaceFilterState } from "@/lib/marketplace-view";
 import { canonicalFiltersToChips } from "@/components/marketplace/AiInterpretationChips";
-import { shouldApplyAgentTurnAction } from "@/lib/agent-action-guard";
+import { shouldApplyAgentTurnAction, isLiveInterventionAllowed } from "@/lib/agent-action-guard";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import type { Listing } from "@/lib/types";
 
@@ -201,4 +201,44 @@ describe("CORE v2 Single Search Authority Invariants", () => {
       "Classic query retains suggested queries"
     );
   });
+
+  it("9. isLiveInterventionAllowed returns false when agentBusy is true (in-flight Core v2 turn)", () => {
+    assert.equal(
+      isLiveInterventionAllowed({ agentBusy: true, interventionKind: "no_match" }),
+      false,
+      "Proactive intervention must be suppressed when agent is busy"
+    );
+    assert.equal(
+      isLiveInterventionAllowed({ agentBusy: true, interventionKind: "bargaining" }),
+      false,
+      "Proactive bargaining intervention must be suppressed when agent is busy"
+    );
+  });
+
+  it("10. isLiveInterventionAllowed returns false when interventionKind is no_match (Core v2 is sole authority for search reasoning)", () => {
+    assert.equal(
+      isLiveInterventionAllowed({ agentBusy: false, agentPinnedListingIds: null, interventionKind: "no_match" }),
+      false,
+      "Client-side no_match intervention is disabled so Core v2 retains sole conversational authority"
+    );
+    assert.equal(
+      isLiveInterventionAllowed({ agentBusy: false, agentPinnedListingIds: [], interventionKind: "no_match" }),
+      false,
+      "Client-side no_match intervention is disabled when pinned listing IDs exist"
+    );
+  });
+
+  it("11. isLiveInterventionAllowed returns true for permitted non-conversational interventions when agent is idle", () => {
+    assert.equal(
+      isLiveInterventionAllowed({ agentBusy: false, chatOpen: false, interventionKind: "bargaining" }),
+      true,
+      "Bargaining intervention permitted when idle and chat closed"
+    );
+    assert.equal(
+      isLiveInterventionAllowed({ agentBusy: false, chatOpen: false, interventionKind: "user_nudge" }),
+      true,
+      "User nudge permitted when idle"
+    );
+  });
 });
+

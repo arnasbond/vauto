@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { apiFetchUserNudges } from "@/lib/api/user-intelligence";
@@ -15,6 +16,7 @@ import {
 } from "@/lib/offer-engine-client";
 import type { MarketplaceFilterState } from "@/lib/marketplace-view";
 import { shouldSuppressBuyerProactiveNudges } from "@/lib/seller-chat-session";
+import { isLiveInterventionAllowed } from "@/lib/agent-action-guard";
 
 function toAgentFilters(state: MarketplaceFilterState, searchQuery: string): AgentSearchFilters {
   return {
@@ -34,7 +36,6 @@ export function LiveInterventionHost() {
   const pathname = usePathname();
   const {
     searchQuery,
-    rankedListings,
     searchLoading,
     chameleonTheme,
     marketplaceFilters,
@@ -43,6 +44,7 @@ export function LiveInterventionHost() {
     sellerAnalytics,
     buyerIntentCount,
   } = useVauto();
+  const { agentPinnedListingIds } = useVautoSearch();
   const { open, openWithGreeting, busy: agentBusy, sendAgentMessage } = useVautoAgent();
   const { events, shouldFireIntervention } = useUserBehavior();
   const lastHandledEventId = useRef<string | null>(null);
@@ -51,7 +53,8 @@ export function LiveInterventionHost() {
   const dbNudgeHandledRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated || !isDataApiEnabled() || open || agentBusy) return;
+    if (!isAuthenticated || !isDataApiEnabled()) return;
+    if (!isLiveInterventionAllowed({ agentBusy, agentPinnedListingIds, chatOpen: open, interventionKind: "user_nudge" })) return;
     // Fresh AI Seller listing session — never inject sticky buyer „Jūsų noras…“ nudges.
     if (shouldSuppressBuyerProactiveNudges()) return;
     void (async () => {
@@ -72,7 +75,7 @@ export function LiveInterventionHost() {
         openSheet: true,
       });
     })();
-  }, [isAuthenticated, open, agentBusy, shouldFireIntervention, openWithGreeting]);
+  }, [isAuthenticated, open, agentBusy, agentPinnedListingIds, shouldFireIntervention, openWithGreeting]);
 
   const wardrobeMode =
     chameleonTheme === "wardrobe" ||
@@ -81,6 +84,17 @@ export function LiveInterventionHost() {
 
   const triggerNoMatchOffer = useCallback(
     (query: string, key: string) => {
+      // Core v2 Single Authority: Proactive client-side no_match assistant messages are suppressed.
+      if (
+        !isLiveInterventionAllowed({
+          agentBusy,
+          agentPinnedListingIds,
+          chatOpen: open,
+          interventionKind: "no_match",
+        })
+      ) {
+        return;
+      }
       if (!shouldFireIntervention(key)) return;
       noMatchTriggeredRef.current = key;
       const greeting = buildNoMatchInterventionMessage(query, wardrobeMode);
@@ -97,6 +111,9 @@ export function LiveInterventionHost() {
       });
     },
     [
+      agentBusy,
+      agentPinnedListingIds,
+      open,
       wardrobeMode,
       shouldFireIntervention,
       openWithGreeting,
@@ -106,8 +123,6 @@ export function LiveInterventionHost() {
   );
 
   useEffect(() => {
-    if (open || agentBusy || searchLoading) return;
-
     const last = events[events.length - 1];
     if (!last || last.id === lastHandledEventId.current) return;
 
@@ -117,16 +132,37 @@ export function LiveInterventionHost() {
     }
 
     if (last.type === "search_empty") {
+      lastHandledEventId.current = last.id;
+      // Single Authority invariant: Core v2 owns zero-result reasoning & retrieval.
+      // Raw client search_empty cannot generate competing assistant messages.
+      if (
+        !isLiveInterventionAllowed({
+          agentBusy,
+          agentPinnedListingIds,
+          chatOpen: open,
+          interventionKind: "no_match",
+        })
+      ) {
+        return;
+      }
       const query = String(last.payload.query ?? searchQuery).trim();
       if (!query) return;
       const key = `empty:${query}`;
-      if (!shouldFireIntervention(key)) return;
-      lastHandledEventId.current = last.id;
       triggerNoMatchOffer(query, key);
       return;
     }
 
     if (last.type === "listing_dwell" && wardrobeMode) {
+      if (
+        !isLiveInterventionAllowed({
+          agentBusy,
+          agentPinnedListingIds,
+          chatOpen: open,
+          interventionKind: "bargaining",
+        })
+      ) {
+        return;
+      }
       const listingId = String(last.payload.listingId ?? "");
       const title = String(last.payload.title ?? "Prekė");
       const price = Number(last.payload.price) || 0;
@@ -152,6 +188,16 @@ export function LiveInterventionHost() {
     }
 
     if (last.type === "negotiate_click") {
+      if (
+        !isLiveInterventionAllowed({
+          agentBusy,
+          agentPinnedListingIds,
+          chatOpen: open,
+          interventionKind: "bargaining",
+        })
+      ) {
+        return;
+      }
       const listingId = String(last.payload.listingId ?? "");
       const title = String(last.payload.title ?? "Prekė");
       const price = Number(last.payload.price) || 0;
@@ -179,6 +225,7 @@ export function LiveInterventionHost() {
     events,
     open,
     agentBusy,
+    agentPinnedListingIds,
     searchLoading,
     searchQuery,
     wardrobeMode,
@@ -190,24 +237,16 @@ export function LiveInterventionHost() {
   ]);
 
   useEffect(() => {
-    const q = searchQuery.trim();
-    if (!q || searchLoading || agentBusy || open) return;
-    if (rankedListings.length > 0) return;
-
-    const key = `grid_empty:${q}`;
-    if (noMatchTriggeredRef.current === key) return;
-    triggerNoMatchOffer(q, key);
-  }, [
-    searchQuery,
-    rankedListings.length,
-    searchLoading,
-    agentBusy,
-    open,
-    triggerNoMatchOffer,
-  ]);
-
-  useEffect(() => {
-    if (open || agentBusy) return;
+    if (
+      !isLiveInterventionAllowed({
+        agentBusy,
+        agentPinnedListingIds,
+        chatOpen: open,
+        interventionKind: "business_nudge",
+      })
+    ) {
+      return;
+    }
     if (proBusinessNudgeRef.current) return;
     if (user.role !== "pro" && user.role !== "admin") return;
     const onProfile =
@@ -236,6 +275,7 @@ export function LiveInterventionHost() {
   }, [
     open,
     agentBusy,
+    agentPinnedListingIds,
     pathname,
     user.role,
     user.name,
