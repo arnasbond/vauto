@@ -173,6 +173,6 @@ describe("CORE v2 Single Search Authority Invariants", () => {
     const signal = buildSmartBrokerSignal(keywordQuery, []);
     assert.notEqual(signal, null, "Classic keyword query should retain classic broker signal");
     assert.equal(signal?.mode, "empty");
-    assert.ok(signal?.suggestedQueries.length! > 0, "Classic query retains suggested queries");
+    assert.ok(signal && signal.suggestedQueries.length > 0, "Classic query retains suggested queries");
   });
 });
