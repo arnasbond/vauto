@@ -310,11 +310,17 @@ export function buyerTurnRecordToVautoResponse(
   if (searchCall && searchCall.data) {
     actionType = "search";
     const searchData = searchCall.data as { count: number; listings: Array<{ id: string }> };
+    const filters: Record<string, unknown> = {
+      ...(record.stateAfter.hardConstraints as Record<string, unknown>),
+    };
+    if (!filters.category && record.stateAfter.vertical) {
+      filters.category = record.stateAfter.vertical;
+    }
     searchSideEffect = {
       type: "search",
       searchQuery: record.decision.text?.slice(0, 200) || "",
       listingIds: searchData.listings.map((l) => l.id),
-      filters: record.stateAfter.hardConstraints as Record<string, unknown>,
+      filters,
     };
   }
 

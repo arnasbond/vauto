@@ -217,9 +217,12 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
   const capabilityCalls: CapabilityCallRecord[] = [];
   const rejectedAuthority: MultiStepLoopResult["rejectedAuthority"] = [];
   const allProposedPatches: StatePatch[] = [];
+  const executedCallKeys = new Set<string>();
   let decision: ReasoningDecision = {};
+  let iterationsExecuted = 0;
 
   for (let i = 0; i < max; i++) {
+    iterationsExecuted = i + 1;
     opts.onEvent?.({ type: "reasoning", iteration: i + 1 });
     const reasoningStartedAt = Date.now();
     try {
@@ -279,7 +282,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
         failureKind: "unavailable",
       });
       if (i + 1 < max) continue;
-      return { decision, finalState: state, iterations: i + 1, capabilityCalls, rejectedAuthority, allProposedPatches };
+      break;
     }
 
     const ctx: CapabilityContext = opts.capabilityContext ?? {};
@@ -316,6 +319,16 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
         ? deriveSearchListingsArgs(state, req.args)
         : contract.validate(req.args);
 
+    const execKey = `${req.capability}:${JSON.stringify(execArgs)}`;
+    if (executedCallKeys.has(execKey)) {
+      console.warn("[core-v2-loop] duplicate capability execution skipped", {
+        capability: req.capability,
+        execKey,
+      });
+      break;
+    }
+    executedCallKeys.add(execKey);
+
     let result: CapabilityResult<unknown>;
     const capabilityStartedAt = Date.now();
     try {
@@ -343,6 +356,53 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
     groundedResults.push(summarizeResult(req.capability, result));
   }
 
-  opts.onEvent?.({ type: "bound_reached", iterations: max });
-  return { decision, finalState: state, iterations: max, capabilityCalls, rejectedAuthority, allProposedPatches };
+  // Final Grounded-Result Interpretation Pass:
+  // If the loop finished after executing a READ capability without generating visible text,
+  // allow the model a final reasoning pass to interpret grounded results into visible completion.
+  const hasExecutedReadCapability = capabilityCalls.some((c) => c.ok);
+  const decisionHasText = Boolean(decision.text?.trim() || decision.clarification?.trim());
+
+  if (hasExecutedReadCapability && !decisionHasText && deadline - Date.now() > 50) {
+    opts.onEvent?.({ type: "reasoning", iteration: iterationsExecuted + 1 });
+    const interpStartedAt = Date.now();
+    try {
+      const interpDecision = await withinBudget(
+        opts.provider({ ...opts.input, state, groundedResults }),
+        deadline - Date.now()
+      );
+      if (interpDecision) {
+        validateReasoningDecision(interpDecision);
+        if (interpDecision.statePatches?.length) {
+          allProposedPatches.push(...interpDecision.statePatches);
+          const grounded = await withinBudget(
+            groundStatePatches(
+              state,
+              interpDecision.statePatches,
+              opts.input.userTurn,
+              opts.authorityVerifier ?? deterministicAuthorityVerifier
+            ),
+            deadline - Date.now()
+          );
+          state = applyStatePatches(state, grounded.accepted);
+          rejectedAuthority.push(...grounded.rejectedAuthority);
+        }
+        decision = {
+          ...decision,
+          text: interpDecision.text ?? decision.text,
+          clarification: interpDecision.clarification ?? decision.clarification,
+          statePatches: interpDecision.statePatches ?? decision.statePatches,
+        };
+      }
+      console.warn("[core-v2-latency] reasoning_interpretation_pass", {
+        ...opts.diagnosticContext,
+        elapsedMs: Date.now() - interpStartedAt,
+        outcome: "success",
+      });
+    } catch (err) {
+      if (err instanceof TurnBudgetExceededError) throw err;
+    }
+  }
+
+  opts.onEvent?.({ type: "bound_reached", iterations: iterationsExecuted });
+  return { decision, finalState: state, iterations: iterationsExecuted, capabilityCalls, rejectedAuthority, allProposedPatches };
 }

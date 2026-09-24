@@ -287,6 +287,10 @@ vautoAgentRouter.post("/", async (req: AuthedRequest, res) => {
       res.status(500).json({ ok: false, code: "turn_ledger_conflict", error: raw });
       return;
     }
+    if (/core_v2_empty_visible_response/.test(raw)) {
+      res.status(500).json({ ok: false, code: "core_v2_empty_visible_response", error: raw });
+      return;
+    }
     if (/thread_update_contention/.test(raw)) {
       res.status(409).json({ ok: false, code: "thread_update_contention", error: raw });
       return;
@@ -446,7 +450,9 @@ vautoAgentRouter.post("/stream", async (req: AuthedRequest, res) => {
               ? "turn_indeterminate"
               : /turn_ledger_conflict/.test(message)
                 ? "turn_ledger_conflict"
-                : "thread_update_contention";
+                : /core_v2_empty_visible_response/.test(message)
+                  ? "core_v2_empty_visible_response"
+                  : "thread_update_contention";
       const error = threadErr instanceof Error ? threadErr : new Error(String(threadErr));
       console.warn("[core-v2-diag] stream_error", {
         threadId: String(req.body?.threadId ?? "").trim() || null,
