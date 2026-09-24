@@ -71,7 +71,7 @@ export async function fetchBraveSearch(
 
   const doFetch = opts.fetchImpl ?? fetch;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const limit = opts.maxResults ?? DEFAULT_MAX_RESULTS;
+  const limit = Math.min(Math.max(opts.maxResults ?? DEFAULT_MAX_RESULTS, 1), DEFAULT_MAX_RESULTS);
 
   const url = `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query.trim())}&count=${limit}`;
   const t0 = Date.now();
@@ -168,10 +168,17 @@ export const webResearchCapability: CapabilityContract<
       throw new Error("webResearch args must be an object");
     }
     const q = (raw as Record<string, unknown>).query;
-    if (typeof q !== "string" || !q.trim()) {
-      throw new Error("webResearch requires a non-empty query string");
+    if (typeof q !== "string") {
+      throw new Error("webResearch requires a query string");
     }
-    return { query: q.trim() };
+    const trimmed = q.trim();
+    if (trimmed.length < 3) {
+      throw new Error("webResearch query must be at least 3 characters");
+    }
+    if (trimmed.length > 200) {
+      throw new Error("webResearch query must not exceed 200 characters");
+    }
+    return { query: trimmed };
   },
   async execute(
     args: WebResearchArgs,
