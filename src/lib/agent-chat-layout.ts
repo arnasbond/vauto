@@ -9,21 +9,11 @@ import { resolveAgentDisplayQuery } from "@/lib/agent-display-query";
 import { isEmptySearchWishlistCta } from "@/lib/matching-service";
 
 /**
- * E2.8 FINAL — structured zero-result sentence markers. Suppress ONLY raw
- * legacy empty-search bubbles, never a legitimate META/ADVISORY/model answer
- * that merely begins with "Šiuo metu…" or contains "neradau". Anchored so a
- * zero-result sentence must actually START with a no-results marker.
+ * Core v2 single authority — valid assistant response text is never blocked.
+ * Only empty whitespace text is treated as blank.
  */
-const RAW_EMPTY_SEARCH_RE =
-  /^(?:šiuo metu\s+(?:skelbim[ųu]|neturime|nerandame|nėra)|deja,\s*pagal|nieko\s+tinkamo\s+neradau|pabandykime kitą frazę|nerasta atitinkančių|rezultat[uų]\s+nerasta)/i;
-
-/** Brutal substring filter — skip stacked legacy fallback bubbles in DOM. */
 export function isBlockedFallbackBubble(text: string): boolean {
-  const t = text.trim().toLowerCase();
-  if (!t) return true;
-  // 0-result wishlist CTA must always render in chat.
-  if (isEmptySearchWishlistCta(text)) return false;
-  return RAW_EMPTY_SEARCH_RE.test(t);
+  return !text.trim();
 }
 
 /** @deprecated use isBlockedFallbackBubble */

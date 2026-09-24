@@ -23,13 +23,13 @@ describe("E2.8 FINAL — isBlockedFallbackBubble (structured zero-result only)",
     }
   });
 
-  it("raw legacy zero-result bubbles are still suppressed", () => {
+  it("all valid non-empty Core v2 assistant messages are never blocked by text patterns", () => {
     for (const text of [
       "Šiuo metu skelbimų pagal užklausą „parodyti butus Vilnius“ neradome.",
       "Deja, pagal šiuos kriterijus nieko tinkamo neradau.",
       "Pabandykime kitą frazę — rezultatų nerasta.",
     ]) {
-      assert.equal(isBlockedFallbackBubble(text), true, text);
+      assert.equal(isBlockedFallbackBubble(text), false, text);
     }
   });
 

@@ -3194,31 +3194,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             : mergedAssistantText;
 
         if (finalAssistantText.trim()) {
-          const looksLikeSearchFallback =
-            finalAssistantText.startsWith("Šiuo metu") ||
-            finalAssistantText.startsWith("Deja, pagal") ||
-            finalAssistantText.startsWith("Atsiprašau");
-          // E2.8 FINAL — a META/ADVISORY/dialog answer (no executable action)
-          // is a legitimate model response and must render regardless of
-          // surface wording. Suppress the raw search fallback bubble only
-          // when a real search action actually produced it.
-          if (
-            isEmptySearchAction ||
-            proactiveContactConfirmation ||
-            isEmptySearchWishlistCta(finalAssistantText) ||
-            !hasExecutableAction ||
-            !looksLikeSearchFallback
-          ) {
-            appendSupervisorAssistant(
-              finalAssistantText,
-              displayQuickReplies,
-              res.prePublishCard
-            );
-          }
+          appendSupervisorAssistant(
+            finalAssistantText,
+            displayQuickReplies,
+            res.prePublishCard
+          );
         }
         speakReply(finalAssistantText || assistantText);
         if (hasExecutableAction) {
-          if (!isEmptySearchAction && !options?.fromSearchBar) {
+          if (!isEmptySearchAction) {
             setSearchQuery("");
           }
           if (
@@ -3232,13 +3216,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               (l) => !l.banned && l.price > 0 && l.status !== "sold"
             ).length;
             const browseActions = createBrowseAllAction(activeCount);
-            if (!options?.fromSearchBar) {
-              // F9 — stale-turn guard: a fresh sell session bumps the epoch;
-              // an in-flight browse/search turn from the PREVIOUS epoch must
-              // never re-pin results or re-seed the query after the wipe.
-              if (getSellerListingSessionEpoch() === epochAtSend) {
-                applyActions(browseActions);
-              }
+            if (getSellerListingSessionEpoch() === epochAtSend) {
+              applyActions(browseActions);
             }
             return {
               ok: true,
@@ -3246,10 +3225,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               actions: browseActions,
             };
           }
-          // Always apply empty_search (opens chat + wishlist CTA) even from search bar —
-          // except inside an active seller listing session (greeting must not become search).
           if (
-            (!options?.fromSearchBar || isEmptySearchAction) &&
             !(sellerListingIsolated && res.actions.type === "empty_search") &&
             // F9 — stale-turn guard (same epoch contract as above).
             getSellerListingSessionEpoch() === epochAtSend

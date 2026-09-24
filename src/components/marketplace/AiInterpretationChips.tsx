@@ -12,6 +12,7 @@ import {
   chipToFacetTarget,
   removeAiFacet,
 } from "@/lib/apply-ai-facet";
+import { listingCategoryLabel } from "@vauto/shared/category-registry";
 import { categoryFilterFieldsFor } from "@/lib/category-attribute-filters";
 import type { MarketplaceFilterState } from "@/lib/marketplace-view";
 import { syncMarketplaceFiltersToUrl } from "@/lib/marketplace-filter-url";
@@ -36,7 +37,100 @@ export interface AiInterpretationChipsProps {
   onQueryChange?: (next: string) => void;
 }
 
-/** Map a chip's canonical field back to an edit target (shared production helper). */
+export function canonicalFiltersToChips(
+  filters: MarketplaceFilterState
+): FacetChip[] {
+  const chips: FacetChip[] = [];
+
+  if (filters.category && filters.category !== "all") {
+    const label = listingCategoryLabel(filters.category);
+    chips.push({
+      id: `ai:vertical:category:${filters.category}`,
+      kind: "vertical",
+      field: "category",
+      label,
+      value: filters.category,
+      fromAi: true,
+      baseField: "category",
+    });
+  }
+
+  if (filters.location?.trim()) {
+    chips.push({
+      id: `ai:location:location:${filters.location.trim().toLowerCase()}`,
+      kind: "location",
+      field: "location",
+      label: filters.location.trim(),
+      value: filters.location.trim(),
+      fromAi: true,
+      baseField: "location",
+    });
+  }
+
+  if (filters.priceMin != null || filters.priceMax != null) {
+    let label = "";
+    if (filters.priceMin != null && filters.priceMax != null) {
+      label = `Kaina ${filters.priceMin} - ${filters.priceMax} €`;
+    } else if (filters.priceMax != null) {
+      label = `Kaina iki ${filters.priceMax} €`;
+    } else {
+      label = `Kaina nuo ${filters.priceMin} €`;
+    }
+    chips.push({
+      id: `ai:price:${filters.priceMax != null ? "priceMax" : "priceMin"}:${filters.priceMax ?? filters.priceMin}`,
+      kind: "price",
+      field: filters.priceMax != null ? "priceMax" : "priceMin",
+      label,
+      value: String(filters.priceMax ?? filters.priceMin),
+      fromAi: true,
+      baseField: filters.priceMax != null ? "priceMax" : "priceMin",
+    });
+  }
+
+  if (filters.condition && filters.condition !== "all") {
+    const label = filters.condition === "new" ? "Naujas" : "Naudotas";
+    chips.push({
+      id: `ai:condition:condition:${filters.condition}`,
+      kind: "condition",
+      field: "condition",
+      label,
+      value: filters.condition,
+      fromAi: true,
+      baseField: "condition",
+    });
+  }
+
+  if (filters.radiusKm != null) {
+    chips.push({
+      id: `ai:radius:radiusKm:${filters.radiusKm}`,
+      kind: "radius",
+      field: "radiusKm",
+      label: `+${filters.radiusKm} km`,
+      value: String(filters.radiusKm),
+      fromAi: true,
+      baseField: "radiusKm",
+    });
+  }
+
+  if (filters.categoryAttributes) {
+    for (const [key, val] of Object.entries(filters.categoryAttributes)) {
+      if (val && String(val).trim()) {
+        const strVal = String(val).trim();
+        chips.push({
+          id: `ai:attribute:${key}:${strVal.toLowerCase()}`,
+          kind: "attribute",
+          field: key,
+          label: `${key}: ${strVal}`,
+          value: strVal,
+          fromAi: true,
+          baseField: "categoryAttributes",
+        });
+      }
+    }
+  }
+
+  return chips;
+}
 
 export function AiInterpretationChips({
   searchQuery,
@@ -45,70 +139,31 @@ export function AiInterpretationChips({
   onQueryChange,
 }: AiInterpretationChipsProps) {
   const query = searchQuery.trim();
-  const interpretation = useMemo(() => interpretAiFacets(query), [query]);
-  const rawChips = interpretation.chips;
+  const rawChips = useMemo(
+    () => canonicalFiltersToChips(filters),
+    [filters]
+  );
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  // Facet ids the user explicitly removed this submission. Decoupled from the
-  // applied filter state so the AI readout stays stable (18A): it reflects what
-  // VAUTO understood, and a facet disappears only when the user removes it (or
-  // the query changes). Agent-driven result overrides therefore cannot make
-  // interpreted criteria silently vanish.
   const [removedChipIds, setRemovedChipIds] = useState<string[]>([]);
   const addMenuRef = useRef<HTMLDivElement>(null);
 
-  // Reset the removed-set whenever a new query is submitted/edited so a fresh
-  // interpretation starts with the full, visible readout again.
   useEffect(() => {
     setRemovedChipIds([]);
     setEditingId(null);
     setAddOpen(false);
   }, [query]);
 
-  // Chips reflect what AI understood, minus facets the user removed.
   const chips = useMemo(
     () => rawChips.filter((chip) => !removedChipIds.includes(chip.id)),
     [rawChips, removedChipIds]
   );
 
-  // Apply the interpretation's canonical base/attribute facets to the shared
-  // filter state once per query, so results agree with what AI understood
-  // (18B adapter → canonical search state). Keyword chips (make/model) are NOT
-  // applied here — they edit the search query itself. A re-submit or a changed
-  // query re-applies; a manual removal stays removed (matched via filter state).
-  //
-  // 21C-1 — idempotency guard: if the interpreted facet set already equals the
-  // committed canonical filter state, do NOT rewrite it. This prevents a
-  // stale-readout race where an AI-UP agent response (which also writes the
-  // canonical filter state via applyAgentActions) could be silently overwritten
-  // by the chips' interpretation effect on a later mount of the same query.
-  const appliedRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!query) return;
-    if (appliedRef.current === query) return;
-    appliedRef.current = query;
-    const next = applyFacetChips(filters, rawChips);
-    // 21C-1 idempotency guard — deep-value comparison, not reference: normalize
-    // always produces a fresh object, so only skip when every canonical field is
-    // already equal. This prevents an AI-UP agent response (which also writes
-    // the canonical filter state) from being silently overwritten on a later
-    // mount of the same query.
-    const same =
-      next.category === filters.category &&
-      next.location === filters.location &&
-      next.priceMin === filters.priceMin &&
-      next.priceMax === filters.priceMax &&
-      next.condition === filters.condition &&
-      next.radiusKm === filters.radiusKm &&
-      next.sort === filters.sort &&
-      JSON.stringify(next.categoryAttributes) ===
-        JSON.stringify(filters.categoryAttributes);
-    if (same) return;
-    // Apply the interpretation via the single production write bridge.
-    onFiltersChange(next);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- one-shot per query
-  }, [query]);
+  // Core v2 single authority — search state and filters are set by Core v2
+  // actions during AI turns. AiInterpretationChips renders visual chips and
+  // allows explicit user edits/removals without automatically mutating filters
+  // behind Core v2's back.
 
   // Stage 18.3 — persist the interpreted (and user-edited) facet set into the
   // search URL via the complementary layer so reload/deep-link restores it
@@ -132,9 +187,9 @@ export function AiInterpretationChips({
     query,
   ]);
 
-  if (!query) return null;
+  if (!query && filters.category === "all") return null;
 
-  const vertical = interpretation.vertical;
+  const vertical = filters.category !== "all" ? filters.category : "all";
 
   const chipHasEditingSurface = (chip: FacetChip) =>
     chip.kind === "attribute" &&
