@@ -359,7 +359,9 @@ export function buildR3UserPrompt(input: ReasoningInput): string {
     userTurn: input.userTurn,
     history: input.history,
     stateSummary: summarizeStateForClaims(input),
-    capabilities: input.capabilities.map((c) => `${c.name}(${c.operation})`),
+    capabilities: input.capabilities.map((c) =>
+      c.description ? `${c.name}(${c.operation}): ${c.description}` : `${c.name}(${c.operation})`
+    ),
     groundedResults: input.groundedResults?.map((g) => (g.ok ? `${g.capability}: ${g.summary ?? ""}` : `${g.capability}: KLAIDA ${g.error ?? ""}`)),
     priorResults: input.priorResults,
   });
