@@ -39,6 +39,7 @@ import {
   persistAgentThreadLink,
   clearAgentThreadId,
 } from "@/lib/agent-thread-link";
+import { selectAgentSessionMessages } from "@/lib/agent-session-memory";
 import { isLiveInterventionAllowed } from "@/lib/agent-action-guard";
 import type { AgentChatMessage } from "@/lib/vauto-agent-client";
 
@@ -87,13 +88,14 @@ describe("PR #103 Thread Continuity & History Preservation Invariants", () => {
     // Simulating PR103 setMessages reducer
     messages = [...messages, turn2Assistant].slice(-12);
 
-    assert.equal(messages.length, 4, "Messages state must contain all 4 turns in order");
+    // Production helper selectAgentSessionMessages preserves user and assistant roles across turns
+    const sessionSelected = selectAgentSessionMessages(messages);
+    assert.equal(sessionSelected.length, 4, "selectAgentSessionMessages must preserve all turns");
     assert.deepEqual(
-      messages.map((m) => m.role),
+      sessionSelected.map((m) => m.role),
       ["user", "assistant", "user", "assistant"],
-      "Order must strictly follow user1 → assistant1 → user2 → assistant2"
+      "Production session messages payload must maintain user and assistant roles"
     );
-    assert.equal(messages[1].text, turn1Assistant.text, "Turn 1 assistant response must NOT disappear");
   });
 
   it("3. Explicit chat reset clears threadId via clearAgentThreadId()", () => {

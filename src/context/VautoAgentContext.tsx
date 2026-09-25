@@ -2554,10 +2554,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         geoCoords: buyerCoords,
       });
       // PR103 — Core v2 AI conversation thread continuity.
-      // Semantic keyword/pivot heuristics must NOT detach or reset the active Core v2 thread.
-      const searchSessionReset = false;
-      const sessionMessagesForSearch: typeof sessionMessages | null = null;
-      const resetFilters = null;
 
       const viewIntent = parseViewModeIntent(trimmed);
       if (viewIntent) {
@@ -2613,9 +2609,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                 window.location.search
               )
             : resolveClientPageUrl(pathname ?? "/");
-        const effectiveFilters = searchSessionReset
-          ? resetFilters
-          : memoryContext.activeSearchFilters;
+        const effectiveFilters = memoryContext.activeSearchFilters;
         const currentUser = buildSupervisorCurrentUser({
           user: profileUser,
           isAuthenticated,
@@ -2676,7 +2670,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             | undefined,
           lockedPrice: lockedPriceForContext,
         }) as typeof baseListingDraft;
-        const wireSessionMessages = sessionMessagesForSearch ?? sessionMessages;
+        const wireSessionMessages = sessionMessages;
         // E1.1 — anonymous threads require the server-issued token for
         // continuation. If the user is now authenticated and a token is
         // stored, claim the thread first (ownership moves to the JWT userId),
@@ -2728,13 +2722,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             listingDraft: listingDraftForContext,
             activeSearchFilters: isolateSearchFromSeller
               ? null
-              : searchSessionReset
-                ? resetFilters
-                : memoryContext.activeSearchFilters,
+              : memoryContext.activeSearchFilters,
             searchSessionReset:
               isolateSearchFromSeller ||
               freshSessionActive ||
-              searchSessionReset ||
               undefined,
             // P0-3 — Never forward buyer category/search pins into a sell session.
             recentSearchListingIds:
