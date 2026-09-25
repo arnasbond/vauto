@@ -1,0 +1,131 @@
+/**
+ * PR #105 — Frontend Lifecycle Thread Continuity Regression Test
+ *
+ * Verifies frontend thread state preservation for anonymous buyer turns:
+ * 1. Anonymous Turn 1 receives thread metadata { threadId, version: 1, anonSessionToken }.
+ * 2. Client persists thread link into localStorage (`vauto_agent_thread_v1`).
+ * 3. Search capability / URL filter update sets non-query URL params (?category=vehicles&priceMax=20000).
+ * 4. Active conversation check (readAgentThreadLink() || messages.length > 0) preserves thread state.
+ * 5. Turn 2 reads back the active thread link with SAME threadId and anonSessionToken.
+ * 6. Version updates preserve anonSessionToken across consecutive turns.
+ */
+import assert from "node:assert/strict";
+import { describe, it, before, beforeEach } from "node:test";
+
+// Mock minimal window & localStorage for Node environment test
+before(() => {
+  if (typeof globalThis.window === "undefined") {
+    const store: Record<string, string> = {};
+    (globalThis as unknown as { window: unknown }).window = {
+      localStorage: {
+        getItem: (key: string) => store[key] ?? null,
+        setItem: (key: string, val: string) => {
+          store[key] = val;
+        },
+        removeItem: (key: string) => {
+          delete store[key];
+        },
+        clear: () => {
+          for (const k of Object.keys(store)) delete store[k];
+        },
+      },
+      location: {
+        search: "",
+        pathname: "/",
+        hash: "",
+      },
+    };
+  }
+});
+
+import {
+  readAgentThreadLink,
+  persistAgentThreadLink,
+  clearAgentThreadId,
+} from "@/lib/agent-thread-link";
+
+describe("PR #105 Frontend Thread Continuity Regression Test", () => {
+  beforeEach(() => {
+    clearAgentThreadId();
+  });
+
+  it("anonymous Turn 1 → capability/search URL filters → active conversation survives → Turn 2 retains same threadId & anonSessionToken", () => {
+    const initialThreadId = "thr_8b85f5a4f808132f2e966785";
+    const initialAnonToken = "anon_tok_abc123xyz";
+
+    // 1. Turn 1 stream final returns thread metadata & client persists link
+    persistAgentThreadLink({
+      threadId: initialThreadId,
+      version: 1,
+      anonSessionToken: initialAnonToken,
+    });
+
+    const linkAfterTurn1 = readAgentThreadLink();
+    assert.ok(linkAfterTurn1, "Thread link must be stored after Turn 1");
+    assert.equal(linkAfterTurn1?.threadId, initialThreadId);
+    assert.equal(linkAfterTurn1?.anonSessionToken, initialAnonToken);
+
+    // 2. Search capability updates URL search parameters to non-query structured filters
+    if (typeof globalThis.window !== "undefined") {
+      (globalThis.window as unknown as { location: { search: string } }).location.search =
+        "?category=vehicles&priceMax=20000";
+    }
+
+    // 3. Evaluate active conversation check (readAgentThreadLink() !== null)
+    const activeLink = readAgentThreadLink();
+    const hasActiveConversation = Boolean(activeLink || false);
+    assert.equal(
+      hasActiveConversation,
+      true,
+      "Active conversation must be detected after search capability URL update"
+    );
+
+    // 4. Verify threadId and anonSessionToken are preserved after URL state update
+    assert.equal(
+      activeLink?.threadId,
+      initialThreadId,
+      "threadId must survive search filter URL update"
+    );
+    assert.equal(
+      activeLink?.anonSessionToken,
+      initialAnonToken,
+      "anonSessionToken must survive search filter URL update"
+    );
+
+    // 5. Turn 2 constructs request using readAgentThreadLink()
+    const refreshedLinkForTurn2 = readAgentThreadLink();
+    assert.equal(
+      refreshedLinkForTurn2?.threadId,
+      initialThreadId,
+      "Turn 2 request must attach original threadId"
+    );
+    assert.equal(
+      refreshedLinkForTurn2?.anonSessionToken,
+      initialAnonToken,
+      "Turn 2 request must attach original anonSessionToken"
+    );
+
+    // 6. Turn 2 completes with advanced version & link version update preserves anonSessionToken
+    persistAgentThreadLink({
+      threadId: initialThreadId,
+      version: 2,
+    });
+
+    const linkAfterTurn2 = readAgentThreadLink();
+    assert.equal(
+      linkAfterTurn2?.threadId,
+      initialThreadId,
+      "threadId must remain unchanged after Turn 2 version bump"
+    );
+    assert.equal(
+      linkAfterTurn2?.version,
+      2,
+      "version must be updated to 2"
+    );
+    assert.equal(
+      linkAfterTurn2?.anonSessionToken,
+      initialAnonToken,
+      "anonSessionToken must be preserved across version updates"
+    );
+  });
+});

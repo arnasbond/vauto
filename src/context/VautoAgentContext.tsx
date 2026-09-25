@@ -2688,10 +2688,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               threadId: threadLink.threadId,
               version: claimed.data.version ?? threadLink.version,
             });
+          } else if (claimed.code === "already_bound") {
+            // Thread is already bound to a user — preserve threadId, drop anon token
+            persistAgentThreadLink({
+              threadId: threadLink.threadId,
+              version: threadLink.version,
+            });
           } else {
-            // Any claim failure (already_bound / token_mismatch / not_found)
-            // means the link is unusable — forget it; the server self-heals
-            // with a fresh thread on the next turn.
+            // Real claim failure (token_mismatch / not_found) — forget the link.
             clearAgentThreadId();
           }
         }
@@ -3550,9 +3554,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     const hasSearchParams = Boolean(
       params?.get("q")?.trim() ||
         params?.get("query")?.trim() ||
-        params?.get("search")?.trim()
+        params?.get("search")?.trim() ||
+        params?.toString().trim()
     );
     if (hasSearchParams) return;
+
+    // Never wipe an active conversation thread with visible messages or active thread link
+    const hasActiveConversation = Boolean(readAgentThreadLink() || messages.length > 0);
+    if (hasActiveConversation) return;
 
     const arrivedFromElsewhere =
       prev !== null && prev !== "/" && prev !== "" && prev !== "/index";

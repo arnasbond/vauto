@@ -19,7 +19,7 @@ import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 
 export type ApiResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string; status?: number };
+  | { ok: false; error: string; status?: number; code?: string };
 
 export const SESSION_EXPIRED_MESSAGE =
   "Prisijungimas nebegalioja. Prašome prisijungti iš naujo.";
@@ -57,6 +57,15 @@ export async function dataFetch<T>(
     });
     if (!res.ok) {
       const text = await res.text().catch(() => "");
+      let code: string | undefined;
+      if (text) {
+        try {
+          const parsed = JSON.parse(text) as { code?: string };
+          if (typeof parsed.code === "string") code = parsed.code;
+        } catch {
+          /* plain text */
+        }
+      }
       return {
         ok: false,
         error:
@@ -64,6 +73,7 @@ export async function dataFetch<T>(
           res.statusText ||
           `HTTP ${res.status}`,
         status: res.status,
+        code,
       };
     }
     if (res.status === 204) return { ok: true, data: null as T };
