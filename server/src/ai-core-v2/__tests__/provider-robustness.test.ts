@@ -107,7 +107,7 @@ describe("Core v2.3B — timeout/retry budget composition", () => {
 
   it("the configured budget is bounded and finite", () => {
     assert.equal(CORE_V2_MAX_REASONING_ATTEMPTS, 2);
-    assert.equal(CORE_V2_REASONING_TIMEOUT_MS, 8_000);
+    assert.equal(CORE_V2_REASONING_TIMEOUT_MS, 18_000);
     // Verifier ceiling is shorter than total turn ceiling (fast fail-closed tail).
     assert.equal(CORE_V2_VERIFIER_TIMEOUT_MS, 15_000);
     // Total turn budget is a hard ceiling that exceeds any single reasoning call + verifier call.
