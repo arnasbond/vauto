@@ -41,10 +41,14 @@ export function readAgentThreadLink(): AgentThreadLink | null {
 export function persistAgentThreadLink(link: AgentThreadLink): void {
   if (!storageAvailable()) return;
   try {
+    const existing = readAgentThreadLink();
+    const anonSessionToken =
+      link.anonSessionToken ??
+      (existing?.threadId === link.threadId ? existing.anonSessionToken : undefined);
     const stored: AgentThreadLink = {
       threadId: link.threadId,
       version: link.version,
-      ...(link.anonSessionToken ? { anonSessionToken: link.anonSessionToken } : {}),
+      ...(anonSessionToken ? { anonSessionToken } : {}),
     };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
   } catch {

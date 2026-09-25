@@ -9,28 +9,22 @@ import { afterEach, describe, it } from "node:test";
 
 import { InMemoryThreadStore, mintAnonSessionToken, newThreadRecord } from "../thread-store.js";
 import { setThreadStoreForTests } from "../thread-store-instance.js";
-import { claimThreadForUser, runThreadTurn } from "../thread-service.js";
+import { claimThreadForUser, runThreadTurn, setThreadAgentForTests } from "../thread-service.js";
 
 afterEach(() => {
   setThreadStoreForTests(null);
+  setThreadAgentForTests(null);
 });
 
 function installEmptyModel() {
-  const original = globalThis.fetch;
-  globalThis.fetch = (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-    const url = String(input);
-    if (!url.includes("generativelanguage.googleapis.com")) {
-      return original(input, init);
-    }
-    return new Response(
-      JSON.stringify({ candidates: [{ content: { parts: [] } }] }),
-      { status: 200, headers: { "Content-Type": "application/json" } }
-    );
-  }) as typeof fetch;
-  process.env.GEMINI_API_KEY = "e1.1-test-key";
+  setThreadAgentForTests(async () => ({
+    ok: true,
+    reply: "Atsakymas",
+    toolCalls: [],
+    actions: { type: "none" },
+  }));
   return () => {
-    globalThis.fetch = original;
-    delete process.env.GEMINI_API_KEY;
+    setThreadAgentForTests(null);
   };
 }
 
