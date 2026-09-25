@@ -26,7 +26,7 @@ export function subscribeAuthLogout(handler: () => void): () => void {
  */
 export function purgeClientSessionAndDraftState(): void {
   clearAllListingDrafts();
-  clearAgentThreadId("purge_client_session_and_draft_state");
+  clearAgentThreadId();
   clearPhotoSearchSession();
   clearPendingPhotoIntent();
   clearListingEditSession();

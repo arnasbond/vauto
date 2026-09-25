@@ -918,10 +918,15 @@ export async function apiUpdateUserAvatar(
  * The server-issued anon token is the ownership proof; after a successful
  * claim the client must drop the token (ownership moves to the JWT userId).
  */
+export type ApiClaimAgentThreadResult = ApiResult<{
+  threadId: string;
+  version: number;
+}>;
+
 export async function apiClaimAgentThread(
   threadId: string,
   anonSessionToken: string
-): Promise<ApiResult<{ threadId: string; version: number }>> {
+): Promise<ApiClaimAgentThreadResult> {
   return dataFetch<{ threadId: string; version: number }>(
     `/api/vauto-agent/threads/${encodeURIComponent(threadId)}/claim`,
     {

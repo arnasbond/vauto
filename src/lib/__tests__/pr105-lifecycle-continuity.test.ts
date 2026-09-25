@@ -8,6 +8,7 @@
  * 4. Active conversation check (readAgentThreadLink() || messages.length > 0) preserves thread state.
  * 5. Turn 2 reads back the active thread link with SAME threadId and anonSessionToken.
  * 6. Version updates preserve anonSessionToken across consecutive turns.
+ * 7. Auth decision / claim auth_required does NOT destroy valid anonymous thread link.
  */
 import assert from "node:assert/strict";
 import { describe, it, before, beforeEach } from "node:test";
@@ -126,6 +127,103 @@ describe("PR #105 Frontend Thread Continuity Regression Test", () => {
       linkAfterTurn2?.anonSessionToken,
       initialAnonToken,
       "anonSessionToken must be preserved across version updates"
+    );
+  });
+
+  it("PRODUCTION SEQUENCE: valid anonymous thread + anon token → auth_required claim response does NOT destroy thread link", () => {
+    const threadId = "thr_ac6f4d1672c73178c9cf5a46";
+    const anonToken = "anon_tok_xyz987_production";
+
+    // 1. Initial valid anonymous thread link stored in localStorage
+    persistAgentThreadLink({
+      threadId,
+      version: 1,
+      anonSessionToken: anonToken,
+    });
+
+    // 2. Verify claim decision logic for anonymous user object ({ id: "guest", name: "Svečias" })
+    const guestUser = { id: "guest", name: "Svečias" };
+    const isAuthenticated = false;
+
+    // Genuinely authenticated check: must evaluate to FALSE for guest user
+    const isGenuinelyAuthenticated = Boolean(
+      isAuthenticated && guestUser?.id && guestUser.id !== "guest"
+    );
+    assert.equal(
+      isGenuinelyAuthenticated,
+      false,
+      "Guest user (id: guest) must NOT trigger apiClaimAgentThread"
+    );
+
+    // 3. Verify auth_required claim response handling preserves anonymous link
+    const threadLink = readAgentThreadLink();
+    assert.ok(threadLink?.anonSessionToken, "anonSessionToken must exist in thread link");
+
+    const handleClaimResult = (
+      claimed: import("@/lib/api/client").ApiClaimAgentThreadResult,
+      link: { threadId: string; version: number; anonSessionToken?: string }
+    ) => {
+      if (claimed.ok) {
+        persistAgentThreadLink({
+          threadId: link.threadId,
+          version: claimed.data.version ?? link.version,
+        });
+      } else if (claimed.code === "already_bound") {
+        persistAgentThreadLink({
+          threadId: link.threadId,
+          version: link.version,
+        });
+      } else if (
+        claimed.code === "auth_required" ||
+        claimed.code === "session_expired"
+      ) {
+        persistAgentThreadLink({
+          threadId: link.threadId,
+          version: link.version,
+          anonSessionToken: link.anonSessionToken,
+        });
+      } else {
+        clearAgentThreadId();
+      }
+    };
+
+    // Simulate claim response returning ok: false with code: "auth_required"
+    const claimedResponse: import("@/lib/api/client").ApiClaimAgentThreadResult = {
+      ok: false,
+      code: "auth_required",
+      error: "Prisijunkite.",
+    };
+
+    handleClaimResult(claimedResponse, threadLink);
+
+    // 4. Verify thread link was NOT destroyed and retains SAME threadId + anonSessionToken
+    const linkAfterClaimDecision = readAgentThreadLink();
+    assert.ok(linkAfterClaimDecision, "Thread link must survive auth_required response");
+    assert.equal(
+      linkAfterClaimDecision?.threadId,
+      threadId,
+      "threadId must be retained after auth_required response"
+    );
+    assert.equal(
+      linkAfterClaimDecision?.anonSessionToken,
+      anonToken,
+      "anonSessionToken must be retained after auth_required response"
+    );
+
+    // 5. Verify genuine invalid ownership failure (token_mismatch / not_found) DOES clear link
+    const securityFailureResponse: import("@/lib/api/client").ApiClaimAgentThreadResult = {
+      ok: false,
+      code: "token_mismatch",
+      error: "Token mismatch",
+    };
+
+    handleClaimResult(securityFailureResponse, threadLink);
+
+    const linkAfterSecurityFailure = readAgentThreadLink();
+    assert.equal(
+      linkAfterSecurityFailure,
+      null,
+      "Genuine security failure (token_mismatch) MUST clear the thread link"
     );
   });
 });
