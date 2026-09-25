@@ -42,7 +42,7 @@ export async function syncAgentListingDraft(input: {
     delta: input.delta,
   });
   if (result.ok) {
-    persistAgentThreadLink({ threadId, version: result.version });
+    persistAgentThreadLink({ threadId, version: result.version }, "draft_sync_success");
     return result;
   }
   if (result.code === "stale_version") {
@@ -52,7 +52,7 @@ export async function syncAgentListingDraft(input: {
     // write — a retry could overwrite newer facts.
     const recovered = await reDiscoverAgentDraft(threadId);
     if (recovered.ok) {
-      persistAgentThreadLink({ threadId, version: recovered.version });
+      persistAgentThreadLink({ threadId, version: recovered.version }, "draft_sync_recovery");
       return {
         ok: false,
         code: "stale_version",
