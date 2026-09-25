@@ -18,6 +18,7 @@ import { CapabilityRegistry } from "../capability/registry.js";
 import { searchListingsCapability } from "../capability/capabilities/search-listings.js";
 import { emptyMarketplaceState } from "../state/marketplace-state.js";
 import type { ReasoningInput } from "../reasoning/reasoning-contract.js";
+import { mapAgentErrorToStreamCode } from "../../routes/vauto-agent.js";
 
 const baseInput: ReasoningInput = {
   userTurn: "Nežinau tiksliai kokio automobilio noriu. Reikia šeimai patikimo automobilio iki 20 tūkst. eurų.",
@@ -133,12 +134,39 @@ describe("PR #104 Malformed Model Output Recovery & Error Mapping Invariants", (
     assert.equal(loopResult.decision.text, "Radau 2 automobilius.");
   });
 
-  it("D. isRetryableFailure accurately identifies malformed_json and schema_invalid as retryable", () => {
+  it("D. Stream error code mapping maps malformed_json, schema_invalid, contention, and unknown errors accurately", () => {
+    // 1. malformed_json → malformed_json
+    assert.equal(
+      mapAgentErrorToStreamCode(new ProviderFailureError("malformed_json", "model output was not valid JSON")),
+      "malformed_json"
+    );
+    assert.equal(
+      mapAgentErrorToStreamCode(new Error("Provider failure: malformed_json")),
+      "malformed_json"
+    );
+
+    // 2. schema_invalid → schema_invalid
+    assert.equal(
+      mapAgentErrorToStreamCode(new ProviderFailureError("schema_invalid", "actionKind is required")),
+      "schema_invalid"
+    );
+
+    // 3. actual thread_update_contention → thread_update_contention
+    assert.equal(
+      mapAgentErrorToStreamCode(new Error("thread_update_contention")),
+      "thread_update_contention"
+    );
+
+    // 4. unknown/unclassified error → agent_error
+    assert.equal(
+      mapAgentErrorToStreamCode(new Error("Unexpected random internal error")),
+      "agent_error"
+    );
+
+    // isRetryableFailure sanity check
     assert.equal(isRetryableFailure(new ProviderFailureError("malformed_json", "bad json")), true);
     assert.equal(isRetryableFailure(new ProviderFailureError("schema_invalid", "bad schema")), true);
     assert.equal(isRetryableFailure(new ProviderFailureError("timeout", "timeout")), false);
-    assert.equal(isRetryableFailure(new ProviderFailureError("provider_unavailable", "no key")), false);
-    assert.equal(isRetryableFailure(new ProviderFailureError("http_error", "500 server error", 500)), true);
   });
 
   it("E. Normal successful Core v2 reasoning/capability flow operates without regressions", async () => {

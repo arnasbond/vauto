@@ -337,6 +337,36 @@ vautoAgentRouter.post("/threads/:threadId/claim", optionalAuth, async (req: Auth
   }
 });
 
+export function mapAgentErrorToStreamCode(threadErr: unknown): string {
+  const message = threadErr instanceof Error ? threadErr.message : String(threadErr ?? "");
+  const rawCode = (threadErr as { code?: string })?.code;
+  return rawCode === "malformed_json" || /malformed_json/.test(message)
+    ? "malformed_json"
+    : rawCode === "schema_invalid" || /schema_invalid/.test(message)
+      ? "schema_invalid"
+      : rawCode === "turn_budget_exceeded" || /turn_budget_exceeded/.test(message)
+        ? "turn_budget_exceeded"
+        : rawCode === "provider_unavailable" || /provider_unavailable/.test(message)
+          ? "provider_unavailable"
+          : rawCode === "timeout" || /timeout/.test(message)
+            ? "timeout"
+            : /ownership/.test(message)
+              ? "thread_ownership_violation"
+              : /empty_user_turn/.test(message)
+                ? "invalid_request"
+                : /turn_in_progress/.test(message)
+                  ? "turn_in_progress"
+                  : /turn_indeterminate/.test(message)
+                    ? "turn_indeterminate"
+                    : /turn_ledger_conflict/.test(message)
+                      ? "turn_ledger_conflict"
+                      : /core_v2_empty_visible_response/.test(message)
+                        ? "core_v2_empty_visible_response"
+                        : /thread_update_contention/.test(message)
+                          ? "thread_update_contention"
+                          : "agent_error";
+}
+
 /** SSE comment + status keep-alive so Vercel/Render idle proxies never cut Vision OCR. */
 const STREAM_HEARTBEAT_MS = 10_000;
 
@@ -440,33 +470,7 @@ vautoAgentRouter.post("/stream", async (req: AuthedRequest, res) => {
       });
     } catch (threadErr) {
       const message = threadErr instanceof Error ? threadErr.message : String(threadErr);
-      const rawCode = (threadErr as { code?: string })?.code;
-      const code =
-        rawCode === "malformed_json" || /malformed_json/.test(message)
-          ? "malformed_json"
-          : rawCode === "schema_invalid" || /schema_invalid/.test(message)
-            ? "schema_invalid"
-            : rawCode === "turn_budget_exceeded" || /turn_budget_exceeded/.test(message)
-              ? "turn_budget_exceeded"
-              : rawCode === "provider_unavailable" || /provider_unavailable/.test(message)
-                ? "provider_unavailable"
-                : rawCode === "timeout" || /timeout/.test(message)
-                  ? "timeout"
-                  : /ownership/.test(message)
-                    ? "thread_ownership_violation"
-                    : /empty_user_turn/.test(message)
-                      ? "invalid_request"
-                      : /turn_in_progress/.test(message)
-                        ? "turn_in_progress"
-                        : /turn_indeterminate/.test(message)
-                          ? "turn_indeterminate"
-                          : /turn_ledger_conflict/.test(message)
-                            ? "turn_ledger_conflict"
-                            : /core_v2_empty_visible_response/.test(message)
-                              ? "core_v2_empty_visible_response"
-                              : /thread_update_contention/.test(message)
-                                ? "thread_update_contention"
-                                : "agent_error";
+      const code = mapAgentErrorToStreamCode(threadErr);
       const error = threadErr instanceof Error ? threadErr : new Error(String(threadErr));
       console.warn("[core-v2-diag] stream_error", {
         threadId: String(req.body?.threadId ?? "").trim() || null,
