@@ -129,4 +129,30 @@ describe("PR #103 Thread Continuity & History Preservation Invariants", () => {
 
     assert.equal(isAllowed, false, "no_match intervention authority must remain disabled");
   });
+
+  it("6. persistAgentThreadLink preserves existing anonSessionToken when updating link version for same threadId", () => {
+    persistAgentThreadLink({
+      threadId: "thr_test_anon_123",
+      version: 1,
+      anonSessionToken: "tok_secret_abc",
+    });
+
+    const linkV1 = readAgentThreadLink();
+    assert.equal(linkV1?.anonSessionToken, "tok_secret_abc");
+
+    // Server returns version update without re-sending anonSessionToken
+    persistAgentThreadLink({
+      threadId: "thr_test_anon_123",
+      version: 2,
+    });
+
+    const linkV2 = readAgentThreadLink();
+    assert.equal(linkV2?.threadId, "thr_test_anon_123");
+    assert.equal(linkV2?.version, 2);
+    assert.equal(
+      linkV2?.anonSessionToken,
+      "tok_secret_abc",
+      "anonSessionToken must be preserved across version updates for the same threadId"
+    );
+  });
 });

@@ -181,7 +181,14 @@ async function loadOrCreate(input: ThreadTurnInput): Promise<{
           throw new Error("thread_ownership_violation");
         }
       }
-      return { record: existing, created: false };
+      return {
+        record: existing,
+        created: false,
+        anonSessionToken:
+          !input.authUserId && input.anonSessionToken
+            ? input.anonSessionToken
+            : undefined,
+      };
     }
     // Stale client thread id → self-heal with a fresh thread (fail-closed).
   }
