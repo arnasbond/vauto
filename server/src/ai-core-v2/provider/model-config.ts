@@ -31,11 +31,11 @@ export function getCoreV2Provider(): CoreV2ProviderKind {
 /**
  * Reasoning provider per-attempt timeout.
  *
- * Production evidence: normal successful calls complete in ~1–3.6s. A hung call
- * timeout must not be retried in interactive turns. Capping the attempt ceiling
- * at 8s bounds interactive latency without impacting normal successful turns.
+ * Production evidence: DeepSeek reasoning API calls in complex multi-turn scenarios
+ * can take ~10–16s. Capping the attempt ceiling at 18s bounds interactive latency
+ * without prematurely aborting valid reasoning passes.
  */
-export const CORE_V2_REASONING_TIMEOUT_MS = 8_000;
+export const CORE_V2_REASONING_TIMEOUT_MS = 18_000;
 
 /** Bounded retry count for safe, idempotent READ/shadow reasoning requests. */
 export const CORE_V2_MAX_REASONING_ATTEMPTS = 2;
