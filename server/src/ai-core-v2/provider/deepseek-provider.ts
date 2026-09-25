@@ -16,7 +16,7 @@ import {
   CORE_V2_MAX_REASONING_ATTEMPTS,
   CORE_V2_REASONING_TIMEOUT_MS,
 } from "./model-config.js";
-import { ProviderFailureError } from "./provider-errors.js";
+import { ProviderFailureError, isRetryableFailure } from "./provider-errors.js";
 import {
   R3_SYSTEM_INSTRUCTION,
   buildR3UserPrompt,
@@ -173,10 +173,10 @@ export async function callDeepSeekSemanticTransport(
       }
 
       lastError = err;
-      if (err instanceof ProviderFailureError && (err.code === "timeout" || err.code === "schema_invalid" || err.code === "malformed_json" || err.code === "provider_unavailable")) {
+      if (!isRetryableFailure(err) || attempt === maxAttempts) {
         throw err;
       }
-      if (attempt === maxAttempts) throw err;
+      await new Promise((r) => setTimeout(r, 200));
     }
   }
 
