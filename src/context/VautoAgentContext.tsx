@@ -90,9 +90,7 @@ import {
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 import {
   filtersFromSearchAction,
-  parseSearchFiltersFromUserText,
   selectAgentSessionMessages,
-  shouldResetSearchSession,
 } from "@/lib/agent-session-memory";
 import {
   isRevealActiveResultsIntent,
@@ -2532,11 +2530,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ? buildListingContactUpdateReply(parsed)
             : proactiveContactConfirmation;
           setMessages((prev) => {
-            const usersOnly = prev.filter((m) => m.role === "user");
             return [
-              ...usersOnly,
+              ...prev,
               { role: "assistant" as const, text: contactReply },
-            ].slice(-6);
+            ].slice(-12);
           });
           touchAgentSessionActivity();
           return { ok: true, reply: contactReply };
@@ -2556,22 +2553,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         profileCity: user.city,
         geoCoords: buyerCoords,
       });
-      const searchSessionReset = shouldResetSearchSession(
-        trimmed,
-        activeSearchFilters
-      );
-      // Intent isolation — latest message only when topic pivots.
-      const sessionMessagesForSearch: typeof sessionMessages | null =
-        searchSessionReset
-          ? [{ role: "user" as const, text: trimmed }]
-          : null;
-      const resetFilters = searchSessionReset
-        ? parseSearchFiltersFromUserText(trimmed)
-        : null;
-
-      if (searchSessionReset) {
-        clearSearchFilters();
-      }
+      // PR103 — Core v2 AI conversation thread continuity.
 
       const viewIntent = parseViewModeIntent(trimmed);
       if (viewIntent) {
@@ -2584,11 +2566,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                 ? "Perjungiu į sąrašo vaizdą."
                 : "Perjungiu į tinklelio vaizdą.";
           setMessages((prev) => {
-            const usersOnly = prev.filter((m) => m.role === "user");
             return [
-              ...usersOnly,
+              ...prev,
               { role: "assistant" as const, text: viewReply },
-            ].slice(-6);
+            ].slice(-12);
           });
           return { ok: true, reply: "Vaizdas perjungtas." };
         }
@@ -2628,9 +2609,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                 window.location.search
               )
             : resolveClientPageUrl(pathname ?? "/");
-        const effectiveFilters = searchSessionReset
-          ? resetFilters
-          : memoryContext.activeSearchFilters;
+        const effectiveFilters = memoryContext.activeSearchFilters;
         const currentUser = buildSupervisorCurrentUser({
           user: profileUser,
           isAuthenticated,
@@ -2691,7 +2670,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             | undefined,
           lockedPrice: lockedPriceForContext,
         }) as typeof baseListingDraft;
-        const wireSessionMessages = sessionMessagesForSearch ?? sessionMessages;
+        const wireSessionMessages = sessionMessages;
         // E1.1 — anonymous threads require the server-issued token for
         // continuation. If the user is now authenticated and a token is
         // stored, claim the thread first (ownership moves to the JWT userId),
@@ -2743,13 +2722,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             listingDraft: listingDraftForContext,
             activeSearchFilters: isolateSearchFromSeller
               ? null
-              : searchSessionReset
-                ? resetFilters
-                : memoryContext.activeSearchFilters,
+              : memoryContext.activeSearchFilters,
             searchSessionReset:
               isolateSearchFromSeller ||
               freshSessionActive ||
-              searchSessionReset ||
               undefined,
             // P0-3 — Never forward buyer category/search pins into a sell session.
             recentSearchListingIds:
@@ -2842,11 +2818,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (detectExplicitReplicaClaim(safetyScanText)) {
           setStreamThinkingLabelNow("Galvoju…");
           setMessages((prev) => {
-            const usersOnly = prev.filter((m) => m.role === "user");
             return [
-              ...usersOnly,
+              ...prev,
               { role: "assistant" as const, text: REPLICA_HARD_BLOCK_REPLY },
-            ].slice(-6);
+            ].slice(-12);
           });
           speakReply(REPLICA_HARD_BLOCK_REPLY);
           return { ok: true, reply: REPLICA_HARD_BLOCK_REPLY };
@@ -2874,11 +2849,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           // Unlock composer immediately — matches „Galite tęsti pokalbį“.
           busyGate.unlockUiForBackgroundAnalysis();
           setMessages((prev) => {
-            const usersOnly = prev.filter((m) => m.role === "user");
             return [
-              ...usersOnly,
+              ...prev,
               { role: "assistant" as const, text: ack },
-            ].slice(-6);
+            ].slice(-12);
           });
         }
         const res = await apiVautoAgentStream(
@@ -2900,9 +2874,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                 if (optimisticAckShown) return;
                 optimisticAckShown = true;
                 setMessages((prev) => {
-                  const usersOnly = prev.filter((m) => m.role === "user");
                   return [
-                    ...usersOnly,
+                    ...prev,
                     {
                       role: "assistant" as const,
                       text: ack,
@@ -2910,7 +2883,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                         ? { quickReplies: event.quickReplies.slice(0, 4) }
                         : {}),
                     },
-                  ].slice(-6);
+                  ].slice(-12);
                 });
                 return;
               }
@@ -2971,11 +2944,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           }
           const message = buddyMessageForAgentFailure(res.error, res.code);
           setMessages((prev) => {
-            const usersOnly = prev.filter((m) => m.role === "user");
             return [
-              ...usersOnly,
+              ...prev,
               { role: "assistant" as const, text: message },
-            ].slice(-6);
+            ].slice(-12);
           });
           speakReply(message);
           if (open && !options?.fromSearchBar) showToast(message, "info");
@@ -3025,9 +2997,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           const structuredReplies = quickReplies?.filter(Boolean).slice(0, 4);
           const minChips = allowEmptySearchCta ? 1 : 2;
           setMessages((prev) => {
-            const usersOnly = prev.filter((m) => m.role === "user");
             return [
-              ...usersOnly,
+              ...prev,
               {
                 role: "assistant" as const,
                 text,
@@ -3036,7 +3007,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                   : {}),
                 ...(prePublishCard ? { prePublishCard } : {}),
               },
-            ].slice(-6);
+            ].slice(-12);
           });
           if (prePublishCard) {
             setHidePrePublishCard(false);
@@ -3259,11 +3230,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const raw = err instanceof Error ? err.message : String(err ?? "");
         const message = buddyMessageForAgentFailure(raw, "network_error");
         setMessages((prev) => {
-          const usersOnly = prev.filter((m) => m.role === "user");
           return [
-            ...usersOnly,
+            ...prev,
             { role: "assistant" as const, text: message },
-          ].slice(-6);
+          ].slice(-12);
         });
         speakReply(message);
         if (open) showToast(message, "info");
@@ -3413,8 +3383,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       };
       setMessages((prev) => {
         if (isolated) return [assistantMsg];
-        const usersOnly = prev.filter((m) => m.role === "user");
-        return [...usersOnly, assistantMsg].slice(-6);
+        return [...prev, assistantMsg].slice(-12);
       });
     },
     [setSearchInputMode, setSearchVoiceMode, setOpen]
@@ -3559,6 +3528,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setBusy(false);
     setStreamThinkingLabelNow("");
     setPendingVinReview(null);
+    clearAgentThreadId();
   }, [setStreamThinkingLabelNow]);
 
   /**
