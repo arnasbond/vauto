@@ -78,14 +78,9 @@ export const analyzePhotoCapability: CapabilityContract<
     try {
       if (!hasAiKey()) {
         return {
-          ok: true,
-          provenance: "VISION_DERIVED",
-          data: {
-            detectedObjects: ["Nuotraukos objektas"],
-            choiceChips: ["Parduoti objektą"],
-            category: "vehicles",
-            titleCandidate: "Nuotraukos objektas",
-          },
+          ok: false,
+          failureKind: "unavailable",
+          error: "AI vision provider unavailable (GEMINI_API_KEY missing)",
         };
       }
       const raw = await visionExtractJson(VISION_ANALYZE_PROMPT, images.slice(0, 4));

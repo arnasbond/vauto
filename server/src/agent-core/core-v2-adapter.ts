@@ -460,8 +460,8 @@ export async function runCoreV2Turn(
     pendingImageUrls,
   };
 
-  const effectiveUserText = pendingImageUrls.length > 0 && !userText.includes("analyzePhoto")
-    ? `${userText}\n[Pastaba: Vartotojas įkėlė ${pendingImageUrls.length} nuotrauką(-as). Panaudok analyzePhoto įrankį nuotraukos vizualiai analizei ir faktų gavimui.]`
+  const effectiveUserText = pendingImageUrls.length > 0
+    ? `${userText}\n[Vartotojas įkėlė ${pendingImageUrls.length} nuotrauką(-as)]`.trim()
     : userText;
 
   try {
