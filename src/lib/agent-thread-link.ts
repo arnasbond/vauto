@@ -38,7 +38,7 @@ export function readAgentThreadLink(): AgentThreadLink | null {
   }
 }
 
-export function persistAgentThreadLink(link: AgentThreadLink, source = "unspecified"): void {
+export function persistAgentThreadLink(link: AgentThreadLink): void {
   if (!storageAvailable()) return;
   try {
     const existing = readAgentThreadLink();
@@ -50,29 +50,15 @@ export function persistAgentThreadLink(link: AgentThreadLink, source = "unspecif
       version: link.version,
       ...(anonSessionToken ? { anonSessionToken } : {}),
     };
-    console.warn("[thread-diag] persistAgentThreadLink", {
-      source,
-      prevThreadId: existing?.threadId ?? null,
-      nextThreadId: stored.threadId,
-      prevTokenPresent: Boolean(existing?.anonSessionToken),
-      nextTokenPresent: Boolean(stored.anonSessionToken),
-      version: stored.version,
-    });
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
   } catch {
     /* storage full — thread simply re-created next turn */
   }
 }
 
-export function clearAgentThreadId(reason = "unspecified"): void {
+export function clearAgentThreadId(): void {
   if (!storageAvailable()) return;
   try {
-    const existing = readAgentThreadLink();
-    console.warn("[thread-diag] clearAgentThreadId", {
-      reason,
-      prevThreadId: existing?.threadId ?? null,
-      tokenPresent: Boolean(existing?.anonSessionToken),
-    });
     window.localStorage.removeItem(STORAGE_KEY);
   } catch {
     /* ignore */
