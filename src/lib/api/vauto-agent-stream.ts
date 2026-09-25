@@ -293,6 +293,14 @@ export async function apiVautoAgentStream(
           handlers.onEvent(event);
           if (event.type === "final") {
             finalResult = event.result;
+            const resThread = (event.result as { thread?: { threadId?: string; version?: number; anonSessionToken?: string } })?.thread;
+            console.warn("[thread-diag] sse_final_event_received", {
+              hasResult: Boolean(event.result),
+              hasThreadObj: Boolean(resThread),
+              threadId: resThread?.threadId ?? null,
+              version: resThread?.version ?? null,
+              tokenPresent: Boolean(resThread?.anonSessionToken),
+            });
           }
           if (event.type === "error") {
             return {

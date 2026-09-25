@@ -2676,30 +2676,46 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         // stored, claim the thread first (ownership moves to the JWT userId),
         // then continue without the token.
         const threadLink = readAgentThreadLink();
+        console.warn("[thread-diag] sendAgentMessage:initial_link", {
+          readThreadId: threadLink?.threadId ?? null,
+          readTokenPresent: Boolean(threadLink?.anonSessionToken),
+          isAuthenticated: Boolean(user?.id),
+        });
         if (threadLink?.anonSessionToken && user?.id && threadLink.threadId) {
           const claimed = await apiClaimAgentThread(
             threadLink.threadId,
             threadLink.anonSessionToken
           );
+          console.warn("[thread-diag] apiClaimAgentThread result", {
+            ok: claimed.ok,
+            code: claimed.ok ? null : claimed.code ?? "unknown",
+            action: claimed.ok || claimed.code === "already_bound" ? "preserving_link" : "clearing_link",
+          });
           if (claimed.ok) {
             // Ownership moved to the JWT userId — the anon token is no longer
             // needed and is removed from storage.
             persistAgentThreadLink({
               threadId: threadLink.threadId,
               version: claimed.data.version ?? threadLink.version,
-            });
+            }, "claim_success");
           } else if (claimed.code === "already_bound") {
             // Thread is already bound to a user — preserve threadId, drop anon token
             persistAgentThreadLink({
               threadId: threadLink.threadId,
               version: threadLink.version,
-            });
+            }, "claim_already_bound");
           } else {
             // Real claim failure (token_mismatch / not_found) — forget the link.
-            clearAgentThreadId();
+            clearAgentThreadId("claim_failed");
           }
         }
         const refreshedLink = readAgentThreadLink();
+        console.warn("[thread-diag] sendAgentMessage:outgoing_body", {
+          refreshedThreadId: refreshedLink?.threadId ?? null,
+          refreshedTokenPresent: Boolean(refreshedLink?.anonSessionToken),
+          bodyThreadId: refreshedLink?.threadId ?? null,
+          bodyTokenPresent: Boolean(refreshedLink?.anonSessionToken),
+        });
         // E1.4 — stable turnId per user message: generated once per send and
         // REUSED for any automatic retry of THIS request (the SSE soft-retry
         // re-sends the same body). A new user message gets a new turnId.
@@ -2927,6 +2943,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             anonSessionToken?: string;
           };
         }).thread;
+        console.warn("[thread-diag] sendAgentMessage:after_stream_response", {
+          resOk: res.ok,
+          resCode: res.ok ? null : res.code,
+          hasThreadMeta: Boolean(threadMeta),
+          metaThreadId: threadMeta?.threadId ?? null,
+          metaVersion: threadMeta?.version ?? null,
+          metaTokenPresent: Boolean(threadMeta?.anonSessionToken),
+        });
         if (threadMeta?.threadId) {
           persistAgentThreadLink({
             threadId: threadMeta.threadId,
@@ -2934,7 +2958,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ...(threadMeta.anonSessionToken
               ? { anonSessionToken: threadMeta.anonSessionToken }
               : {}),
-          });
+          }, "stream_final_response");
         }
 
         if (!res.ok) {
@@ -2944,7 +2968,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             res.code === "thread_ownership_violation" ||
             res.code === "thread_update_contention"
           ) {
-            clearAgentThreadId();
+            console.warn("[thread-diag] stream_error_clearing_thread", {
+              code: res.code,
+              error: res.error,
+            });
+            clearAgentThreadId(`stream_error:${res.code}`);
           }
           const message = buddyMessageForAgentFailure(res.error, res.code);
           setMessages((prev) => {
@@ -3523,7 +3551,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     };
   }, [pathname, openWithGreeting]);
 
-  const clearAgentChatSession = useCallback(() => {
+  const clearAgentChatSession = useCallback((callerReason = "unspecified") => {
+    console.warn("[thread-diag] clearAgentChatSession called", { callerReason });
     setMessages([]);
     setSessionPendingImageUrls([]);
     setLastBargainingOffer(null);
@@ -3532,7 +3561,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setBusy(false);
     setStreamThinkingLabelNow("");
     setPendingVinReview(null);
-    clearAgentThreadId();
+    clearAgentThreadId(`clearAgentChatSession:${callerReason}`);
   }, [setStreamThinkingLabelNow]);
 
   /**
@@ -3545,7 +3574,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     const isHome = pathname === "/" || pathname === "" || pathname === "/index";
     const prev = homeEntryPathRef.current;
     homeEntryPathRef.current = pathname ?? null;
-    if (!isHome) return;
 
     const params =
       typeof window !== "undefined"
@@ -3557,22 +3585,32 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         params?.get("search")?.trim() ||
         params?.toString().trim()
     );
-    if (hasSearchParams) return;
-
-    // Never wipe an active conversation thread with visible messages or active thread link
     const hasActiveConversation = Boolean(readAgentThreadLink() || messages.length > 0);
-    if (hasActiveConversation) return;
-
     const arrivedFromElsewhere =
       prev !== null && prev !== "/" && prev !== "" && prev !== "/index";
     const coldDocumentMount = prev === null;
+
+    console.warn("[thread-diag] homeEntryPathRef effect evaluated", {
+      isHome,
+      pathname,
+      paramsStr: params?.toString() ?? "",
+      prevPath: prev,
+      hasSearchParams,
+      hasActiveConversation,
+      arrivedFromElsewhere,
+      coldDocumentMount,
+      freshListingSession: freshListingSessionRef.current,
+      willClear: isHome && !hasSearchParams && !hasActiveConversation && (arrivedFromElsewhere || coldDocumentMount) && !freshListingSessionRef.current,
+    });
+
+    if (!isHome || hasSearchParams || hasActiveConversation) return;
 
     if (!arrivedFromElsewhere && !coldDocumentMount) return;
 
     // Avoid wiping an in-flight sell session started via Place Ad.
     if (freshListingSessionRef.current) return;
 
-    clearAgentChatSession();
+    clearAgentChatSession("home_entry_path_effect");
     setSearchQuery("");
     setAgentPinnedListings(null);
     setSearchLoading(false);
@@ -4130,7 +4168,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setSearchLoading(false);
     clearPhotoSearchSession();
     goToMarketplace("user");
-    clearAgentChatSession();
+    clearAgentChatSession("handleResetChat_user_action");
     dispatchHomeReset();
     if (
       pathname?.startsWith("/add") ||
@@ -4159,16 +4197,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
-    return subscribeHomeReset(clearAgentChatSession);
+    return subscribeHomeReset(() => clearAgentChatSession("home_reset_subscription"));
   }, [clearAgentChatSession]);
 
   useEffect(() => {
     return subscribeAuthLogout(() => {
-      clearAgentChatSession();
+      clearAgentChatSession("auth_logout_subscription");
       sessionLockedPriceRef.current = null;
       freshListingSessionRef.current = false;
       markSellerListingChatActive(false);
-      clearAgentThreadId();
+      clearAgentThreadId("auth_logout_subscription");
     });
   }, [clearAgentChatSession, markSellerListingChatActive]);
 
