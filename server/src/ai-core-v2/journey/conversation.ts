@@ -11,11 +11,8 @@
 import { runMultiStepLoop, type CapabilityCallRecord } from "../loop/multi-step-loop.js";
 import { CapabilityRegistry } from "../capability/registry.js";
 import { searchListingsCapability } from "../capability/capabilities/search-listings.js";
-import {
-  listingDetailsCapability,
-  type ListingDetailsArgs,
-  type ListingDetailsData,
-} from "../capability/capabilities/listing-details.js";
+import { listingDetailsCapability, type ListingDetailsArgs, type ListingDetailsData } from "../capability/capabilities/listing-details.js";
+import { webResearchCapability } from "../capability/capabilities/web-research.js";
 import { prepareListingDraftCapability } from "../capability/capabilities/prepare-listing-draft.js";
 import { publishListingCapability } from "../capability/capabilities/publish-listing.js";
 import type {
@@ -90,6 +87,7 @@ export function createBuyerRegistry(resultContext: ResultContext): CapabilityReg
   const registry = new CapabilityRegistry();
   registry.register(searchListingsCapability);
   registry.register(createGuardedListingDetails(resultContext));
+  registry.register(webResearchCapability);
   registry.register(prepareListingDraftCapability);
   registry.register(publishListingCapability);
   return registry;
