@@ -13,6 +13,9 @@ import { describe, it } from "node:test";
 import { CapabilityRegistry, createMarketplaceRegistry } from "../capability/registry.js";
 import { fetchBraveSearch, webResearchCapability } from "../capability/capabilities/web-research.js";
 import { runMultiStepLoop } from "../loop/multi-step-loop.js";
+import { createBuyerRegistry, runBuyerTurn } from "../journey/conversation.js";
+import { EMPTY_RESULT_CONTEXT } from "../journey/result-context.js";
+import { deterministicAuthorityVerifier } from "../loop/authority-verifier.js";
 import type { GroundedCapabilityResult, ReasoningInput, ReasoningProvider } from "../reasoning/reasoning-contract.js";
 import { emptyMarketplaceState } from "../state/marketplace-state.js";
 
@@ -189,5 +192,36 @@ describe("Core v2 — World Research (webResearch) capability", () => {
     const missingKeyRes = await fetchBraveSearch("test query", { apiKey: "" });
     assert.equal(missingKeyRes.ok, false);
     assert.equal(missingKeyRes.failureKind, "unavailable");
+  });
+
+  it("Remediation F. createBuyerRegistry exposes canonical capability webResearch", () => {
+    const registry = createBuyerRegistry(EMPTY_RESULT_CONTEXT);
+    assert.equal(registry.has("webResearch"), true);
+    const desc = registry.describe().find((c) => c.name === "webResearch");
+    assert.ok(desc, "webResearch must be described in createBuyerRegistry");
+    assert.equal(desc.operation, "READ");
+  });
+
+  it("Remediation G. real runBuyerTurn production path presents webResearch to the reasoning provider", async () => {
+    let capturedCapabilities: Array<{ name: string; description: string; operation: string }> = [];
+    const mockProvider: ReasoningProvider = async (inp) => {
+      capturedCapabilities = inp.capabilities;
+      return { text: "Viskas gerai" };
+    };
+
+    const session = {
+      state: emptyMarketplaceState(),
+      history: [],
+      resultContext: EMPTY_RESULT_CONTEXT,
+    };
+
+    await runBuyerTurn(session, "labas", {
+      provider: mockProvider,
+      verifier: deterministicAuthorityVerifier,
+    });
+
+    const webResearchCap = capturedCapabilities.find((c) => c.name === "webResearch");
+    assert.ok(webResearchCap, "webResearch capability must be present in reasoning provider input capabilities");
+    assert.equal(webResearchCap.operation, "READ");
   });
 });
