@@ -40,13 +40,13 @@ export function AiSettingsCard() {
       });
       if (res && "listing" in res) {
         const listing = mapVautoServerListing(res.listing, "Vilnius");
-        setTestResult(`✓ Gemini veikia: „${listing.title}" — ${listing.price}€`);
+        setTestResult(`✓ AI veikia: „${listing.title}" — ${listing.price}€`);
         setMode("server");
       } else {
-        setTestResult("✗ Gemini nepasiekiamas — patikrinkite GEMINI_API_KEY serveryje");
+        setTestResult("✗ AI nepasiekiamas — patikrinkite serverio API raktą");
       }
     } catch {
-      setTestResult("✗ Gemini testas nepavyko");
+      setTestResult("✗ AI testas nepavyko");
     } finally {
       setTesting(false);
     }
@@ -63,14 +63,14 @@ export function AiSettingsCard() {
     mode === "checking"
       ? { label: "Tikrinama…", className: "vauto-badge-muted" }
       : mode === "server"
-        ? { label: "Gemini AI", className: "vauto-badge-success" }
+        ? { label: "VAUTO AI", className: "vauto-badge-success" }
         : { label: "Offline AI", className: "vauto-badge-warning" };
 
   return (
     <div className="vauto-settings-card mt-6 rounded-2xl p-4">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-[var(--ds-ai)]" />
-        <h2 className="vauto-text-heading font-semibold">Gemini AI</h2>
+        <h2 className="vauto-text-heading font-semibold">VAUTO AI</h2>
         <span
           className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.className}`}
         >
@@ -80,13 +80,13 @@ export function AiSettingsCard() {
 
       {mode === "server" && (
         <p className="vauto-badge-success mb-3 rounded-xl px-3 py-2 text-xs">
-          Visos AI funkcijos veikia per VAUTO serverį (Gemini).
+          Visos AI funkcijos veikia per VAUTO serverį.
         </p>
       )}
 
       {mode === "demo" && (
         <p className="vauto-badge-warning mb-3 rounded-xl px-3 py-2 text-xs">
-          Gemini serveris nepasiekiamas — naudojami demo duomenys.
+          AI serveris nepasiekiamas — naudojami demo duomenys.
         </p>
       )}
 
@@ -105,7 +105,7 @@ export function AiSettingsCard() {
         ) : (
           <Zap className="h-4 w-4" />
         )}
-        {testing ? "Testuojama…" : "Testuoti Gemini"}
+        {testing ? "Testuojama…" : "Testuoti AI"}
       </button>
 
       {testResult && <p className="vauto-text-subtle mb-3 text-xs">{testResult}</p>}

@@ -62,7 +62,7 @@ export function AiListingAdvisorModal({ listing, onClose }: AiListingAdvisorModa
 
         {!advice && !loading && (
           <p className="mb-4 text-sm text-[var(--vauto-text-muted)]">
-            Gemini išanalizuos kainą, aprašymą ir giliuosius atributus bei pasiūlys, kaip
+            VAUTO AI išanalizuos kainą, aprašymą ir giliuosius atributus bei pasiūlys, kaip
             pagerinti pardavimus.
           </p>
         )}

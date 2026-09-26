@@ -33,8 +33,8 @@ import { interpretAiFacets } from "@/lib/ai-facet-interpretation";
 import { applyFacetChips } from "@/lib/apply-ai-facet";
 import {
   resolveCommandMaterialization,
+  isClientAdvisoryQuery,
 } from "@/lib/ai-command-authority";
-import { isClientAdvisoryQuery } from "@/lib/gemini-search-intent";
 import { AI_FIRST_SEARCH_PLACEHOLDER } from "@/lib/ai-first-search-vision";
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
 import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";

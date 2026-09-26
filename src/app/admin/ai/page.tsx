@@ -1,32 +1,36 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
-import {
-  AdminGeminiUploadPanel,
-} from "@/components/admin/AdminGeminiUploadPanel";
+
+function AdminAiRedirectContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const q = searchParams.toString();
+    const target = q ? `/admin?${q}` : "/admin";
+    router.replace(target);
+  }, [router, searchParams]);
+
+  return (
+    <AppShell variant="plain" hideNav>
+      <p className="py-16 text-center text-sm text-[var(--vauto-text-muted)]">Perkeliama į administraciją…</p>
+    </AppShell>
+  );
+}
 
 export default function AdminAiPage() {
   return (
-    <AppShell variant="plain" hideNav>
-      <div className="pb-8">
-        <Link
-          href="/profile/"
-          className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-indigo-700"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Atgal į administratorių
-        </Link>
-        <AdminGeminiUploadPanel />
-        <p className="mt-4 text-center text-[11px] text-slate-400">
-          Jei nematote šio bloko programėlėje — atnaujinkite iš{" "}
-          <a href="/install/" className="text-indigo-600 underline">
-            www.vauto.lt/install
-          </a>{" "}
-          (Android APK arba iPhone — instrukcijos /install/).
-        </p>
-      </div>
-    </AppShell>
+    <Suspense
+      fallback={
+        <AppShell variant="plain" hideNav>
+          <p className="py-16 text-center text-sm text-[var(--vauto-text-muted)]">Kraunama…</p>
+        </AppShell>
+      }
+    >
+      <AdminAiRedirectContent />
+    </Suspense>
   );
 }

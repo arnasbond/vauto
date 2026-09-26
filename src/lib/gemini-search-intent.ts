@@ -1,4 +1,5 @@
 import { apiAnalyzeSearchIntent, apiAnalyzeVisualSearchIntent } from "@/lib/api/client";
+import { isClientAdvisoryQuery } from "@/lib/ai-command-authority";
 
 import { isAiProxyAvailable } from "@/lib/api/config";
 

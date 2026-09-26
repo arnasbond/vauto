@@ -71,7 +71,7 @@ export function DesktopAddAside({ fashionMode }: { fashionMode?: boolean }) {
 
         <section className="flex items-center gap-2 rounded-xl bg-[var(--anonser-primary)]/5 px-4 py-3 text-xs text-[var(--anonser-primary)]">
           <Zap className="h-4 w-4 shrink-0" />
-          <span>Gemini Flash — VAUTO serveris analizuoja nuotraukas realiu laiku.</span>
+          <span>VAUTO AI — serveris analizuoja nuotraukas realiu laiku.</span>
         </section>
       </div>
     </aside>

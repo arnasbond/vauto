@@ -19,9 +19,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   resolveCommandMaterialization,
+  isClientAdvisoryQuery,
   type CommandTurnOutcome,
 } from "@/lib/ai-command-authority";
-import { isClientAdvisoryQuery } from "@/lib/gemini-search-intent";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 
 const ADVISORY =

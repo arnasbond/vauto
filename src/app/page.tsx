@@ -7,8 +7,6 @@ import { HeroSection, ContentSection } from "@/components/HeroSection";
 import { VerticalPageChrome } from "@/components/chameleon/PortalPageChrome";
 import { HomeAiHero } from "@/components/home/HomeAiHero";
 import { ZeroUiListingPreview } from "@/components/zero-ui/ZeroUiListingPreview";
-import { ZeroUiBusinessDashboard } from "@/components/zero-ui/ZeroUiBusinessDashboard";
-import { ZeroUiAdminPanel } from "@/components/zero-ui/ZeroUiAdminPanel";
 import { ZeroUiViewTransition } from "@/components/zero-ui/ZeroUiViewTransition";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import { useVauto } from "@/context/VautoContext";
@@ -90,13 +88,11 @@ export default function HomePage() {
   const renderView = useCallback((view: ZeroUiScreen) => {
     switch (view) {
       case "marketplace":
+      case "business_dashboard":
+      case "admin_panel":
         return <MarketplaceView />;
       case "listing_preview":
         return <ZeroUiListingPreview />;
-      case "business_dashboard":
-        return <ZeroUiBusinessDashboard />;
-      case "admin_panel":
-        return <ZeroUiAdminPanel />;
     }
   }, []);
 
