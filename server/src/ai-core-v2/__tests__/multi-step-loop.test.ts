@@ -99,7 +99,7 @@ describe("Core v2 — multi-step loop", () => {
   });
 
   it("the loop is bounded (never an autonomous infinite agent)", async () => {
-    // A provider that always requests a capability → the loop stops at the bound.
+    // A provider that always requests a capability -> the loop stops at the bound.
     const provider: ReasoningProvider = async () => ({
       capabilityRequest: { capability: "searchListings", args: {} },
     });
@@ -108,6 +108,143 @@ describe("Core v2 — multi-step loop", () => {
     const res = await runMultiStepLoop({ provider, registry, input: input(), maxIterations: 2 });
     assert.equal(res.iterations, 2);
     assert.ok(res.iterations <= DEFAULT_MAX_ITERATIONS);
+  });
+
+  describe("analyzePhoto summary formatting & generic duplicate capability handling", () => {
+    it("1. analyzePhoto summary contains actual grounded facts rather than 'ok'", async () => {
+      const registry = new CapabilityRegistry();
+      registry.register({
+        name: "analyzePhoto",
+        description: "analizuoti",
+        operation: "READ",
+        validate: (a) => a,
+        execute: async () => ({
+          ok: true,
+          provenance: "VISION_DERIVED",
+          data: {
+            detectedObjects: ["Toyota Yaris"],
+            category: "vehicles",
+            titleCandidate: "Toyota Yaris 2018",
+            descriptionCandidate: "Tvarkingas automobilis",
+            price: 8500,
+            attributes: { make: "Toyota", model: "Yaris" },
+          },
+        }),
+      });
+
+      let capturedGroundedSummary = "";
+      const provider: ReasoningProvider = async (inp) => {
+        if (!inp.groundedResults?.length) {
+          return { capabilityRequest: { capability: "analyzePhoto", args: {} } };
+        }
+        capturedGroundedSummary = inp.groundedResults[0]!.summary ?? "";
+        return { text: "Nuotrauka išanalizuota." };
+      };
+
+      const res = await runMultiStepLoop({ provider, registry, input: input() });
+      assert.strictEqual(res.iterations, 2);
+      assert.ok(capturedGroundedSummary.includes("[VISION_DERIVED]"));
+      assert.ok(capturedGroundedSummary.includes("objektai: Toyota Yaris"));
+      assert.ok(capturedGroundedSummary.includes("kategorija: vehicles"));
+      assert.ok(capturedGroundedSummary.includes("pavadinimas: Toyota Yaris 2018"));
+      assert.ok(capturedGroundedSummary.includes("kaina: 8500 €"));
+      assert.ok(capturedGroundedSummary.includes("savybės: make: Toyota, model: Yaris"));
+    });
+
+    it("2. missing vision fields remain missing, not invented", async () => {
+      const registry = new CapabilityRegistry();
+      registry.register({
+        name: "analyzePhoto",
+        description: "analizuoti",
+        operation: "READ",
+        validate: (a) => a,
+        execute: async () => ({
+          ok: true,
+          provenance: "DOCUMENT_DERIVED",
+          data: {
+            detectedObjects: ["Dviratis"],
+            isDocument: true,
+          },
+        }),
+      });
+
+      let capturedGroundedSummary = "";
+      const provider: ReasoningProvider = async (inp) => {
+        if (!inp.groundedResults?.length) {
+          return { capabilityRequest: { capability: "analyzePhoto", args: {} } };
+        }
+        capturedGroundedSummary = inp.groundedResults[0]!.summary ?? "";
+        return { text: "Dokumentas išanalizuotas." };
+      };
+
+      await runMultiStepLoop({ provider, registry, input: input() });
+      assert.ok(capturedGroundedSummary.includes("[DOCUMENT_DERIVED]"));
+      assert.ok(capturedGroundedSummary.includes("objektai: Dviratis"));
+      assert.strictEqual(capturedGroundedSummary.includes("kaina:"), false);
+      assert.strictEqual(capturedGroundedSummary.includes("savybės:"), false);
+      assert.strictEqual(capturedGroundedSummary.includes("kategorija:"), false);
+    });
+
+    it("3. identical duplicate capability is not executed twice and guidance note is injected", async () => {
+      let executionCount = 0;
+      const registry = new CapabilityRegistry();
+      registry.register({
+        name: "searchListings",
+        description: "ieškoti",
+        operation: "READ",
+        validate: (a) => a,
+        execute: async () => {
+          executionCount++;
+          return { ok: true, data: { count: 1, listings: [{ title: "Auto" }] } };
+        },
+      });
+
+      let passCount = 0;
+      let pass3Notice = "";
+      const provider: ReasoningProvider = async (inp) => {
+        passCount++;
+        if (passCount === 1) {
+          return { capabilityRequest: { capability: "searchListings", args: { query: "auto" } } };
+        }
+        if (passCount === 2) {
+          // Model attempts duplicate capability request
+          return { capabilityRequest: { capability: "searchListings", args: { query: "auto" } } };
+        }
+        // Pass 3: provider is re-invoked with guidance note in groundedResults
+        pass3Notice = inp.groundedResults?.find((g) => g.summary?.includes("PASTABA"))?.summary ?? "";
+        return { text: "Gauti rezultatai patvirtinti." };
+      };
+
+      const res = await runMultiStepLoop({ provider, registry, input: input() });
+      assert.strictEqual(executionCount, 1, "Capability execute must be called ONLY ONCE");
+      assert.ok(pass3Notice.includes("JAU įvykdytas šiame turne"), "Duplicate guidance note must be present in grounded results on pass 3");
+      assert.strictEqual(res.decision.text, "Gauti rezultatai patvirtinti.");
+    });
+
+    it("4. persistent duplicate requests terminate boundedly via circuit breaker", async () => {
+      let executionCount = 0;
+      const registry = new CapabilityRegistry();
+      registry.register({
+        name: "searchListings",
+        description: "ieškoti",
+        operation: "READ",
+        validate: (a) => a,
+        execute: async () => {
+          executionCount++;
+          return { ok: true, data: { count: 0, listings: [] } };
+        },
+      });
+
+      // A stubborn provider that ignores guidance and repeatedly requests identical capability
+      const provider: ReasoningProvider = async () => ({
+        capabilityRequest: { capability: "searchListings", args: { query: "same" } },
+      });
+
+      const res = await runMultiStepLoop({ provider, registry, input: input() });
+      assert.strictEqual(executionCount, 1, "Capability execute must be called ONLY ONCE");
+      // Must terminate boundedly via circuit breaker before maxReasoning (6) iterations spin
+      assert.ok(res.iterations <= 3, `Expected bounded termination, got ${res.iterations} iterations`);
+    });
   });
 });
 

@@ -202,6 +202,52 @@ function summarizeResult(capability: string, result: CapabilityResult<unknown>):
       sources,
     };
   }
+  if (capability === "analyzePhoto" && d) {
+    const photoData = d as {
+      detectedObjects?: string[];
+      category?: string;
+      titleCandidate?: string;
+      descriptionCandidate?: string;
+      price?: number;
+      attributes?: Record<string, string>;
+      isDocument?: boolean;
+      ocrText?: string;
+    };
+    const parts: string[] = [];
+    if (photoData.detectedObjects?.length) {
+      parts.push(`objektai: ${photoData.detectedObjects.join(", ")}`);
+    }
+    if (photoData.category) {
+      parts.push(`kategorija: ${photoData.category}`);
+    }
+    if (photoData.titleCandidate) {
+      parts.push(`pavadinimas: ${photoData.titleCandidate}`);
+    }
+    if (photoData.descriptionCandidate) {
+      parts.push(`aprašymas: ${photoData.descriptionCandidate.slice(0, 100)}`);
+    }
+    if (photoData.price !== undefined && Number.isFinite(photoData.price)) {
+      parts.push(`kaina: ${photoData.price} €`);
+    }
+    if (photoData.attributes && typeof photoData.attributes === "object") {
+      const entries = Object.entries(photoData.attributes).filter(([_, v]) => Boolean(v && String(v).trim()));
+      if (entries.length > 0) {
+        const attrsStr = entries.map(([k, v]) => `${k}: ${v}`).join(", ");
+        parts.push(`savybės: ${attrsStr}`);
+      }
+    }
+    if (photoData.ocrText) {
+      parts.push(`tekstas: ${photoData.ocrText.slice(0, 150)}`);
+    }
+    const tag = photoData.isDocument ? "DOCUMENT_DERIVED" : "VISION_DERIVED";
+    const summaryText = parts.length > 0 ? parts.join("; ") : "nuotraukos analizė atlikta";
+    return {
+      capability,
+      ok: true,
+      summary: `[${tag}] ${summaryText}`,
+      provenance: result.provenance ?? tag,
+    };
+  }
   return {
     capability,
     ok: true,
@@ -257,6 +303,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
   const rejectedAuthority: MultiStepLoopResult["rejectedAuthority"] = [];
   const allProposedPatches: StatePatch[] = [];
   const executedCallKeys = new Set<string>();
+  const duplicateCallCounts = new Map<string, number>();
   let decision: ReasoningDecision = {};
   let reasoningCalls = 0;
   let executedCapCount = 0;
@@ -384,11 +431,34 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
 
     const execKey = `${req.capability}:${JSON.stringify(execArgs)}`;
     if (executedCallKeys.has(execKey)) {
+      const currentDupCount = duplicateCallCounts.get(execKey) ?? 0;
       console.warn("[core-v2-loop] duplicate capability request detected — reusing prior grounded result", {
         capability: req.capability,
         execKey,
+        dupAttempt: currentDupCount + 1,
       });
-      continue;
+      if (currentDupCount === 0) {
+        duplicateCallCounts.set(execKey, 1);
+        groundedResults.push({
+          capability: req.capability,
+          ok: true,
+          summary: `[PASTABA] Įrankis ${req.capability} JAU įvykdytas šiame turne ir jo rezultatai pateikti aukščiau. Nesikreipk iš naujo tokiu pačiu įrankiu — naudok turimus rezultatus ir atsakyk vartotojui.`,
+          provenance: "TOOL_DERIVED",
+        });
+        continue;
+      }
+      console.warn("[core-v2-loop] persistent duplicate capability request circuit broken", {
+        capability: req.capability,
+        execKey,
+      });
+      return {
+        decision,
+        finalState: state,
+        iterations: reasoningCalls,
+        capabilityCalls,
+        rejectedAuthority,
+        allProposedPatches,
+      };
     }
 
     if (executedCapCount >= maxCaps) {
