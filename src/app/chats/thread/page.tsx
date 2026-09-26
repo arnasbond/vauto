@@ -10,7 +10,8 @@ function ChatThreadRedirectContent() {
 
   useEffect(() => {
     const id = searchParams.get("id") || searchParams.get("thread");
-    const target = id ? `/chats/${id}` : "/chats";
+    const q = searchParams.toString();
+    const target = id ? `/pokalbiai/?id=${encodeURIComponent(id)}` : q ? `/pokalbiai/?${q}` : "/pokalbiai/";
     router.replace(target);
   }, [router, searchParams]);
 

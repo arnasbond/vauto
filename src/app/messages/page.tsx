@@ -10,7 +10,7 @@ function MessagesRedirectContent() {
 
   useEffect(() => {
     const q = searchParams.toString();
-    const target = q ? `/chats?${q}` : "/chats";
+    const target = q ? `/pokalbiai/?${q}` : "/pokalbiai/";
     router.replace(target);
   }, [router, searchParams]);
 
