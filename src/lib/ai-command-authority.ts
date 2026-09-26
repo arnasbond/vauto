@@ -19,7 +19,24 @@
  * RAW USER TEXT IS NOT EXECUTION AUTHORIZATION.
  */
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
-import { isClientAdvisoryQuery } from "@/lib/gemini-search-intent";
+
+/**
+ * E2.8 — ADVISORY guard (client mirror of the server signal): advice-
+ * seeking utterances must never be coerced into a buyer-search frame that
+ * invents product/brand facets. An explicit search verb keeps the search
+ * intent.
+ */
+const CLIENT_ADVISORY_RE =
+  /\b(siūlytum|siūlytumėt|siulytum|siulytumet|rekomenduotum|rekomenduotumėt|rekomenduotumet|patartum|patartumėt|patartumet|patark|pad[ėe]k\s+(?:man\s+)?(?:išsirinkti|rinktis|pasirinkti|apsispr[ęe]sti|nuspr[ęe]sti)|nežinau\s+(?:ko|ką)\b|neturiu\s+(?:konkretaus|aiškaus)\b|kok(?:į|ią)\s+patartum)\b/i;
+
+const CLIENT_SEARCH_VERB_RE =
+  /\b(ieškau|ieskau|ieškok|ieskok|rask|surask|paieškok|paieskok|noriu\s+(?:rasti|pirkti)|find|search)\b/i;
+
+export function isClientAdvisoryQuery(query: string): boolean {
+  const q = query.trim();
+  if (!q) return false;
+  return CLIENT_ADVISORY_RE.test(q) && !CLIENT_SEARCH_VERB_RE.test(q.toLowerCase());
+}
 
 /** Agent turn outcome as observed by the AiCommandBar commit pipeline. */
 export interface CommandTurnOutcome {

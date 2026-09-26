@@ -81,70 +81,13 @@ export async function executePhotoIntentSearch(
     return `Ieškau pagal jūsų pastabą: ${pending.extraContext.trim()}`;
   }
 
-  const grid = applyVisualPhotoSearchToGrid(
-    vision,
-    deps.listings,
-    deps.marketplaceFilters,
-    deps.userName,
-    Boolean(pending.wardrobeOnly)
-  );
-
-  const itemLabel = vision.title ?? grid.searchQuery;
+  const itemLabel = vision.title || pending.analysis.objectLabel || "daiktą";
   deps.setSearchInputMode("photo");
-
-  if (grid.listingIds.length === 0) {
-    const altChips = formatSearchAlternativeChips(
-      vision.intent.semanticAlternatives ?? []
-    );
-    deps.notifyPhotoSearch?.(itemLabel, 0);
-    if (altChips.length >= 2 && deps.openWithGreeting) {
-      deps.openWithGreeting(
-        `Tikslaus „${itemLabel}" neradau. Pabandykime artimiausius variantus:`,
-        { quickReplies: altChips }
-      );
-      deps.showToast("Pasiūliau panašius variantus — pasirinkite žemiau.", "info");
-      return `„${itemLabel}" turguje neradau — siūlau panašius variantus.`;
-    }
-    await deps.sendAgentMessage?.(
-      `Nuotraukoje matau: ${itemLabel}. Šio daikto turguje neradau — ar norite jį įdėti pardavimui?`,
-      { pendingImageUrls: photos }
-    );
-    deps.showToast(
-      "Tokio skelbimo neradome. Galiu padėti sukurti juodraštį pardavimui.",
-      "info"
-    );
-    return `„${itemLabel}" neradau — galiu padėti įkelti skelbimą.`;
-  }
-
-  const action = buildVisionSearchAgentAction(vision, grid.listingIds, {
-    wardrobeOnly: pending.wardrobeOnly,
-    label: grid.secretaryComment,
+  if (deps.setDraftQuery) deps.setDraftQuery(itemLabel);
+  await deps.sendAgentMessage?.(`Surask ${itemLabel}`, {
+    pendingImageUrls: photos,
   });
-  deps.syncAgentAction(action);
-  deps.notifyPhotoSearch?.(itemLabel, grid.listingIds.length);
-
-  if (deps.setDraftQuery) deps.setDraftQuery(grid.searchQuery);
-  deps.setSearchQuery(grid.searchQuery);
-
-  await deps.applyVisualSearch(
-    buildVisualSearchProfile(
-      {
-        title: vision.title ?? grid.searchQuery,
-        price: 0,
-        location: grid.intent.cityNominative || deps.userCity || "Lietuva",
-        contact: deps.userPhone || "",
-        category: (vision.category as ListingCategory) ?? "other",
-        confidence: vision.confidence,
-        attributes: grid.intent.searchFilters as Record<string, string>,
-      },
-      "photo",
-      photos[0]
-    )
-  );
-
-  deps.showToast(grid.secretaryComment, "success");
-  deps.scrollToResults?.();
-  return grid.secretaryComment;
+  return `Ieškau ${itemLabel}…`;
 }
 
 export interface PhotoIntentListingDeps {

@@ -599,17 +599,24 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const routeZeroUiScreen = useCallback(
     (screen: ZeroUiScreen) => {
-      // Zero-footprint: never open admin_panel for non-admins (404 mask in UI).
-      if (screen === "admin_panel" && !isAdmin) {
-        goToMarketplace("agent");
+      if (screen === "admin_panel") {
+        if (!isAdmin) {
+          goToMarketplace("agent");
+          return;
+        }
+        router.push("/admin/");
+        setScreen("admin_panel", "agent");
         return;
       }
-      if (typeof window !== "undefined") {
-        persistPendingZeroUiScreen(screen);
-        const path = window.location.pathname.replace(/\/$/, "") || "/";
-        if (path !== "/") {
-          router.push("/");
-        }
+      if (screen === "business_dashboard") {
+        router.push("/verslui/");
+        setScreen("business_dashboard", "agent");
+        return;
+      }
+      if (screen === "marketplace") {
+        router.push("/");
+        setScreen("marketplace", "agent");
+        return;
       }
       setScreen(screen, "agent");
     },
@@ -1194,10 +1201,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             });
           }
         } else if (view === "profile") {
-          routeZeroUiScreen("business_dashboard");
+          router.push("/profile/");
         } else if (view === "admin_ai") {
           if (isAdmin) {
-            routeZeroUiScreen("admin_panel");
+            router.push("/admin/");
           } else {
             goToMarketplace("agent");
           }

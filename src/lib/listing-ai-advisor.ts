@@ -1,60 +1,18 @@
 import type { Listing } from "@/lib/types";
-import {
-  getClientGeminiApiKey,
-  isClientGeminiAvailable,
-} from "@/lib/gemini-browser";
+import { apiVautoServer } from "@/lib/api/client";
+import { isAiProxyAvailable } from "@/lib/api/config";
 import { getPriceAdvice } from "@/lib/price-advisor";
 
-const ADVICE_SCHEMA = `{"advice": "string — 2-3 trumpi lietuviški sakiniai, kaip pagerinti skelbimą"}`;
-
-async function geminiAdvice(listing: Listing): Promise<string> {
-  const apiKey = getClientGeminiApiKey();
-  if (!apiKey) throw new Error("Gemini API key missing");
-
-  const attrs = JSON.stringify(listing.attributes ?? {}).slice(0, 1800);
-  const userPrompt = [
-    "Tu esi VAUTO AI skelbimų ekspertas Lietuvoje.",
-    `Pavadinimas: ${listing.title}`,
-    `Kategorija: ${listing.category}`,
-    `Kaina: ${listing.priceLabel ?? `${listing.price} €`}`,
-    `Miestas: ${listing.location}`,
-    `Aprašymas: ${(listing.description ?? "").slice(0, 500)}`,
-    `Gilieji atributai: ${attrs}`,
-    "Įvertink kainą, aprašymą ir atributus. Duok konkretų patarimą lietuviškai.",
-    `Grąžink JSON: ${ADVICE_SCHEMA}`,
-  ].join("\n");
-
-  const models = ["gemini-2.5-flash", "gemini-1.5-flash"];
-  let lastErr: unknown;
-  for (const model of models) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey,
-          },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: "Grąžink tik JSON." }] },
-            contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-            generationConfig: { responseMimeType: "application/json" },
-          }),
-        }
-      );
-      if (!res.ok) continue;
-      const data = (await res.json()) as {
-        candidates?: { content?: { parts?: { text?: string }[] } }[];
-      };
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-      const parsed = JSON.parse(text) as { advice?: string };
-      if (parsed.advice?.trim()) return parsed.advice.trim();
-    } catch (e) {
-      lastErr = e;
-    }
+async function serverCoreV2Advice(listing: Listing): Promise<string> {
+  const res = await apiVautoServer({
+    action: "parse_text",
+    text: `Pasiūlyk kaip pagerinti skelbimą „${listing.title}“ (${listing.price}€, ${listing.category})`,
+    userCity: listing.location,
+  });
+  if (res && "reply" in res && typeof res.reply === "string" && res.reply.trim()) {
+    return res.reply.trim();
   }
-  throw lastErr ?? new Error("Gemini advice failed");
+  throw new Error("Core v2 advice empty");
 }
 
 function localAdvice(listing: Listing): string {
@@ -97,9 +55,9 @@ function localAdvice(listing: Listing): string {
 }
 
 export async function adviseListingOptimization(listing: Listing): Promise<string> {
-  if (isClientGeminiAvailable()) {
+  if (isAiProxyAvailable()) {
     try {
-      return await geminiAdvice(listing);
+      return await serverCoreV2Advice(listing);
     } catch {
       /* fallback */
     }

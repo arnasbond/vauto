@@ -19,7 +19,7 @@ const MODE_STYLES: Record<
   { label: string; className: string }
 > = {
   live: {
-    label: "Gemini AI",
+    label: "VAUTO AI",
     className: "border-emerald-200 bg-emerald-50 text-emerald-800",
   },
   demo: {

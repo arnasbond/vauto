@@ -1,4 +1,5 @@
 import { apiAnalyzeSearchIntent, apiAnalyzeVisualSearchIntent } from "@/lib/api/client";
+import { isClientAdvisoryQuery } from "@/lib/ai-command-authority";
 
 import { isAiProxyAvailable } from "@/lib/api/config";
 
@@ -329,15 +330,15 @@ function enforceWardrobeVisualIntent(
  * search authorization, even when the agent is unavailable. An explicit
  * search verb keeps search semantics.
  */
-export function isClientAdvisoryQuery(query: string): boolean {
+// isClientAdvisoryQuery is imported from ai-command-authority
 
-  const q = query.trim();
 
-  if (!q) return false;
 
-  return CLIENT_ADVISORY_RE.test(q) && !CLIENT_SEARCH_VERB_RE.test(q.toLowerCase());
 
-}
+
+// body removed
+
+
 
 
 export async function resolveSearchIntent(
@@ -359,10 +360,10 @@ export async function resolveSearchIntent(
   // E2.8 — ADVISORY guard: advice-seeking utterances never enter the
   // buyer-search intent analyzer — no model call, no invented
   // product/brand facets (client mirror of the server guard).
-  if (
-    CLIENT_ADVISORY_RE.test(query) &&
-    !CLIENT_SEARCH_VERB_RE.test(query.toLowerCase())
-  ) {
+  if (isClientAdvisoryQuery(query)) {
+
+
+
     return { cleanQuery: "", source: "fallback" };
   }
 
