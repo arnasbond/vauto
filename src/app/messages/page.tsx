@@ -9,7 +9,13 @@ function MessagesRedirectContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const q = searchParams.toString();
+    const params = new URLSearchParams(searchParams.toString());
+    const threadId = params.get("id") || params.get("thread");
+    if (threadId) {
+      params.set("id", threadId);
+      params.delete("thread");
+    }
+    const q = params.toString();
     const target = q ? `/pokalbiai/?${q}` : "/pokalbiai/";
     router.replace(target);
   }, [router, searchParams]);

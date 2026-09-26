@@ -9,9 +9,14 @@ function ChatThreadRedirectContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const id = searchParams.get("id") || searchParams.get("thread");
-    const q = searchParams.toString();
-    const target = id ? `/pokalbiai/?id=${encodeURIComponent(id)}` : q ? `/pokalbiai/?${q}` : "/pokalbiai/";
+    const params = new URLSearchParams(searchParams.toString());
+    const threadId = params.get("id") || params.get("thread");
+    if (threadId) {
+      params.set("id", threadId);
+      params.delete("thread");
+    }
+    const q = params.toString();
+    const target = q ? `/pokalbiai/?${q}` : "/pokalbiai/";
     router.replace(target);
   }, [router, searchParams]);
 
