@@ -15,6 +15,7 @@ import { listingDetailsCapability, type ListingDetailsArgs, type ListingDetailsD
 import { webResearchCapability } from "../capability/capabilities/web-research.js";
 import { prepareListingDraftCapability } from "../capability/capabilities/prepare-listing-draft.js";
 import { publishListingCapability } from "../capability/capabilities/publish-listing.js";
+import { analyzePhotoCapability } from "../capability/capabilities/analyze-photo.js";
 import type {
   CapabilityContext,
   CapabilityContract,
@@ -88,6 +89,7 @@ export function createBuyerRegistry(resultContext: ResultContext): CapabilityReg
   registry.register(searchListingsCapability);
   registry.register(createGuardedListingDetails(resultContext));
   registry.register(webResearchCapability);
+  registry.register(analyzePhotoCapability);
   registry.register(prepareListingDraftCapability);
   registry.register(publishListingCapability);
   return registry;

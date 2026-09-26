@@ -305,6 +305,7 @@ export function buyerTurnRecordToVautoResponse(
   // Determine legacy action type from Core v2 decision.
   let actionType: "none" | "search" | "listing_draft" = "none";
   let searchSideEffect: { type: "search"; searchQuery: string; listingIds: string[]; filters?: Record<string, unknown> } | null = null;
+  let draftSideEffect: { type: "listing_draft"; listingDraft: Record<string, unknown> } | null = null;
 
   const searchCall = record.capabilityCalls.find((c) => c.name === "searchListings" && c.ok);
   if (searchCall && searchCall.data) {
@@ -324,8 +325,13 @@ export function buyerTurnRecordToVautoResponse(
     };
   }
 
-  if (record.capabilityCalls.some((c) => c.name === "prepareListingDraft" && c.ok)) {
+  const prepareDraftCall = record.capabilityCalls.find((c) => c.name === "prepareListingDraft" && c.ok);
+  if (prepareDraftCall && prepareDraftCall.data) {
     actionType = "listing_draft";
+    draftSideEffect = {
+      type: "listing_draft",
+      listingDraft: prepareDraftCall.data as Record<string, unknown>,
+    };
   }
 
   // Surface unsupported consequential capabilities as error text.
@@ -349,7 +355,7 @@ export function buyerTurnRecordToVautoResponse(
     ok: true,
     reply: text,
     toolCalls,
-    actions: (searchSideEffect ?? { type: actionType }) as VautoAgentResponse["actions"],
+    actions: (searchSideEffect ?? draftSideEffect ?? { type: actionType }) as VautoAgentResponse["actions"],
     // Preserve subject for thread persistence.
     subject: record.decision.text?.slice(0, 200),
     // Attach Core v2 state for persistence.
@@ -438,13 +444,28 @@ export async function runCoreV2Turn(
 
   const verifier = deterministicAuthorityVerifier;
 
+  const ctxObj = (request.context ?? {}) as Record<string, unknown>;
+  const rawPendingImages =
+    (Array.isArray(ctxObj.pendingImageUrls)
+      ? (ctxObj.pendingImageUrls as string[])
+      : []) ||
+    (Array.isArray(ctxObj.sessionImageUrls)
+      ? (ctxObj.sessionImageUrls as string[])
+      : []);
+  const pendingImageUrls = rawPendingImages.filter((u) => Boolean(u && typeof u === "string"));
+
   const capabilityContext = {
     authUserId: adapterContext.authUserId,
     confirmationMode: adapterContext.confirmationMode,
+    pendingImageUrls,
   };
 
+  const effectiveUserText = pendingImageUrls.length > 0
+    ? `${userText}\n[Vartotojas įkėlė ${pendingImageUrls.length} nuotrauką(-as)]`.trim()
+    : userText;
+
   try {
-    const record: BuyerTurnRecord = await runBuyerTurn(session, userText, {
+    const record: BuyerTurnRecord = await runBuyerTurn(session, effectiveUserText, {
       provider,
       verifier,
       capabilityContext,

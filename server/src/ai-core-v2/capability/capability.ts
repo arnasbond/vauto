@@ -28,13 +28,15 @@ export type CapabilityFailureKind =
   | "recoverable";
 
 /** Provenance of tool-derived facts — never USER_STATED intent. */
-export type ToolFactSource = "TOOL_DERIVED" | "MODEL_INFERRED";
+export type ToolFactSource = "TOOL_DERIVED" | "MODEL_INFERRED" | "VISION_DERIVED" | "DOCUMENT_DERIVED";
 
 export interface CapabilityContext {
   /** Authenticated user id, when present. */
   authUserId?: string | null;
   /** Explicit Human-in-the-Loop confirmation for CONSEQUENTIAL operations. */
   confirmed?: boolean;
+  /** Image attachment URLs (base64 or http) available for vision analysis. */
+  pendingImageUrls?: string[];
 }
 
 export interface CapabilityResult<TData = unknown> {

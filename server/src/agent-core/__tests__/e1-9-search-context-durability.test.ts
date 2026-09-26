@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS agent_threads (
   search_context JSONB,
   pending_confirmations JSONB NOT NULL DEFAULT '[]'::jsonb,
   current_intent TEXT,
+  core_v2_state JSONB,
+  core_v2_result_context JSONB,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
