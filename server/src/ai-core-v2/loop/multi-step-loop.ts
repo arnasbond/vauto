@@ -51,6 +51,22 @@ export class TurnBudgetExceededError extends Error {
   }
 }
 
+/**
+ * Raised when the reasoning model persistently requests an already executed
+ * identical capability after receiving a grounded duplicate notice.
+ */
+export class PersistentDuplicateCapabilityError extends Error {
+  readonly code = "persistent_duplicate_capability";
+  readonly capability: string;
+  readonly execKey: string;
+  constructor(capability: string, execKey: string) {
+    super(`Persistent duplicate capability request for ${capability} (${execKey})`);
+    this.name = "PersistentDuplicateCapabilityError";
+    this.capability = capability;
+    this.execKey = execKey;
+  }
+}
+
 export interface MultiStepLoopOptions {
   provider: ReasoningProvider;
   registry: CapabilityRegistry;
@@ -451,14 +467,7 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
         capability: req.capability,
         execKey,
       });
-      return {
-        decision,
-        finalState: state,
-        iterations: reasoningCalls,
-        capabilityCalls,
-        rejectedAuthority,
-        allProposedPatches,
-      };
+      throw new PersistentDuplicateCapabilityError(req.capability, execKey);
     }
 
     if (executedCapCount >= maxCaps) {

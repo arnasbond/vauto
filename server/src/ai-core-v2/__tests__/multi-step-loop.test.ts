@@ -10,6 +10,7 @@ import type { CapabilityContract } from "../capability/capability.js";
 import {
   runMultiStepLoop,
   deriveSearchListingsArgs,
+  PersistentDuplicateCapabilityError,
   DEFAULT_MAX_ITERATIONS,
 } from "../loop/multi-step-loop.js";
 import type { ReasoningDecision, ReasoningInput, ReasoningProvider } from "../reasoning/reasoning-contract.js";
@@ -221,7 +222,7 @@ describe("Core v2 — multi-step loop", () => {
       assert.strictEqual(res.decision.text, "Gauti rezultatai patvirtinti.");
     });
 
-    it("4. persistent duplicate requests terminate boundedly via circuit breaker", async () => {
+    it("4. persistent duplicate requests terminate boundedly via PersistentDuplicateCapabilityError circuit breaker", async () => {
       let executionCount = 0;
       const registry = new CapabilityRegistry();
       registry.register({
@@ -240,10 +241,46 @@ describe("Core v2 — multi-step loop", () => {
         capabilityRequest: { capability: "searchListings", args: { query: "same" } },
       });
 
-      const res = await runMultiStepLoop({ provider, registry, input: input() });
+      await assert.rejects(
+        async () => {
+          await runMultiStepLoop({ provider, registry, input: input() });
+        },
+        (err: unknown) => {
+          assert.ok(err instanceof PersistentDuplicateCapabilityError);
+          assert.strictEqual(err.code, "persistent_duplicate_capability");
+          assert.strictEqual(err.capability, "searchListings");
+          return true;
+        },
+        "Must throw PersistentDuplicateCapabilityError on persistent duplicate request"
+      );
       assert.strictEqual(executionCount, 1, "Capability execute must be called ONLY ONCE");
-      // Must terminate boundedly via circuit breaker before maxReasoning (6) iterations spin
-      assert.ok(res.iterations <= 3, `Expected bounded termination, got ${res.iterations} iterations`);
+    });
+
+    it("5. terminal duplicate error path does NOT fall through as normal decision or core_v2_empty_visible_response", async () => {
+      const registry = new CapabilityRegistry();
+      registry.register({
+        name: "analyzePhoto",
+        description: "analizuoti",
+        operation: "READ",
+        validate: (a) => a,
+        execute: async () => ({ ok: true, data: { detectedObjects: ["Car"] } }),
+      });
+
+      const provider: ReasoningProvider = async () => ({
+        capabilityRequest: { capability: "analyzePhoto", args: {} },
+      });
+
+      try {
+        await runMultiStepLoop({ provider, registry, input: input() });
+        assert.fail("Should have thrown PersistentDuplicateCapabilityError");
+      } catch (err) {
+        assert.ok(err instanceof PersistentDuplicateCapabilityError);
+        assert.notStrictEqual(
+          (err as Error).message,
+          "core_v2_empty_visible_response",
+          "Must NOT fall through to core_v2_empty_visible_response"
+        );
+      }
     });
   });
 });
