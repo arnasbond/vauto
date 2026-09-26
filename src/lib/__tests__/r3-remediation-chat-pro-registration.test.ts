@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import { describe, it } from "node:test";
 import ProRegistrationPage from "@/app/pro-registration/page";
 
@@ -24,9 +26,42 @@ function parseQueryParams(url: string): Record<string, string> {
 }
 
 describe("R3 Remediation — Pro Registration & Chat Query Preservation", () => {
-  it("A. /pro-registration exports default ProRegistrationPage component (not a redirect container)", () => {
+  it("A. /pro-registration references ProRegistrationForm, auth hydration, and is NOT a redirect container", () => {
     assert.equal(typeof ProRegistrationPage, "function");
     assert.equal(ProRegistrationPage.name, "ProRegistrationPage");
+
+    const pagePath = path.resolve(process.cwd(), "src/app/pro-registration/page.tsx");
+    const source = fs.readFileSync(pagePath, "utf-8");
+
+    // Must reference the ProRegistrationForm component
+    assert.ok(
+      source.includes("ProRegistrationForm"),
+      "/pro-registration/page.tsx must reference ProRegistrationForm"
+    );
+
+    // Must handle auth hydration, unauthenticated state & already-pro role
+    assert.ok(
+      source.includes("authHydrated"),
+      "/pro-registration/page.tsx must handle authHydrated"
+    );
+    assert.ok(
+      source.includes("isAuthenticated"),
+      "/pro-registration/page.tsx must handle isAuthenticated"
+    );
+    assert.ok(
+      source.includes('user.role === "pro"'),
+      "/pro-registration/page.tsx must handle already-pro role"
+    );
+
+    // Must NOT be a redirect container to /verslui
+    assert.ok(
+      !source.includes("ProRegistrationRedirectContent"),
+      "/pro-registration/page.tsx must NOT be a redirect container"
+    );
+    assert.ok(
+      !source.includes('router.replace("/verslui'),
+      "/pro-registration/page.tsx must NOT redirect to /verslui"
+    );
   });
 
   it("B. /chats/thread redirect canonicalizes thread -> id while preserving escrow, session_id & extra params", () => {

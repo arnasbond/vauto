@@ -1,4 +1,5 @@
 "use client";
+/** Canonical business registration page — renders ProRegistrationForm for authenticated non-PRO users. */
 
 import Link from "next/link";
 import { ArrowLeft, Building2 } from "lucide-react";
