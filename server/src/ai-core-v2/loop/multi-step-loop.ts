@@ -418,6 +418,8 @@ export async function runMultiStepLoop(opts: MultiStepLoopOptions): Promise<Mult
       name: req.capability,
       elapsedMs: Date.now() - capabilityStartedAt,
       outcome: result.ok ? "success" : "failure",
+      failureKind: result.failureKind ?? null,
+      error: result.error ? String(result.error).slice(0, 150) : null,
     });
     capabilityCalls.push({ name: req.capability, ok: result.ok, error: result.error, data: result.data });
     opts.onEvent?.({

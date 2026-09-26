@@ -377,6 +377,25 @@ function lastUserMessage(messages: VautoAgentRequest["messages"]): string {
 }
 
 /**
+ * Extract pending image URLs from request context with fallback cascade:
+ * 1. pendingImageUrls if non-empty array
+ * 2. sessionImageUrls if non-empty array
+ * 3. []
+ */
+export function extractImageUrlsFromContext(context?: Record<string, unknown>): string[] {
+  if (!context) return [];
+  const pendingFromCtx = Array.isArray(context.pendingImageUrls)
+    ? (context.pendingImageUrls as string[]).filter((u) => Boolean(u && typeof u === "string"))
+    : [];
+  if (pendingFromCtx.length > 0) return pendingFromCtx;
+
+  const sessionFromCtx = Array.isArray(context.sessionImageUrls)
+    ? (context.sessionImageUrls as string[]).filter((u) => Boolean(u && typeof u === "string"))
+    : [];
+  return sessionFromCtx;
+}
+
+/**
  * Run a single Core v2 turn within the Thread Service boundary.
  *
  * This replaces runVautoAgent while preserving the existing
@@ -444,15 +463,7 @@ export async function runCoreV2Turn(
 
   const verifier = deterministicAuthorityVerifier;
 
-  const ctxObj = (request.context ?? {}) as Record<string, unknown>;
-  const rawPendingImages =
-    (Array.isArray(ctxObj.pendingImageUrls)
-      ? (ctxObj.pendingImageUrls as string[])
-      : []) ||
-    (Array.isArray(ctxObj.sessionImageUrls)
-      ? (ctxObj.sessionImageUrls as string[])
-      : []);
-  const pendingImageUrls = rawPendingImages.filter((u) => Boolean(u && typeof u === "string"));
+  const pendingImageUrls = extractImageUrlsFromContext(request.context as Record<string, unknown> | undefined);
 
   const capabilityContext = {
     authUserId: adapterContext.authUserId,
