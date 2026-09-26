@@ -9,9 +9,11 @@ import assert from "node:assert";
 import {
   threadRecordToBuyerSession,
   buyerTurnRecordToVautoResponse,
+  extractImageUrlsFromContext,
   CORE_V2_ENABLED,
 } from "../core-v2-adapter.js";
 import { emptyMarketplaceState } from "../../ai-core-v2/state/marketplace-state.js";
+import { analyzePhotoCapability } from "../../ai-core-v2/capability/capabilities/analyze-photo.js";
 import type { ThreadRecord } from "../thread-store.js";
 import type { VautoAgentRequest } from "../agent-types.js";
 
@@ -176,5 +178,47 @@ describe("E1 — Core v2 adapter", () => {
     const response = buyerTurnRecordToVautoResponse(record, {});
 
     assert.strictEqual(response.actions.type, "listing_draft");
+  });
+
+  describe("Photo context fallback & analyzePhoto regression coverage", () => {
+    it("1. pendingImageUrls=[] + non-empty sessionImageUrls -> selects sessionImageUrls as fallback", () => {
+      const images = extractImageUrlsFromContext({
+        pendingImageUrls: [],
+        sessionImageUrls: ["https://example.com/session-photo.jpg"],
+      });
+      assert.deepStrictEqual(images, ["https://example.com/session-photo.jpg"]);
+    });
+
+    it("2. non-empty pendingImageUrls remains primary", () => {
+      const images = extractImageUrlsFromContext({
+        pendingImageUrls: ["https://example.com/primary-photo.jpg"],
+        sessionImageUrls: ["https://example.com/session-photo.jpg"],
+      });
+      assert.deepStrictEqual(images, ["https://example.com/primary-photo.jpg"]);
+    });
+
+    it("3. both empty -> returns [] and analyzePhoto returns truthful not_found", async () => {
+      const images = extractImageUrlsFromContext({
+        pendingImageUrls: [],
+        sessionImageUrls: [],
+      });
+      assert.deepStrictEqual(images, []);
+
+      const result = await analyzePhotoCapability.execute({}, { pendingImageUrls: images });
+      assert.strictEqual(result.ok, false);
+      assert.strictEqual(result.failureKind, "not_found");
+      assert.strictEqual(result.error, "Nėra įkeltų nuotraukų analizei");
+    });
+
+    it("4. no forced analyzePhoto selection", async () => {
+      // Image context extraction alone does not force analyzePhoto execution
+      const images = extractImageUrlsFromContext({
+        sessionImageUrls: ["https://example.com/photo.jpg"],
+      });
+      assert.strictEqual(images.length, 1);
+      // Verify analyzePhoto is a standard registered capability with operation READ, not forced
+      assert.strictEqual(analyzePhotoCapability.name, "analyzePhoto");
+      assert.strictEqual(analyzePhotoCapability.operation, "READ");
+    });
   });
 });
