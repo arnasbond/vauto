@@ -875,7 +875,7 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     // The assistant reply is visible, but raw attribute markers can never
     // mint the trusted VIN review card.
     await expect(
-      page.locator(".agent-chat-strip .agent-chat-bubble-assistant")
+      page.locator(".agent-chat-strip .agent-chat-bubble-assistant").filter({ hasText: "Nuotraukoje atpažinau VIN kandidatą" })
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('[data-vin-review-card="1"]')).toHaveCount(0);
   });
@@ -905,7 +905,7 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     // The assistant reply is visible, but the incomplete vehicles draft
     // (missing condition) must NEVER open the PrePublish modal:
     await expect(
-      page.locator(".agent-chat-strip .agent-chat-bubble-assistant")
+      page.locator(".agent-chat-strip .agent-chat-bubble-assistant").filter({ hasText: "Nuotraukoje atpažinau VIN kandidatą" })
     ).toBeVisible({ timeout: 15_000 });
     await expect(page.locator('[data-prepublish-modal="1"]')).toHaveCount(0);
   });
