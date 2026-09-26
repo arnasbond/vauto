@@ -28,8 +28,8 @@ export function DesktopAddAside({ fashionMode }: { fashionMode?: boolean }) {
     <aside className="hidden md:block" aria-label="Skelbimo įkėlimo privalumai">
       <div className="sticky top-[calc(var(--anonser-header-height)+1.5rem)] space-y-5">
         <section className="overflow-hidden rounded-2xl border border-[var(--anonser-border)] bg-[var(--anonser-card)] shadow-sm">
-          <div className="border-b border-[var(--anonser-border)] bg-gradient-to-br from-[var(--anonser-primary-soft)] to-white px-5 py-5">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--anonser-primary)]">
+          <div className="border-b border-[var(--anonser-border)] bg-gradient-to-br from-[var(--anonser-primary-soft)] to-[var(--ds-surface-card)] px-5 py-5">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--ds-surface-card)] px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--anonser-primary)]">
               <Sparkles className="h-3.5 w-3.5" />
               VAUTO AI
             </span>

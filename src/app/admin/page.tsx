@@ -22,7 +22,7 @@ export default function AdminIndexPage() {
 
   if (!authHydrated) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-sm text-slate-500">
+      <div className="flex min-h-dvh items-center justify-center text-sm text-[var(--ds-text-muted)]">
         Kraunama…
       </div>
     );
@@ -30,7 +30,7 @@ export default function AdminIndexPage() {
 
   if (isAuthenticated && isSuperAdminUser(user)) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-sm text-slate-500">
+      <div className="flex min-h-dvh items-center justify-center text-sm text-[var(--ds-text-muted)]">
         Kraunama…
       </div>
     );
