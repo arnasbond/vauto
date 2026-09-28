@@ -356,11 +356,10 @@ test.describe("MASTER Wave 1 — Theme Authority Contract", () => {
         await expect(page.locator("[data-theme-quick-control]")).toBeVisible();
         await expect(page.getByRole("button", { name: "Pranešimai" })).toBeVisible();
         await expect(page.getByRole("button", { name: "Prisijungti" })).toBeVisible();
-        await expect(
-          page.getByRole("navigation", { name: "Pagrindinė navigacija" })
-        ).toBeVisible();
-        await expect(page.getByRole("link", { name: "Skelbimai" })).toBeVisible();
-        await expect(page.getByRole("link", { name: "Paieška" })).toBeVisible();
+        const nav = page.getByRole("navigation", { name: "Pagrindinė navigacija" });
+        await expect(nav).toBeVisible();
+        await expect(nav.getByRole("link", { name: "Pradžia" })).toBeVisible();
+        await expect(nav.getByRole("link", { name: "Paieška" })).toBeVisible();
         await expect(page.locator("[data-nav-add-listing]:visible").first()).toBeVisible();
       }
 

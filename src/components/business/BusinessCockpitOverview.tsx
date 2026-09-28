@@ -176,6 +176,23 @@ export function BusinessCockpitOverview({
       data-business-cockpit-7={mode === "kpi" ? "kpi" : "full"}
       className={cn("space-y-4", className)}
     >
+      {mode !== "analytics" && (
+        <AiInsightCard
+          title="Kas šiandien svarbiausia versle?"
+          body={
+            derived.activeCount > 0
+              ? `• Aktyvių skelbimų: ${derived.activeCount}. Gauta pirkėjų užklausų / kontaktų: ${derived.contacts + buyerIntentCount}.\n${
+                  derived.highPrice > 0
+                    ? `• ${derived.highPrice} skelbimų kaina viršija rinkos vidurkį — peržiūrėkite kainodaros rekomendacijas.`
+                    : "• Visi jūsų aktyvūs skelbimai atitinka rinkos kainos diapazoną."
+                }`
+              : "Šiuo metu neturite aktyvių verslo skelbimų. Įkelkite skelbimus arba importuokite CSV / XML katalogą."
+          }
+          ctaLabel="Peržiūrėti skelbimų analitiką"
+          onCta={onOpenAiTips}
+          className="mb-2"
+        />
+      )}
       {mode === "analytics" ? null : (
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard
