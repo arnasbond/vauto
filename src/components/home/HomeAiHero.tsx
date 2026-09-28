@@ -192,35 +192,34 @@ export function HomeAiHero({
 
             </div>
             </div>
-            <details className="mt-2 text-xs text-[var(--ds-text-muted)]">
-              <summary className="cursor-pointer py-2">Paieškos pavyzdžiai</summary>
             <div
-              className="mt-1 flex max-w-3xl flex-wrap gap-2"
+              className="mt-3 flex max-w-3xl flex-wrap gap-2"
               role="group"
               aria-label="Pavyzdžio frazės"
               data-search-examples
             >
-              {EXAMPLE_CHIPS.slice(0, 2).map((chip) => (
+              <span className="self-center text-xs font-semibold text-[var(--ds-text-muted)]">
+                Pavyzdžiai:
+              </span>
+              {EXAMPLE_CHIPS.map((chip) => (
                 <button
                   key={chip}
                   type="button"
                   onClick={() => handleChip(chip)}
                   className={cn(
-                    "max-w-full rounded-full border border-[var(--ds-border-subtle,#e6e9f0)] bg-[var(--ds-surface-card,#fff)] px-3 py-1.5",
+                    "max-w-full rounded-full border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] px-3 py-1.5",
                     "text-left text-[12px] font-medium leading-snug text-[var(--ds-text-secondary)] shadow-[var(--ds-shadow-xs)]",
                     "transition-[transform,box-shadow,border-color,background-color] duration-[160ms] ease-[var(--ds-ease)]",
-                    "hover:-translate-y-px hover:border-[var(--ds-ai)]/40 hover:bg-[var(--ds-ai-soft)] hover:shadow-[var(--ds-shadow-sm)]",
+                    "hover:-translate-y-px hover:border-[var(--ds-brand)]/40 hover:bg-[var(--ds-brand-soft)] hover:shadow-[var(--ds-shadow-sm)]",
                     "focus-visible:outline-none focus-visible:shadow-[var(--ds-focus-ring-ai)]",
                     activeChip === chip &&
-                      "border-[var(--ds-ai)]/50 bg-[var(--ds-ai-soft)] text-[var(--ds-ai-strong)]"
+                      "border-[var(--ds-brand)] bg-[var(--ds-brand-soft)] text-[var(--ds-brand)] font-semibold"
                   )}
                 >
-                  <span className="line-clamp-2 break-words">{chip}</span>
+                  <span className="line-clamp-1 break-words">{chip}</span>
                 </button>
               ))}
             </div>
-
-            </details>
             <HomeTrendingStrip listings={newestListings} onSeeAll={() => router.push("/search")} className="mt-3 pt-3" />
 
             <HomeCategoryGrid

@@ -88,9 +88,7 @@ export function ListingGrid({ hideEmptyAssistant = false, hideInterpretation = f
     (v) => v.mode === "map"
   )?.enabled;
   const renderMode =
-    !isMobile && !viewModeExplicit && effectiveMode === "grid"
-      ? "list"
-      : effectiveMode === "map" && mapCapabilityEnabled === false
+    effectiveMode === "map" && mapCapabilityEnabled === false
       ? isMobile
         ? "list"
         : "grid"
