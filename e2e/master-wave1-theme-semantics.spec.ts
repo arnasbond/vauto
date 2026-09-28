@@ -359,7 +359,7 @@ test.describe("MASTER Wave 1 — Theme Authority Contract", () => {
         await expect(
           page.getByRole("navigation", { name: "Pagrindinė navigacija" })
         ).toBeVisible();
-        await expect(page.getByRole("link", { name: "Skelbimai" })).toBeVisible();
+        await expect(page.getByRole("link", { name: "Pradžia" })).toBeVisible();
         await expect(page.getByRole("link", { name: "Paieška" })).toBeVisible();
         await expect(page.locator("[data-nav-add-listing]:visible").first()).toBeVisible();
       }
