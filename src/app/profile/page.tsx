@@ -172,8 +172,6 @@ function ProfilePageContent() {
           </div>
         ) : (
           <div className="space-y-4">
-            <AiPersonalizationSurveyCard />
-
             <DashboardPage
               user={user}
               listings={myListings}
@@ -192,6 +190,8 @@ function ProfilePageContent() {
                 className="vauto-btn-quiet flex w-full items-center justify-center gap-2 py-3 text-sm"
               />
             )}
+
+            <AiPersonalizationSurveyCard />
 
             <ProfileSettingsMenu user={user} showBusinessEntry={!isPro} />
           </div>
