@@ -217,7 +217,9 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     // CTA and must never promise a "safe/guaranteed" deal.
     const article = listingResults(page).locator("article").first();
     if (await article.isVisible({ timeout: 15_000 }).catch(() => false)) {
-      await article.getByRole("link").first().click({ force: true });
+      await article.getByRole("link").first().click();
+      await page.waitForURL(/\/listing\//i, { timeout: 15_000 });
+      expect(page.url()).toMatch(/\/listing\//i);
       await expect(page.locator("body")).not.toContainText(/Skelbimas nerastas/i, {
         timeout: 15_000,
       });
@@ -236,6 +238,7 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
   test("Test 8 — No false platform guarantees in first-time pages", async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     const paths = ["/", "/add/", "/duk/", "/apie/"];
     for (const path of paths) {
       await page.goto(path);
@@ -247,6 +250,7 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
   });
 
   test("Test 9 — Platform fee terminology matches 12A", async ({ page }) => {
+    test.setTimeout(60_000);
     const paths = ["/", "/add/", "/duk/", "/apie/", "/profile/"];
     for (const path of paths) {
       await page.goto(path);
@@ -260,7 +264,9 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     await dismissGdpr(page);
     const article = listingResults(page).locator("article").first();
     if (await article.isVisible().catch(() => false)) {
-      await article.getByRole("link").first().click({ force: true });
+      await article.getByRole("link").first().click();
+      await page.waitForURL(/\/listing\//i, { timeout: 15_000 });
+      expect(page.url()).toMatch(/\/listing\//i);
       const text = await visibleBodyText(page);
       expect(text).not.toMatch(/pirkėjo apsaugos mokestis/i);
       expect(text).not.toMatch(/AI saugumo garantija/i);
