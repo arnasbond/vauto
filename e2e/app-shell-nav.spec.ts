@@ -45,18 +45,17 @@ test.describe("App Shell 2.0 navigation", () => {
         });
         await expect(nav).toBeVisible();
         await expect(nav.getByRole("link", { name: "Pradžia" })).toBeVisible();
-        await expect(nav.getByRole("link", { name: "Paieška" })).toBeVisible();
         await expect(
           nav.getByRole("button", { name: "Įdėti naują skelbimą" })
         ).toBeVisible();
         await expect(nav.getByRole("link", { name: "Pokalbiai" })).toBeVisible();
-        await expect(nav.getByRole("link", { name: /Profilis/i })).toBeVisible();
+        await expect(nav.getByRole("link", { name: /Mano erdvė/i })).toBeVisible();
       } else {
-        await expect(
-          page.getByRole("navigation", { name: "Pagrindinė navigacija" })
-        ).toBeVisible();
-        await expect(page.getByRole("link", { name: "Skelbimai" })).toBeVisible();
-        await expect(page.getByRole("link", { name: "Paieška" })).toBeVisible();
+        const nav = page.getByRole("navigation", {
+          name: "Pagrindinė navigacija",
+        });
+        await expect(nav).toBeVisible();
+        await expect(nav.getByRole("link", { name: "Pradžia" })).toBeVisible();
       }
 
       await shot(page, `guest-${vp.name}.png`);
@@ -77,13 +76,13 @@ test.describe("App Shell 2.0 navigation", () => {
 
       if (vp.width >= 768) {
         await expect(
-          page.getByRole("link", { name: "Mano skelbimai" })
+          page.getByRole("link", { name: "Mano erdvė" })
         ).toBeVisible();
       } else {
         await expect(
           page
             .getByRole("navigation", { name: "Pagrindinė navigacija" })
-            .getByRole("link", { name: /Profilis/i })
+            .getByRole("link", { name: /Mano erdvė/i })
         ).toBeVisible();
       }
 

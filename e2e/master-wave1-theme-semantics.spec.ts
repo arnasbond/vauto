@@ -108,7 +108,7 @@ test.describe("MASTER Wave 1 — Theme Authority Contract", () => {
     await dismissGdpr(page);
     await expect.poll(() => appTheme(page)).toBe("dark");
 
-    await page.getByRole("link", { name: "Paieška" }).first().click();
+    await page.getByRole("link", { name: "Pradžia" }).first().click();
     await expect.poll(() => appTheme(page)).toBe("dark");
   });
 
@@ -359,7 +359,6 @@ test.describe("MASTER Wave 1 — Theme Authority Contract", () => {
         const nav = page.getByRole("navigation", { name: "Pagrindinė navigacija" });
         await expect(nav).toBeVisible();
         await expect(nav.getByRole("link", { name: "Pradžia" })).toBeVisible();
-        await expect(nav.getByRole("link", { name: "Paieška" })).toBeVisible();
         await expect(page.locator("[data-nav-add-listing]:visible").first()).toBeVisible();
       }
 

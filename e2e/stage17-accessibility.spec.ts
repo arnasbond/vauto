@@ -85,8 +85,7 @@ test.describe("Stage 17H — Accessibility foundations", () => {
     await expect(homeSearchbox(page)).toBeVisible();
     const nav = page.getByRole("navigation", { name: "Pagrindinė navigacija" });
     await expect(nav).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Skelbimai" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Paieška" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Pradžia" })).toBeVisible();
 
     // No horizontal overflow while exercising a11y flows.
     const overflow = await horizontalOverflowPx(page);
