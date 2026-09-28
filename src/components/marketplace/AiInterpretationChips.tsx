@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, Sparkles, X } from "lucide-react";
 import {
   interpretAiFacets,
   type FacetChip,
@@ -324,6 +324,10 @@ export function AiInterpretationChips({
       data-ai-interpretation
       className="mb-2"
     >
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-[var(--ds-text-secondary)]">
+        <Sparkles className="h-3.5 w-3.5 text-[var(--ds-brand)]" aria-hidden />
+        <span>VAUTO suprato mane taip:</span>
+      </div>
       <div className="flex flex-wrap items-start gap-2">
         <ul
           data-ai-chips

@@ -215,7 +215,7 @@ export function ListingDetailStickyPanel({
             </Button>
             {onStartDeal ? (
               <Button
-                variant="primary"
+                variant="secondary"
                 leftIcon={<Handshake className="h-4 w-4" />}
                 onClick={onStartDeal}
                 className="w-full"

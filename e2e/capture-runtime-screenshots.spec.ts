@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { seedDemoUser, seedAuthSession } from "./helpers/seed-demo-user";
+import { seedDemoUser, seedAuthSession, seedProUser } from "./helpers/seed-demo-user";
 
 const DESKTOP_VIEWPORT = { width: 1280, height: 800 };
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
@@ -65,8 +65,10 @@ test.describe("R4 Final Visual Evidence Capture (All 17 Required Surfaces)", () 
     await page.addInitScript(() => {
       localStorage.setItem("vauto_app_theme_v1", "light");
     });
-    await page.goto("/search/");
+    await page.goto("/search/?q=naujas+butas+vilniuje");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(page.locator("body")).toContainText(/VAUTO suprato mane taip/i);
     await page.screenshot({ path: "artifacts/runtime-search-results.png" });
   });
 
@@ -76,8 +78,10 @@ test.describe("R4 Final Visual Evidence Capture (All 17 Required Surfaces)", () 
     await page.addInitScript(() => {
       localStorage.setItem("vauto_app_theme_v1", "light");
     });
-    await page.goto("/search/");
+    await page.goto("/search/?q=naujas+butas+vilniuje");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(page.locator("body")).toContainText(/VAUTO suprato mane taip/i);
     await page.screenshot({ path: "artifacts/runtime-search-results-mobile.png" });
   });
 
@@ -161,8 +165,10 @@ test.describe("R4 Final Visual Evidence Capture (All 17 Required Surfaces)", () 
     await page.addInitScript(() => {
       localStorage.setItem("vauto_app_theme_v1", "light");
     });
+    await seedProUser(page);
     await page.goto("/verslui/");
     await page.waitForLoadState("networkidle");
+    await expect(page.locator("body")).toContainText(/Kas šiandien svarbiausia versle/i);
     await page.screenshot({ path: "artifacts/runtime-verslui-business.png" });
   });
 
@@ -172,8 +178,10 @@ test.describe("R4 Final Visual Evidence Capture (All 17 Required Surfaces)", () 
     await page.addInitScript(() => {
       localStorage.setItem("vauto_app_theme_v1", "light");
     });
+    await seedProUser(page);
     await page.goto("/verslui/");
     await page.waitForLoadState("networkidle");
+    await expect(page.locator("body")).toContainText(/Kas šiandien svarbiausia versle/i);
     await page.screenshot({ path: "artifacts/runtime-verslui-business-mobile.png" });
   });
 
@@ -207,10 +215,11 @@ test.describe("R4 Final Visual Evidence Capture (All 17 Required Surfaces)", () 
     await page.addInitScript(() => {
       localStorage.setItem("vauto_app_theme_v1", "light");
     });
-    await page.goto("/non-existent-page-404/");
+    await page.goto("/404/");
     await page.waitForLoadState("networkidle");
     const theme = await page.evaluate(() => document.documentElement.getAttribute("data-app-theme"));
     expect(theme).toBe("light");
+    await expect(page.locator("body")).toContainText(/404 — Puslapis nerastas/i);
     await page.screenshot({ path: "artifacts/runtime-404-error-light.png" });
   });
 
@@ -220,10 +229,11 @@ test.describe("R4 Final Visual Evidence Capture (All 17 Required Surfaces)", () 
     await page.addInitScript(() => {
       localStorage.setItem("vauto_app_theme_v1", "dark");
     });
-    await page.goto("/non-existent-page-404/");
+    await page.goto("/404/");
     await page.waitForLoadState("networkidle");
     const theme = await page.evaluate(() => document.documentElement.getAttribute("data-app-theme"));
     expect(theme).toBe("dark");
+    await expect(page.locator("body")).toContainText(/404 — Puslapis nerastas/i);
     await page.screenshot({ path: "artifacts/runtime-404-error-dark.png" });
   });
 });

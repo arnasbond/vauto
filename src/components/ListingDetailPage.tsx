@@ -450,7 +450,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--ds-text-muted,var(--vauto-muted))] transition hover:text-[var(--ds-text-primary,var(--vauto-ink))]"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Skelbimai
+          Pradžia
         </Link>
       </nav>
 
