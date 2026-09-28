@@ -53,7 +53,7 @@ export function MobileBottomNavigation() {
       },
       {
         id: "profile",
-        label: "Profilis",
+        label: "Mano erdvė",
         href: "/profile/",
         icon: UserRound,
       },
