@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { seedDemoUser, seedAuthSession } from "./helpers/seed-demo-user";
+import { seedDemoUser, seedAuthSession, seedProUser } from "./helpers/seed-demo-user";
 
 const DESKTOP_VIEWPORT = { width: 1280, height: 800 };
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
@@ -67,6 +67,7 @@ test.describe("R4 Final Visual Evidence Capture (All 17 Required Surfaces)", () 
     });
     await page.goto("/search/?q=naujas+butas+vilniuje");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => window.scrollTo(0, 0));
     await expect(page.locator("body")).toContainText(/VAUTO suprato mane taip/i);
     await page.screenshot({ path: "artifacts/runtime-search-results.png" });
   });
@@ -79,6 +80,7 @@ test.describe("R4 Final Visual Evidence Capture (All 17 Required Surfaces)", () 
     });
     await page.goto("/search/?q=naujas+butas+vilniuje");
     await page.waitForLoadState("networkidle");
+    await page.evaluate(() => window.scrollTo(0, 0));
     await expect(page.locator("body")).toContainText(/VAUTO suprato mane taip/i);
     await page.screenshot({ path: "artifacts/runtime-search-results-mobile.png" });
   });
@@ -163,16 +165,7 @@ test.describe("R4 Final Visual Evidence Capture (All 17 Required Surfaces)", () 
     await page.addInitScript(() => {
       localStorage.setItem("vauto_app_theme_v1", "light");
     });
-    await seedAuthSession(page, {
-      id: "biz-1",
-      name: "Pro Verslas",
-      nickname: "pro_verslas",
-      avatar: E2E_AVATAR,
-      phone: "+37060000002",
-      city: "Vilnius",
-      role: "pro",
-      profileType: "business",
-    });
+    await seedProUser(page);
     await page.goto("/verslui/");
     await page.waitForLoadState("networkidle");
     await expect(page.locator("body")).toContainText(/Kas šiandien svarbiausia versle/i);
@@ -185,16 +178,7 @@ test.describe("R4 Final Visual Evidence Capture (All 17 Required Surfaces)", () 
     await page.addInitScript(() => {
       localStorage.setItem("vauto_app_theme_v1", "light");
     });
-    await seedAuthSession(page, {
-      id: "biz-1",
-      name: "Pro Verslas",
-      nickname: "pro_verslas",
-      avatar: E2E_AVATAR,
-      phone: "+37060000002",
-      city: "Vilnius",
-      role: "pro",
-      profileType: "business",
-    });
+    await seedProUser(page);
     await page.goto("/verslui/");
     await page.waitForLoadState("networkidle");
     await expect(page.locator("body")).toContainText(/Kas šiandien svarbiausia versle/i);

@@ -264,8 +264,8 @@ test.describe("VAUTO smoke", () => {
     await expect(page.getByRole("searchbox").first()).toBeVisible({ timeout: 15_000 });
     const nav = page.getByRole("navigation", { name: "Pagrindinė navigacija" });
     await expect(nav.getByRole("button", { name: "Įdėti naują skelbimą" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: /Profilis|VAUTO CC/i })).toBeVisible();
-    await nav.getByRole("link", { name: /Profilis|VAUTO CC/i }).click();
+    await expect(nav.getByRole("link", { name: /Profilis|Mano erdvė|VAUTO CC/i })).toBeVisible();
+    await nav.getByRole("link", { name: /Profilis|Mano erdvė|VAUTO CC/i }).click();
     await expect(page).toHaveURL(/\/profile\/?/, { timeout: 15_000 });
   });
 
