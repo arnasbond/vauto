@@ -463,12 +463,12 @@ export function EscrowModal({
               prekės gavimą. Po patvirtinimo lėšos perduodamos pardavėjui per
               Stripe Connect.
             </p>
-            <div className="mt-4 rounded-2xl bg-gray-50 p-4">
+            <div className="mt-4 rounded-2xl bg-[var(--ds-surface-muted)] p-4">
               <p className="text-xs text-[var(--vauto-text-muted)]">Prekė</p>
               <p className="text-lg font-bold text-[var(--vauto-text)]">
                 {amount.toFixed(2)} €
               </p>
-              <div className="mt-3 space-y-1 border-t border-slate-200 pt-3 text-xs text-slate-600">
+              <div className="mt-3 space-y-1 border-t border-[var(--ds-border-subtle)] pt-3 text-xs text-[var(--ds-text-secondary)]">
                 <div className="flex justify-between">
                   <span>
                     Platformos paslaugos mokestis ({BUYER_PROTECTION_FEE_PERCENT}%)
@@ -477,7 +477,7 @@ export function EscrowModal({
                   <span className="font-semibold">
                     {freeCredits > 0 ? (
                       <>
-                        <span className="mr-1 text-slate-400 line-through">
+                        <span className="mr-1 text-[var(--ds-text-muted)] line-through">
                           {calculateBuyerProtectionFee(amount, 0).toFixed(2)} €
                         </span>
                         0.00 €
@@ -488,7 +488,7 @@ export function EscrowModal({
                   </span>
                 </div>
                 {freeCredits > 0 && (
-                  <p className="text-[10px] text-emerald-600">
+                  <p className="text-[10px] text-emerald-600 dark:text-emerald-400">
                     Naudojamas referral kreditas · liko {freeCredits}
                   </p>
                 )}
@@ -498,7 +498,7 @@ export function EscrowModal({
                     <span className="font-semibold">{twinFee.toFixed(2)} €</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm font-bold text-[var(--vauto-ink)]">
+                <div className="flex justify-between text-sm font-bold text-[var(--ds-text-primary)]">
                   <span>Iš viso</span>
                   <span>{buyerTotal.toFixed(2)} €</span>
                 </div>
@@ -506,12 +506,12 @@ export function EscrowModal({
             </div>
             <div className="mt-3 flex gap-2 rounded-xl border border-[var(--ds-ai)]/25 bg-[var(--ds-ai-soft)] p-3">
               <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ds-ai)]" />
-              <p className="text-xs leading-relaxed text-[var(--vauto-body)]">
+              <p className="text-xs leading-relaxed text-[var(--ds-text-secondary)]">
                 {buyerProtectionExplanation()}
               </p>
             </div>
             <div className="mt-4">
-              <p className="mb-2 text-xs font-semibold text-slate-500">
+              <p className="mb-2 text-xs font-semibold text-[var(--ds-text-muted)]">
                 Siuntimo partneris
               </p>
               {!omnivaEligibility.eligible ? (

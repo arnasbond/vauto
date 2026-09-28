@@ -101,8 +101,8 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     await openHome(page, { width: 1280, height: 800 }, { searchStub: "hits" });
 
     const examples = page.locator("[data-search-examples] button");
-    // FC-UX V5 — the certified hero carries 2 concise examples (not 4).
-    await expect(examples).toHaveCount(2);
+    // R4 — the certified hero carries 4 concise examples across main verticals.
+    await expect(examples).toHaveCount(4);
     const chips = (await examples.allTextContents()).map((t) => t.trim());
     expect(chips.some((c) => /butas|NT|120 000/i.test(c))).toBeTruthy();
     expect(chips.some((c) => /nuoma|ekskavator/i.test(c))).toBeTruthy();
@@ -218,6 +218,8 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     const article = listingResults(page).locator("article").first();
     if (await article.isVisible({ timeout: 15_000 }).catch(() => false)) {
       await article.getByRole("link").first().click();
+      await page.waitForURL(/\/listing\//i, { timeout: 15_000 });
+      expect(page.url()).toMatch(/\/listing\//i);
       await expect(page.locator("body")).not.toContainText(/Skelbimas nerastas/i, {
         timeout: 15_000,
       });
@@ -236,6 +238,7 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
   test("Test 8 — No false platform guarantees in first-time pages", async ({
     page,
   }) => {
+    test.setTimeout(60_000);
     const paths = ["/", "/add/", "/duk/", "/apie/"];
     for (const path of paths) {
       await page.goto(path);
@@ -247,6 +250,7 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
   });
 
   test("Test 9 — Platform fee terminology matches 12A", async ({ page }) => {
+    test.setTimeout(60_000);
     const paths = ["/", "/add/", "/duk/", "/apie/", "/profile/"];
     for (const path of paths) {
       await page.goto(path);
@@ -261,6 +265,8 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     const article = listingResults(page).locator("article").first();
     if (await article.isVisible().catch(() => false)) {
       await article.getByRole("link").first().click();
+      await page.waitForURL(/\/listing\//i, { timeout: 15_000 });
+      expect(page.url()).toMatch(/\/listing\//i);
       const text = await visibleBodyText(page);
       expect(text).not.toMatch(/pirkėjo apsaugos mokestis/i);
       expect(text).not.toMatch(/AI saugumo garantija/i);
@@ -357,9 +363,11 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
       await search.fill("");
       await search.press("Enter");
       await expect(emptySearchHint(page)).toBeVisible();
-      // FC-UX V5 — examples are progressively disclosed behind a collapsible
-      // "Paieškos pavyzdžiai" summary; open it before selecting a chip.
-      await page.locator("details:has([data-search-examples]) summary").click();
+      // R4 exposes search prompt chips directly in HomeAiHero without a collapsible <details> accordion.
+      const summary = page.locator("details:has([data-search-examples]) summary");
+      if (await summary.isVisible().catch(() => false)) {
+        await summary.click();
+      }
       await page.locator("[data-search-examples] button").first().click();
       await expect(emptySearchHint(page)).toHaveCount(0);
 

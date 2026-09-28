@@ -131,6 +131,10 @@ export async function openHome(
 ) {
   if (viewport) await page.setViewportSize(viewport);
   if (opts?.searchStub) await installFirstTimeSearchStub(page, opts.searchStub);
+  await page.addInitScript(() => {
+    localStorage.removeItem("vauto_chat_active_v1");
+    sessionStorage.removeItem("vauto_chat_active_v1");
+  });
   await page.goto("/");
   await dismissGdpr(page);
   await expect(page.locator("[data-home-h1]")).toBeVisible({ timeout: 15_000 });

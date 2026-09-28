@@ -16,8 +16,8 @@ export function ZeroUiAdminPanel() {
     return (
       <ZeroUiScreenChrome subtitle="Puslapis nerastas" onBack={goToMarketplace}>
         <div className="flex flex-col items-center px-4 py-12 text-center">
-          <p className="text-4xl font-bold text-slate-900">404</p>
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="text-4xl font-bold text-[var(--ds-text-primary)]">404</p>
+          <p className="mt-3 text-sm text-[var(--ds-text-secondary)]">
             Šio adreso nėra arba jis buvo perkeltas.
           </p>
         </div>
