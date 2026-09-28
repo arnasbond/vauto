@@ -87,11 +87,10 @@ export function resolveMessagesHref(): string {
   return "/messages/";
 }
 
-/** Public top-nav links (only real routes). */
+/** Public top-nav links — aligned with R5 AI-first progressive disclosure doctrine. */
 export function getPublicHeaderLinks(persona: AppPersona): NavItem[] {
   const links: NavItem[] = [
     { id: "home", label: "Pradžia", href: "/", icon: Sparkles, match: "exact" },
-    { id: "search", label: "Paieška", href: "/search/", icon: Search, match: "prefix" },
   ];
   if (persona === "guest") return links;
   links.push({
@@ -101,24 +100,6 @@ export function getPublicHeaderLinks(persona: AppPersona): NavItem[] {
     icon: UserRound,
     match: "prefix",
   });
-  if (persona === "business" || persona === "admin") {
-    links.push({
-      id: "business",
-      label: "Verslui",
-      href: "/verslui/",
-      icon: Briefcase,
-      match: "prefix",
-    });
-  }
-  if (persona === "admin") {
-    links.push({
-      id: "cc",
-      label: "Control Center",
-      href: "/profile/?tab=moderation",
-      icon: Shield,
-      match: "prefix",
-    });
-  }
   return links;
 }
 
