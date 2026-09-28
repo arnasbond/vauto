@@ -101,8 +101,8 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     await openHome(page, { width: 1280, height: 800 }, { searchStub: "hits" });
 
     const examples = page.locator("[data-search-examples] button");
-    // FC-UX V5 — the certified hero carries 2 concise examples (not 4).
-    await expect(examples).toHaveCount(2);
+    // R4 — the certified hero carries 4 concise examples across main verticals.
+    await expect(examples).toHaveCount(4);
     const chips = (await examples.allTextContents()).map((t) => t.trim());
     expect(chips.some((c) => /butas|NT|120 000/i.test(c))).toBeTruthy();
     expect(chips.some((c) => /nuoma|ekskavator/i.test(c))).toBeTruthy();
@@ -217,7 +217,7 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     // CTA and must never promise a "safe/guaranteed" deal.
     const article = listingResults(page).locator("article").first();
     if (await article.isVisible({ timeout: 15_000 }).catch(() => false)) {
-      await article.getByRole("link").first().click();
+      await article.getByRole("link").first().click({ force: true });
       await expect(page.locator("body")).not.toContainText(/Skelbimas nerastas/i, {
         timeout: 15_000,
       });
@@ -260,7 +260,7 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
     await dismissGdpr(page);
     const article = listingResults(page).locator("article").first();
     if (await article.isVisible().catch(() => false)) {
-      await article.getByRole("link").first().click();
+      await article.getByRole("link").first().click({ force: true });
       const text = await visibleBodyText(page);
       expect(text).not.toMatch(/pirkėjo apsaugos mokestis/i);
       expect(text).not.toMatch(/AI saugumo garantija/i);
@@ -357,9 +357,11 @@ test.describe("Stage 12B — First-Time User Comprehension Readiness", () => {
       await search.fill("");
       await search.press("Enter");
       await expect(emptySearchHint(page)).toBeVisible();
-      // FC-UX V5 — examples are progressively disclosed behind a collapsible
-      // "Paieškos pavyzdžiai" summary; open it before selecting a chip.
-      await page.locator("details:has([data-search-examples]) summary").click();
+      // R4 exposes search prompt chips directly in HomeAiHero without a collapsible <details> accordion.
+      const summary = page.locator("details:has([data-search-examples]) summary");
+      if (await summary.isVisible().catch(() => false)) {
+        await summary.click();
+      }
       await page.locator("[data-search-examples] button").first().click();
       await expect(emptySearchHint(page)).toHaveCount(0);
 

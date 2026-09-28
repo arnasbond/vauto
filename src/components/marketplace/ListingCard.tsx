@@ -195,7 +195,7 @@ export function ListingCard({
             className="object-cover transition-transform duration-[200ms] group-hover:scale-105"
             priority={priority}
           />
-          <div className="absolute left-1 top-1 z-[1]">{badges}</div>
+          <div className="absolute left-1 top-1 z-[1] pointer-events-none">{badges}</div>
           {photoCount > 1 ? (
             <span className="absolute bottom-1 right-1 rounded-md bg-black/55 px-1.5 py-0.5 text-[10px] font-semibold text-white">
               {photoCount}
@@ -279,7 +279,7 @@ export function ListingCard({
             priority={priority}
           />
         </Link>
-        <div className="absolute left-2 top-2 z-[1] max-w-[70%]">
+        <div className="absolute left-2 top-2 z-[1] max-w-[70%] pointer-events-none">
           {compact ? compactBadge : badges}
         </div>
         {heart ? (
