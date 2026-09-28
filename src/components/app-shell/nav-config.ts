@@ -90,15 +90,15 @@ export function resolveMessagesHref(): string {
 /** Public top-nav links (only real routes). */
 export function getPublicHeaderLinks(persona: AppPersona): NavItem[] {
   const links: NavItem[] = [
-    { id: "home", label: "Skelbimai", href: "/", icon: Home, match: "exact" },
+    { id: "home", label: "Pradžia", href: "/", icon: Sparkles, match: "exact" },
     { id: "search", label: "Paieška", href: "/search/", icon: Search, match: "prefix" },
   ];
   if (persona === "guest") return links;
   links.push({
-    id: "cabinet",
-    label: "Mano skelbimai",
-    href: "/mano-skelbimai/",
-    icon: Store,
+    id: "profile",
+    label: "Mano erdvė",
+    href: "/profile/",
+    icon: UserRound,
     match: "prefix",
   });
   if (persona === "business" || persona === "admin") {
