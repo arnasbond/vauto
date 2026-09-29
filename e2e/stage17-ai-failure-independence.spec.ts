@@ -51,7 +51,8 @@ test.describe("Stage 17G — AI failure independence (classic marketplace stays 
     const overflow = await horizontalOverflowPx(page);
     expect(overflow, "no horizontal overflow with AI down").toBeLessThanOrEqual(0);
 
-    // Classic browse: category grid renders before any search is submitted.
+    // Classic browse: open category accordion and check category grid.
+    await page.locator("[data-home-category-grid] summary").click();
     await expect(categoryButtons(page).first()).toBeVisible({ timeout: 10_000 });
 
     // Hero + classic search control are interactive, not AI-blocked (submit works).
@@ -62,8 +63,7 @@ test.describe("Stage 17G — AI failure independence (classic marketplace stays 
     // Marketplace chrome remains usable (guest nav) — no lock.
     const nav = page.getByRole("navigation", { name: "Pagrindinė navigacija" });
     await expect(nav).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Skelbimai" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Paieška" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Pradžia" })).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Įdėti naują skelbimą" }).or(
         page.getByRole("button", { name: "Įdėti" }).first()
@@ -85,6 +85,7 @@ test.describe("Stage 17G — AI failure independence (classic marketplace stays 
     await expect(
       page.getByRole("navigation", { name: "Pagrindinė navigacija" })
     ).toBeVisible();
+    await page.locator("[data-home-category-grid] summary").click();
     await expect(categoryButtons(page).first()).toBeVisible({ timeout: 10_000 });
     await expect(homeSearchbox(page)).toBeVisible();
     await expect(
@@ -111,8 +112,7 @@ test.describe("Stage 17G — AI failure independence (classic marketplace stays 
     // Marketplace chrome still reachable (guest nav) — no lock.
     const nav = page.getByRole("navigation", { name: "Pagrindinė navigacija" });
     await expect(nav).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Skelbimai" })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Paieška" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: "Pradžia" })).toBeVisible();
     const overflow = await horizontalOverflowPx(page);
     expect(overflow).toBeLessThanOrEqual(0);
   });

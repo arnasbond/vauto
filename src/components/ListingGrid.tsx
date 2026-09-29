@@ -1,7 +1,7 @@
 "use client";
 // @disk-refresh 2026-07-08T00:04 — supervisor DOM fixes
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { SmartBrokerCard } from "@/components/broker/SmartBrokerCard";
@@ -238,6 +238,18 @@ export function ListingGrid({ hideEmptyAssistant = false, hideInterpretation = f
     );
   };
 
+  const [showAllCatalog, setShowAllCatalog] = useState(false);
+  const isSearchMode = searchQuery.trim().length >= 3;
+
+  useEffect(() => {
+    setShowAllCatalog(false);
+  }, [searchQuery]);
+
+  const itemsToDisplay = useMemo(() => {
+    if (showAllCatalog) return displayListings;
+    return displayListings.slice(0, 4);
+  }, [displayListings, showAllCatalog]);
+
   return (
     <section id="listing-results" aria-labelledby="listing-results-heading" className="py-2">
       <h2 id="listing-results-heading" className="sr-only">
@@ -318,17 +330,34 @@ export function ListingGrid({ hideEmptyAssistant = false, hideInterpretation = f
         </>
       ) : (
         <>
-          {searchQuery.trim().length < 3 && (
-            <div className="mb-4 flex items-center gap-2.5">
-              <h3 className="vauto-layout-heading font-[family-name:var(--font-outfit)] text-lg font-bold text-[var(--vauto-ink)]">
-                Naujausi skelbimai
-              </h3>
-              <span className="rounded-full bg-[var(--vauto-surface-page)] px-2.5 py-0.5 text-xs font-medium text-[var(--vauto-body)]">
-                {displayListings.length} skelbimų
-              </span>
+          {!isSearchMode && (
+            <div className="mb-3 flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2">
+                <h3 className="vauto-layout-heading font-[family-name:var(--font-outfit)] text-base font-bold text-[var(--vauto-ink)] sm:text-lg">
+                  Rekomenduojami skelbimai
+                </h3>
+                <span className="rounded-full bg-[var(--ds-brand-soft)] px-2.5 py-0.5 text-xs font-semibold text-[var(--ds-brand)]">
+                  Rinkos apžvalga
+                </span>
+              </div>
             </div>
           )}
-          {renderListingCards(displayListings, true)}
+
+          {renderListingCards(itemsToDisplay, showAllCatalog)}
+
+          {!showAllCatalog && displayListings.length > itemsToDisplay.length && (
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setShowAllCatalog(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-[var(--ds-brand)]/30 bg-[var(--ds-brand-soft)] px-6 py-3 text-sm font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white"
+              >
+                {isSearchMode
+                  ? `Rodyti visus rezultatus (${displayListings.length})`
+                  : `Rodyti visus skelbimus (${displayListings.length})`}
+              </button>
+            </div>
+          )}
         </>
       )}
 

@@ -39,6 +39,12 @@ test.describe("F7 — kategorijų uždarymas ir kortelių hierarchija (desktop)"
     await expect(results.locator("[data-listing-card]").first()).toBeVisible({
       timeout: 20_000,
     });
+    const showAllBtn = page.getByRole("button", {
+      name: /Rodyti visus skelbimus|Rodyti visus rezultatus/i,
+    });
+    if (await showAllBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await showAllBtn.click();
+    }
     return results;
   }
 
@@ -514,6 +520,11 @@ test.describe("F7 — kortelių vientisumas (mobile)", () => {
     await expect(page.locator("[data-listing-card='list']").first()).toBeVisible({
       timeout: 20_000,
     });
+
+    const showAllBtn = page.getByRole("button", { name: "Rodyti visus skelbimus" });
+    if (await showAllBtn.isVisible().catch(() => false)) {
+      await showAllBtn.click();
+    }
 
     const clothingListCard = page
       .locator('[data-listing-card="list"][data-listing-category="clothing"]')

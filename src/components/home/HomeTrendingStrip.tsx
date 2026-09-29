@@ -12,7 +12,7 @@ interface HomeTrendingStripProps {
   className?: string;
 }
 
-const STRIP_SIZE = 6;
+const STRIP_SIZE = 4;
 
 /**
  * Real-marketplace-context strip shown directly under the category row on
@@ -51,7 +51,7 @@ export function HomeTrendingStrip({
           </button>
         ) : null}
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-4">
         {featured.map((listing, index) => (
           <ListingCard
             key={listing.id}
