@@ -162,102 +162,152 @@ export function ListingDetailStickyPanel({
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col gap-2">
-        {isOwner ? (
-          <>
-            <Button
-              variant="primary"
-              disabled
-              leftIcon={<MessageCircle className="h-4 w-4" />}
-              title="Taip matys pirkėjai — žinutės sau nesiunčiamos"
-              className="w-full"
+      <div className="mt-5 rounded-2xl border border-[var(--ds-brand)]/20 bg-[var(--ds-brand-soft)]/60 p-4 shadow-sm">
+        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[var(--ds-brand)] flex items-center gap-1.5">
+          <Sparkles className="h-4 w-4 text-[var(--ds-brand)]" />
+          Paklausk VAUTO apie šį skelbimą…
+        </p>
+
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={onOpenTips}
+            className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-2.5 py-1 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
+          >
+            ✨ Ar verta?
+          </button>
+          <button
+            type="button"
+            onClick={onOpenTips}
+            className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-2.5 py-1 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
+          >
+            ⚖️ Palygink kainą
+          </button>
+          <button
+            type="button"
+            onClick={onMessage}
+            className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-2.5 py-1 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
+          >
+            💬 Paklausk pardavėjo
+          </button>
+          {wardrobeContext ? (
+            <button
+              type="button"
+              onClick={onNegotiate}
+              className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-2.5 py-1 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
             >
-              Rašyti žinutę
-            </Button>
-            <Button
-              variant="secondary"
-              disabled
-              leftIcon={<Phone className="h-4 w-4" />}
-              title="Taip matys pirkėjai — jūsų skelbime skambutis neaktyvus"
-              className="w-full"
+              🤝 Noriu derėtis
+            </button>
+          ) : null}
+          {onStartDeal ? (
+            <button
+              type="button"
+              onClick={onStartDeal}
+              className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-2.5 py-1 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
             >
-              Skambinti ({phoneDisplay})
-            </Button>
-            <p className="text-center text-[11px] font-medium text-[var(--ds-text-muted)]">
-              Peržiūra — taip pirkėjai matys kontaktų mygtukus
-            </p>
-          </>
-        ) : (
-          <>
-            <Button
-              variant="primary"
-              leftIcon={<MessageCircle className="h-4 w-4" />}
-              onClick={onMessage}
-              className="w-full"
-              data-listing-message-cta="1"
-            >
-              Rašyti žinutę
-            </Button>
-            <Button
-              variant="secondary"
-              leftIcon={<Phone className="h-4 w-4" />}
-              onClick={() => {
-                onTrackCall();
-                if (!demoPhone && phoneTel) {
-                  window.location.href = phoneTel;
-                  return;
-                }
-                onCall();
-              }}
-              className="w-full"
-            >
-              Skambinti ({phoneDisplay})
-            </Button>
-            {onStartDeal ? (
+              🔒 Noriu pirkti
+            </button>
+          ) : null}
+        </div>
+
+        <Button
+          variant="primary"
+          leftIcon={<Sparkles className="h-4 w-4" />}
+          onClick={onOpenTips}
+          className="w-full shadow-md"
+        >
+          Kalbėtis su VAUTO AI
+        </Button>
+      </div>
+
+      <details className="mt-4 rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] p-3">
+        <summary className="cursor-pointer text-xs font-semibold text-[var(--ds-text-secondary)] hover:text-[var(--ds-brand)]">
+          Tiesioginiai kontaktai ir pirkimo parinktys ▾
+        </summary>
+        <div className="mt-3 flex flex-col gap-2">
+          {isOwner ? (
+            <>
+              <Button
+                variant="primary"
+                disabled
+                leftIcon={<MessageCircle className="h-4 w-4" />}
+                title="Taip matys pirkėjai — žinutės sau nesiunčiamos"
+                className="w-full"
+              >
+                Rašyti žinutę
+              </Button>
               <Button
                 variant="secondary"
-                leftIcon={<Handshake className="h-4 w-4" />}
-                onClick={onStartDeal}
+                disabled
+                leftIcon={<Phone className="h-4 w-4" />}
+                title="Taip matys pirkėjai — jūsų skelbime skambutis neaktyvus"
                 className="w-full"
-                data-start-deal-cta="1"
               >
-                Pradėti sandorio eigą
+                Skambinti ({phoneDisplay})
               </Button>
-            ) : null}
-            {offersOmnivaShipping ? (
+            </>
+          ) : (
+            <>
               <Button
-                variant="ai"
-                leftIcon={<Truck className="h-4 w-4" />}
-                onClick={onOpenShipping}
+                variant="primary"
+                leftIcon={<MessageCircle className="h-4 w-4" />}
+                onClick={onMessage}
                 className="w-full"
-                data-order-shipping-cta="1"
+                data-listing-message-cta="1"
               >
-                Pirkti per Escrow · Omniva
+                Rašyti žinutę
               </Button>
-            ) : null}
-            <Button
-              variant="ghost"
-              size="sm"
-              leftIcon={<Sparkles className="h-3.5 w-3.5" />}
-              onClick={onOpenTips}
-              data-listing-ai-tips="1"
-              className="w-full"
-            >
-              AI klausimai pardavėjui
-            </Button>
-            {wardrobeContext ? (
+              <Button
+                variant="secondary"
+                leftIcon={<Phone className="h-4 w-4" />}
+                onClick={() => {
+                  onTrackCall();
+                  if (!demoPhone && phoneTel) {
+                    window.location.href = phoneTel;
+                    return;
+                  }
+                  onCall();
+                }}
+                className="w-full"
+              >
+                Skambinti ({phoneDisplay})
+              </Button>
+              {onStartDeal ? (
+                <Button
+                  variant="secondary"
+                  leftIcon={<Handshake className="h-4 w-4" />}
+                  onClick={onStartDeal}
+                  className="w-full"
+                  data-start-deal-cta="1"
+                >
+                  Pradėti sandorio eigą
+                </Button>
+              ) : null}
+              {offersOmnivaShipping ? (
+                <Button
+                  variant="ai"
+                  leftIcon={<Truck className="h-4 w-4" />}
+                  onClick={onOpenShipping}
+                  className="w-full"
+                  data-order-shipping-cta="1"
+                >
+                  Pirkti per Escrow · Omniva
+                </Button>
+              ) : null}
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onNegotiate}
-                className="w-full text-[var(--ds-text-muted)]"
+                leftIcon={<Sparkles className="h-3.5 w-3.5" />}
+                onClick={onOpenTips}
+                data-listing-ai-tips="1"
+                className="w-full"
               >
-                AI Derybininkas
+                AI klausimai pardavėjui
               </Button>
-            ) : null}
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      </details>
 
       <div className="mt-5 flex flex-wrap gap-2">
         {offersOmnivaShipping ? (

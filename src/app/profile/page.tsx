@@ -157,6 +157,41 @@ function ProfilePageContent() {
 
         <DashboardHeader user={user} onLogout={logout} />
 
+        {/* First Viewport — Returning user activity + VAUTO interaction prompt */}
+        <div className="mb-4 rounded-2xl border border-[var(--ds-brand)]/25 bg-[var(--ds-brand-soft)]/50 p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--ds-brand)]">
+              <Sparkles className="h-4 w-4" />
+              Paklausk VAUTO apie savo paskyrą ar skelbimus…
+            </div>
+            <span className="text-xs font-medium text-[var(--ds-text-muted)]">
+              Mano skelbimai: {myListings.length}
+            </span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => showToast("Aktyvūs skelbimai atnaujinti", "info")}
+              className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
+            >
+              ✨ Kas pasikeitė skelbimuose?
+            </button>
+            <Link
+              href="/mano-skelbimai/"
+              className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
+            >
+              📦 Mano skelbimai ({myListings.length})
+            </Link>
+            <Link
+              href="/messages/"
+              className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
+            >
+              💬 Pokalbiai ir sandoriai
+            </Link>
+          </div>
+        </div>
+
         <SegmentedTabs
           items={PROFILE_TABS}
           value={tab}
@@ -191,9 +226,15 @@ function ProfilePageContent() {
               />
             )}
 
-            <AiPersonalizationSurveyCard />
-
-            <ProfileSettingsMenu user={user} showBusinessEntry={!isPro} />
+            <details className="rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] p-4">
+              <summary className="cursor-pointer text-xs font-semibold text-[var(--ds-text-secondary)] hover:text-[var(--ds-brand)]">
+                AI personalizacija ir paskyros nustatymai ▾
+              </summary>
+              <div className="mt-4 space-y-4">
+                <AiPersonalizationSurveyCard />
+                <ProfileSettingsMenu user={user} showBusinessEntry={!isPro} />
+              </div>
+            </details>
           </div>
         )}
       </DashboardShell>

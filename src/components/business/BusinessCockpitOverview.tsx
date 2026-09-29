@@ -177,67 +177,109 @@ export function BusinessCockpitOverview({
       className={cn("space-y-4", className)}
     >
       {mode !== "analytics" && (
-        <AiInsightCard
-          title="Kas šiandien svarbiausia versle?"
-          body={
-            derived.activeCount > 0
-              ? `• Aktyvių skelbimų: ${derived.activeCount}. Gauta pirkėjų užklausų / kontaktų: ${derived.contacts + buyerIntentCount}.\n${
-                  derived.highPrice > 0
-                    ? `• ${derived.highPrice} skelbimų kaina viršija rinkos vidurkį — peržiūrėkite kainodaros rekomendacijas.`
-                    : "• Visi jūsų aktyvūs skelbimai atitinka rinkos kainos diapazoną."
-                }`
-              : "Šiuo metu neturite aktyvių verslo skelbimų. Įkelkite skelbimus arba importuokite CSV / XML katalogą."
-          }
-          ctaLabel="Peržiūrėti skelbimų analitiką"
-          onCta={onOpenAiTips}
-          className="mb-2"
-        />
+        <>
+          <AiInsightCard
+            title="Kas šiandien svarbiausia versle?"
+            body={
+              derived.activeCount > 0
+                ? `• Aktyvūs skelbimai: ${derived.activeCount}. Gauta pirkėjų užklausų / kontaktų: ${derived.contacts + buyerIntentCount}.\n${
+                    derived.highPrice > 0
+                      ? `• ${derived.highPrice} skelbimų kaina viršija rinkos vidurkį — peržiūrėkite kainodaros rekomendacijas.`
+                      : "• Visi jūsų aktyvūs skelbimai atitinka rinkos kainos diapazoną."
+                  }`
+                : "Šiuo metu neturite aktyvių verslo skelbimų. Įkelkite skelbimus arba importuokite CSV / XML katalogą."
+            }
+            ctaLabel="Peržiūrėti skelbimų analitiką"
+            onCta={onOpenAiTips}
+            className="mb-3"
+          />
+
+          <div className="mb-4 rounded-2xl border border-[var(--ds-brand)]/20 bg-[var(--ds-brand-soft)]/50 p-4 shadow-sm">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-[var(--ds-brand)]">
+                Paklausk VAUTO apie verslo rezultatus…
+              </p>
+              <span className="text-xs font-semibold text-[var(--ds-text-muted)]">
+                Aktyvūs skelbimai: {derived.activeCount} · Peržiūros: {analytics.views}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={onOpenAiTips}
+                className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
+              >
+                ✨ Kainodaros rekomendacijos
+              </button>
+              <button
+                type="button"
+                onClick={onOpenAiTips}
+                className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
+              >
+                📈 Atsipirkimo analitika
+              </button>
+              <button
+                type="button"
+                onClick={onOpenAiTips}
+                className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
+              >
+                📦 Masinis įkėlimas (CSV / XML)
+              </button>
+            </div>
+          </div>
+        </>
       )}
+
       {mode === "analytics" ? null : (
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard
-          label="Pajamos"
-          value={`${derived.revenue.toLocaleString("lt-LT")} €`}
-          hint={`${derived.soldCount} parduoti`}
-          trend={derived.revenue > 0 ? "up" : "flat"}
-        />
-        <StatCard
-          label="Kontaktai / Leads"
-          value={String(derived.contacts + buyerIntentCount)}
-          hint={`${analytics.callClicks} skamb. · ${analytics.chatStarts} pokalb.`}
-          trend={derived.contacts > 0 ? "up" : "flat"}
-        />
-        <StatCard
-          label="Peržiūros"
-          value={String(analytics.views)}
-          hint={analytics.source === "server" ? "Gyvi duomenys" : "Lokalu"}
-        />
-        <StatCard
-          label="Konversija"
-          value={`${derived.conversion} %`}
-          hint="Kontaktai / peržiūros"
-          trend={derived.conversion >= 5 ? "up" : "flat"}
-        />
-        <StatCard
-          label="Reklamos išlaidos"
-          value={`${derived.adSpend.toLocaleString("lt-LT", {
-            maximumFractionDigits: 2,
-          })} €`}
-          hint={
-            analytics.costPerContact != null
-              ? `${analytics.costPerContact.toLocaleString("lt-LT", {
-                  minimumFractionDigits: 2,
-                })} € / kontaktas`
-              : "Promote spend"
-          }
-        />
-        <StatCard
-          label="AI sutaupytas laikas (įvertinimas)"
-          value={`~${derived.aiMinutes} min`}
-          hint={`Piniginė: ${walletBalance.toLocaleString("lt-LT")} €`}
-          trend={derived.aiMinutes > 0 ? "up" : "flat"}
-        />
-      </div>
+        <details className="rounded-xl border border-[var(--ds-border-subtle)] bg-[var(--ds-surface-card)] p-4">
+          <summary className="cursor-pointer text-xs font-semibold text-[var(--ds-text-secondary)] hover:text-[var(--ds-brand)]">
+            Išsami verslo analitika ir rodikliai (KPI) ▾
+          </summary>
+          <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+            <StatCard
+              label="Pajamos"
+              value={`${derived.revenue.toLocaleString("lt-LT")} €`}
+              hint={`${derived.soldCount} parduoti`}
+              trend={derived.revenue > 0 ? "up" : "flat"}
+            />
+            <StatCard
+              label="Kontaktai / Leads"
+              value={String(derived.contacts + buyerIntentCount)}
+              hint={`${analytics.callClicks} skamb. · ${analytics.chatStarts} pokalb.`}
+              trend={derived.contacts > 0 ? "up" : "flat"}
+            />
+            <StatCard
+              label="Peržiūros"
+              value={String(analytics.views)}
+              hint={analytics.source === "server" ? "Gyvi duomenys" : "Lokalu"}
+            />
+            <StatCard
+              label="Konversija"
+              value={`${derived.conversion} %`}
+              hint="Kontaktai / peržiūros"
+              trend={derived.conversion >= 5 ? "up" : "flat"}
+            />
+            <StatCard
+              label="Reklamos išlaidos"
+              value={`${derived.adSpend.toLocaleString("lt-LT", {
+                maximumFractionDigits: 2,
+              })} €`}
+              hint={
+                analytics.costPerContact != null
+                  ? `${analytics.costPerContact.toLocaleString("lt-LT", {
+                      minimumFractionDigits: 2,
+                    })} € / kontaktas`
+                  : "Promote spend"
+              }
+            />
+            <StatCard
+              label="AI sutaupytas laikas (įvertinimas)"
+              value={`~${derived.aiMinutes} min`}
+              hint={`Lėšų likutis: ${walletBalance.toLocaleString("lt-LT")} €`}
+              trend={derived.aiMinutes > 0 ? "up" : "flat"}
+            />
+          </div>
+        </details>
       )}
 
       {mode === "kpi" ? null : (
