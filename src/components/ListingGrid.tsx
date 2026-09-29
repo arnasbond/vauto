@@ -247,11 +247,8 @@ export function ListingGrid({ hideEmptyAssistant = false, hideInterpretation = f
 
   const itemsToDisplay = useMemo(() => {
     if (showAllCatalog) return displayListings;
-    if (isSearchMode) {
-      return displayListings.slice(0, 4);
-    }
-    return displayListings.slice(0, 5);
-  }, [displayListings, isSearchMode, showAllCatalog]);
+    return displayListings.slice(0, 4);
+  }, [displayListings, showAllCatalog]);
 
   return (
     <section id="listing-results" aria-labelledby="listing-results-heading" className="py-2">
