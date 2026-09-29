@@ -172,13 +172,7 @@ export function BusinessCockpitOverview({
     other: "Kita",
   };
 
-  let agent: ReturnType<typeof useVautoAgent> | null = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    agent = useVautoAgent();
-  } catch {
-    agent = null;
-  }
+  const agent = useVautoAgent();
 
   const handlePricingClick = () => {
     if (agent?.handleDirectAgentChip) {
