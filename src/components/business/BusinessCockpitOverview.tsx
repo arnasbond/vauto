@@ -20,6 +20,8 @@ import { getBusinessMarketOverview } from "@/lib/market-insights";
 import { getPriceAdvice } from "@/lib/price-advisor";
 import type { SellerListingAnalytics } from "@/lib/seller-listing-analytics";
 import type { Listing } from "@/lib/types";
+import { useVautoAgent } from "@/context/VautoAgentContext";
+import { notifyWardrobeBulkImportOpened } from "@/lib/agent-flow-client";
 import { cn } from "@/lib/cn";
 
 export type BusinessCockpitOverviewProps = {
@@ -170,6 +172,43 @@ export function BusinessCockpitOverview({
     other: "Kita",
   };
 
+  let agent: ReturnType<typeof useVautoAgent> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    agent = useVautoAgent();
+  } catch {
+    agent = null;
+  }
+
+  const handlePricingClick = () => {
+    if (agent?.handleDirectAgentChip) {
+      agent.handleDirectAgentChip("Pateik kainodaros rekomendacijas ir rinkos vidurkio analizę mano verslo skelbimams.");
+    } else if (onOpenAiTips) {
+      onOpenAiTips();
+    }
+  };
+
+  const handleAnalyticsClick = () => {
+    const el = document.getElementById("business-analytics") || document.getElementById("business-cockpit-overview");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth" });
+    }
+    if (agent?.handleDirectAgentChip) {
+      agent.handleDirectAgentChip("Analizuok mano verslo skelbimų peržiūras, konversiją ir atsipirkimą.");
+    } else if (onOpenAiTips) {
+      onOpenAiTips();
+    }
+  };
+
+  const handleBulkImportClick = () => {
+    notifyWardrobeBulkImportOpened(
+      "Masinis verslo skelbimų įkėlimas (CSV / XML). Įkelkite arba nurodykite failo nuorodą:"
+    );
+    if (agent?.handleDirectAgentChip) {
+      agent.handleDirectAgentChip("Kaip atlikti masinį verslo skelbimų įkėlimą iš CSV / XML failo?");
+    }
+  };
+
   return (
     <div
       id={mode === "kpi" ? "business-cockpit-kpi" : "business-cockpit-overview"}
@@ -190,7 +229,7 @@ export function BusinessCockpitOverview({
                 : "Šiuo metu neturite aktyvių verslo skelbimų. Įkelkite skelbimus arba importuokite CSV / XML katalogą."
             }
             ctaLabel="Peržiūrėti skelbimų analitiką"
-            onCta={onOpenAiTips}
+            onCta={handleAnalyticsClick}
             className="mb-3"
           />
 
@@ -206,21 +245,21 @@ export function BusinessCockpitOverview({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                onClick={onOpenAiTips}
+                onClick={handlePricingClick}
                 className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
               >
                 ✨ Kainodaros rekomendacijos
               </button>
               <button
                 type="button"
-                onClick={onOpenAiTips}
+                onClick={handleAnalyticsClick}
                 className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
               >
                 📈 Atsipirkimo analitika
               </button>
               <button
                 type="button"
-                onClick={onOpenAiTips}
+                onClick={handleBulkImportClick}
                 className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
               >
                 📦 Masinis įkėlimas (CSV / XML)

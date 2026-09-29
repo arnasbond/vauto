@@ -596,6 +596,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               onTrackCall={() => trackListingCall(listing.id)}
               onOpenShipping={() => setOrderShippingOpen(true)}
               onOpenTips={() => setBuyerTipsOpen(true)}
+              onAskTip={handleAskTip}
               onNegotiate={handleNegotiate}
               onStartDeal={handleStartDeal}
             />

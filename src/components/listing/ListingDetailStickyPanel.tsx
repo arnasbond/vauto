@@ -54,6 +54,7 @@ export type ListingDetailStickyPanelProps = {
   onTrackCall: () => void;
   onOpenShipping: () => void;
   onOpenTips: () => void;
+  onAskTip?: (question: string) => void;
   onNegotiate: () => void;
   onStartDeal?: () => void;
   className?: string;
@@ -79,6 +80,7 @@ export function ListingDetailStickyPanel({
   onTrackCall,
   onOpenShipping,
   onOpenTips,
+  onAskTip,
   onNegotiate,
   onStartDeal,
   className,
@@ -171,14 +173,24 @@ export function ListingDetailStickyPanel({
         <div className="mb-3 flex flex-wrap gap-1.5">
           <button
             type="button"
-            onClick={onOpenTips}
+            onClick={() =>
+              onAskTip
+                ? onAskTip("Ar ši kaina atitinka rinkos vertę ir ar verta pirkti?")
+                : onOpenTips()
+            }
             className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-2.5 py-1 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
           >
             ✨ Ar verta?
           </button>
           <button
             type="button"
-            onClick={onOpenTips}
+            onClick={() =>
+              onAskTip
+                ? onAskTip(
+                    "Kaip šio skelbimo kaina atrodo lyginant su analogiškais skelbimais rinkoje?"
+                  )
+                : onOpenTips()
+            }
             className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-2.5 py-1 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
           >
             ⚖️ Palygink kainą

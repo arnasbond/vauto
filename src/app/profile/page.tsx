@@ -21,6 +21,7 @@ import { isSuperAdminUser } from "@/lib/admin-access";
 import { isBusinessProfile, isPrivateProfile } from "@/lib/profile-type";
 import { isNativeApp } from "@/lib/mobile-install";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoAgent } from "@/context/VautoAgentContext";
 
 type ProfileTab = "cabinet" | "ai";
 
@@ -78,6 +79,8 @@ function ProfilePageContent() {
   const isPro = user.role === "pro";
   const isBusinessCabinet = isBusinessProfile(user);
   const isPrivateCabinet = isPrivateProfile(user);
+
+  const { handleDirectAgentChip } = useVautoAgent();
 
   const handleRenew = async (id: string) => {
     await renewListing(id);
@@ -172,7 +175,7 @@ function ProfilePageContent() {
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => showToast("Aktyvūs skelbimai atnaujinti", "info")}
+              onClick={() => handleDirectAgentChip("Kas pasikeitė mano skelbimuose?")}
               className="rounded-full border border-[var(--ds-brand)]/30 bg-white/80 px-3 py-1.5 text-xs font-semibold text-[var(--ds-brand)] transition hover:bg-[var(--ds-brand)] hover:text-white dark:bg-black/30"
             >
               ✨ Kas pasikeitė skelbimuose?
