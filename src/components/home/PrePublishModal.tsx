@@ -51,6 +51,10 @@ import {
   LAUNCH_PROMO_BADGE,
   LAUNCH_PROMO_LISTING_NOTE,
 } from "@vauto/shared/launch-promo";
+import {
+  isNegotiableListingPrice,
+  NEGOTIABLE_PRICE_LABEL,
+} from "@vauto/shared/negotiable-price";
 import { listingCategoryAllowsPhotoless, listingPhotoLimitForCategory } from "@vauto/shared/listing-photo-policy";
 import {
   applyVinManualEntryCandidate,
@@ -111,6 +115,8 @@ export interface PrePublishModalProps {
   publishing?: boolean;
   /** Live draft attributes for editable specs. */
   attributes?: Record<string, string | string[] | undefined>;
+  /** R5 — "manual" renders the simple no-AI form (photos/title/price/location/description/contact). */
+  variant?: "agent" | "manual";
   onClose?: () => void;
   onPublish: (sourceRect: DOMRect, visibilityId: PrePublishVisibilityId) => void | Promise<void>;
   onGalleryChange?: (imageUrls: string[]) => void;
@@ -132,11 +138,13 @@ export function PrePublishModal({
   card,
   publishing = false,
   attributes,
+  variant = "agent",
   onClose,
   onPublish,
   onGalleryChange,
   onFieldsChange,
 }: PrePublishModalProps) {
+  const simplified = variant === "manual";
   const [visibilityId, setVisibilityId] =
     useState<PrePublishVisibilityId>("standard");
   const [dragFrom, setDragFrom] = useState<number | null>(null);
@@ -161,6 +169,11 @@ export function PrePublishModal({
   const photoLimit = listingPhotoLimitForCategory(card.category);
   const publishButtonRef = useRef<HTMLButtonElement>(null);
   const selected = getPrePublishVisibilityOption(visibilityId);
+  const isNegotiable = isNegotiableListingPrice({
+    price: card.price,
+    priceLabel: card.priceLabel,
+    attributes: attributes as Record<string, unknown> | undefined,
+  });
 
   useEffect(() => {
     if (!publishing) submitLockRef.current = false;
@@ -241,7 +254,7 @@ export function PrePublishModal({
 
   // Advisory price range — never blocks publish or AI chat.
   useEffect(() => {
-    if (!open) {
+    if (!open || simplified) {
       setPriceAdvice(null);
       setPriceAdviceLoading(false);
       priceAdviceShownKeyRef.current = "";
@@ -329,6 +342,8 @@ export function PrePublishModal({
       return;
     }
     // Sync shipping mode when PrePublish opens / eligibility changes.
+    // R5 — the simple manual form has no shipping options: skip the sync write.
+    if (simplified) return;
     const next: PrePublishShippingMode = omnivaEligibility.eligible
       ? "omniva_locker"
       : "pickup_or_courier";
@@ -342,7 +357,7 @@ export function PrePublishModal({
     });
     // Only re-run when eligibility flips — avoid draft write loops.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional open/eligibility sync
-  }, [open, omnivaEligibility.eligible, omnivaEligibility.estimatedSize]);
+  }, [open, omnivaEligibility.eligible, omnivaEligibility.estimatedSize, simplified]);
 
   useEffect(() => {
     if (!open) {
@@ -629,14 +644,16 @@ export function PrePublishModal({
       <div className="pre-publish-modal-panel mx-auto flex h-full w-full max-w-lg flex-col bg-[var(--vauto-card-bg)] shadow-[0_8px_40px_rgba(11,18,32,0.18)] sm:my-3 sm:h-[min(96dvh,920px)] sm:max-w-2xl sm:rounded-2xl sm:border sm:border-[var(--vauto-border-subtle)]">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--vauto-border-subtle)] px-4 py-3">
           <div className="min-w-0">
-            <div className="mb-1 flex flex-wrap items-center gap-2">
-              <AiBadge>AI paruošė juodraštį</AiBadge>
-              <span className="text-[11px] text-[var(--vauto-subtle)]">
-                Kaina · Omniva · patvirtinimas
-              </span>
-            </div>
+            {!simplified ? (
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <AiBadge>AI paruošė juodraštį</AiBadge>
+                <span className="text-[11px] text-[var(--vauto-subtle)]">
+                  Kaina · Omniva · patvirtinimas
+                </span>
+              </div>
+            ) : null}
             <h2 className="truncate font-[family-name:var(--font-outfit)] text-base font-bold text-[var(--vauto-ink)]">
-              Peržiūra prieš skelbimą
+              {simplified ? "Naujas skelbimas" : "Peržiūra prieš skelbimą"}
             </h2>
           </div>
           {onClose ? (
@@ -792,19 +809,60 @@ export function PrePublishModal({
                 type="number"
                 min={0}
                 inputMode="decimal"
-                value={card.price > 0 ? card.price : ""}
-                placeholder="0"
-                disabled={busy || !onFieldsChange}
+                value={!isNegotiable && card.price > 0 ? card.price : ""}
+                placeholder={isNegotiable ? "Sutartinė" : "0"}
+                disabled={busy || !onFieldsChange || isNegotiable}
                 onChange={(e) => {
                   const n = Number(e.target.value);
                   patchField({
                     price: Number.isFinite(n) && n >= 0 ? n : 0,
+                    ...(isNegotiable
+                      ? {}
+                      : {
+                          attributes: {
+                            isNegotiable: "false",
+                            priceType: "",
+                            priceLabel: "",
+                          },
+                        }),
                     editedByUser: { price: true },
                   });
                 }}
                 className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] px-3 py-2.5 text-sm font-bold text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
               />
-              {card.vatLabelNet && card.vatLabelGross ? (
+              {simplified ? (
+                <label className="flex cursor-pointer touch-manipulation items-center gap-2 pt-1 text-[13px] font-medium text-[var(--vauto-text-muted)]">
+                  <input
+                    type="checkbox"
+                    checked={isNegotiable}
+                    disabled={busy || !onFieldsChange}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        patchField({
+                          price: 0,
+                          attributes: {
+                            isNegotiable: "true",
+                            priceType: "negotiable",
+                            priceLabel: NEGOTIABLE_PRICE_LABEL,
+                          },
+                          editedByUser: { price: true },
+                        });
+                      } else {
+                        patchField({
+                          attributes: {
+                            isNegotiable: "false",
+                            priceType: "",
+                            priceLabel: "",
+                          },
+                        });
+                      }
+                    }}
+                    className="h-4 w-4 shrink-0 accent-[var(--vauto-primary)]"
+                  />
+                  Kainos sutartinės (nenurodyta)
+                </label>
+              ) : null}
+              {card.vatLabelNet && card.vatLabelGross && !simplified ? (
                 <p
                   className="text-[11px] font-medium text-[var(--vauto-text-muted)]"
                   data-vat-line="1"
@@ -812,48 +870,50 @@ export function PrePublishModal({
                   {card.vatLabelGross} · {card.vatLabelNet}
                 </p>
               ) : null}
-              <PriceRangeBar
-                advice={priceAdvice}
-                draftPrice={card.price || 0}
-                loading={priceAdviceLoading}
-                disabled={busy || !onFieldsChange}
-                onApplyOptimal={(optimalPrice) => {
-                  patchField({
-                    price: optimalPrice,
-                    attributes: priceAdvice
-                      ? {
-                          appraisalOptimalPrice: String(optimalPrice),
-                          ...(priceAdvice.minPrice != null
-                            ? {
-                                appraisalMinPrice: String(
-                                  Math.round(priceAdvice.minPrice)
-                                ),
-                              }
-                            : {}),
-                          ...(priceAdvice.maxPrice != null
-                            ? {
-                                appraisalMaxPrice: String(
-                                  Math.round(priceAdvice.maxPrice)
-                                ),
-                              }
-                            : {}),
-                          ...(priceAdvice.appraisalScore != null
-                            ? {
-                                appraisalScore: String(
-                                  Math.round(priceAdvice.appraisalScore)
-                                ),
-                              }
-                            : {}),
-                        }
-                      : { appraisalOptimalPrice: String(optimalPrice) },
-                  });
-                  trackListingEvent("price_advice_applied", {
-                    category: String(card.category ?? ""),
-                    optimalPrice,
-                    draftPrice: card.price || 0,
-                  });
-                }}
-              />
+              {!simplified ? (
+                <PriceRangeBar
+                  advice={priceAdvice}
+                  draftPrice={card.price || 0}
+                  loading={priceAdviceLoading}
+                  disabled={busy || !onFieldsChange}
+                  onApplyOptimal={(optimalPrice) => {
+                    patchField({
+                      price: optimalPrice,
+                      attributes: priceAdvice
+                        ? {
+                            appraisalOptimalPrice: String(optimalPrice),
+                            ...(priceAdvice.minPrice != null
+                              ? {
+                                  appraisalMinPrice: String(
+                                    Math.round(priceAdvice.minPrice)
+                                  ),
+                                }
+                              : {}),
+                            ...(priceAdvice.maxPrice != null
+                              ? {
+                                  appraisalMaxPrice: String(
+                                    Math.round(priceAdvice.maxPrice)
+                                  ),
+                                }
+                              : {}),
+                            ...(priceAdvice.appraisalScore != null
+                              ? {
+                                  appraisalScore: String(
+                                    Math.round(priceAdvice.appraisalScore)
+                                  ),
+                                }
+                              : {}),
+                          }
+                        : { appraisalOptimalPrice: String(optimalPrice) },
+                    });
+                    trackListingEvent("price_advice_applied", {
+                      category: String(card.category ?? ""),
+                      optimalPrice,
+                      draftPrice: card.price || 0,
+                    });
+                  }}
+                />
+              ) : null}
             </label>
 
             <label className="block space-y-1">
@@ -910,7 +970,7 @@ export function PrePublishModal({
             ) : null}
           </section>
 
-          {visibleSpecs.length > 0 || isVehicleCategory ? (
+          {!simplified && (visibleSpecs.length > 0 || isVehicleCategory) ? (
             <section className="space-y-2 rounded-xl border border-[var(--vauto-border)]/70 bg-[var(--vauto-surface-muted)]/25 p-3">
               <p className="text-sm font-semibold text-[var(--vauto-text)]">
                 Specifikacijos
@@ -1045,33 +1105,36 @@ export function PrePublishModal({
             </section>
           ) : null}
 
-          <PrePublishShippingOptions
-            title={card.title}
-            description={card.description}
-            category={card.category}
-            attributes={attributes}
-            allowPastomatas={omnivaEligibility.eligible}
-            value={shippingMode}
-            disabled={busy || !onFieldsChange}
-            onChange={(mode, eligibility) => {
-              setShippingMode(mode);
-              const allow = mode === "omniva_locker" && eligibility.eligible;
-              onFieldsChange?.({
-                allowPastomatas: allow,
-                attributes: {
-                  fitsOmnivaLocker: eligibility.fitsOmnivaLocker
-                    ? "true"
-                    : "false",
-                  estimatedSize: eligibility.estimatedSize,
-                },
-              });
-            }}
-          />
+          {!simplified ? (
+            <PrePublishShippingOptions
+              title={card.title}
+              description={card.description}
+              category={card.category}
+              attributes={attributes}
+              allowPastomatas={omnivaEligibility.eligible}
+              value={shippingMode}
+              disabled={busy || !onFieldsChange}
+              onChange={(mode, eligibility) => {
+                setShippingMode(mode);
+                const allow = mode === "omniva_locker" && eligibility.eligible;
+                onFieldsChange?.({
+                  allowPastomatas: allow,
+                  attributes: {
+                    fitsOmnivaLocker: eligibility.fitsOmnivaLocker
+                      ? "true"
+                      : "false",
+                    estimatedSize: eligibility.estimatedSize,
+                  },
+                });
+              }}
+            />
+          ) : null}
 
-          <section className="rounded-xl border border-[var(--vauto-primary)]/15 bg-[var(--vauto-surface-muted)]/30 p-3">
-            <p className="text-sm font-bold text-[var(--vauto-text)]">
-              Monetizacija — Free / Boost / Premium
-            </p>
+          {!simplified ? (
+            <section className="rounded-xl border border-[var(--vauto-primary)]/15 bg-[var(--vauto-surface-muted)]/30 p-3">
+              <p className="text-sm font-bold text-[var(--vauto-text)]">
+                Monetizacija — Free / Boost / Premium
+              </p>
             {isLaunchPromoActive() ? (
               <p
                 className="mt-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-2 text-[12px] font-semibold leading-snug text-emerald-800 dark:text-emerald-200"
@@ -1133,13 +1196,14 @@ export function PrePublishModal({
                 );
               })}
             </div>
-            {selected.priceEur > 0 ? (
-              <p className="mt-2 text-[11px] font-medium text-[var(--vauto-primary)]">
-                Pasirinkta: {TIER_BADGE[selected.id].badge} —{" "}
-                {selected.priceEur.toFixed(2)} €
-              </p>
-            ) : null}
-          </section>
+              {selected.priceEur > 0 ? (
+                <p className="mt-2 text-[11px] font-medium text-[var(--vauto-primary)]">
+                  Pasirinkta: {TIER_BADGE[selected.id].badge} —{" "}
+                  {selected.priceEur.toFixed(2)} €
+                </p>
+              ) : null}
+            </section>
+          ) : null}
         </div>
 
         <footer className="pre-publish-ai-bar shrink-0 border-t border-[var(--vauto-primary)]/15 bg-[var(--vauto-card-bg)] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
@@ -1148,9 +1212,11 @@ export function PrePublishModal({
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
             </span>
             <p className="text-[13px] leading-snug text-[var(--vauto-text)]">
-              {selected.priceEur > 0
-                ? `Bazinis skelbimas — 0 €. Po publikavimo — apmokėjimas už ${TIER_BADGE[selected.id].badge} (${selected.priceEur.toFixed(2)} €).`
-                : "Viskas paruošta! Patikrinkite kainos rėžį ir Omniva — bazinis skelbimas publikuojamas nemokamai."}
+              {simplified
+                ? "Patikrinkite duomenis ir paskelbkite skelbimą — nemokamai."
+                : selected.priceEur > 0
+                  ? `Bazinis skelbimas — 0 €. Po publikavimo — apmokėjimas už ${TIER_BADGE[selected.id].badge} (${selected.priceEur.toFixed(2)} €).`
+                  : "Viskas paruošta! Patikrinkite kainos rėžį ir Omniva — bazinis skelbimas publikuojamas nemokamai."}
             </p>
           </div>
           <button
@@ -1169,6 +1235,11 @@ export function PrePublishModal({
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                 Publikuojama…
+              </>
+            ) : simplified ? (
+              <>
+                <SendHorizontal className="h-4 w-4" aria-hidden />
+                Paskelbti skelbimą
               </>
             ) : selected.priceEur > 0 ? (
               <>

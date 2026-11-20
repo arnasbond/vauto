@@ -266,7 +266,8 @@ jobs:
             e2e/ai-conductor-runtime-live.spec.ts \
             e2e/ai-conductor-off.spec.ts \
             e2e/master-wave1-theme-semantics.spec.ts \
-            e2e/vin-review-confirmation.spec.ts
+            e2e/vin-review-confirmation.spec.ts \
+            e2e/prepublish-manual-flow.spec.ts
 
       - name: Run conductor E2E (NEXT_PUBLIC_VAUTO_CONDUCTOR=1)
         run: npm run test:e2e:conductor

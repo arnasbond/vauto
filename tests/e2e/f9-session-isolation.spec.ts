@@ -13,15 +13,11 @@ const WELCOME_RE =
   /Pasirinkite kategoriją|aprašykite objektą|ką parduodate|skelbimo kūrim/i;
 
 async function openSellChat(page: Page) {
+  // R5 — the '+' nav opens the STANDALONE manual form (/add), not the AI chat.
   await page.locator("[data-nav-add-listing]:visible").first().click();
-  await expect(page.locator(".agent-chat-strip")).toBeVisible({
+  await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible({
     timeout: 15_000,
   });
-  await expect(
-    page
-      .locator(".agent-chat-strip .agent-chat-bubble-assistant")
-      .last()
-  ).toBeVisible({ timeout: 10_000 });
 }
 
 async function waitForAssistantReply(page: Page) {
@@ -72,15 +68,12 @@ test.describe("F9 — search/sell sesijos izoliacija", () => {
 
     await openSellChat(page);
 
-    // URL neturi senos paieškos query; chatas rodo sell sveikinimą.
+    // URL neturi senos paieškos query; atsidarė standalone manual forma.
     const url = new URL(page.url());
     expect(url.searchParams.get("q")).toBeNull();
-    const lastAssistant = page
-      .locator(".agent-chat-strip .agent-chat-bubble-assistant")
-      .last();
-    await expect(lastAssistant).toBeVisible({ timeout: 10_000 });
-    await expect(lastAssistant).toContainText(WELCOME_RE);
-    // Jokių matomų ai-interpretation chips (paieškos konteksto) sell pokalbyje.
+    expect(url.pathname.replace(/\/$/, "") || "/").toBe("/add");
+    await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible();
+    // Jokių matomų ai-interpretation chips (paieškos konteksto) manual formoje.
     await expect(page.locator("[data-ai-interpretation]")).toBeHidden();
   });
 
@@ -97,11 +90,8 @@ test.describe("F9 — search/sell sesijos izoliacija", () => {
     await openSellChat(page);
     const url = new URL(page.url());
     expect(url.searchParams.get("q")).toBeNull();
-    expect(url.pathname).toBe("/");
-    const lastAssistant = page
-      .locator(".agent-chat-strip .agent-chat-bubble-assistant")
-      .last();
-    await expect(lastAssistant).toContainText(WELCOME_RE);
+    expect(url.pathname.replace(/\/$/, "") || "/").toBe("/add");
+    await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible();
   });
 
   test("sell → search → naujas sell: remount išlieka švarus", async ({
@@ -115,8 +105,6 @@ test.describe("F9 — search/sell sesijos izoliacija", () => {
     });
 
     await openSellChat(page);
-    await page.locator("[data-nav-add-listing]:visible").first().click();
-    await expect(page.locator(".agent-chat-strip")).toBeVisible();
     await page.goto("/search?q=Vilnius");
     await expect(page.locator("#listing-results")).toBeAttached({
       timeout: 20_000,
@@ -124,10 +112,8 @@ test.describe("F9 — search/sell sesijos izoliacija", () => {
     await openSellChat(page);
     const url = new URL(page.url());
     expect(url.searchParams.get("q")).toBeNull();
-    const lastAssistant = page
-      .locator(".agent-chat-strip .agent-chat-bubble-assistant")
-      .last();
-    await expect(lastAssistant).toContainText(WELCOME_RE);
+    expect(url.pathname.replace(/\/$/, "") || "/").toBe("/add");
+    await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible();
   });
 
   test("vartotojas su aktyviais skelbimais: pirmame sell turnе nėra Derybininko reklamos", async ({
@@ -169,14 +155,10 @@ test.describe("F9 — search/sell sesijos izoliacija", () => {
       timeout: 20_000,
     });
     await openSellChat(page);
-    await page.locator('.agent-chat-composer input[type="text"]').first().fill(
-      "Noriu parduoti juodą USB klaviatūrą"
-    );
-    await page.keyboard.press("Enter");
-
-    await waitForAssistantReply(page);
-    // The first sell reply must remain listing-only — no negotiator ad.
-    await expect(page.locator(".agent-chat-strip")).not.toContainText(
+    // R5 — the standalone manual form has no AI reply, so no negotiator ad can
+    // be injected on the first sell turn.
+    await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible();
+    await expect(page.locator('[data-prepublish-modal="1"]')).not.toContainText(
       /Derybinink/i
     );
   });
@@ -197,14 +179,13 @@ test.describe("F9 — Mano skelbimai navigacija", () => {
     });
 
     await openSellChat(page);
-    await expect(page.locator(".agent-chat-strip")).toBeVisible();
+    await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible();
 
-    // Any navigation into the cabinet must exit assistant mode (pathname
-    // effect covers every entry point: nav, dropdown, deep link).
+    // Any navigation into the cabinet must exit the manual form.
     await page.goto("/mano-skelbimai/");
     await expect(page).toHaveURL(/mano-skelbimai/, { timeout: 15_000 });
     await expect(page.locator("#listing-results, [data-mano-skelbimai], .vauto-bottom-nav, [data-mobile-bottom-nav]").first()).toBeAttached({ timeout: 15_000 });
-    // Assistant overlay must NOT persist on the cabinet page.
-    await expect(page.locator(".agent-chat-strip")).toHaveCount(0);
+    // Manual form must NOT persist on the cabinet page.
+    await expect(page.locator('[data-prepublish-modal="1"]')).toHaveCount(0);
   });
 });

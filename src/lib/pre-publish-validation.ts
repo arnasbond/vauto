@@ -351,6 +351,20 @@ export function evaluatePrePublishReadiness(
   const draftTitle = String(syncedDraft?.title ?? "").trim();
   const missingTitle =
     !syncedDraft || isGenericListingDraftTitle(draftTitle);
+  // R5 — category is assigned internally, never a mandatory UI field. Coerce a
+  // missing/unknown category into a safe DB slug from the structural
+  // title/description (fallback "other"). No AI call, no invented technical
+  // data. The live draft is updated so the coerced category persists.
+  if (syncedDraft && !syncedDraft.category) {
+    syncedDraft = {
+      ...syncedDraft,
+      category: coerceListingCategoryForDb(undefined, {
+        title: draftTitle,
+        description: String(syncedDraft.description ?? ""),
+        fallback: "other",
+      }),
+    };
+  }
   const missingCategory = !syncedDraft?.category;
   const conditionRequired =
     syncedDraft?.category != null &&
@@ -363,6 +377,9 @@ export function evaluatePrePublishReadiness(
   const conditionValue = String(
     syncedDraft?.attributes?.condition ?? ""
   ).trim();
+  // R5 — condition is an optional enrichment hint, NOT a publish blocker: a
+  // simple manual listing (photos + title + description + price + location +
+  // contact) must publish without any technical parameters.
   const missingCondition = conditionRequired && !conditionValue;
 
   // F9 — an open canonical fact conflict blocks pre-publish AND publish
@@ -378,9 +395,10 @@ export function evaluatePrePublishReadiness(
 
   // Photos are optional for PrePublish *preview* (text-first). Actual publish still
   // enforces a photo in SellerFlowContext.publishListing.
-  // F9 — fail-closed: an incomplete draft (placeholder title, no category,
-  // missing required condition, open conflict) can NEVER produce a PrePublish
-  // card, set listingPublishConfirmed, or reach the publish action.
+  // F9/R5 — fail-closed on the fields a human must actually supply: a
+  // placeholder title, missing price/phone/city or an open conflict can never
+  // produce a PrePublish card. Category is auto-coerced and condition is an
+  // optional enrichment hint, so neither blocks publish (R5 manual upload).
   const ok =
     !activeConflict &&
     !missingAuth &&
@@ -388,8 +406,7 @@ export function evaluatePrePublishReadiness(
     !missingCity &&
     !missingPrice &&
     !missingTitle &&
-    !missingCategory &&
-    !missingCondition;
+    !missingCategory;
 
   const blockMessage = activeConflict
     ? buildFactConflictQuestion(activeConflict)

@@ -174,7 +174,6 @@ import {
 } from "@/lib/profile-listing-sync";
 import {
   buildPrePublishCardPayload,
-  CONDITION_REQUIRED_CATEGORIES,
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
 import { filterSessionListingImages, mergeSellerGallerySources } from "@/lib/listing-image";
@@ -204,7 +203,6 @@ import {
   type AgentQuickReplyAction,
   type AgentQuickReplyOption,
 } from "@/lib/agent-quick-reply-contract";
-import { coerceListingCategoryForDb } from "@vauto/shared/category-registry";
 import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 import { ensureRichSalesCopyBeforePublish } from "@vauto/shared/ensure-rich-sales-copy";
 import {
@@ -870,23 +868,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
         // Do not re-pass imageUrl — already in orderedImageUrls (avoids 2→4 thumbs).
         applyAgentListingDraft(draft);
-        // F9 — fail-closed: an incomplete draft (placeholder title, missing
-        // category or required condition) can never flip the publish
-        // confirmation flag or surface the PrePublish card.
+        // F9/R5 — fail-closed: an incomplete draft (placeholder title) can never
+        // flip the publish confirmation flag. Category is auto-coerced and
+        // condition is an optional enrichment hint, so neither blocks publish.
         const confirmable =
           draftTitle &&
           !isGenericListingDraftTitle(draftTitle) &&
-          Boolean(draft.category) &&
-          !(
-            draft.category != null &&
-            CONDITION_REQUIRED_CATEGORIES.has(
-              coerceListingCategoryForDb(draft.category, {
-                title: draftTitle,
-                description: String(draft.description ?? ""),
-              })
-            ) &&
-            !String(draft.attributes?.condition ?? "").trim()
-          );
+          Boolean(draft.category);
         if (flowState === "AWAITING_CONFIRMATION" && confirmable) {
           setListingPublishConfirmed(true);
           setHidePrePublishCard(false);
@@ -2065,6 +2053,24 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         /** Never lock the composer without a real PrePublish card. */
         if (!readiness.ok) {
+          // R5 — an explicit „Parodyk juodraštį" reveals the EXISTING draft via the
+          // editable editor, even when incomplete — never re-asks for the title.
+          if (
+            isShowDraftPreviewIntent(trimmed) &&
+            !resolveBrowseAllIntent(trimmed)
+          ) {
+            setManualListingEditorOpen(true);
+            revealPrePublishCard();
+            const reply =
+              "Štai jūsų juodraštis — galite jį pataisyti ir publikuoti.";
+            setMessages((prev) => [
+              ...prev,
+              { role: "user" as const, text: trimmed },
+              { role: "assistant" as const, text: reply },
+            ]);
+            touchAgentSessionActivity();
+            return { ok: true, reply };
+          }
           const draftingDraft = {
             ...(readiness.syncedDraft
               ? ensureRichSalesCopyBeforePublish(readiness.syncedDraft)
@@ -3197,12 +3203,31 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           );
         }
         speakReply(finalAssistantText || assistantText);
+        // R5 — a real (titled) seller draft is authoritative: a server browse/search
+        // action must never clobber it while the user confirms or reveals the draft.
+        // Re-open the existing PrePublish editor instead — never drift to catalog.
+        const draftRevealFollowup =
+          Boolean(aiDraft?.title?.trim()) &&
+          !isGenericListingDraftTitle(aiDraft?.title) &&
+          (isListingConfirmationPhrase(trimmed) ||
+            isShowDraftPreviewIntent(trimmed) ||
+            isPublishReadyIntent(trimmed));
+        if (
+          draftRevealFollowup &&
+          (res.actions.type === "browse_all" ||
+            res.actions.type === "search" ||
+            res.actions.type === "empty_search")
+        ) {
+          revealPrePublishCard();
+          return { ok: true, reply: "", actions: { type: "none" } };
+        }
         if (hasExecutableAction) {
           if (!isEmptySearchAction) {
             setSearchQuery("");
           }
           if (
             res.actions.type === "listing_draft" &&
+            !aiDraft &&
             resolveBrowseAllIntent(trimmed) &&
             !isListingConfirmationPhrase(trimmed) &&
             !isTextFirstListingIntent(trimmed) &&
@@ -3254,12 +3279,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       } catch (err) {
         const raw = err instanceof Error ? err.message : String(err ?? "");
         const message = buddyMessageForAgentFailure(raw, "network_error");
+        // R5 — an AI failure must never destroy the seller's work: keep the draft
+        // and offer a deterministic manual continuation (no AI call required).
+        const hasDraft = Boolean(aiDraft?.title?.trim() || aiDraft?.orderedImageUrls?.length);
         setMessages((prev) => {
           return [
             ...prev,
             { role: "assistant" as const, text: message },
+            ...(hasDraft
+              ? [
+                  {
+                    role: "assistant" as const,
+                    text: "Jūsų juodraštis išsaugotas — galite tęsti ir publikuoti rankiniu būdu be AI.",
+                  } as const,
+                ]
+              : []),
           ].slice(-12);
         });
+        if (hasDraft) {
+          setManualListingEditorOpen(true);
+          revealPrePublishCard();
+        }
         speakReply(message);
         if (open) showToast(message, "info");
         return { ok: true, reply: message };
@@ -3342,6 +3382,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setStreamThinkingLabelNow,
       goToMarketplace,
       syncVinReviewFromAttrs,
+      revealPrePublishCard,
     ]
   );
 
@@ -3794,52 +3835,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
    */
   const startManualListing = useCallback(
     (options?: { verticalId?: import("@vauto/shared/marketplace-domain").VerticalId | null; fashion?: boolean }) => {
+      // R5 final — manual listing is a STANDALONE page (/add), fully decoupled
+      // from the AI chat. This entry only navigates; the form seeds its own
+      // draft and publishes through the shared SellerFlow pipeline.
       const fashion = Boolean(options?.fashion);
-      const verticalId = fashion ? null : (options?.verticalId ?? null);
-      resetSellerChat();
-      applyAgentListingDraft(
-        {
-          ...buildAiSellerListingSeed(user, { fashion, verticalId }),
-          listingFlowState: "AWAITING_CONFIRMATION",
-          description: "",
-        },
-        undefined,
-        "manual",
-        { replaceSession: true }
-      );
-      revealPrePublishCard();
-      // FC-UX — open the full editor for the INCOMPLETE manual draft. Editing
-      // must not require publication readiness; only publishing does.
-      setManualListingEditorOpen(true);
-      // The manual editor renders inside the embedded agent chat strip, which is
-      // only mounted once the chat has at least one turn. Seed a neutral turn so
-      // the editor is actually visible (this path never calls the LLM/agent).
-      setMessages([
-        {
-          role: "assistant",
-          text: "Pildote skelbimą patys — užpildykite laukus žemiau esančioje formoje.",
-        },
-      ]);
       trackEvent("kpi_listing_flow_start", { source: "manual_listing_entry" });
-      // The manual editor lives in the home agent chat, so land the user on the
-      // home route (same as the AI seller flow's navigateHome). Without this a
-      // direct deep-link would open the editor while still on /add.
-      const target = fashion ? "/fashion/" : "/";
+      const target = fashion ? "/fashion/" : "/add";
       const targetNorm = target.replace(/\/$/, "") || "/";
       const current = (pathname || "/").replace(/\/$/, "") || "/";
       if (current !== targetNorm) {
         router.push(target);
       }
     },
-    [
-      applyAgentListingDraft,
-      resetSellerChat,
-      revealPrePublishCard,
-      trackEvent,
-      user,
-      pathname,
-      router,
-    ]
+    [trackEvent, pathname, router]
   );
 
   const handleDirectAgentChip = useCallback(

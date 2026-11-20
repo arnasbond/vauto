@@ -43,12 +43,10 @@ export function GlobalAuthModal() {
 
     const path = authRedirectPath;
     if (path) {
-      // FC-UX — the manual listing entry (path carries `manual=1`) lands on the
-      // HOME agent chat where the manual editor actually renders, not back on
-      // /add. The AddPage already read the redirect path synchronously to start
-      // the manual session, so routing home here makes the editor visible.
+      // R5 final — the manual listing entry lands on the STANDALONE /add form,
+      // never on the AI chat. Legacy `manual=1` redirects also go to /add.
       const isManualListingEntry = path.includes("manual=1");
-      const redirectTo = isManualListingEntry ? "/" : path;
+      const redirectTo = isManualListingEntry ? "/add" : path;
       const target = redirectTo.replace(/\/$/, "") || "/";
       const current = (pathname ?? "/").replace(/\/$/, "") || "/";
       if (target !== current) {

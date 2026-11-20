@@ -126,7 +126,7 @@ describe("P0 — evaluateServerPrePublishReadiness: ok=false visada įvardija ti
     assert.doesNotMatch(r.blockMessage, /būklė|kaina/i);
   });
 
-  it("trūksta būklės → ok=false + CONDITION klausimas", () => {
+  it("R5 — trūksta būklės → ok=true (būklė neblokuoja publikavimo)", () => {
     const r = evaluateServerPrePublishReadiness({
       ...base,
       listingDraft: {
@@ -137,8 +137,8 @@ describe("P0 — evaluateServerPrePublishReadiness: ok=false visada įvardija ti
         attributes: {},
       },
     });
-    assert.equal(r.ok, false);
-    assert.match(r.blockMessage, /Kokia prekės būklė/);
+    assert.equal(r.ok, true, "condition is an optional enrichment hint, not a blocker");
+    assert.equal(r.missingCondition, true);
   });
 
   it("aktyvus konfliktas → ok=false + konflikto klausimas", () => {
@@ -176,7 +176,7 @@ describe("P0 — evaluateServerPrePublishReadiness: ok=false visada įvardija ti
     assert.match(r.blockMessage, /prisijungti/i);
   });
 
-  it("trūksta kategorijos → ok=false + CATEGORY klausimas", () => {
+  it("R5 — trūksta kategorijos → ok=true (kategorija priskiriama automatiškai)", () => {
     const r = evaluateServerPrePublishReadiness({
       ...base,
       listingDraft: {
@@ -186,7 +186,7 @@ describe("P0 — evaluateServerPrePublishReadiness: ok=false visada įvardija ti
         attributes: { condition: "Naudota" },
       },
     });
-    assert.equal(r.ok, false);
-    assert.match(r.blockMessage, /Kokiai kategorijai/);
+    assert.equal(r.ok, true, "category is auto-assigned, never a publish blocker");
+    assert.equal(r.missingCategory, false);
   });
 });

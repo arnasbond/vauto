@@ -35,7 +35,7 @@ export function AppHeader({
   const search = searchParams?.toString() ?? "";
   const router = useRouter();
   const { requireAuthForListing, isAuthenticated, user, isAdmin } = useVauto();
-  const { resetHomeAgentSession, openAiSellerListingChat } = useVautoAgent();
+  const { resetHomeAgentSession } = useVautoAgent();
 
   const persona = resolveAppPersona(user, isAuthenticated);
   const links = useMemo(() => getPublicHeaderLinks(persona), [persona]);
@@ -50,9 +50,9 @@ export function AppHeader({
   );
 
   const handleAddListing = useCallback(() => {
-    if (!requireAuthForListing("/")) return;
-    void openAiSellerListingChat({ navigateHome: true });
-  }, [openAiSellerListingChat, requireAuthForListing]);
+    if (!requireAuthForListing("/add")) return;
+    router.push("/add");
+  }, [requireAuthForListing, router]);
 
   const handleSearch = useCallback(() => {
     router.push("/search/");
