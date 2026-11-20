@@ -503,6 +503,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         <PrePublishModal
           open
           card={manualEditCard}
+          variant="manual"
           publishing={isPublishingListing}
           attributes={aiDraft?.attributes}
           onClose={closeManualListingEditor}

@@ -151,23 +151,26 @@ export function evaluateServerPrePublishReadiness(input: {
     attributes: input.listingDraft?.attributes,
   });
 
-  // P0 — ONE readiness authority: the SAME canonical F9 gates the client
-  // PrePublish readiness enforces (generic title, missing category, missing
-  // condition for physical goods, open fact conflicts) also block the server
-  // readiness — no parallel heuristic may claim „ready“.
+  // P0/R5 — ONE readiness authority: the SAME canonical F9 gates the client
+  // PrePublish readiness enforces (generic title, open fact conflicts) also
+  // block the server readiness — no parallel heuristic may claim „ready“.
+  // Category is auto-coerced and condition is an optional enrichment hint, so
+  // neither blocks publish (R5 manual upload: no mandatory category/technical
+  // parameters).
   const draftTitle = String(input.listingDraft?.title ?? "").trim();
   const missingTitle =
     !input.listingDraft || isGenericListingDraftTitle(draftTitle);
-  const missingCategory = !String(input.listingDraft?.category ?? "").trim();
-  const conditionRequired =
-    Boolean(input.listingDraft?.category) &&
-    CONDITION_REQUIRED_CATEGORIES.has(
-      coerceListingCategoryForDb(input.listingDraft?.category ?? "", {
+  const coercedCategory = input.listingDraft
+    ? coerceListingCategoryForDb(input.listingDraft.category ?? "", {
         title: draftTitle,
-        description: String(input.listingDraft?.description ?? ""),
+        description: String(input.listingDraft.description ?? ""),
         fallback: "other",
       })
-    );
+    : "other";
+  const missingCategory = !input.listingDraft || !coercedCategory;
+  const conditionRequired =
+    Boolean(input.listingDraft?.category) &&
+    CONDITION_REQUIRED_CATEGORIES.has(coercedCategory);
   const conditionValue = String(
     input.listingDraft?.attributes?.condition ?? ""
   ).trim();
@@ -189,8 +192,7 @@ export function evaluateServerPrePublishReadiness(input: {
     !missingCity &&
     !missingPrice &&
     !missingTitle &&
-    !missingCategory &&
-    !missingCondition;
+    !missingCategory;
 
   const blockMessage = buildPrePublishBlockMessage({
     missingPhoto,

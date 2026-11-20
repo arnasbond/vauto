@@ -409,7 +409,7 @@ import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import { withSellerDisplayNameAttribute } from "@/lib/seller-display";
 import type { CheckoutSession } from "@/lib/monetization-catalog";
 import {
-  clearAllListingDrafts,
+  clearActiveListingDrafts,
   removeMultiListingDraft,
   upsertMultiListingDraft,
 } from "@/lib/listing-draft-storage";
@@ -632,7 +632,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     photoReplaceSnapshotRef.current = null;
     setSellerVisionRecoveryActive(false);
     recoveryImageRef.current = null;
-    clearAllListingDrafts();
+    // R5 — preserve the multi-draft resume store: switching to search, a home
+    // reset, or a fresh listing must not destroy a previously saved draft.
+    // Full purge remains reserved for logout (purgeClientSessionAndDraftState)
+    // and explicit publish removal (removeMultiListingDraft).
+    clearActiveListingDrafts();
     clearPhotoSearchSession();
     clearPendingPhotoIntent();
     sellerDraftIdRef.current = null;

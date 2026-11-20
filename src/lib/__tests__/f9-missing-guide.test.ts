@@ -1,8 +1,10 @@
 /**
- * F9 — pre-publish fail-closed: an incomplete draft (placeholder title,
- * missing category, missing required condition) can NEVER produce a
- * PrePublish card, set listingPublishConfirmed, or reach the publish action.
- * The missing-guide asks exactly ONE most-important question.
+ * F9/R5 — pre-publish fail-closed on the fields a human must supply: a
+ * placeholder title, missing price/phone/city or an open conflict can NEVER
+ * produce a PrePublish card, set listingPublishConfirmed, or reach the publish
+ * action. Category is auto-coerced and condition is an optional enrichment
+ * hint, so neither blocks publish (R5 manual upload). The missing-guide asks
+ * exactly ONE most-important question.
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
@@ -65,16 +67,28 @@ describe("F9 — pre-publish fail-closed", () => {
     expectBlocked(r);
   });
 
-  it("missingCategory: ok=false, kortelės nėra", () => {
-    const r = evaluatePrePublishReadiness(baseInput(draftWithoutCategory()));
-    expectBlocked(r);
+  it("R5 — missingCategory: kategorija priskiriama automatiškai, ok=true", () => {
+    const r = evaluatePrePublishReadiness({
+      ...baseInput(draftWithoutCategory()),
+      ...READY_PHOTO,
+    });
+    assert.equal(r.ok, true, "category is auto-assigned, never a publish blocker");
+    assert.equal(r.missingCategory, false, "category is coerced internally");
+    const card = buildPrePublishCardPayload(r, READY_PHOTO.previewImage);
+    assert.ok(card, "PrePublish card must exist once category is auto-coerced");
   });
 
-  it("missingCondition: ok=false, kortelės nėra", () => {
-    const r = evaluatePrePublishReadiness(
-      baseInput(draft({ attributes: {} }))
+  it("R5 — missingCondition: būklė neblokuoja publikavimo, ok=true", () => {
+    const r = evaluatePrePublishReadiness({
+      ...baseInput(draft({ attributes: {} })),
+      ...READY_PHOTO,
+    });
+    assert.equal(r.missingCondition, true, "condition remains a hint flag");
+    assert.equal(r.ok, true, "condition is not a publish blocker (R5)");
+    assert.ok(
+      buildPrePublishCardPayload(r, READY_PHOTO.previewImage),
+      "PrePublish card must exist without a condition"
     );
-    expectBlocked(r);
   });
 
   it("visi trys trūksta kartu: ok=false, kortelės nėra", () => {

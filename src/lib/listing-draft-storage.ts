@@ -227,3 +227,17 @@ export function clearAllListingDrafts(): void {
   clearServiceListingDraft();
   clearMultiListingDrafts();
 }
+
+/**
+ * R5 — clear the ACTIVE (single-session) draft keys only, preserving the
+ * multi-draft resume store. An intent switch to search, a home reset, or a
+ * fresh listing must NOT destroy a previously saved draft the user can resume
+ * from the seller drafts strip. Full purge (incl. multi) remains reserved for
+ * logout (`purgeClientSessionAndDraftState`) and explicit publish removal.
+ */
+export function clearActiveListingDrafts(): void {
+  clearClothingListingDraft();
+  clearGeneralListingDraft();
+  clearJobListingDraft();
+  clearServiceListingDraft();
+}
