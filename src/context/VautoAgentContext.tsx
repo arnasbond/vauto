@@ -3835,52 +3835,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
    */
   const startManualListing = useCallback(
     (options?: { verticalId?: import("@vauto/shared/marketplace-domain").VerticalId | null; fashion?: boolean }) => {
+      // R5 final — manual listing is a STANDALONE page (/add), fully decoupled
+      // from the AI chat. This entry only navigates; the form seeds its own
+      // draft and publishes through the shared SellerFlow pipeline.
       const fashion = Boolean(options?.fashion);
-      const verticalId = fashion ? null : (options?.verticalId ?? null);
-      resetSellerChat();
-      applyAgentListingDraft(
-        {
-          ...buildAiSellerListingSeed(user, { fashion, verticalId }),
-          listingFlowState: "AWAITING_CONFIRMATION",
-          description: "",
-        },
-        undefined,
-        "manual",
-        { replaceSession: true }
-      );
-      revealPrePublishCard();
-      // FC-UX — open the full editor for the INCOMPLETE manual draft. Editing
-      // must not require publication readiness; only publishing does.
-      setManualListingEditorOpen(true);
-      // The manual editor renders inside the embedded agent chat strip, which is
-      // only mounted once the chat has at least one turn. Seed a neutral turn so
-      // the editor is actually visible (this path never calls the LLM/agent).
-      setMessages([
-        {
-          role: "assistant",
-          text: "Pildote skelbimą patys — užpildykite laukus žemiau esančioje formoje.",
-        },
-      ]);
       trackEvent("kpi_listing_flow_start", { source: "manual_listing_entry" });
-      // The manual editor lives in the home agent chat, so land the user on the
-      // home route (same as the AI seller flow's navigateHome). Without this a
-      // direct deep-link would open the editor while still on /add.
-      const target = fashion ? "/fashion/" : "/";
+      const target = fashion ? "/fashion/" : "/add";
       const targetNorm = target.replace(/\/$/, "") || "/";
       const current = (pathname || "/").replace(/\/$/, "") || "/";
       if (current !== targetNorm) {
         router.push(target);
       }
     },
-    [
-      applyAgentListingDraft,
-      resetSellerChat,
-      revealPrePublishCard,
-      trackEvent,
-      user,
-      pathname,
-      router,
-    ]
+    [trackEvent, pathname, router]
   );
 
   const handleDirectAgentChip = useCallback(

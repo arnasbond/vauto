@@ -53,7 +53,7 @@ export function BottomNav() {
   } = useVautoSearchDispatch();
   const { goToMarketplace } = useZeroUiScreen();
   const { clearSearchFilters } = useZeroUiMemory();
-  const { setOpen: setAgentOpen, openAiSellerListingChat } = useVautoAgent();
+  const { setOpen: setAgentOpen } = useVautoAgent();
   const publishCelebration = usePublishCelebrationOptional();
   const spintaPulse = publishCelebration?.spintaPulse ?? false;
 
@@ -128,9 +128,9 @@ export function BottomNav() {
     pathname === "/profile" || pathname.startsWith("/profile/");
 
   const handlePlaceAd = () => {
-    // Always allow +Įdėti — force a fresh listing session even mid-draft.
-    if (!requireAuthForListing("/")) return;
-    void openAiSellerListingChat({ navigateHome: true });
+    // Always allow +Įdėti — a standalone manual form, never the AI chat.
+    if (!requireAuthForListing("/add")) return;
+    router.push("/add");
   };
 
   const handleMessages = (e: React.MouseEvent) => {

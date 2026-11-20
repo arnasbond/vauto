@@ -34,7 +34,7 @@ export function MobileBottomNavigation() {
     openAuthModal,
     user,
   } = useVauto();
-  const { resetHomeAgentSession, openAiSellerListingChat } = useVautoAgent();
+  const { resetHomeAgentSession } = useVautoAgent();
   const { chats } = useChat();
   const unreadChats = isAuthenticated ? countUnreadChats(chats, user.id) : 0;
 
@@ -71,9 +71,9 @@ export function MobileBottomNavigation() {
   );
 
   const handleAdd = useCallback(() => {
-    if (!requireAuthForListing("/")) return;
-    void openAiSellerListingChat({ navigateHome: true });
-  }, [openAiSellerListingChat, requireAuthForListing]);
+    if (!requireAuthForListing("/add")) return;
+    router.push("/add");
+  }, [requireAuthForListing, router]);
 
   const isActive = (tab: Tab) => {
     if (tab.action === "add") return false;

@@ -488,18 +488,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         />
       ) : null}
 
-      {showLivePrePublishCard && livePrePublishCard ? (
-        <PrePublishModal
-          open
-          card={livePrePublishCard}
-          publishing={isPublishingListing}
-          attributes={aiDraft?.attributes}
-          onClose={handleCardEdit}
-          onPublish={handleCardPublish}
-          onGalleryChange={handleGalleryChange}
-          onFieldsChange={handleFieldsChange}
-        />
-      ) : manualEditCard ? (
+      {manualListingEditorOpen && manualEditCard ? (
         <PrePublishModal
           open
           card={manualEditCard}
@@ -507,6 +496,17 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
           publishing={isPublishingListing}
           attributes={aiDraft?.attributes}
           onClose={closeManualListingEditor}
+          onPublish={handleCardPublish}
+          onGalleryChange={handleGalleryChange}
+          onFieldsChange={handleFieldsChange}
+        />
+      ) : showLivePrePublishCard && livePrePublishCard ? (
+        <PrePublishModal
+          open
+          card={livePrePublishCard}
+          publishing={isPublishingListing}
+          attributes={aiDraft?.attributes}
+          onClose={handleCardEdit}
           onPublish={handleCardPublish}
           onGalleryChange={handleGalleryChange}
           onFieldsChange={handleFieldsChange}

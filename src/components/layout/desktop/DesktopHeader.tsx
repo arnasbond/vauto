@@ -14,7 +14,7 @@ export function DesktopHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const { requireAuthForListing } = useVauto();
-  const { resetHomeAgentSession, openAiSellerListingChat } = useVautoAgent();
+  const { resetHomeAgentSession } = useVautoAgent();
   const skelbimaiActive = pathname === "/" || pathname === "";
 
   const handleHomeNav = useCallback(
@@ -29,9 +29,9 @@ export function DesktopHeader() {
   );
 
   const handleAddListing = useCallback(() => {
-    if (!requireAuthForListing("/")) return;
-    void openAiSellerListingChat({ navigateHome: true });
-  }, [openAiSellerListingChat, requireAuthForListing]);
+    if (!requireAuthForListing("/add")) return;
+    router.push("/add");
+  }, [requireAuthForListing, router]);
 
   return (
     <header

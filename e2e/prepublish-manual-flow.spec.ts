@@ -1,10 +1,9 @@
 /**
- * FC-UX P1 — executable proof of the REAL manual (no-AI) listing entry.
+ * R5 final — standalone manual (no-AI) listing path on /add.
  *
- * Reproduces the actual product path: guest opens /add → clicks the visible
- * "Užpildyti viską pačiam" CTA → completes phone OTP auth → the app redirects
- * client-side to manual mode → the incomplete editor opens → an incomplete
- * draft cannot publish. No provider/LLM call is required anywhere in this path.
+ * Proves the real product flow with ZERO provider/LLM calls:
+ *   guest /add → "Prisijungti ir įkelti" → phone OTP → manual form opens →
+ *   (incomplete cannot publish) → fill title/price/photo → publish → success.
  */
 import { test, expect, type Page } from "@playwright/test";
 
@@ -21,13 +20,8 @@ const E2E_USER = {
 };
 
 async function installMocks(page: Page) {
-  // --- Auth: phone OTP ---
   await page.route("**/api/auth/otp/send**", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ ok: true }),
-    });
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) });
   });
   await page.route("**/api/auth/otp/verify**", async (route) => {
     await route.fulfill({
@@ -55,15 +49,14 @@ async function installMocks(page: Page) {
     });
   });
 
-  // --- Profile / onboarding ---
-  await page.route("**/api/user/onboarding**", async (route) => {
+  await page.route("**/api/user/onboarding", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ onboarding: { step: 3, completedAt: new Date().toISOString(), answers: {} } }),
     });
   });
-  await page.route("**/api/user**", async (route) => {
+  await page.route("**/api/user", async (route) => {
     if (route.request().url().includes("/onboarding")) {
       await route.fulfill({
         status: 200,
@@ -72,21 +65,44 @@ async function installMocks(page: Page) {
       });
       return;
     }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ user: E2E_USER }),
-    });
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ user: E2E_USER }) });
   });
 
-  // --- No agent / no listings dependency ---
-  await page.route("**/api/vauto-agent**", async (route) => {
+  await page.route("**/api/vauto-agent", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ ok: true, reply: "", actions: { type: "none" } }),
     });
   });
+
+  // Media upload stub (data: URL -> CDN URL).
+  await page.route("**/api/vauto-server", async (route) => {
+    let body: Record<string, unknown> | null = null;
+    try {
+      body = route.request().postDataJSON() as Record<string, unknown>;
+    } catch {
+      body = null;
+    }
+    if (!body || body.action !== "upload_media") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        action: "upload_media",
+        url: "https://res.cloudinary.com/dhbrljo8v/image/upload/v1/vauto/e2e/cover-a.jpg",
+        publicId: "e2e/cover-a",
+        listingId: typeof body.listingId === "string" ? body.listingId : "e2e-listing",
+        deferred: false,
+        lazyUpload: false,
+      }),
+    });
+  });
+
   await page.route("**/api/listings", async (route) => {
     if (route.request().method() === "POST") {
       await route.fulfill({
@@ -94,8 +110,8 @@ async function installMocks(page: Page) {
         contentType: "application/json",
         body: JSON.stringify({
           id: "e2e-manual-1",
-          title: "Manual listing",
-          price: 100,
+          title: "Dviratis",
+          price: 150,
           location: "Vilnius",
           category: "other",
           images: [],
@@ -107,62 +123,93 @@ async function installMocks(page: Page) {
       });
       return;
     }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify([]),
-    });
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([]) });
   });
 }
 
-test.describe("FC-UX manual listing flow (no AI)", () => {
+async function authViaPhoneOtp(page: Page) {
+  const phoneBtn = page.getByRole("button", { name: /Prisijungti telefonu/i });
+  await expect(phoneBtn).toBeVisible({ timeout: 15_000 });
+  await phoneBtn.click();
+
+  const phoneInput = page.locator("#vauto-auth-phone");
+  await expect(phoneInput).toBeVisible();
+  await phoneInput.fill("+370 600 00001");
+
+  const sendBtn = page.getByRole("button", { name: /Siųsti kodą/i });
+  await expect(sendBtn).toBeEnabled({ timeout: 15_000 });
+  await sendBtn.click();
+
+  const otpInput = page.locator("#vauto-auth-otp");
+  await expect(otpInput).toBeVisible({ timeout: 15_000 });
+  await otpInput.fill("123456");
+
+  const confirmBtn = page.getByRole("button", { name: /Patvirtinti ir prisijungti/i });
+  await expect(confirmBtn).toBeEnabled();
+  await confirmBtn.click();
+}
+
+test.describe("R5 standalone manual listing (no AI)", () => {
   test.setTimeout(120_000);
   test.use({ viewport: { width: 420, height: 920 } });
 
-  test("guest clicks Užpildyti viską pačiam → OTP auth → manual editor opens (incomplete)", async ({ page }) => {
+  test("guest /add → OTP auth → manual form opens (incomplete, cannot publish)", async ({ page }) => {
     await installMocks(page);
     await page.goto("/add", { waitUntil: "domcontentloaded" });
 
-    // Real visible CTA (guest funnel).
-    const manualCta = page.locator('[data-seller-start-manual]');
-    await expect(manualCta).toBeVisible({ timeout: 30_000 });
-    await manualCta.click();
+    const cta = page.locator('[data-manual-add-auth]');
+    await expect(cta).toBeVisible({ timeout: 30_000 });
+    await cta.click();
 
-    // Phone OTP auth modal.
-    const phoneBtn = page.getByRole("button", { name: /Prisijungti telefonu/i });
-    await expect(phoneBtn).toBeVisible({ timeout: 15_000 });
-    await phoneBtn.click();
+    await authViaPhoneOtp(page);
 
-    const phoneInput = page.locator("#vauto-auth-phone");
-    await expect(phoneInput).toBeVisible();
-    await phoneInput.fill("+370 600 00001");
-
-    const sendBtn = page.getByRole("button", { name: /Siųsti kodą/i });
-    await expect(sendBtn).toBeEnabled({ timeout: 15_000 });
-    await sendBtn.click();
-
-    const otpInput = page.locator("#vauto-auth-otp");
-    await expect(otpInput).toBeVisible({ timeout: 15_000 });
-    await otpInput.fill("123456");
-
-    const confirmBtn = page.getByRole("button", { name: /Patvirtinti ir prisijungti/i });
-    await expect(confirmBtn).toBeEnabled();
-    await confirmBtn.click();
-
-    // Client-side redirect to manual mode opens the full editor for the
-    // INCOMPLETE seed draft (before the fix this modal never rendered).
     const modal = page.locator('[data-prepublish-modal="1"]');
     await expect(modal).toBeVisible({ timeout: 30_000 });
 
-    // The editor exposes editable core fields.
     await expect(modal.locator('input[type="text"]').first()).toBeVisible();
     await expect(modal.locator('input[type="number"]').first()).toBeVisible();
 
-    // INCOMPLETE draft cannot publish: the submit CTA stays disabled (no photos
-    // / no price) until the seller actually completes the listing.
+    // Incomplete draft cannot publish (no photos / no price).
     await expect(modal.locator('[data-prepublish-submit="1"]')).toBeDisabled();
+    await expect(page.locator('[data-manual-add-published="1"]')).toHaveCount(0);
+  });
 
-    // No auto-publish / no success plane.
-    await expect(page.locator(".animate-paper-plane-fly")).toHaveCount(0);
+  test("complete the manual form → publish → success + open listing", async ({ page }) => {
+    await installMocks(page);
+    await page.goto("/add", { waitUntil: "domcontentloaded" });
+
+    await expect(page.locator('[data-manual-add-auth]')).toBeVisible({ timeout: 30_000 });
+    await page.locator('[data-manual-add-auth]').click();
+    await authViaPhoneOtp(page);
+
+    const modal = page.locator('[data-prepublish-modal="1"]');
+    await expect(modal).toBeVisible({ timeout: 30_000 });
+
+    // Title (first text input), price, and a photo.
+    await modal.locator('input[type="text"]').first().fill("Dviratis");
+    await modal.locator('input[type="number"]').first().fill("150");
+
+    const fileInput = modal.locator('input[type="file"]').first();
+    await expect(fileInput).toBeVisible();
+    await fileInput.setInputFiles({
+      name: "cover.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+        "base64"
+      ),
+    });
+    await expect
+      .poll(async () => modal.locator("img").count(), { timeout: 15_000 })
+      .toBeGreaterThan(0);
+
+    // Publish becomes enabled once title + price + photo are present.
+    const submit = modal.locator('[data-prepublish-submit="1"]');
+    await expect(submit).toBeEnabled({ timeout: 20_000 });
+    await submit.click();
+
+    // Success view with the published listing + open action.
+    await expect(page.locator('[data-manual-add-published="1"]')).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator('[data-manual-add-open-listing]')).toBeVisible();
   });
 });
