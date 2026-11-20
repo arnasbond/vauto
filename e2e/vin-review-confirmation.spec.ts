@@ -139,8 +139,9 @@ async function installAgentStreamStub(
   page: Page,
   opts: {
     candidateFlowState: "DRAFT_READY" | "AWAITING_CONFIRMATION";
-    /** F9 fail-closed regression: emit a vehicles draft WITHOUT the now
-     *  required condition — the PrePublish card must stay closed. */
+    /** R5 — emit a vehicles draft WITHOUT condition. Condition is no longer a
+     *  publish blocker, so the PrePublish card may open once the (independent)
+     *  VIN review is resolved. */
     omitCondition?: boolean;
     /** F12/VIN adversarial: emit RAW vin/vinConfirmed attribute markers
      *  WITHOUT the trusted server `vinReview` payload — the trusted review
@@ -880,7 +881,7 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
     await expect(page.locator('[data-vin-review-card="1"]')).toHaveCount(0);
   });
 
-  test("F9 fail-closed: pilnas transporto draft be būklės → PrePublish kortelė lieka uždaryta", async ({ page }) => {
+  test("F12/VIN: pilnas transporto draft + VIN peržiūra → PrePublish kortelė lieka uždaryta iki sprendimo", async ({ page }) => {
     await forceOfflineCatalog(page);
     await seedDemoUser(page);
     const { sentAgentBodies } = await installAgentStreamStub(page, {
@@ -902,8 +903,9 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
       .poll(() => sentAgentBodies.length, { timeout: 15_000 })
       .toBeGreaterThan(0);
 
-    // The assistant reply is visible, but the incomplete vehicles draft
-    // (missing condition) must NEVER open the PrePublish modal:
+    // The assistant reply is visible; the pending VIN review (not the missing
+    // condition — R5 makes condition optional) keeps the PrePublish modal
+    // closed until the human decides:
     await expect(
       page.locator(".agent-chat-strip .agent-chat-bubble-assistant").filter({ hasText: "Nuotraukoje atpažinau VIN kandidatą" })
     ).toBeVisible({ timeout: 15_000 });
@@ -967,10 +969,12 @@ test.describe("Phase 2C R5 — server-scoped VIN confirmation (browser)", () => 
       expectModalAfterConfirm: true,
     },
     {
-      name: "AWAITING_CONFIRMATION + pendingVinReview + nepilnas draft (be būklės)",
+      // R5 — condition is no longer a publish blocker: a transport draft
+      // WITHOUT condition is still publish-ready after the VIN decision.
+      name: "AWAITING_CONFIRMATION + pendingVinReview + be būklės (R5: nebūtina)",
       flowState: "AWAITING_CONFIRMATION",
       omitCondition: true,
-      expectModalAfterConfirm: false,
+      expectModalAfterConfirm: true,
     },
   ];
 

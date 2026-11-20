@@ -52,7 +52,7 @@ const FIRST_TURN_ROWS: Array<{
       location: "Kaunas",
       attributes: { make: "BMW", model: "320d", year: "2015" },
     },
-    expectModal: false,
+    expectModal: true,
     expectPublishChip: false,
     reply:
       "Paruošiau juodraštį „BMW 320d 2015“. Jei turite, parašykite: būklę — arba atidarykite PrePublish kortelę ir patikrinkite.",
@@ -84,7 +84,7 @@ const FIRST_TURN_ROWS: Array<{
       location: "Kaunas",
       attributes: { deviceModel: "iPhone 15 Pro", storage: "256 GB", color: "Juoda" },
     },
-    expectModal: false,
+    expectModal: true,
     expectPublishChip: false,
     reply:
       "Paruošiau juodraštį „iPhone 15 Pro 256 GB“. Jei turite, parašykite: būklę — arba atidarykite PrePublish kortelę ir patikrinkite.",
