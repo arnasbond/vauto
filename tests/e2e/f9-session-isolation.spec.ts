@@ -71,7 +71,7 @@ test.describe("F9 — search/sell sesijos izoliacija", () => {
     // URL neturi senos paieškos query; atsidarė standalone manual forma.
     const url = new URL(page.url());
     expect(url.searchParams.get("q")).toBeNull();
-    expect(url.pathname).toBe("/add");
+    expect(url.pathname.replace(/\/$/, "") || "/").toBe("/add");
     await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible();
     // Jokių matomų ai-interpretation chips (paieškos konteksto) manual formoje.
     await expect(page.locator("[data-ai-interpretation]")).toBeHidden();
@@ -90,7 +90,7 @@ test.describe("F9 — search/sell sesijos izoliacija", () => {
     await openSellChat(page);
     const url = new URL(page.url());
     expect(url.searchParams.get("q")).toBeNull();
-    expect(url.pathname).toBe("/add");
+    expect(url.pathname.replace(/\/$/, "") || "/").toBe("/add");
     await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible();
   });
 
@@ -112,7 +112,7 @@ test.describe("F9 — search/sell sesijos izoliacija", () => {
     await openSellChat(page);
     const url = new URL(page.url());
     expect(url.searchParams.get("q")).toBeNull();
-    expect(url.pathname).toBe("/add");
+    expect(url.pathname.replace(/\/$/, "") || "/").toBe("/add");
     await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible();
   });
 
