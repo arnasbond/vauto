@@ -72,56 +72,27 @@ test.describe("VAUTO smoke", () => {
 
   test("add listing page shows guest gate for visitors", async ({ page }) => {
     await page.goto("/add/");
-    await expect(
-      page.getByText(/Prisijunkite|Prisijungti prie VAUTO/i).first()
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-manual-add-auth]')).toBeVisible({ timeout: 15_000 });
   });
 
-  test("add page opens agent listing shell for signed-in user", async ({ page }) => {
+  test("add page opens standalone manual form for signed-in user", async ({ page }) => {
     await seedDemoUser(page);
     await page.goto("/add/");
-    // /add redirects into home AI seller chat (instant static welcome).
-    await page
-      .waitForURL(
-        (url) => {
-          const p = url.pathname.replace(/\/$/, "") || "/";
-          return p === "/" || p === "";
-        },
-        { timeout: 20_000 }
-      )
-      .catch(() => undefined);
-    await expect(
-      page.getByText(/kontaktai jau paruošti|VAUTO asistentas|paruošti skelbimą/i).first()
-    ).toBeVisible({ timeout: 20_000 });
-    await expect(
-      page.getByRole("button", { name: /Pridėti failą/i }).first()
-    ).toBeVisible({ timeout: 10_000 });
+    // /add is a self-contained manual form — no redirect, no agent chat.
+    await expect(page.locator('[data-manual-add="1"]')).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible({ timeout: 20_000 });
   });
 
-  test("add listing page loads agent composer after static welcome", async ({
+  test("add listing page exposes manual form fields after load", async ({
     page,
   }) => {
     await seedDemoUser(page);
     await page.goto("/add/");
-    await page
-      .waitForURL(
-        (url) => {
-          const p = url.pathname.replace(/\/$/, "") || "/";
-          return p === "/" || p === "";
-        },
-        { timeout: 20_000 }
-      )
-      .catch(() => undefined);
-    await expect(
-      page.getByText(/kontaktai jau paruošti|VAUTO asistentas|paruošti skelbimą/i).first()
-    ).toBeVisible({ timeout: 20_000 });
-    await expect(
-      page
-        .locator(
-          ".agent-chat-composer input, form[aria-label*='asistent'] input, input[enterkeyhint='send']"
-        )
-        .first()
-    ).toBeEnabled({ timeout: 10_000 });
+    await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible({ timeout: 20_000 });
+    const modal = page.locator('[data-prepublish-modal="1"]');
+    await expect(modal.locator('input[type="text"]').first()).toBeVisible();
+    await expect(modal.locator('input[type="number"]').first()).toBeVisible();
+    await expect(modal.locator('input[type="file"]').first()).toBeVisible();
   });
 
   test("home search accepts input", async ({ page }) => {

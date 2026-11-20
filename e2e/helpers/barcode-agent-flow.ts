@@ -31,58 +31,26 @@ export async function mockUnregisteredBarcodeLookup(page: Page) {
   });
 }
 
-/** /add redirects into home AI seller chat — wait for photo CTA or opening shell. */
+/** Open the AI assistant (home) — the barcode/vision entry now lives in the assistant composer. */
 async function waitForAddListingPage(page: Page) {
-  await page
-    .waitForURL(
-      (url) => {
-        const p = url.pathname.replace(/\/$/, "") || "/";
-        return p === "/" || p === "" || p === "/add";
-      },
-      { timeout: 20_000 }
-    )
-    .catch(() => undefined);
-
-  const photoBtn = page
-    .getByRole("button", { name: /Pridėti failą|Įkelti nuotraukas/i })
-    .first();
-  const opening = page.getByRole("heading", {
-    name: /Atidarome VAUTO asistentą|Atidarome AI asistentą|Naujas skelbimas|Ką parduodate\?|Kelkite skelbimą/i,
-  });
-  await expect(photoBtn.or(opening).first()).toBeVisible({ timeout: 20_000 });
+  await page.goto("/");
+  await dismissTransientOverlays(page);
+  const search = page.getByRole("searchbox").first();
+  await expect(search).toBeVisible({ timeout: 20_000 });
 }
 
-/** /add barcode scan → home chat with proactive agent greeting and intent chips. */
+/** Barcode scan → home AI assistant chat with proactive agent greeting and intent chips. */
 export async function runUnregisteredBarcodeAgentFlow(page: Page) {
   await page.setViewportSize({ width: 390, height: 844 });
   await seedDemoUser(page);
-  await page.goto("/add/");
   await waitForAddListingPage(page);
   await acceptGdprConsentIfPrompted(page);
 
-  const barcodeBtn = page.getByRole("button", { name: /Skenuoti brūkšninį/i }).first();
-  if (!(await barcodeBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
-    // Legacy /add barcode shell removed — seller chat photo CTA is the gate.
-    await expect(
-      page.getByRole("button", { name: /Pridėti failą|Įkelti nuotraukas/i }).first()
-    ).toBeVisible({ timeout: 15_000 });
-    return;
-  }
-
-  await barcodeBtn.click();
-  await expect(page.getByRole("dialog", { name: /Brūkšninio kodo skaitymas/i })).toBeVisible({
-    timeout: 10_000,
-  });
-
-  await page.getByPlaceholder(/EAN/i).fill(TEST_BARCODE);
-  await page.getByRole("button", { name: "OK" }).click();
-  await expect(page.getByRole("dialog", { name: /Brūkšninio kodo skaitymas/i })).toBeHidden({
-    timeout: 10_000,
-  });
-
-  await page.waitForURL((url) => url.pathname === "/" || url.pathname === "", {
-    timeout: 15_000,
-  });
+  // R5 — the manual /add form has no barcode shell; the assistant (command bar)
+  // is the AI entry. Open it and confirm the proactive barcode agent greeting.
+  const search = page.getByRole("searchbox").first();
+  await search.fill(TEST_BARCODE);
+  await search.press("Enter");
 
   await dismissTransientOverlays(page);
 

@@ -414,15 +414,12 @@ async function installMediaUploadStub(page: Page) {
   return uploads;
 }
 
-/** Open the agent chat on the home page through the REAL app-shell UI. */
+/** Open the AI assistant on the home page and send the sell query via the hero command bar. */
 async function openAgentChatOnHome(page: Page) {
-  // The app shell (AppHeader) renders exactly one add-listing control per
-  // breakpoint; the other variant stays CSS-hidden. Filter to the visible one.
-  const addBtn = page
-    .locator('[data-app-header] [data-nav-add-listing]')
-    .filter({ visible: true });
-  await expect(addBtn).toBeVisible({ timeout: 20_000 });
-  await addBtn.click();
+  const search = page.getByRole("searchbox").first();
+  await expect(search).toBeVisible({ timeout: 20_000 });
+  await search.fill("Parduodu BMW");
+  await search.press("Enter");
   const strip = page.locator(".agent-chat-strip");
   await expect(strip).toBeVisible({ timeout: 20_000 });
   return strip;

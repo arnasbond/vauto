@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, PartyPopper, Plus } from "lucide-react";
+import { Camera, Loader2, PartyPopper, Plus, Sparkles } from "lucide-react";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
+import { HeroSection } from "@/components/HeroSection";
+import { SellerListingSteps } from "@/components/home/SellerListingSteps";
+import { HomeCategoryGrid } from "@/components/home/HomeCategoryGrid";
+import { CategorySchemaPreview } from "@/components/marketplace/CategorySchemaPreview";
 import { PrePublishModal, type PrePublishFieldPatch } from "@/components/home/PrePublishModal";
 import { useVauto } from "@/context/VautoContext";
 import { useAuth } from "@/context/AuthContext";
@@ -17,13 +21,19 @@ import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import { listingPath } from "@/lib/seo";
 import type { Listing, ListingCategory } from "@/lib/types";
 import type { PrePublishVisibilityId } from "@/lib/listing-publish-visibility";
+import {
+  addListingReturnPath,
+  getVertical,
+  parseAddListingSearch,
+  resolveVerticalId,
+} from "@vauto/shared/marketplace-domain";
 
 /**
- * R5 final — /add is a STANDALONE manual listing path. It is fully decoupled
- * from the AI assistant / chat lifecycle: no LLM, no SSE, no agent chat. The
- * user fills a simple form (photos, title, description, price or negotiable,
- * location, contact) and publishes through the shared authoritative
- * `publishListing` pipeline (POST /api/listings).
+ * R5 final — /add is a STANDALONE manual listing path. Signed-in users get a
+ * simple manual form (photos/title/price+negotiable/location/description/
+ * contact) published through the shared `publishListing` pipeline — no LLM, no
+ * agent chat. Guests see a login-gated entry; the AI assistant remains an
+ * optional helper reachable from the home command bar, never a mandatory step.
  */
 
 function AddShell({ children }: { children: React.ReactNode }) {
@@ -47,30 +57,6 @@ function LoadingShell() {
   );
 }
 
-function GuestShell({ onContinue }: { onContinue: () => void }) {
-  return (
-    <AddShell>
-      <div className="flex flex-col items-center gap-4 py-12 text-center">
-        <h1 className="font-display text-2xl font-bold text-[var(--vauto-text-main)]">
-          Įkelkite skelbimą
-        </h1>
-        <p className="max-w-sm text-sm leading-relaxed text-[var(--vauto-text-muted)]">
-          Nufotografuokite prekę, įrašykite antraštę, kainą ir vietą — publikuosite patys,
-          be AI asistento.
-        </p>
-        <button
-          type="button"
-          data-manual-add-auth
-          onClick={onContinue}
-          className="inline-flex min-h-12 w-full max-w-xs items-center justify-center rounded-2xl bg-[var(--vauto-primary,#10b981)] px-5 text-sm font-bold text-white"
-        >
-          Prisijungti ir įkelti
-        </button>
-      </div>
-    </AddShell>
-  );
-}
-
 function PublishedView({
   listing,
   onOpen,
@@ -82,10 +68,7 @@ function PublishedView({
 }) {
   return (
     <AddShell>
-      <div
-        className="flex flex-col items-center gap-4 py-12 text-center"
-        data-manual-add-published="1"
-      >
+      <div className="flex flex-col items-center gap-4 py-12 text-center" data-manual-add-published="1">
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[var(--vauto-primary)]/12">
           <PartyPopper className="h-8 w-8 text-[var(--vauto-primary)]" aria-hidden />
         </span>
@@ -122,7 +105,7 @@ export default function AddPage() {
   const router = useRouter();
   const { isAuthenticated, authHydrated, requireAuthForListing, showToast, buyerCoords } =
     useVauto();
-  const { user, openAuthModal } = useAuth();
+  const { user } = useAuth();
   const {
     aiDraft,
     sellerPreviewImage,
@@ -134,8 +117,28 @@ export default function AddPage() {
     finishPublishedFlow,
   } = useSellerFlow();
 
+  const [isFashion, setIsFashion] = useState(false);
+  const [selectedVertical, setSelectedVertical] = useState<string | null>(null);
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+  const [queryVertical, setQueryVertical] = useState<string | null>(null);
+  const [describeText, setDescribeText] = useState("");
   const seededRef = useRef(false);
   const [publishedListing, setPublishedListing] = useState<Listing | null>(null);
+  const selectedVerticalId = resolveVerticalId(selectedSlug || queryVertical);
+
+  useEffect(() => {
+    try {
+      const parsed = parseAddListingSearch(window.location.search);
+      setIsFashion(parsed.isFashion);
+      setQueryVertical(parsed.uiSlug);
+      if (parsed.verticalId && parsed.uiSlug) {
+        setSelectedSlug(parsed.uiSlug);
+        setSelectedVertical(getVertical(parsed.verticalId).label);
+      }
+    } catch {
+      setIsFashion(false);
+    }
+  }, []);
 
   // Seed a deterministic empty draft exactly once per authenticated visit.
   useEffect(() => {
@@ -143,11 +146,14 @@ export default function AddPage() {
     if (seededRef.current) return;
     seededRef.current = true;
     if (!aiDraft) {
-      applyAgentListingDraft(buildAiSellerListingSeed(user, { fashion: false }), undefined, "manual", {
-        replaceSession: true,
-      });
+      applyAgentListingDraft(
+        buildAiSellerListingSeed(user, { fashion: isFashion }),
+        undefined,
+        "manual",
+        { replaceSession: true }
+      );
     }
-  }, [authHydrated, isAuthenticated, aiDraft, user, applyAgentListingDraft]);
+  }, [authHydrated, isAuthenticated, aiDraft, user, isFashion, applyAgentListingDraft]);
 
   const readiness = useMemo(() => {
     if (!authHydrated || !aiDraft) return null;
@@ -241,20 +247,110 @@ export default function AddPage() {
     finishPublishedFlow();
     setPublishedListing(null);
     seededRef.current = true;
-    applyAgentListingDraft(buildAiSellerListingSeed(user, { fashion: false }), undefined, "manual", {
-      replaceSession: true,
-    });
+    applyAgentListingDraft(
+      buildAiSellerListingSeed(user, { fashion: false }),
+      undefined,
+      "manual",
+      { replaceSession: true }
+    );
   }, [finishPublishedFlow, user, applyAgentListingDraft]);
 
   if (!authHydrated) return <LoadingShell />;
 
   if (!isAuthenticated) {
+    const returnPath = "/add";
     return (
-      <GuestShell
-        onContinue={() => {
-          if (requireAuthForListing("/add")) router.push("/add");
-        }}
-      />
+      <VautoAdaptiveLayout>
+        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg" data-seller-funnel>
+          <HeroSection>
+            <h1 className="mt-6 text-left text-2xl font-bold text-[var(--vauto-text-main)]">
+              {isFashion ? "Spinta — naujas drabužis" : "Ką parduodate?"}
+            </h1>
+            <p className="mt-2 text-left text-sm leading-relaxed text-[var(--vauto-text-muted)]">
+              Nufotografuokite prekę arba trumpai aprašykite. VAUTO padės paruošti skelbimą.
+            </p>
+            <div className="mx-auto mt-5 flex w-full max-w-lg flex-col gap-3">
+              <button
+                type="button"
+                data-seller-start-photo
+                onClick={() => requireAuthForListing(returnPath)}
+                className="flex min-h-[11rem] w-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] px-5 text-[var(--ds-text-primary)] transition hover:border-[var(--ds-brand)]/50 hover:bg-[var(--ds-brand-soft)]"
+              >
+                <Camera className="h-11 w-11 text-[var(--ds-brand)]" aria-hidden />
+                <span className="text-base font-bold">Nufotografuokite prekę</span>
+                <span className="text-xs font-medium text-[var(--ds-text-muted)]">
+                  Galite pridėti daugiau nuotraukų
+                </span>
+              </button>
+
+              <p className="flex items-center gap-3 text-xs font-medium text-[var(--ds-text-muted)]">
+                <span className="h-px flex-1 bg-[var(--ds-border-subtle)]" aria-hidden />
+                arba
+                <span className="h-px flex-1 bg-[var(--ds-border-subtle)]" aria-hidden />
+              </p>
+
+              <input
+                type="text"
+                data-seller-describe
+                value={describeText}
+                onChange={(e) => setDescribeText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") requireAuthForListing(returnPath);
+                }}
+                placeholder="Aprašykite, ką parduodate…"
+                className="min-h-12 w-full rounded-2xl border border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] px-4 text-sm font-medium text-[var(--ds-text-primary)] outline-none placeholder:text-[var(--ds-text-muted)] focus:border-[var(--ds-brand)]"
+              />
+
+              <button
+                type="button"
+                data-seller-start-auth
+                onClick={() => requireAuthForListing(returnPath)}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl bg-[var(--ds-brand,#10b981)] px-5 text-sm font-bold text-white"
+              >
+                Prisijungti ir įkelti
+              </button>
+              <button
+                type="button"
+                data-seller-start-manual
+                data-manual-add-auth
+                onClick={() => requireAuthForListing("/add")}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-2xl border border-[var(--ds-border-strong)] bg-[var(--ds-surface-card)] px-5 text-sm font-bold text-[var(--ds-text-primary)]"
+              >
+                Užpildyti viską pačiam
+              </button>
+            </div>
+            <HomeCategoryGrid
+              className="mx-auto mt-8 max-w-lg"
+              onSelect={(_query, label, slug) => {
+                setSelectedVertical(label);
+                setSelectedSlug(slug);
+                requireAuthForListing(addListingReturnPath({ uiSlug: slug }));
+              }}
+            />
+            {selectedVertical ? (
+              <div className="mt-3 px-2">
+                <p
+                  className="text-center text-sm font-medium text-[var(--vauto-text-main)]"
+                  data-selected-vertical={selectedVertical}
+                >
+                  Pasirinkote: {selectedVertical}. Po prisijungimo aprašykite
+                  objektą laisvai
+                  {selectedVertical === "Elektronika"
+                    ? " (pvz. MacBook) — transporto laukai nebus rodomi."
+                    : "."}
+                </p>
+                {selectedVerticalId ? (
+                  <CategorySchemaPreview verticalId={selectedVerticalId} />
+                ) : null}
+              </div>
+            ) : null}
+            <SellerListingSteps className="mt-5" />
+            <p className="mt-4 text-center text-sm text-[var(--vauto-text-muted)]">
+              Prisijunkite, kad galėtumėte įkelti skelbimą.
+            </p>
+          </HeroSection>
+        </div>
+      </VautoAdaptiveLayout>
     );
   }
 
