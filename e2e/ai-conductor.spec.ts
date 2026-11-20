@@ -5,42 +5,19 @@ import {
   runUnregisteredBarcodeAgentFlow,
 } from "./helpers/barcode-agent-flow";
 
-/** /add redirects into home AI seller chat — wait for photo CTA (or opening shim). */
+/** /add is a standalone manual form — wait for the photo/file input. */
 async function waitForSellerAgentEntry(page: Page) {
-  await page
-    .waitForURL(
-      (url) => {
-        const p = url.pathname.replace(/\/$/, "") || "/";
-        return p === "/" || p === "";
-      },
-      { timeout: 20_000 }
-    )
-    .catch(() => undefined);
-
-  const photoBtn = page.getByRole("button", { name: /Pridėti failą/i }).first();
-  const opening = page.getByRole("heading", {
-    name: /Atidarome VAUTO asistentą|Atidarome AI asistentą/i,
-  });
-  await expect(photoBtn.or(opening)).toBeVisible({ timeout: 20_000 });
-  if (await photoBtn.isVisible().catch(() => false)) {
-    await expect(photoBtn).toBeVisible();
-  }
+  await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible({ timeout: 20_000 });
+  const fileInput = page.locator('[data-prepublish-modal="1"] input[type="file"]').first();
+  await expect(fileInput).toBeVisible({ timeout: 20_000 });
 }
 
 test.describe("AI conductor flows", () => {
-  test("add page exposes agent photo and barcode entry", async ({ page }) => {
+  test("add page exposes manual photo entry", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await seedDemoUser(page);
     await page.goto("/add/");
     await waitForSellerAgentEntry(page);
-    await expect(
-      page.getByRole("button", { name: /Pridėti failą/i }).first()
-    ).toBeVisible({ timeout: 10_000 });
-    // Barcode chip is optional on the lean 4-step seller greeting.
-    const barcodeBtn = page.getByRole("button", { name: /Skenuoti brūkšninį/i }).first();
-    if (await barcodeBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await expect(barcodeBtn).toBeVisible();
-    }
   });
 
   test("barcode registry miss shows proactive agent question and chips", async ({ page }) => {
