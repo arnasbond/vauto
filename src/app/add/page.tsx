@@ -367,18 +367,16 @@ export default function AddPage() {
   if (!card) return <LoadingShell />;
 
   return (
-    <div data-manual-add="1">
-      <PrePublishModal
-        open
-        card={card}
-        variant="manual"
-        publishing={isPublishingListing}
-        attributes={aiDraft?.attributes}
-        onClose={() => router.push("/")}
-        onPublish={handlePublish}
-        onGalleryChange={handleGalleryChange}
-        onFieldsChange={handleFieldsChange}
-      />
-    </div>
+    <PrePublishModal
+      open
+      card={card}
+      variant="manual"
+      publishing={isPublishingListing}
+      attributes={aiDraft?.attributes}
+      onClose={() => router.push("/")}
+      onPublish={handlePublish}
+      onGalleryChange={handleGalleryChange}
+      onFieldsChange={handleFieldsChange}
+    />
   );
 }

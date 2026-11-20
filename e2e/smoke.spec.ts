@@ -79,7 +79,6 @@ test.describe("VAUTO smoke", () => {
     await seedDemoUser(page);
     await page.goto("/add/");
     // /add is a self-contained manual form — no redirect, no agent chat.
-    await expect(page.locator('[data-manual-add="1"]')).toBeVisible({ timeout: 20_000 });
     await expect(page.locator('[data-prepublish-modal="1"]')).toBeVisible({ timeout: 20_000 });
   });
 
